@@ -1,0 +1,1310 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Prise de cotes — Placards</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --orange:#D95818; --orange-l:#F8ECE4; --orange-d:#AA4110;
+  --bg:#F2F0EC; --card:#FFF; --text:#141210; --muted:#6A6460;
+  --border:#D8D4CE; --border2:#B8B4AE;
+  --blue:#1454A0; --blue-l:#DCE8F8; --blue-d:#0D3D7A;
+  --green:#196B3B; --green-l:#E1F2E9;
+  --header-bg:#1A2B4A;
+  --r:8px; --rl:12px;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;}
+
+/* ── TOP BAR ── */
+.topbar{background:var(--header-bg);padding:0 16px;height:50px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:20;}
+.tb-logo{display:flex;align-items:center;gap:9px;}
+.tb-sq{width:26px;height:26px;background:var(--orange);border-radius:5px;display:flex;align-items:center;justify-content:center;}
+.tb-sq svg{width:13px;height:13px;fill:white;}
+.tb-name{font-family:'Syne',sans-serif;font-weight:700;font-size:14px;color:white;}
+.tb-right{display:flex;gap:8px;}
+
+/* ── MAIN ── */
+.main{padding:16px;max-width:1100px;margin:0 auto;}
+
+/* ── HEADER FICHE ── */
+.fiche-header{background:var(--card);border:1px solid var(--border);border-radius:var(--rl);padding:16px 20px;margin-bottom:14px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;}
+.fiche-logo-zone{display:flex;align-items:center;gap:10px;}
+.fiche-logo-box{width:44px;height:44px;background:var(--orange);border-radius:9px;display:flex;align-items:center;justify-content:center;}
+.fiche-logo-box svg{width:22px;height:22px;fill:white;}
+.fiche-co{font-family:'Syne',sans-serif;font-weight:800;font-size:15px;}
+.fiche-co-sub{font-size:10.5px;color:var(--muted);margin-top:1px;}
+.fiche-title-zone{flex:1;text-align:center;}
+.fiche-main-title{font-family:'Syne',sans-serif;font-weight:800;font-size:16px;letter-spacing:.3px;color:var(--header-bg);}
+.fiche-main-sub{font-size:11px;color:var(--muted);margin-top:2px;}
+.fiche-meta-zone{display:flex;flex-direction:column;gap:8px;min-width:240px;}
+.fiche-meta-row{display:flex;align-items:center;gap:8px;}
+.fiche-meta-label{font-size:11px;font-weight:500;color:var(--muted);white-space:nowrap;min-width:70px;}
+.fiche-meta-input{flex:1;padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;font-family:'DM Sans',sans-serif;background:var(--bg);outline:none;color:var(--text);}
+.fiche-meta-input:focus{border-color:var(--orange);background:white;}
+.fiche-ref-badge{background:var(--orange-l);color:var(--orange-d);border:1px solid #E8C4A8;border-radius:6px;padding:5px 11px;font-size:11.5px;font-weight:500;white-space:nowrap;}
+
+/* ── PLINTHE BLOC ── */
+.plinthe-bloc{background:var(--card);border:1px solid var(--border);border-radius:var(--rl);padding:13px 18px;margin-bottom:14px;display:flex;align-items:center;gap:20px;flex-wrap:wrap;}
+.plinthe-label{font-size:12px;font-weight:500;color:var(--muted);white-space:nowrap;}
+.plinthe-title{font-family:'Syne',sans-serif;font-weight:700;font-size:13px;color:var(--text);margin-right:4px;}
+.plinthe-cases{display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
+.pcase{display:flex;align-items:center;gap:8px;padding:8px 14px;border-radius:var(--r);border:1.5px solid var(--border);cursor:pointer;transition:.15s;user-select:none;}
+.pcase:hover{border-color:var(--muted);}
+.pcase.active-gen{border-color:var(--green);background:var(--green-l);}
+.pcase.active-att{border-color:#C8860A;background:#FDF0D6;}
+.pcase-check{width:18px;height:18px;border-radius:4px;border:1.5px solid var(--border2);display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:.15s;}
+.pcase.active-gen .pcase-check{background:var(--green);border-color:var(--green);}
+.pcase.active-att .pcase-check{background:#C8860A;border-color:#C8860A;}
+.pcase-check svg{display:none;width:10px;height:10px;}
+.pcase.active-gen .pcase-check svg,.pcase.active-att .pcase-check svg{display:block;}
+.pcase-text{font-size:13px;font-weight:500;}
+.pcase.active-gen .pcase-text{color:var(--green);}
+.pcase.active-att .pcase-text{color:#7A4200;}
+.pcase-sub{font-size:11px;color:var(--muted);margin-top:1px;}
+/* Zone généralité étendue */
+.plinthe-gen-zone{display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:var(--green-l);border:1.5px solid #B8DFC9;border-radius:var(--r);padding:10px 14px;}
+.plinthe-gen-input{display:flex;align-items:center;gap:7px;}
+.plinthe-gen-input input{width:90px;padding:7px 10px;border:1.5px solid var(--green);border-radius:6px;font-size:15px;font-family:'Syne',sans-serif;font-weight:700;text-align:center;background:white;color:var(--green);outline:none;}
+.plinthe-gen-input input:focus{box-shadow:0 0 0 3px rgba(25,107,59,.15);}
+.plinthe-gen-input input.input-error{border-color:var(--red)!important;background:var(--red-l)!important;}
+.plinthe-gen-input span{font-size:12px;color:var(--green);font-weight:500;}
+.sep-or{font-size:11.5px;color:var(--green);font-weight:600;padding:0 2px;}
+.non-posee-toggle{display:flex;align-items:center;gap:7px;padding:7px 13px;border:1.5px solid #B8DFC9;border-radius:6px;cursor:pointer;background:white;transition:.15s;user-select:none;}
+.non-posee-toggle:hover{border-color:var(--amber);}
+.non-posee-toggle.active{border-color:var(--amber);background:var(--amber-l);}
+.np-check{width:16px;height:16px;border-radius:3px;border:1.5px solid var(--border2);display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:.15s;}
+.non-posee-toggle.active .np-check{background:var(--amber);border-color:var(--amber);}
+.np-check svg{display:none;width:9px;height:9px;}
+.non-posee-toggle.active .np-check svg{display:block;}
+.non-posee-toggle span{font-size:12.5px;font-weight:500;color:var(--muted);}
+.non-posee-toggle.active span{color:var(--amber);}
+.att-badge{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;background:#FDF0D6;color:#7A4200;border-radius:20px;font-size:11.5px;font-weight:600;border:1px solid #C8860A;}
+.att-badge svg{width:12px;height:12px;}
+/* ── VALIDATION ── */
+.ti.field-error{border-color:var(--red)!important;background:#FFF0F0!important;animation:shake .3s;}
+.sf-toggle.field-error{outline:2px solid var(--red);border-radius:6px;}
+.required-star{color:var(--red);font-size:10px;margin-left:1px;vertical-align:super;}
+.validation-banner{background:var(--red-l);border:1px solid #EFC0C0;border-radius:var(--r);padding:10px 14px;margin-bottom:12px;display:none;font-size:13px;color:var(--red);align-items:center;gap:8px;}
+.validation-banner.show{display:flex;}
+.validation-banner svg{width:15px;height:15px;flex-shrink:0;}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
+
+/* ── TOOLBAR ── */
+.toolbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;}
+.toolbar-left{display:flex;gap:7px;align-items:center;flex-wrap:wrap;}
+.toolbar-right{display:flex;gap:7px;}
+
+/* ── BUTTONS ── */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:9px 15px;border-radius:var(--r);font-size:13.5px;font-weight:500;cursor:pointer;border:none;font-family:'DM Sans',sans-serif;transition:.15s;}
+.btn-primary{background:var(--orange);color:white;}.btn-primary:hover{background:var(--orange-d);}
+.btn-secondary{background:var(--card);color:var(--text);border:1px solid var(--border);}.btn-secondary:hover{background:var(--bg);}
+.btn-blue{background:var(--blue);color:white;}.btn-blue:hover{background:var(--blue-d);}
+.btn-ghost{background:transparent;color:var(--muted);padding:8px 10px;}.btn-ghost:hover{background:var(--bg);color:var(--text);}
+.btn svg{width:14px;height:14px;}
+.btn-lg{padding:11px 18px;font-size:14px;}
+
+/* ── COUNTER ── */
+.row-counter{background:var(--blue-l);color:var(--blue);border-radius:20px;padding:4px 12px;font-size:12px;font-weight:500;}
+
+/* ── TABLE WRAPPER ── */
+.table-wrap{background:var(--card);border:1px solid var(--border);border-radius:var(--rl);overflow:hidden;margin-bottom:16px;}
+
+/* ── TABLE ── */
+.cotes-table{width:100%;border-collapse:collapse;min-width:760px;}
+
+/* Group headers */
+.th-group{padding:7px 10px;font-family:'Syne',sans-serif;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;text-align:center;border-bottom:1px solid var(--border);}
+.th-id{background:#F7F5F1;color:var(--muted);border-right:1px solid var(--border);width:70px;}
+.th-facade{background:#EBF1FA;color:var(--blue-d);border-right:1px solid var(--border);}
+.th-amenag{background:#E8F4EE;color:var(--green);border-right:1px solid var(--border);}
+.th-penderie{background:var(--orange-l);color:var(--orange-d);}
+.th-plinthe{background:#FDF6E8;color:#7A4200;border-left:1px solid var(--border);}
+
+/* Col headers */
+.cotes-table thead tr:nth-child(2) th{
+  padding:8px 6px;font-size:10.5px;font-weight:500;color:var(--muted);
+  background:var(--bg);border-bottom:2px solid var(--border2);text-align:center;
+  line-height:1.3;
+}
+.cotes-table thead tr:nth-child(2) th.col-id{text-align:left;padding-left:12px;}
+.col-sep{border-right:1px solid var(--border2)!important;}
+
+/* Rows */
+.cotes-table tbody tr{transition:.1s;}
+.cotes-table tbody tr:hover{background:#FAFAF7;}
+.cotes-table tbody tr:nth-child(even){background:#FDFCFA;}
+.cotes-table tbody tr:nth-child(even):hover{background:#F7F5F0;}
+.cotes-table tbody td{border-bottom:1px solid var(--border);padding:4px 4px;vertical-align:middle;}
+.cotes-table tbody td.col-sep{border-right:1px solid var(--border2);}
+.cotes-table tbody td.td-id{padding:4px 12px;font-size:12px;font-weight:500;white-space:nowrap;color:var(--muted);}
+
+/* Inputs inside table */
+.ti{width:100%;padding:8px 8px;border:1px solid transparent;border-radius:6px;font-size:14px;font-family:'DM Sans',sans-serif;color:var(--text);background:transparent;outline:none;text-align:center;transition:.15s;min-width:0;}
+.ti:focus{border-color:var(--orange);background:white;box-shadow:0 0 0 3px rgba(217,88,24,.1);}
+.ti:hover:not(:focus){border-color:var(--border);background:#FAFAF8;}
+.ti-left{text-align:left;}
+.ti-num{font-family:'Syne',sans-serif;font-weight:600;font-size:15px;}
+
+/* Sol fini / Chape toggle */
+.sf-toggle{display:flex;gap:4px;justify-content:center;}
+.sf-btn{padding:5px 9px;border-radius:5px;font-size:12px;font-weight:600;cursor:pointer;border:1.5px solid var(--border);background:var(--bg);color:var(--muted);transition:.15s;font-family:'Syne',sans-serif;}
+.sf-btn:hover{border-color:var(--muted);}
+.sf-btn.active-f{background:var(--blue-l);color:var(--blue-d);border-color:var(--blue);}
+.sf-btn.active-c{background:#FDF0D6;color:#7A4200;border-color:#C8860A;}
+
+/* Penderie toggle */
+.pend-toggle{display:flex;gap:4px;justify-content:center;}
+.pend-btn{padding:5px 10px;border-radius:5px;font-size:12px;font-weight:600;cursor:pointer;border:1.5px solid var(--border);background:var(--bg);color:var(--muted);transition:.15s;font-family:'Syne',sans-serif;}
+.pend-btn:hover{border-color:var(--muted);}
+.pend-btn.active{background:var(--orange-l);color:var(--orange-d);border-color:var(--orange);}
+
+/* Row num */
+.row-num{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;background:var(--bg);border:1px solid var(--border);border-radius:50%;font-size:10.5px;color:var(--muted);font-weight:500;}
+
+/* Delete row */
+.del-row{background:none;border:none;cursor:pointer;color:var(--border2);padding:4px;border-radius:5px;transition:.15s;display:flex;align-items:center;}
+.del-row:hover{color:var(--orange-d);background:var(--orange-l);}
+.del-row svg{width:14px;height:14px;}
+
+/* Photo column */
+.photo-cell{width:48px;text-align:center;}
+.photo-mini-btn{width:30px;height:30px;border-radius:6px;background:var(--bg);border:1px solid var(--border);cursor:pointer;display:flex;align-items:center;justify-content:center;margin:0 auto;transition:.15s;}
+.photo-mini-btn:hover{border-color:var(--orange);background:var(--orange-l);}
+.photo-mini-btn svg{width:14px;height:14px;color:var(--muted);}
+.photo-mini-btn.has-photo{background:var(--blue-l);border-color:var(--blue);}
+.photo-mini-btn.has-photo svg{color:var(--blue);}
+.photo-count{font-size:9px;color:var(--blue);text-align:center;margin-top:1px;}
+
+/* ── ADD ROW BTN ── */
+.add-row-btn{display:flex;align-items:center;gap:8px;padding:12px 16px;color:var(--orange);cursor:pointer;font-size:13.5px;font-weight:500;border-top:1px solid var(--border);transition:.15s;background:transparent;width:100%;border:none;font-family:'DM Sans',sans-serif;}
+.add-row-btn:hover{background:#FEF8F4;}
+.add-row-btn svg{width:16px;height:16px;}
+
+/* ── SUMMARY ── */
+.summary-bar{background:var(--card);border:1px solid var(--border);border-radius:var(--rl);padding:14px 18px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:14px;}
+.sum-item{display:flex;flex-direction:column;gap:2px;}
+.sum-val{font-family:'Syne',sans-serif;font-size:20px;font-weight:700;}
+.sum-lbl{font-size:11px;color:var(--muted);}
+
+/* ── SEND ZONE ── */
+.send-zone{background:var(--card);border:1px solid var(--border);border-radius:var(--rl);padding:16px 20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;}
+.send-info{display:flex;flex-direction:column;gap:3px;}
+.send-title{font-family:'Syne',sans-serif;font-weight:700;font-size:14px;}
+.send-sub{font-size:12px;color:var(--muted);}
+.send-targets{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;align-items:center;}
+.stag{display:inline-flex;align-items:center;gap:5px;padding:5px 11px;border-radius:20px;font-size:12px;font-weight:500;}
+.stag-default{background:var(--header-bg);color:white;}
+.stag-default svg{width:11px;height:11px;}
+.stag-extra{background:var(--blue-l);color:var(--blue-d);border:1px solid #B4CFF0;}
+.stag-extra svg{width:11px;height:11px;}
+.stag-rm{background:none;border:none;cursor:pointer;color:inherit;opacity:.7;padding:0;display:flex;align-items:center;margin-left:2px;}
+.stag-rm:hover{opacity:1;}
+.stag-rm svg{width:10px;height:10px;}
+.btn-add-dest{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;font-size:12px;font-weight:500;cursor:pointer;border:1.5px dashed var(--border2);background:transparent;color:var(--muted);font-family:'DM Sans',sans-serif;transition:.15s;}
+.btn-add-dest:hover{border-color:var(--orange);color:var(--orange);background:var(--orange-l);}
+.btn-add-dest svg{width:11px;height:11px;}
+.send-btns{display:flex;gap:8px;flex-wrap:wrap;}
+
+/* ── MODAL DESTINATAIRES ── */
+.dest-modal{max-width:500px;}
+.dest-search{display:flex;align-items:center;gap:8px;background:var(--bg);border:1px solid var(--border);border-radius:var(--r);padding:8px 12px;margin-bottom:14px;}
+.dest-search svg{width:14px;height:14px;color:var(--muted);flex-shrink:0;}
+.dest-search input{border:none;background:transparent;font-family:'DM Sans',sans-serif;font-size:13.5px;color:var(--text);width:100%;outline:none;}
+.dest-list{display:flex;flex-direction:column;gap:5px;max-height:320px;overflow-y:auto;}
+.dest-item{display:flex;align-items:center;gap:11px;padding:10px 13px;border:1.5px solid var(--border);border-radius:var(--r);cursor:pointer;transition:.15s;}
+.dest-item:hover{border-color:var(--muted);}
+.dest-item.selected{border-color:var(--blue);background:var(--blue-l);}
+.dest-item.disabled{opacity:.45;cursor:default;pointer-events:none;}
+.dest-av{width:32px;height:32px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-family:'Syne',sans-serif;font-size:11px;font-weight:700;flex-shrink:0;}
+.dest-name{font-size:13.5px;font-weight:500;}
+.dest-role{font-size:11.5px;color:var(--muted);}
+.dest-check{margin-left:auto;width:20px;height:20px;border-radius:50%;border:2px solid var(--border);display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:.15s;}
+.dest-item.selected .dest-check{background:var(--blue);border-color:var(--blue);}
+.dest-check svg{display:none;width:10px;height:10px;}
+.dest-item.selected .dest-check svg{display:block;}
+.dest-default-label{font-size:10.5px;color:var(--orange-d);background:var(--orange-l);padding:2px 7px;border-radius:10px;font-weight:500;margin-left:auto;flex-shrink:0;}
+
+/* ── PDF MODAL ── */
+.modal-overlay{position:fixed;inset:0;background:rgba(20,18,16,.55);z-index:100;display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto;opacity:0;pointer-events:none;transition:.2s;}
+.modal-overlay.open{opacity:1;pointer-events:all;}
+.modal{background:var(--card);border-radius:var(--rl);width:100%;max-width:900px;transform:translateY(8px);transition:.2s;}
+.modal-overlay.open .modal{transform:translateY(0);}
+.modal-head{padding:18px 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.modal-title{font-family:'Syne',sans-serif;font-weight:700;font-size:16px;}
+.modal-close{width:28px;height:28px;border-radius:7px;border:1px solid var(--border);background:none;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+.modal-close svg{width:13px;height:13px;}
+.modal-body{padding:20px 22px;}
+
+/* ── PDF PREVIEW ── */
+.pdf-doc{background:white;padding:24px 28px;border:1px solid var(--border);border-radius:var(--r);}
+.pdf-top{display:flex;align-items:center;justify-content:space-between;padding-bottom:12px;border-bottom:3px solid var(--header-bg);margin-bottom:14px;}
+.pdf-co{font-family:'Syne',sans-serif;font-weight:800;font-size:14px;color:var(--header-bg);}
+.pdf-co-sub{font-size:9px;color:var(--muted);}
+.pdf-doc-title{font-family:'Syne',sans-serif;font-weight:800;font-size:13px;color:var(--header-bg);text-align:center;}
+.pdf-meta-row{display:flex;gap:20px;align-items:center;font-size:11px;margin-top:6px;}
+.pdf-meta-item{display:flex;gap:5px;align-items:center;}
+.pdf-meta-label{color:var(--muted);}
+.pdf-meta-val{font-weight:500;}
+
+/* PDF table */
+.pdf-table{width:100%;border-collapse:collapse;font-size:11px;margin-top:12px;}
+.pdf-table th{padding:5px 7px;background:var(--header-bg);color:white;font-weight:600;text-align:center;font-size:10px;letter-spacing:.4px;}
+.pdf-table th.th-left{text-align:left;}
+.pdf-table td{padding:6px 7px;border:1px solid var(--border);text-align:center;font-size:11.5px;}
+.pdf-table td.td-left{text-align:left;}
+.pdf-table tbody tr:nth-child(even) td{background:#F7F5F1;}
+.pdf-table .grp-facade{background:#EBF1FA;color:var(--blue-d);font-weight:600;}
+.pdf-table .grp-amenag{background:#E8F4EE;color:var(--green);font-weight:600;}
+.pdf-table .grp-pend{background:var(--orange-l);color:var(--orange-d);font-weight:600;}
+
+/* ── TOAST ── */
+.toast{position:fixed;bottom:16px;right:16px;background:var(--text);color:white;padding:11px 15px;border-radius:var(--r);font-size:13px;font-weight:500;z-index:300;display:flex;align-items:center;gap:9px;transform:translateY(70px);opacity:0;transition:.25s;max-width:320px;}
+.toast.show{transform:translateY(0);opacity:1;}
+.toast svg{width:14px;height:14px;}
+
+/* ── RESPONSIVE ── */
+.table-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+@media(max-width:700px){
+  .fiche-title-zone{order:3;width:100%;text-align:left;}
+  .fiche-meta-zone{min-width:100%;width:100%;}
+  .main{padding:10px;}
+  .summary-bar{gap:12px;}
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="tb-logo">
+    <div class="tb-sq"><svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></div>
+    <div class="tb-name">ChantierPro</div>
+  </div>
+  <div class="tb-right">
+    <button class="btn btn-secondary" style="padding:6px 12px;font-size:12.5px" onclick="openPreview()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+      Aperçu document
+    </button>
+  </div>
+</div>
+
+<div class="main">
+
+  <!-- HEADER FICHE -->
+  <div class="fiche-header">
+    <div class="fiche-logo-zone">
+      <div class="fiche-logo-box"><svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></div>
+      <div><div class="fiche-co">Votre Entreprise</div><div class="fiche-co-sub">Menuiserie · Charpente · Agencement</div></div>
+    </div>
+    <div class="fiche-title-zone">
+      <div class="fiche-main-title">PRISE DE COTES — FAÇADES & AMÉNAGEMENT PLACARDS</div>
+      <div class="fiche-main-sub">Document unique — toutes pièces du chantier</div>
+    </div>
+    <div class="fiche-meta-zone">
+      <div class="fiche-meta-row">
+        <span class="fiche-meta-label">Chantier <span class="required-star">*</span></span>
+        <input class="fiche-meta-input" id="meta-chantier" placeholder="Résidence Les Pins — C001">
+      </div>
+      <div class="fiche-meta-row">
+        <span class="fiche-meta-label">Bâtiment</span>
+        <input class="fiche-meta-input" id="meta-batiment" placeholder="Ex : Bât. A, Maison 3…">
+      </div>
+      <div class="fiche-meta-row">
+        <span class="fiche-meta-label">Étage</span>
+        <input class="fiche-meta-input" id="meta-etage" placeholder="Ex : RDC, R+1, R+2…">
+      </div>
+      <div class="fiche-meta-row">
+        <span class="fiche-meta-label">Rédigé par <span class="required-star">*</span></span>
+        <select class="fiche-meta-input" id="meta-auteur" style="cursor:pointer">
+          <option value="">-- Choisir --</option>
+        </select>
+      </div>
+      <div class="fiche-meta-row">
+        <span class="fiche-meta-label">Date</span>
+        <input type="date" class="fiche-meta-input" id="meta-date" value="2026-03-26">
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:5px;align-items:flex-end">
+      <div class="fiche-ref-badge" id="fiche-ref">PC-2026-010</div>
+      <div style="font-size:10.5px;color:var(--muted)">Numérotation auto</div>
+    </div>
+  </div>
+
+  <!-- BLOC PLINTHE -->
+  <div class="plinthe-bloc" id="plinthBloc">
+    <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+      <div style="width:30px;height:30px;background:var(--orange-l);border-radius:7px;display:flex;align-items:center;justify-content:center">
+        <svg viewBox="0 0 24 24" fill="none" stroke="var(--orange)" stroke-width="2.5" width="15" height="15"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><line x1="3" y1="20" x2="21" y2="20"/></svg>
+      </div>
+      <div>
+        <div class="plinthe-title">Hauteur de plinthe</div>
+        <div style="font-size:11px;color:var(--muted)">Choisir le mode</div>
+      </div>
+    </div>
+
+    <div class="plinthe-cases">
+      <div class="pcase" id="pcase-gen" onclick="selectPlintheMode('gen')">
+        <div class="pcase-check"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>
+        <div><div class="pcase-text">Généralité</div><div class="pcase-sub">Même hauteur partout</div></div>
+      </div>
+      <div class="pcase" id="pcase-att" onclick="selectPlintheMode('att')">
+        <div class="pcase-check"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>
+        <div><div class="pcase-text">⚠ Attention</div><div class="pcase-sub">Hauteurs variables</div></div>
+      </div>
+    </div>
+
+    <!-- Zone généralité : hauteur unique + case non posée -->
+    <div class="plinthe-gen-zone" id="plinthe-gen-zone" style="display:none">
+      <div class="plinthe-gen-input">
+        <input type="number" id="plinthe-gen-val" placeholder="ex: 100" oninput="updatePlinthGen();clearGenError()">
+        <span>mm</span>
+      </div>
+      <span class="sep-or">OU</span>
+      <div class="non-posee-toggle" id="non-posee-toggle" onclick="toggleNonPosee()">
+        <div class="np-check"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>
+        <span>Non posée</span>
+      </div>
+      <div id="plinthe-gen-error" style="display:none;font-size:11px;color:var(--red);margin-left:4px">
+        ⚠ Indiquez une hauteur ou cochez "Non posée"
+      </div>
+    </div>
+
+    <!-- Zone attention -->
+    <div id="plinthe-att-zone" style="display:none">
+      <div class="att-badge">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        Colonne "Plinthe (mm)" ajoutée dans le tableau
+      </div>
+    </div>
+  </div>
+
+  <!-- BANNIÈRE VALIDATION -->
+  <div class="validation-banner" id="validationBanner">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+    <span id="validationMsg">Certains champs obligatoires sont manquants.</span>
+  </div>
+
+  <!-- TOOLBAR -->
+  <div class="toolbar">
+    <div class="toolbar-left">
+      <span class="row-counter" id="row-counter">0 ligne(s)</span>
+      <button class="btn btn-secondary" onclick="addRow()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Ajouter une ligne
+      </button>
+      <button class="btn btn-ghost" onclick="clearAll()" title="Effacer tout">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/></svg>
+        Tout effacer
+      </button>
+    </div>
+    <div class="toolbar-right">
+      <button class="btn btn-secondary" onclick="openPreview()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+        Aperçu PDF
+      </button>
+    </div>
+  </div>
+
+  <!-- TABLE -->
+  <div class="table-wrap">
+    <div class="table-scroll">
+      <table class="cotes-table" id="cotesTable">
+        <thead>
+          <tr>
+            <th class="th-group th-id" rowspan="2" style="vertical-align:middle;text-align:left;padding-left:12px;">N°<span class="required-star">*</span> / Pièce</th>
+            <th class="th-group th-facade" colspan="4">FAÇADE</th>
+            <th class="th-group th-amenag" colspan="2">AMÉNAGEMENT</th>
+            <th class="th-group th-penderie" colspan="2">CÔTE PENDERIE</th>
+            <th class="th-group th-plinthe" id="th-plinthe-group" rowspan="2" style="vertical-align:middle;min-width:90px;display:none">
+              PLINTHE<br><span style="font-size:9px;font-weight:400">(mm)</span>
+            </th>
+            <th class="th-group th-id" rowspan="2" style="vertical-align:middle;width:40px">📷</th>
+            <th class="th-group th-id" rowspan="2" style="vertical-align:middle;width:36px"></th>
+          </tr>
+          <tr>
+            <!-- Façade -->
+            <th class="col-sep" style="min-width:110px">Hauteur<span class="required-star">*</span><br><span style="font-size:9.5px;font-weight:400">(mm)</span></th>
+            <th style="min-width:80px;font-size:9.5px">Sol fini = F<span class="required-star">*</span><br>Sur chape = C</th>
+            <th style="min-width:120px">Mur à mur<span class="required-star">*</span><br><span style="font-size:9.5px;font-weight:400">HAUT (mm)</span></th>
+            <th class="col-sep" style="min-width:120px">Plinthe à plinthe<br><span style="font-size:9.5px;font-weight:400">BAS (mm)</span></th>
+            <!-- Aménagement -->
+            <th style="min-width:100px">Long.<span class="required-star">*</span><br><span style="font-size:9.5px;font-weight:400">(mm)</span></th>
+            <th class="col-sep" style="min-width:100px">Prof.<br><span style="font-size:9.5px;font-weight:400">(mm)</span></th>
+            <!-- Penderie -->
+            <th style="min-width:80px">Gauche</th>
+            <th style="min-width:80px">Droite</th>
+          </tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+    </div>
+    <button class="add-row-btn" onclick="addRow()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      Ajouter une ligne (logement / pièce)
+    </button>
+  </div>
+
+  <!-- SUMMARY -->
+  <div class="summary-bar">
+    <div class="sum-item"><div class="sum-val" id="sum-lignes" style="color:var(--blue)">0</div><div class="sum-lbl">Lignes saisies</div></div>
+    <div style="width:1px;height:30px;background:var(--border)"></div>
+    <div class="sum-item"><div class="sum-val" id="sum-sf" style="color:var(--orange)">0</div><div class="sum-lbl">Sol fini (F)</div></div>
+    <div class="sum-item"><div class="sum-val" id="sum-sc" style="color:#9A6200">0</div><div class="sum-lbl">Sur chape (C)</div></div>
+    <div style="width:1px;height:30px;background:var(--border)"></div>
+    <div class="sum-item"><div class="sum-val" id="sum-pg" style="color:var(--green)">0</div><div class="sum-lbl">Penderies gauche</div></div>
+    <div class="sum-item"><div class="sum-val" id="sum-pd" style="color:var(--green)">0</div><div class="sum-lbl">Penderies droite</div></div>
+    <div style="margin-left:auto;text-align:right">
+      <div style="font-size:11.5px;color:var(--muted)">Chantier</div>
+      <div style="font-size:13.5px;font-weight:500" id="sum-chantier">—</div>
+      <div style="font-size:11.5px;color:var(--muted);margin-top:3px" id="sum-localisation" style="display:none"></div>
+    </div>
+  </div>
+
+  <!-- SEND ZONE -->
+  <div class="send-zone">
+    <div class="send-info" style="flex:1;min-width:0">
+      <div class="send-title">Valider et diffuser le document</div>
+      <div class="send-sub">Alerte in-app — aucun mail requis · Conducteur du chantier alerté par défaut</div>
+      <div class="send-targets" id="send-targets-list">
+        <!-- injecté par JS -->
+      </div>
+    </div>
+    <div class="send-btns">
+      <button class="btn btn-secondary btn-lg" onclick="openPreview()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+        Aperçu PDF
+      </button>
+      <button class="btn btn-primary btn-lg" onclick="sendDoc()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
+        Envoyer l'alerte
+      </button>
+    </div>
+  </div>
+
+</div>
+
+<!-- ══ MODAL DESTINATAIRES ══ -->
+<div class="modal-overlay" id="destModal">
+  <div class="modal dest-modal">
+    <div class="modal-head">
+      <div>
+        <div class="modal-title">Destinataires de l'alerte</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:2px">Le conducteur du chantier est toujours inclus par défaut</div>
+      </div>
+      <button class="modal-close" onclick="closeDestModal()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div style="padding:16px 22px 0">
+      <div class="dest-search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" id="dest-search-input" placeholder="Rechercher un utilisateur…" oninput="filterDestList()">
+      </div>
+      <div class="dest-list" id="dest-list"></div>
+    </div>
+    <div style="padding:16px 22px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px;margin-top:14px">
+      <button class="btn btn-secondary" onclick="closeDestModal()">Annuler</button>
+      <button class="btn btn-primary" onclick="applyDest()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+        Confirmer
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ PDF PREVIEW MODAL ══ -->
+<div class="modal-overlay" id="pdfModal">
+  <div class="modal">
+    <div class="modal-head">
+      <div class="modal-title">Aperçu du document — Prise de cotes placards</div>
+      <button class="modal-close" onclick="closePreview()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <div class="pdf-doc" id="pdfContent"></div>
+      <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px">
+        <button class="btn btn-secondary" onclick="closePreview()">Fermer</button>
+        <button class="btn btn-primary" onclick="sendDoc();closePreview()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
+          Envoyer l'alerte
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg><span id="toastMsg">OK</span></div>
+
+<script>
+// ── STATE ──
+let rows = [];
+let rowCounter = 0;
+let plinthMode = ''; // '' | 'gen' | 'att'
+let plinthNonPosee = false;
+
+// ── PLINTHE MODE ──
+function selectPlintheMode(mode) {
+  plinthMode = plinthMode === mode ? '' : mode;
+  plinthNonPosee = false;
+
+  const gen = document.getElementById('pcase-gen');
+  const att = document.getElementById('pcase-att');
+  const genZone = document.getElementById('plinthe-gen-zone');
+  const attZone = document.getElementById('plinthe-att-zone');
+  const thPlinthe = document.getElementById('th-plinthe-group');
+
+  gen.className = 'pcase' + (plinthMode==='gen' ? ' active-gen' : '');
+  att.className = 'pcase' + (plinthMode==='att' ? ' active-att' : '');
+  genZone.style.display = plinthMode==='gen' ? 'flex' : 'none';
+  attZone.style.display = plinthMode==='att' ? 'flex' : 'none';
+  thPlinthe.style.display = plinthMode==='att' ? '' : 'none';
+
+  if(plinthMode==='gen') updatePlinthGen();
+  renderTable();
+}
+
+function updatePlinthGen() {
+  const val = document.getElementById('plinthe-gen-val').value;
+  // Si une valeur est saisie, désactiver "non posée"
+  if(val) {
+    plinthNonPosee = false;
+    document.getElementById('non-posee-toggle').classList.remove('active');
+  }
+  rows.forEach(r => r.plinthe = val);
+}
+
+function toggleNonPosee() {
+  plinthNonPosee = !plinthNonPosee;
+  document.getElementById('non-posee-toggle').classList.toggle('active', plinthNonPosee);
+  if(plinthNonPosee) {
+    // Vider le champ hauteur si on coche non posée
+    document.getElementById('plinthe-gen-val').value = '';
+    rows.forEach(r => r.plinthe = 'Non posée');
+  } else {
+    rows.forEach(r => r.plinthe = '');
+  }
+  clearGenError();
+}
+
+function clearGenError() {
+  document.getElementById('plinthe-gen-error').style.display = 'none';
+  document.getElementById('plinthe-gen-val').style.borderColor = '';
+}
+
+// ── VALIDATION ──
+
+// Valide l'en-tête (chantier + rédigé par)
+function validateHeader() {
+  let ok = true;
+  const chantierInp = document.getElementById('meta-chantier');
+  const auteurInp   = document.getElementById('meta-auteur');
+  if(!chantierInp.value.trim()) {
+    chantierInp.style.borderColor = 'var(--red)';
+    chantierInp.style.background  = '#FFF0F0';
+    ok = false;
+  } else {
+    chantierInp.style.borderColor = '';
+    chantierInp.style.background  = '';
+  }
+  if(!auteurInp.value.trim()) {
+    auteurInp.style.borderColor = 'var(--red)';
+    auteurInp.style.background  = '#FFF0F0';
+    ok = false;
+  } else {
+    auteurInp.style.borderColor = '';
+    auteurInp.style.background  = '';
+  }
+  return ok;
+}
+
+// Valide une seule ligne — retourne la liste des champs manquants
+function validateSingleRow(r) {
+  const missing = [];
+  const setErr = (id, label) => {
+    const el = document.getElementById(id);
+    if(el) el.classList.add('field-error');
+    missing.push(label);
+  };
+  const clearErr = (id) => {
+    const el = document.getElementById(id);
+    if(el) el.classList.remove('field-error');
+  };
+
+  // N° logement
+  if(!r.logt.trim()) setErr(`f-logt-${r.id}`, 'N°');
+  else clearErr(`f-logt-${r.id}`);
+
+  // Hauteur
+  if(!r.hauteur) setErr(`f-haut-${r.id}`, 'Hauteur');
+  else clearErr(`f-haut-${r.id}`);
+
+  // F ou C
+  const solEl = document.getElementById(`f-sol-${r.id}`);
+  if(!r.solType) {
+    if(solEl) solEl.classList.add('field-error');
+    missing.push('F/C');
+  } else {
+    if(solEl) solEl.classList.remove('field-error');
+  }
+
+  // Mur à mur haut
+  if(!r.murHaut) setErr(`f-mur-${r.id}`, 'Mur/mur');
+  else clearErr(`f-mur-${r.id}`);
+
+  // Longueur aménagement
+  if(!r.long) setErr(`f-long-${r.id}`, 'Long.');
+  else clearErr(`f-long-${r.id}`);
+
+  return missing;
+}
+
+// Valide toutes les lignes
+function validateAllRows() {
+  let allErrors = [];
+  rows.forEach((r, i) => {
+    const missing = validateSingleRow(r);
+    if(missing.length) {
+      allErrors.push(`Ligne ${i+1} (${r.logt||'N° manquant'}) : ${missing.join(', ')}`);
+    }
+  });
+  return allErrors;
+}
+
+function showValidationBanner(msgs) {
+  const banner = document.getElementById('validationBanner');
+  document.getElementById('validationMsg').textContent = msgs.join(' — ');
+  banner.classList.add('show');
+  setTimeout(() => banner.classList.remove('show'), 7000);
+}
+
+function hideValidationBanner() {
+  document.getElementById('validationBanner').classList.remove('show');
+}
+
+// ── ADD ROW ──
+function addRow() {
+  // Valider la dernière ligne avant d'en créer une nouvelle
+  if(rows.length > 0) {
+    const lastRow = rows[rows.length - 1];
+    const missing = validateSingleRow(lastRow);
+    if(missing.length) {
+      showValidationBanner([`Complétez la ligne ${rows.length} avant d'en ajouter une nouvelle (${missing.join(', ')})`]);
+      // Scroller vers la ligne en erreur
+      const el = document.getElementById('row-' + lastRow.id);
+      if(el) el.scrollIntoView({behavior:'smooth', block:'center'});
+      return;
+    }
+  }
+  hideValidationBanner();
+  rowCounter++;
+  const id = rowCounter;
+  rows.push({ id, logt:'', piece:'', hauteur:'', solType:'', murHaut:'', plintheBas:'', long:'', prof:'', pendG:false, pendD:false, plinthe:'', photos:0 });
+  renderTable();
+  setTimeout(() => {
+    const inp = document.getElementById(`f-logt-${id}`);
+    if(inp) inp.focus();
+  }, 50);
+}
+
+// ── RENDER TABLE ──
+function renderTable() {
+  const tbody = document.getElementById('tableBody');
+  if(!rows.length) {
+    tbody.innerHTML = `<tr><td colspan="11" style="padding:28px;text-align:center;color:var(--muted);font-size:13.5px">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="32" height="32" style="display:block;margin:0 auto 10px;color:var(--border)"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+      Aucune ligne — cliquez sur "Ajouter une ligne" pour commencer
+    </td></tr>`;
+    updateCounters();
+    return;
+  }
+
+  tbody.innerHTML = rows.map((r,i) => {
+    const plinthCell = plinthMode === 'att' ? `
+      <td style="border-left:1px solid #C8860A;background:#FFFAF0;">
+        <input class="ti ti-num" placeholder="—" value="${r.plinthe||''}" type="number"
+          oninput="updateRow(${r.id},'plinthe',this.value)"
+          style="color:#7A4200;font-size:14px"
+          title="Hauteur plinthe (mm)">
+      </td>` : '';
+    return `
+    <tr id="row-${r.id}">
+      <td class="td-id col-sep">
+        <div style="display:flex;align-items:center;gap:6px">
+          <span class="row-num">${i+1}</span>
+          <div style="display:flex;flex-direction:column;gap:3px">
+            <input id="f-logt-${r.id}" class="ti ti-left" style="font-size:12.5px;font-weight:500" placeholder="N° logt *" value="${r.logt}"
+              oninput="updateRow(${r.id},'logt',this.value)" title="N° logement — obligatoire">
+            <input class="ti ti-left" style="font-size:12px;color:var(--muted)" placeholder="Pièce" value="${r.piece}"
+              oninput="updateRow(${r.id},'piece',this.value)" title="Pièce">
+          </div>
+        </div>
+      </td>
+      <!-- Façade -->
+      <td>
+        <input id="f-haut-${r.id}" class="ti ti-num" placeholder="—" value="${r.hauteur}" type="number"
+          oninput="updateRow(${r.id},'hauteur',this.value)" title="Hauteur mm — obligatoire">
+      </td>
+      <td>
+        <div id="f-sol-${r.id}" class="sf-toggle">
+          <button class="sf-btn${r.solType==='F'?' active-f':''}" onclick="setSolType(${r.id},'F')">F</button>
+          <button class="sf-btn${r.solType==='C'?' active-c':''}" onclick="setSolType(${r.id},'C')">C</button>
+        </div>
+      </td>
+      <td>
+        <input id="f-mur-${r.id}" class="ti ti-num" placeholder="—" value="${r.murHaut}" type="number"
+          oninput="updateRow(${r.id},'murHaut',this.value)" title="Mur à mur haut mm — obligatoire">
+      </td>
+      <td class="col-sep">
+        <input class="ti ti-num" placeholder="—" value="${r.plintheBas}" type="number"
+          oninput="updateRow(${r.id},'plintheBas',this.value)" title="Plinthe à plinthe bas mm">
+      </td>
+      <!-- Aménagement -->
+      <td>
+        <input id="f-long-${r.id}" class="ti ti-num" placeholder="—" value="${r.long}" type="number"
+          oninput="updateRow(${r.id},'long',this.value)" title="Longueur fond mm — obligatoire">
+      </td>
+      <td class="col-sep">
+        <input class="ti ti-num" placeholder="—" value="${r.prof}" type="number"
+          oninput="updateRow(${r.id},'prof',this.value)" title="Profondeur mm">
+      </td>
+      <!-- Penderie -->
+      <td>
+        <div class="pend-toggle">
+          <button class="pend-btn${r.pendG?' active':''}" onclick="togglePend(${r.id},'G')">G</button>
+        </div>
+      </td>
+      <td>
+        <div class="pend-toggle">
+          <button class="pend-btn${r.pendD?' active':''}" onclick="togglePend(${r.id},'D')">D</button>
+        </div>
+      </td>
+      ${plinthCell}
+      <!-- Photo -->
+      <td class="photo-cell">
+        <div class="photo-mini-btn${r.photos>0?' has-photo':''}" onclick="addPhoto(${r.id})" title="Ajouter une photo">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
+        </div>
+        ${r.photos>0?`<div class="photo-count">${r.photos}</div>`:''}
+      </td>
+      <!-- Delete -->
+      <td>
+        <button class="del-row" onclick="deleteRow(${r.id})" title="Supprimer">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/></svg>
+        </button>
+      </td>
+    </tr>`;
+  }).join('');
+
+  updateCounters();
+}
+
+// ── UPDATE ──
+function updateRow(id, field, val) {
+  const r = rows.find(x=>x.id===id);
+  if(!r) return;
+  r[field] = val;
+  // Effacer l'erreur sur le champ modifié spécifiquement
+  const fieldMap = { logt:`f-logt-${id}`, hauteur:`f-haut-${id}`, murHaut:`f-mur-${id}`, long:`f-long-${id}` };
+  if(fieldMap[field]) {
+    const el = document.getElementById(fieldMap[field]);
+    if(el && val) el.classList.remove('field-error');
+  }
+  // Effacer erreur en-tête
+  if(field==='chantier' || field==='auteur') {
+    const inp = document.getElementById('meta-'+field);
+    if(inp && val){ inp.style.borderColor=''; inp.style.background=''; }
+  }
+  updateCounters();
+}
+
+// Effacer erreur en-tête en temps réel + compteurs
+document.getElementById('meta-chantier').addEventListener('input', function(){
+  if(this.value){ this.style.borderColor=''; this.style.background=''; }
+  updateCounters();
+});
+document.getElementById('meta-auteur').addEventListener('input', function(){
+  if(this.value){ this.style.borderColor=''; this.style.background=''; }
+});
+document.getElementById('meta-batiment').addEventListener('input', updateCounters);
+document.getElementById('meta-etage').addEventListener('input', updateCounters);
+
+function setSolType(id, type) {
+  const r = rows.find(x=>x.id===id);
+  if(r){
+    r.solType = r.solType===type?'':type;
+    const solEl = document.getElementById(`f-sol-${id}`);
+    if(solEl) solEl.classList.remove('field-error');
+    renderTable();
+  }
+}
+
+function togglePend(id, side) {
+  const r = rows.find(x=>x.id===id);
+  if(!r) return;
+  if(side==='G') r.pendG=!r.pendG;
+  else r.pendD=!r.pendD;
+  renderTable();
+}
+
+function deleteRow(id) {
+  rows = rows.filter(x=>x.id!==id);
+  renderTable();
+}
+
+function clearAll() {
+  if(rows.length && !confirm('Effacer toutes les lignes ?')) return;
+  rows=[]; rowCounter=0; renderTable();
+}
+
+function addPhoto(id) {
+  const r = rows.find(x=>x.id===id);
+  if(r){ r.photos++; renderTable(); showToast('Photo ajoutée à la ligne'); }
+}
+
+// ── COUNTERS ──
+function updateCounters() {
+  const n = rows.length;
+  document.getElementById('row-counter').textContent = `${n} ligne${n>1?'s':''}`;
+  document.getElementById('sum-lignes').textContent = n;
+  document.getElementById('sum-sf').textContent = rows.filter(r=>r.solType==='F').length;
+  document.getElementById('sum-sc').textContent = rows.filter(r=>r.solType==='C').length;
+  document.getElementById('sum-pg').textContent = rows.filter(r=>r.pendG).length;
+  document.getElementById('sum-pd').textContent = rows.filter(r=>r.pendD).length;
+  const ch  = document.getElementById('meta-chantier').value;
+  const bat = document.getElementById('meta-batiment').value;
+  const eta = document.getElementById('meta-etage').value;
+  document.getElementById('sum-chantier').textContent = ch||'—';
+  const loc = [bat, eta].filter(Boolean).join(' · ');
+  const locEl = document.getElementById('sum-localisation');
+  locEl.textContent = loc;
+  locEl.style.display = loc ? '' : 'none';
+}
+
+// ── PDF PREVIEW ──
+function openPreview() {
+  buildPdf();
+  document.getElementById('pdfModal').classList.add('open');
+}
+function closePreview() {
+  document.getElementById('pdfModal').classList.remove('open');
+}
+document.getElementById('pdfModal').addEventListener('click', e => {
+  if(e.target === document.getElementById('pdfModal')) closePreview();
+});
+
+function buildPdf() {
+  const chantier = document.getElementById('meta-chantier').value || '—';
+  const batiment = document.getElementById('meta-batiment').value || '';
+  const etage    = document.getElementById('meta-etage').value || '';
+  const auteur   = document.getElementById('meta-auteur').value || '—';
+  const date     = document.getElementById('meta-date').value || '—';
+  const ref      = document.getElementById('fiche-ref').textContent;
+
+  const localisation = [batiment, etage].filter(Boolean).join(' · ') || '—';
+
+  const plinthGenVal = plinthMode==='gen' ? (document.getElementById('plinthe-gen-val').value||'—') : null;
+  const plinthInfo = plinthMode==='gen'
+    ? `<span style="background:var(--green-l);color:var(--green);padding:3px 9px;border-radius:10px;font-size:10.5px;font-weight:600">Plinthe générale : ${plinthGenVal} mm</span>`
+    : plinthMode==='att'
+    ? `<span style="background:#FDF0D6;color:#7A4200;padding:3px 9px;border-radius:10px;font-size:10.5px;font-weight:600">⚠ Hauteurs de plinthe variables — voir colonne</span>`
+    : '';
+
+  const plinthColspan = plinthMode==='att' ? 1 : 0;
+  const plinthHeader  = plinthMode==='att' ? '<th style="background:#FDF0D6;color:#7A4200">Plinthe<br><small>(mm)</small></th>' : '';
+
+  const rowsHtml = rows.length ? rows.map(r => {
+    const plinthTd = plinthMode==='att' ? `<td style="background:#FFFAF0;font-weight:600;color:#7A4200">${r.plinthe||'—'}</td>` : '';
+    return `<tr>
+      <td class="td-left" style="font-weight:500">${r.logt||'—'}</td>
+      <td class="td-left">${r.piece||'—'}</td>
+      <td>${r.hauteur||'—'}</td>
+      <td style="font-weight:700">${r.solType||'—'}</td>
+      <td>${r.murHaut||'—'}</td>
+      <td>${r.plintheBas||'—'}</td>
+      <td>${r.long||'—'}</td>
+      <td>${r.prof||'—'}</td>
+      <td>${r.pendG?'✓':''}</td>
+      <td>${r.pendD?'✓':''}</td>
+      ${plinthTd}
+    </tr>`;
+  }).join('') : `<tr><td colspan="${10+plinthColspan}" style="text-align:center;color:#999;padding:14px;font-style:italic">Aucune ligne saisie</td></tr>`;
+
+  document.getElementById('pdfContent').innerHTML = `
+    <div class="pdf-top">
+      <div>
+        <div class="pdf-co">Votre Entreprise</div>
+        <div class="pdf-co-sub">Menuiserie · Charpente · Agencement</div>
+      </div>
+      <div style="text-align:center">
+        <div class="pdf-doc-title">PRISE DE COTES FAÇADES ET AMÉNAGEMENT PLACARDS</div>
+        <div class="pdf-meta-row" style="justify-content:center;flex-wrap:wrap;gap:12px;margin-top:7px">
+          <div class="pdf-meta-item"><span class="pdf-meta-label">Chantier :</span><span class="pdf-meta-val">${chantier}</span></div>
+          ${batiment ? `<div class="pdf-meta-item"><span class="pdf-meta-label">Bâtiment :</span><span class="pdf-meta-val">${batiment}</span></div>` : ''}
+          ${etage    ? `<div class="pdf-meta-item"><span class="pdf-meta-label">Étage :</span><span class="pdf-meta-val">${etage}</span></div>` : ''}
+          <div class="pdf-meta-item"><span class="pdf-meta-label">Rédigé par :</span><span class="pdf-meta-val">${auteur}</span></div>
+          <div class="pdf-meta-item"><span class="pdf-meta-label">Date :</span><span class="pdf-meta-val">${date}</span></div>
+          ${plinthInfo ? `<div class="pdf-meta-item">${plinthInfo}</div>` : ''}
+        </div>
+      </div>
+      <div style="text-align:right">
+        <div style="background:var(--orange-l);color:var(--orange-d);padding:5px 10px;border-radius:5px;font-size:11px;font-weight:600">${ref}</div>
+        ${localisation !== '—' ? `<div style="font-size:10px;color:var(--muted);margin-top:3px">${localisation}</div>` : ''}
+      </div>
+    </div>
+    <table class="pdf-table">
+      <thead>
+        <tr>
+          <th colspan="6" class="grp-facade">FAÇADE</th>
+          <th colspan="2" class="grp-amenag">AMÉNAGEMENT</th>
+          <th colspan="2" class="grp-pend">PENDERIE</th>
+          ${plinthMode==='att' ? '<th style="background:#FDF0D6;color:#7A4200">⚠ PLINTHE</th>' : ''}
+        </tr>
+        <tr>
+          <th class="th-left">N° Logt</th>
+          <th class="th-left">Pièce</th>
+          <th>Hauteur<br><small>(mm)</small></th>
+          <th>Sol<br><small>F/C</small></th>
+          <th>Mur/mur haut<br><small>(mm)</small></th>
+          <th>Plinthe/plinthe bas<br><small>(mm)</small></th>
+          <th>Long.<br><small>(mm)</small></th>
+          <th>Prof.<br><small>(mm)</small></th>
+          <th>G</th>
+          <th>D</th>
+          ${plinthHeader}
+        </tr>
+      </thead>
+      <tbody>${rowsHtml}</tbody>
+    </table>
+    <div style="display:flex;gap:20px;margin-top:16px;font-size:10.5px;color:var(--muted);flex-wrap:wrap">
+      <span><strong>F</strong> = Sol fini</span>
+      <span><strong>C</strong> = Sur chape</span>
+      <span><strong>G/D</strong> = Penderie gauche/droite</span>
+      ${plinthMode==='gen' ? `<span style="color:var(--green)"><strong>Plinthe générale :</strong> ${plinthGenVal} mm</span>` : ''}
+      <span style="margin-left:auto">Total : ${rows.length} ligne${rows.length>1?'s':''} · ${rows.filter(r=>r.solType==='F').length} sol fini · ${rows.filter(r=>r.solType==='C').length} sur chape</span>
+    </div>
+    <div style="display:flex;gap:24px;margin-top:18px;padding-top:14px;border-top:1px solid var(--border)">
+      <div style="flex:1;border:1px dashed var(--border);border-radius:6px;height:52px;display:flex;align-items:center;justify-content:center;font-size:9.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px">Signature chef de chantier</div>
+      <div style="flex:1;border:1px dashed var(--border);border-radius:6px;height:52px;display:flex;align-items:center;justify-content:center;font-size:9.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px">Visa bureau d'études / atelier</div>
+    </div>
+  `;
+}
+
+// ── SEND ──
+
+function renderSendTargets() {
+  const zone = document.getElementById('send-targets-list');
+  const extras = ALL_USERS.filter(u => !u.default && extraDestIds.has(u.id));
+
+  let html = `
+    <div class="stag stag-default">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="11" height="11"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
+      ${CONDUCTEUR_DEFAUT.name}
+      <span style="opacity:.55;font-size:10px;margin-left:2px">par défaut</span>
+    </div>`;
+
+  extras.forEach(u => {
+    html += `
+      <div class="stag stag-extra">
+        <span style="width:18px;height:18px;border-radius:4px;background:${u.bg};color:${u.color};display:inline-flex;align-items:center;justify-content:center;font-family:'Syne',sans-serif;font-size:9px;font-weight:700">${u.initials}</span>
+        ${u.name}
+        <button class="stag-rm" onclick="removeExtra(${u.id})" title="Retirer">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>`;
+  });
+
+  html += `
+    <button class="btn-add-dest" onclick="openDestModal()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      Ajouter un destinataire
+    </button>`;
+
+  zone.innerHTML = html;
+}
+
+function removeExtra(id) {
+  extraDestIds.delete(id);
+  renderSendTargets();
+}
+
+function openDestModal() {
+  // Copie de la sélection actuelle dans le modal
+  tempDestIds = new Set(extraDestIds);
+  renderDestList('');
+  document.getElementById('dest-search-input').value = '';
+  document.getElementById('destModal').classList.add('open');
+}
+
+function closeDestModal() {
+  document.getElementById('destModal').classList.remove('open');
+}
+
+function filterDestList() {
+  const q = document.getElementById('dest-search-input').value.toLowerCase();
+  renderDestList(q);
+}
+
+function renderDestList(q) {
+  const list = document.getElementById('dest-list');
+  const filtered = ALL_USERS.filter(u => {
+    if(u.default) return false; // Conducteur par défaut non affiché
+    return !q || u.name.toLowerCase().includes(q) || u.role.toLowerCase().includes(q);
+  });
+
+  list.innerHTML = filtered.map(u => {
+    const sel = tempDestIds.has(u.id);
+    return `<div class="dest-item${sel?' selected':''}" onclick="toggleTempDest(${u.id})">
+      <div class="dest-av" style="background:${u.bg};color:${u.color}">${u.initials}</div>
+      <div>
+        <div class="dest-name">${u.name}</div>
+        <div class="dest-role">${u.role}</div>
+      </div>
+      <div class="dest-check">
+        <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+      </div>
+    </div>`;
+  }).join('') || `<div style="padding:20px;text-align:center;color:var(--muted);font-size:13px">Aucun résultat</div>`;
+}
+
+function toggleTempDest(id) {
+  if(tempDestIds.has(id)) tempDestIds.delete(id);
+  else tempDestIds.add(id);
+  renderDestList(document.getElementById('dest-search-input').value.toLowerCase());
+}
+
+function applyDest() {
+  extraDestIds = new Set(tempDestIds);
+  renderSendTargets();
+  closeDestModal();
+  const n = extraDestIds.size;
+  showToast(n > 0 ? `${n} destinataire${n>1?'s':''} ajouté${n>1?'s':''}` : 'Destinataires mis à jour');
+}
+
+document.getElementById('destModal').addEventListener('click', e => {
+  if(e.target === document.getElementById('destModal')) closeDestModal();
+});
+
+// ╔══════════════════════════════════════════════════════════════╗
+// ║          ZONE DE CONFIGURATION — À MODIFIER ICI             ║
+// ╚══════════════════════════════════════════════════════════════╝
+
+// 1. URL Google Apps Script (une seule URL pour tout : données ET contacts)
+const APPS_SCRIPT_URL = 'COLLER_VOTRE_URL_ICI';
+
+// ╔══════════════════════════════════════════════════════════════╗
+// ║          FIN DE LA ZONE DE CONFIGURATION                    ║
+// ╚══════════════════════════════════════════════════════════════╝
+
+// ── Variables contacts (chargées depuis Google Sheets) ──
+let CONDUCTEUR_DEFAUT = { id:0, name:'Chargement…', role:'Conducteur de travaux', initials:'..', color:'#D95818', bg:'#F8ECE4', default:true };
+let ALL_USERS   = [];
+let CHEFS_EQUIPE = [];
+
+// IDs supplémentaires sélectionnés
+let extraDestIds = new Set();
+let tempDestIds  = new Set();
+
+// ── Chargement des contacts depuis l'onglet "Contacts" du Sheet ──
+async function loadContacts() {
+  const sel = document.getElementById('meta-auteur');
+  sel.innerHTML = '<option value="">Chargement…</option>';
+
+  if(APPS_SCRIPT_URL === 'COLLER_VOTRE_URL_ICI') {
+    // Mode démo : contacts par défaut si URL pas encore configurée
+    useFallbackContacts();
+    return;
+  }
+
+  try {
+    const url = APPS_SCRIPT_URL + '?action=getContacts';
+    const resp = await fetch(url, { method:'GET', mode:'cors' });
+    const data = await resp.json();
+
+    if(data.contacts && data.contacts.length) {
+      buildContactsFromSheet(data.contacts);
+    } else {
+      useFallbackContacts();
+    }
+  } catch(e) {
+    console.warn('Contacts non chargés, utilisation des contacts par défaut', e);
+    useFallbackContacts();
+  }
+}
+
+function buildContactsFromSheet(contacts) {
+  ALL_USERS = contacts.map((c, i) => ({
+    id      : i + 1,
+    name    : c.nom,
+    role    : c.role,
+    email   : c.email,
+    initials: c.nom.split(' ').map(p=>p[0]).join('').substring(0,2).toUpperCase(),
+    color   : roleColor(c.role),
+    bg      : roleBg(c.role),
+    default : c.conducteurDefaut === 'O',
+    chefEquipe : c.chefEquipe === 'O',
+  }));
+
+  const conducteur = ALL_USERS.find(u => u.default);
+  if(conducteur) CONDUCTEUR_DEFAUT = conducteur;
+
+  CHEFS_EQUIPE = ALL_USERS.filter(u => u.chefEquipe).map(u => u.name);
+
+  fillAuteurSelect();
+  renderSendTargets();
+}
+
+function useFallbackContacts() {
+  // Contacts de secours si le Sheet n'est pas accessible
+  ALL_USERS = [
+    { id:1, name:'Franck PAVAGEAU', role:'Conducteur de travaux', initials:'FP', color:'#D95818', bg:'#F8ECE4', default:true,  chefEquipe:false },
+    { id:2, name:'Martin Bernard',  role:'Chef de chantier',      initials:'MB', color:'#1454A0', bg:'#DCE8F8', default:false, chefEquipe:true  },
+    { id:3, name:'Sophie Leroy',    role:'Chef de chantier',      initials:'SL', color:'#1454A0', bg:'#DCE8F8', default:false, chefEquipe:true  },
+    { id:4, name:'Pierre Moreau',   role:'Chef de chantier',      initials:'PM', color:'#1454A0', bg:'#DCE8F8', default:false, chefEquipe:true  },
+    { id:5, name:'Thomas Klein',    role:'Chef de chantier',      initials:'TK', color:'#1454A0', bg:'#DCE8F8', default:false, chefEquipe:true  },
+    { id:6, name:'François Durand', role:"Chef d'atelier",        initials:'FD', color:'#196B3B', bg:'#E1F2E9', default:false, chefEquipe:false },
+  ];
+  CONDUCTEUR_DEFAUT = ALL_USERS.find(u => u.default);
+  CHEFS_EQUIPE = ALL_USERS.filter(u => u.chefEquipe).map(u => u.name);
+  fillAuteurSelect();
+  renderSendTargets();
+}
+
+function roleColor(role) {
+  if(role.toLowerCase().includes('conducteur')) return '#D95818';
+  if(role.toLowerCase().includes('atelier'))    return '#196B3B';
+  return '#1454A0';
+}
+function roleBg(role) {
+  if(role.toLowerCase().includes('conducteur')) return '#F8ECE4';
+  if(role.toLowerCase().includes('atelier'))    return '#E1F2E9';
+  return '#DCE8F8';
+}
+
+function fillAuteurSelect() {
+  const sel = document.getElementById('meta-auteur');
+  sel.innerHTML = '<option value="">-- Choisir --</option>';
+  CHEFS_EQUIPE.forEach(nom => {
+    const opt = document.createElement('option');
+    opt.value = nom;
+    opt.textContent = nom;
+    sel.appendChild(opt);
+  });
+}
+async function sendDoc() {
+  if(!rows.length){ showToast('Ajoutez au moins une ligne avant d\'envoyer'); return; }
+
+  // ── VALIDATION ──
+  let allErrors = [];
+
+  // 1. En-tête obligatoire
+  if(!validateHeader()) {
+    allErrors.push('Chantier et/ou Rédigé par manquants');
+    document.getElementById('meta-chantier').scrollIntoView({behavior:'smooth', block:'center'});
+  }
+
+  // 2. Plinthe généralité
+  if(plinthMode === 'gen') {
+    const val = document.getElementById('plinthe-gen-val').value;
+    if(!val && !plinthNonPosee) {
+      document.getElementById('plinthe-gen-error').style.display = 'block';
+      document.getElementById('plinthe-gen-val').style.borderColor = 'var(--red)';
+      allErrors.push('Hauteur de plinthe (généralité) manquante');
+      if(!allErrors.length) document.getElementById('plinthe-gen-zone').scrollIntoView({behavior:'smooth', block:'center'});
+    }
+  }
+
+  // 3. Lignes du tableau
+  const rowErrors = validateAllRows();
+  allErrors = allErrors.concat(rowErrors);
+
+  if(allErrors.length) {
+    showValidationBanner(allErrors);
+    // Scroller vers la première erreur dans le tableau
+    if(rowErrors.length) {
+      const firstErrRow = rows.find(r => {
+        return !r.logt.trim() || !r.hauteur || !r.solType || !r.murHaut || !r.long;
+      });
+      if(firstErrRow) {
+        const el = document.getElementById('row-' + firstErrRow.id);
+        if(el) el.scrollIntoView({behavior:'smooth', block:'center'});
+      }
+    }
+    return;
+  }
+  hideValidationBanner();
+
+  if(APPS_SCRIPT_URL === 'https://script.google.com/macros/s/AKfycbysMO65ENIgAkeRO9BcdzSUOELo-5s8awVcD8u0sqClFo3pUXWJiUCqzl62qMUxgnM/exec'){
+    showToast('⚠ Configurez d\'abord l\'URL Google Apps Script (voir guide)');
+    return;
+  }
+
+  const chantier  = document.getElementById('meta-chantier').value  || '—';
+  const batiment  = document.getElementById('meta-batiment').value  || '—';
+  const etage     = document.getElementById('meta-etage').value     || '—';
+  const auteur    = document.getElementById('meta-auteur').value    || '—';
+  const date      = document.getElementById('meta-date').value      || '—';
+  const ref       = document.getElementById('fiche-ref').textContent;
+
+  // Valeur plinthe généralité pour colonne H
+  const plinthGenVal = plinthMode==='gen'
+    ? (plinthNonPosee ? 'Non posée' : (document.getElementById('plinthe-gen-val').value || ''))
+    : '';
+
+  const extras = ALL_USERS.filter(u => extraDestIds.has(u.id));
+  const destinataires = [CONDUCTEUR_DEFAUT.name, ...extras.map(u=>u.name)].join(', ');
+
+  const payload = {
+    ref, chantier, batiment, etage, auteur, date,
+    plinthMode,
+    plinthGen: plinthGenVal,  // ← colonne H dans Sheets
+    destinataires,
+    lignes: rows.map(r => ({
+      logt      : r.logt       || '',
+      piece     : r.piece      || '',
+      hauteur   : r.hauteur    || '',
+      solType   : r.solType    || '',
+      murHaut   : r.murHaut    || '',
+      plintheBas: r.plintheBas || '',
+      long      : r.long       || '',
+      prof      : r.prof       || '',
+      pendG     : r.pendG ? 'G' : '',
+      pendD     : r.pendD ? 'D' : '',
+      plinthe   : r.plinthe    || '',
+    }))
+  };
+
+  const btn = document.querySelector('.btn-primary.btn-lg:last-child');
+  if(btn){ btn.disabled=true; btn.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> Envoi en cours…'; }
+
+  try {
+    await fetch(APPS_SCRIPT_URL, {
+      method : 'POST',
+      mode   : 'no-cors',
+      headers: { 'Content-Type': 'application/json' },
+      body   : JSON.stringify(payload)
+    });
+    showToast(`✓ Fiche ${ref} enregistrée — email envoyé à ${CONDUCTEUR_DEFAUT.name}`);
+  } catch(err) {
+    showToast('Erreur réseau — vérifiez votre connexion');
+    console.error(err);
+  } finally {
+    if(btn){ btn.disabled=false; btn.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg> Envoyer l\'alerte'; }
+  }
+}
+
+function showToast(msg) {
+  const t=document.getElementById('toast'); document.getElementById('toastMsg').textContent=msg;
+  t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),3200);
+}
+
+// ── INIT ──
+loadContacts();
+renderTable();
+renderSendTargets();
+</script>
+</body>
+</html>
