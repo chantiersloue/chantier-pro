@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Prise de cotes — Placards</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --orange:#D95818; --orange-l:#F8ECE4; --orange-d:#AA4110;
+  --bg:#F2F0EC; --card:#FFF; --text:#141210; --muted:#6A6460;
+  --border:#D8D4CE; --border2:#B8B4AE;
+  --blue:#1454A0; --blue-l:#DCE8F8; --blue-d:#0D3D7A;
+  --green:#196B3B; --green-l:#E1F2E9;
+  --header-bg:#1A2B4A;
+  --r:8px; --rl:12px;
+  --red: #d32f2f; --amber:#FF8F00; --amber-l:#FFF8E1;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;}
+
+/* ── BARRE DU HAUT ── */
+.topbar{background:var(--header-bg);padding:0 16px;height:50px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:20;}
+.tb-logo{display:flex;align-items:center;gap:9px;}
+.tb-sq{width:26px;height:26px;background:var(--orange);border-radius:5px;display:flex;align-items:center;justify-content:center;}
+.tb-sq svg{width:13px;height:13px;fill:white;}
+.tb-name{font-family:'Syne',sans-serif;font-weight:700;font-size:14px;color:white;}
+.tb-right{display:flex;gap:8px;}
+
+/* ── CONTENU PRINCIPAL ── */
+.main{padding:16px;max-width:1100px;margin:0 auto;}
+
+/* ── ENTÊTE DE LA FICHE ── */
+.fiche-header{background:var(--card);border:1px solid var(--border);border-radius:var(--rl);padding:16px 20px;margin-bottom:14px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;}
+.fiche-logo-zone{display:flex;align-items:center;gap:10px;}
+.fiche-logo-box{width:44px;height:44px;background:var(--orange);border-radius:9px;display:flex;align-items:center;justify-content:center;}
+.fiche-logo-box svg{width:22px;height:22px;fill:white;}
+.fiche-co{font-family:'Syne',sans-serif;font-weight:800;font-size:15px;}
+.fiche-co-sub{font-size:10.5px;color:var(--muted);margin-top:1px;}
+.fiche-title-zone{flex:1;text-align:center;}
+.fiche-main-title{font-family:'Syne',sans-serif;font-weight:800;font-size:16px;letter-spacing:.3px;color:var(--header-bg);}
+.fiche-main-sub{font-size:11px;color:var(--muted);margin-top:2px;}
+.fiche-meta-zone{display:flex;flex-direction:column;gap:8px;min-width:240px;}
+.fiche-meta-row{display:flex;align-items:center;gap:8px;}
+.fiche-meta-label{font-size:11px;font-weight:500;color:var(--muted);white-space:nowrap;min-width:70px;}
+.fiche-meta-input{flex:1;padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;font-family:'DM Sans',sans-serif;background:var(--bg);outline:none;color:var(--text);}
+.fiche-meta-input:focus{border-color:var(--orange);background:white;}
+.fiche-ref-badge{background:var(--orange-l);color:var(--orange-d);border:1px solid #E8C4A8;border-radius:6px;padding:5px 11px;font-size:11.5px;font-weight:500;white-space:nowrap;}
+
+/* ── BLOC PLINTHE ── */
+.plinthe-bloc{background:var(--card);border:1px solid var(--border);border-radius:var(--rl);padding:13px 18px;margin-bottom:14px;display:flex;align-items:center;gap:20px;flex-wrap:wrap;}
+.plinthe-label{font-size:12px;font-weight:500;color:var(--muted);white-space:nowrap;}
+.plinthe-title{font-family:'Syne',sans-serif;font-weight:700;font-size:13px;color:var(--text);margin-right:4px;}
+.plinthe-cases{display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
+.pcase{display:flex;align-items:center;gap:8px;padding:8px 14px;border-radius:var(--r);border:1.5px solid var(--border);cursor:pointer;transition:.15s;user-select:none;}
+.pcase:hover{border-color:var(--muted);}
+.pcase.active-gen{border-color:var(--green);background:var(--green-l);}
+.pcase.active-att{border-color:#C8860A;background:#FDF0D6;}
+.pcase-check{width:18px;height:18px;border-radius:4px;border:1.5px solid var(--border2);display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:.15s;}
+.pcase.active-gen .pcase-check{background:var(--green);border-color:var(--green);}
+.pcase.active-att .pcase-check{background:#C8860A;border-color:#C8860A;}
+.pcase-check svg{display:none;width:10px;height:10px;}
+.pcase.active-gen .pcase-check svg,.pcase.active-att .pcase-check svg{display:block;}
+.pcase-text{font-size:13px;font-weight:500;}
+.pcase.active-gen .pcase-text{color:var(--green);}
+.pcase.active-att .pcase-text{color:#7A4200;}
+.pcase-sub{font-size:11px;color:var(--muted);margin-top:1px;}
+
+.plinthe-gen-zone{display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:var(--green-l);border:1.5px solid #B8DFC9;border-radius:var(--r);padding:10px 14px;}
+.plinthe-gen-input{display:flex;align-items:center;gap:7px;}
+.plinthe-gen-input input{width:90px;padding:7px 10px;border:1.5px solid var(--green);border-radius:6px;font-size:15px;font-family:'Syne',sans-serif;font-weight:700;text-align:center;background:white;color:var(--green);outline:none;}
+.plinthe-gen-input input:focus{box-shadow:0 0 0 3px rgba(25,107,59,.15);}
+.plinthe-gen-input input.input-error{border-color:var(--red)!important;}
+.plinthe-gen-input span{font-size:12px;color:var(--green);font-weight:500;}
+.sep-or{font-size:11.5px;color:var(--green);font-weight:600;padding:0 2px;}
+.non-posee-toggle{display:flex;align-items:center;gap:7px;padding:7px 13px;border:1.5px solid #B8DFC9;border-radius:6px;cursor:pointer;background:white;transition:.15s;user-select:none;}
+.non-posee-toggle:hover{border-color:var(--amber);}
+.non-posee-toggle.active{border-color:var(--amber);background:var(--amber-l);}
+.np-check{width:16px;height:16px;border-radius:3px;border:1.5px solid var(--border2);display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:.15s;}
+.non-posee-toggle.active .np-check{background:var(--amber);border-color:var(--amber);}
+.np-check svg{display:none;width:9px;height:9px;}
+.non-posee-toggle.active .np-check svg{display:block;}
+.non-posee-toggle span{font-size:12.5px;font-weight:500;color:var(--muted);}
+.non-posee-toggle.active span{color:var(--amber);}
+.att-badge{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;background:#FDF0D6;color:#7A4200;border-radius:20px;font-size:11.5px;font-weight:600;border:1px solid #C8860A;}
+.att-badge svg{width:12px;height:12px;}
+
+/* ── VALIDATION ── */
+.validation-banner{background:#FFF0F0;border:1px solid #EFC0C0;border-radius:var(--r);padding:10px 14px;margin-bottom:12px;display:none;font-size:13px;color:var(--red);align-items:center;gap:8px;}
+.validation-banner.show{display:flex;}
+.validation-banner svg{width:15px;height:15px;flex-shrink:0;}
+
+/* ── BARRE D'OUTILS ── */
+.toolbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;}
+.toolbar-left{display:flex;gap:7px;align-items:center;flex-wrap:wrap;}
+.toolbar-right{display:flex;gap:7px;}
+
+/* ── BOUTONS ── */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:9px 15px;border-radius:var(--r);font-size:13.5px;font-weight:500;cursor:pointer;border:none;font-family:'DM Sans',sans-serif;transition:.15s;}
+.btn-primary{background:var(--orange);color:white;}.btn-primary:hover{background:var(--orange-d);}
+.btn-secondary{background:var(--card);color:var(--text);border:1px solid var(--border);}.btn-secondary:hover{background:var(--bg);}
+.btn-ghost{background:transparent;color:var(--muted);padding:8px 10px;}.btn-ghost:hover{background:var(--bg);color:var(--text);}
+.btn svg{width:14px;height:14px;}
+.btn-lg{padding:11px 18px;font-size:14px;}
+
+/* ── TABLEAU ── */
+.table-wrap{background:var(--card);border:1px solid var(--border);border-radius:var(--rl);overflow:hidden;margin-bottom:16px;}
+.cotes-table{width:100%;border-collapse:collapse;min-width:760px;}
+
+/* Entêtes de groupe */
+.th-group{padding:7px 10px;font-family:'Syne',sans-serif;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;text-align:center;border-bottom:1px solid var(--border);}
+.th-id{background:#F7F5F1;color:var(--muted);border-right:1px solid var(--border);width:70px;}
+.th-facade{background:#EBF1FA;color:var(--blue-d);border-right:1px solid var(--border);}
+.th-amenag{background:#E8F4EE;color:var(--green);border-right:1px solid var(--border);}
+.th-penderie{background:var(--orange-l);color:var(--orange-d);}
+.th-plinthe{background:#FDF6E8;color:#7A4200;border-left:1px solid var(--border);}
+
+/* Entêtes de colonne */
+.cotes-table thead tr:nth-child(2) th{
+  padding:8px 6px;font-size:10.5px;font-weight:500;color:var(--muted);
+  background:var(--bg);border-bottom:2px solid var(--border2);text-align:center;
+  line-height:1.3;
+}
+.col-sep{border-right:1px solid var(--border2)!important;}
+
+/* Lignes */
+.cotes-table tbody td{border-bottom:1px solid var(--border);padding:4px 4px;vertical-align:middle;}
+.td-id{padding:4px 12px;font-size:12px;font-weight:500;white-space:nowrap;color:var(--muted);}
+
+/* Champs de saisie du tableau */
+.ti{width:100%;padding:8px 8px;border:1px solid transparent;border-radius:6px;font-size:14px;font-family:'DM Sans',sans-serif;color:var(--text);background:transparent;outline:none;text-align:center;transition:.15s;}
+.ti:focus{border-color:var(--orange);background:white;box-shadow:0 0 0 3px rgba(217,88,24,.1);}
+.ti:hover:not(:focus){border-color:var(--border);background:#FAFAF8;}
+.ti-left{text-align:left;}
+.ti-num{font-family:'Syne',sans-serif;font-weight:600;font-size:15px;}
+
+/* UI Helpers Tableau */
+.sf-toggle{display:flex;gap:4px;justify-content:center;}
+.sf-btn{padding:5px 9px;border-radius:5px;font-size:12px;font-weight:600;cursor:pointer;border:1.5px solid var(--border);background:var(--bg);color:var(--muted);transition:.15s;font-family:'Syne',sans-serif;}
+.sf-btn.active-f{background:var(--blue-l);color:var(--blue-d);border-color:var(--blue);}
+.sf-btn.active-c{background:#FDF0D6;color:#7A4200;border-color:#C8860A;}
+.pend-btn{padding:5px 8px;border-radius:5px;font-size:12px;font-weight:600;cursor:pointer;border:1.5px solid var(--border);background:var(--bg);color:var(--muted);font-family:'Syne',sans-serif;}
+.pend-btn.active{background:var(--orange-l);color:var(--orange-d);border-color:var(--orange);}
+.del-row{background:none;border:none;cursor:pointer;color:var(--border2);padding:4px;}
+.del-row:hover{color:var(--orange-d);background:var(--orange-l);}
+.ti.field-error{border-color:var(--red)!important;background:#FFF0F0!important;}
+.required-star{color:var(--red);font-size:10px;margin-left:1px;vertical-align:super;}
+.add-row-btn{display:flex;align-items:center;gap:8px;padding:12px 16px;color:var(--orange);cursor:pointer;font-size:13.5px;font-weight:500;border-top:1px solid var(--border);background:transparent;width:100%;border:none;}
+
+/* ── RÉSUMÉ ── */
+.summary-bar{background:var(--card);border:1px solid var(--border);border-radius:var(--rl);padding:14px 18px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:14px;}
+.sum-val{font-family:'Syne',sans-serif;font-size:20px;font-weight:700;}
+
+/* ── ZONE D'ENVOI ── */
+.send-zone{background:var(--card);border:1px solid var(--border);border-radius:var(--rl);padding:16px 20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;}
+.stag-default{display:inline-flex;align-items:center;gap:5px;padding:5px 11px;border-radius:20px;font-size:12px;font-weight:500;background:var(--header-bg);color:white;}
+
+/* ── TOAST ── */
+.toast{position:fixed;bottom:16px;right:16px;background:var(--text);color:white;padding:11px 15px;border-radius:var(--r);font-size:13px;font-weight:500;z-index:300;display:flex;align-items:center;gap:9px;transform:translateY(70px);opacity:0;transition:.25s;}
+.toast.show{transform:translateY(0);opacity:1;}
+
+/* ── MODALE APERÇU PDF ── */
+.modal-overlay{position:fixed;inset:0;background:rgba(20,18,16,.55);z-index:100;display:none;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto;}
+.modal-overlay.open{display:flex;}
+.modal{background:var(--card);border-radius:var(--rl);width:100%;max-width:900px;box-shadow: 0 15px 35px rgba(0,0,0,0.25);margin-top:20px;}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="tb-logo">
+    <div class="tb-sq"><svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></div>
+    <div class="tb-name">ChantierPro</div>
+  </div>
+  <div class="tb-right">
+    <button class="btn btn-secondary" style="padding:6px 12px;font-size:12.5px" onclick="openPreview()">Aperçu document</button>
+  </div>
+</div>
+
+<div class="main">
+  <div class="fiche-header">
+    <div class="fiche-logo-zone">
+      <div class="fiche-logo-box"><svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></div>
+      <div><div class="fiche-co">Votre Entreprise</div><div class="fiche-co-sub">Menuiserie · Charpente · Agencement</div></div>
+    </div>
+    <div class="fiche-title-zone">
+      <div class="fiche-main-title">PRISE DE COTES — PLACARDS</div>
+    </div>
+    <div class="fiche-meta-zone">
+      <div class="fiche-meta-row">
+        <span class="fiche-meta-label">Chantier <span class="required-star">*</span></span>
+        <input class="fiche-meta-input" id="meta-chantier" placeholder="Choisir un chantier..." 
+               list="chantiers-list" autocomplete="off" onclick="this.select()" onfocus="this.select()">
+        <datalist id="chantiers-list"></datalist>
+      </div>
+      <div class="fiche-meta-row">
+        <span class="fiche-meta-label">Bâtiment</span>
+        <input class="fiche-meta-input" id="meta-batiment" placeholder="Ex: Bât A">
+      </div>
+      <div class="fiche-meta-row">
+        <span class="fiche-meta-label">Rédigé par <span class="required-star">*</span></span>
+        <input class="fiche-meta-input" id="meta-auteur" placeholder="Votre nom..." 
+               list="auteurs-list" autocomplete="off" onclick="this.select()" onfocus="this.select()">
+        <datalist id="auteurs-list"></datalist>
+      </div>
+      <div class="fiche-meta-row">
+        <span class="fiche-meta-label">Date</span>
+        <input type="text" class="fiche-meta-input" id="meta-date" readonly
+               style="background:#EFECE8; color:var(--muted);">
+      </div>
+    </div>
+    <div class="fiche-ref-badge" id="fiche-ref">PC-2026-001</div>
+  </div>
+
+  <div class="plinthe-bloc">
+    <div class="plinthe-title">Hauteur de plinthe</div>
+    <div class="plinthe-cases">
+      <div class="pcase" id="pcase-gen" onclick="selectPlintheMode('gen')"><div class="pcase-text">Généralité</div></div>
+      <div class="pcase" id="pcase-att" onclick="selectPlintheMode('att')"><div class="pcase-text">Variables</div></div>
+    </div>
+    <div class="plinthe-gen-zone" id="plinthe-gen-zone" style="display:none">
+      <input type="number" id="plinthe-gen-val" placeholder="100" oninput="updatePlinthGen()"><span style="color:var(--green)">mm</span>
+      <div class="non-posee-toggle" id="non-posee-toggle" onclick="toggleNonPosee()">Non posée</div>
+    </div>
+  </div>
+
+  <div class="toolbar">
+    <span class="row-counter" style="color:var(--blue); font-size:12px; font-weight:500;" id="sum-lignes-tb">0 ligne(s)</span>
+    <button class="btn btn-secondary" onclick="addRow()">+ Ajouter une ligne</button>
+  </div>
+
+  <div class="table-wrap">
+    <div style="overflow-x:auto">
+      <table class="cotes-table">
+        <thead>
+          <tr>
+            <th class="th-group th-id" rowspan="2" style="text-align:left;padding-left:12px; min-width:160px;">N° / Pièce</th>
+            <th class="th-group th-facade" colspan="4">FAÇADE</th>
+            <th class="th-group th-amenag" colspan="2">AMÉNAGEMENT</th>
+            <th class="th-group th-plinthe" id="th-plinthe-group" rowspan="2" style="display:none">Plinthe</th>
+            <th class="th-group th-id" rowspan="2"></th>
+          </tr>
+          <tr>
+            <th class="col-sep">Haut.</th>
+            <th>F/C</th>
+            <th>Mur/Mur</th>
+            <th class="col-sep">Pl/Pl</th>
+            <th>Long.</th>
+            <th class="col-sep">Prof.</th>
+          </tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+    </div>
+    <button class="add-row-btn" onclick="addRow()">+ Ajouter une ligne (Logement / Pièce)</button>
+  </div>
+
+  <div class="send-zone">
+    <div class="send-info">
+      <div style="font-weight:700; font-family:Syne; font-size:14px; color:var(--text)">Diffusion de la fiche</div>
+      <div id="send-targets-list" style="margin-top:5px;"><div class="stag stag-default">Mail Conducteur</div></div>
+    </div>
+    <div style="display:flex; gap:10px;">
+      <button class="btn btn-secondary" onclick="openPreview()">Aperçu</button>
+      <button class="btn btn-primary" id="btn-envoyer" onclick="sendDoc()">Envoyer au Conducteur</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="pdfModal">
+  <div class="modal">
+    <div style="padding:15px; border-bottom:1px solid var(--border);">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="font-family:Syne; color:var(--header-bg);">Aperçu Document</h3>
+        <button class="btn btn-ghost" onclick="closePreview()">× Fermer</button>
+      </div>
+    </div>
+    <div id="pdfContent" style="padding:25px; background:white; max-height:600px; overflow-y:auto;"></div>
+    <div style="padding:15px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; gap:10px;">
+      <button class="btn btn-secondary" onclick="closePreview()">Fermer</button>
+      <button class="btn btn-primary" onclick="sendDoc();closePreview()">Confirmer et Envoyer</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"><span id="toastMsg">OK</span></div>
+
+<script>
+// CONFIGURATION OBLIGATOIRE (METTRE VOTRE URL `/exec` ICI)
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwFT3LiXCkCQlQl47V8W2HGkEoaC3kUUhNe_UshgTlBhD_6cI25qIIsrfAyRCfxOxyyCA/exec';
+
+let rows = [];
+let rowCounter = 0;
+let plinthMode = '';
+let plinthNonPosee = false;
+let CONDUCTEUR_DEFAUT = { name:'Chargement...' };
+let ALL_USERS = [];
+
+// CHARGEMENT DES DONNÉES DEPUIS LE SHEET
+function loadContacts() {
+    const script = document.createElement('script');
+    window._contactsCallback = function(data) {
+        if(data && data.contacts) {
+            ALL_USERS = data.contacts.map((c, i) => ({ id: i + 1, name: c.nom, default: String(c.conducteurDefaut).toUpperCase() === 'O' }));
+            const cond = ALL_USERS.find(u => u.default);
+            if(cond) CONDUCTEUR_DEFAUT = cond;
+
+            // Chantiers
+            const dlC = document.getElementById('chantiers-list');
+            dlC.innerHTML = '';
+            (data.chantiers || []).forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = c.reference ? `${c.nom} — ${c.reference}` : c.nom;
+                dlC.appendChild(opt);
+            });
+
+            // Auteurs (Datalist pour saisie libre)
+            const dlA = document.getElementById('auteurs-list');
+            dlA.innerHTML = '';
+            ALL_USERS.forEach(u => {
+                const opt = document.createElement('option');
+                opt.value = u.name;
+                dlA.appendChild(opt);
+            });
+            
+            if(CONDUCTEUR_DEFAUT.name !== 'Chargement...') {
+              document.getElementById('send-targets-list').innerHTML = `<div class="stag stag-default">${CONDUCTEUR_DEFAUT.name}</div>`;
+            }
+        }
+        delete window._contactsCallback;
+        script.remove();
+    };
+    script.src = APPS_SCRIPT_URL + '?action=getContacts&callback=_contactsCallback&t=' + Date.now();
+    document.head.appendChild(script);
+}
+
+// UI PLINTHES
+function selectPlintheMode(mode) {
+    plinthMode = plinthMode === mode ? '' : mode;
+    document.getElementById('pcase-gen').className = 'pcase' + (plinthMode==='gen' ? ' active-gen' : '');
+    document.getElementById('pcase-att').className = 'pcase' + (plinthMode==='att' ? ' active-att' : '');
+    document.getElementById('plinthe-gen-zone').style.display = plinthMode==='gen' ? 'flex' : 'none';
+    document.getElementById('th-plinthe-group').style.display = plinthMode==='att' ? '' : 'none';
+    renderTable();
+}
+
+function updatePlinthGen() {
+    const val = document.getElementById('plinthe-gen-val').value;
+    rows.forEach(r => r.plinthe = val);
+}
+
+function toggleNonPosee() {
+    plinthNonPosee = !plinthNonPosee;
+    document.getElementById('non-posee-toggle').classList.toggle('active', plinthNonPosee);
+    rows.forEach(r => r.plinthe = plinthNonPosee ? 'Non posée' : '');
+}
+
+// LIGNES DU TABLEAU
+function addRow() {
+    rowCounter++;
+    rows.push({ id: rowCounter, logt:'', piece:'', hauteur:'', solType:'', murHaut:'', plintheBas:'', long:'', prof:'', plinthe:'' });
+    renderTable();
+}
+
+function renderTable() {
+    const tbody = document.getElementById('tableBody');
+    tbody.innerHTML = rows.map((r, i) => `
+        <tr>
+            <td class="col-sep" style="padding:4px 12px;">
+                <input class="ti ti-left" style="font-weight:700" placeholder="Logt" value="${r.logt}" oninput="updateRow(${r.id},'logt',this.value)">
+                <input class="ti ti-left" style="font-size:11px; color:var(--muted)" placeholder="Pièce" value="${r.piece}" oninput="updateRow(${r.id},'piece',this.value)">
+            </td>
+            <td><input class="ti" type="number" value="${r.hauteur}" oninput="updateRow(${r.id},'hauteur',this.value)"></td>
+            <td><div class="sf-toggle">
+                <button class="sf-btn${r.solType==='F'?' active-f':''}" onclick="setSolType(${r.id},'F')">F</button>
+                <button class="sf-btn${r.solType==='C'?' active-c':''}" onclick="setSolType(${r.id},'C')">C</button>
+            </div></td>
+            <td><input class="ti" type="number" value="${r.murHaut}" oninput="updateRow(${r.id},'murHaut',this.value)"></td>
+            <td class="col-sep"><input class="ti" type="number" value="${r.plintheBas}" oninput="updateRow(${r.id},'plintheBas',this.value)"></td>
+            <td><input class="ti" type="number" value="${r.long}" oninput="updateRow(${r.id},'long',this.value)"></td>
+            <td class="col-sep"><input class="ti" type="number" value="${r.prof}" oninput="updateRow(${r.id},'prof',this.value)"></td>
+            ${plinthMode==='att' ? `<td><input class="ti ti-num" value="${r.plinthe}" oninput="updateRow(${r.id},'plinthe',this.value)" style="color:#7A4200;"></td>` : ''}
+            <td style="text-align:center"><button class="del-row" onclick="deleteRow(${r.id})">×</button></td>
+        </tr>
+    `).join('');
+    updateCounters();
+}
+
+function updateRow(id, f, v) { const r = rows.find(x=>x.id===id); if(r) r[f]=v; }
+function setSolType(id, t) { const r = rows.find(x=>x.id===id); if(r) r.solType=(r.solType===t?'':t); renderTable(); }
+function deleteRow(id) { rows = rows.filter(x=>x.id!==id); renderTable(); }
+
+function updateCounters() {
+    document.getElementById('sum-lignes-tb').textContent = rows.length + ' ligne(s)';
+}
+
+// APERÇU PDF CORRIGÉ (DESIGN D'ORIGINE RESTAURÉ DANS LA MODALE)
+function openPreview() { buildPdf(); document.getElementById('pdfModal').classList.add('open'); }
+function closePreview() { document.getElementById('pdfModal').classList.remove('open'); }
+
+function buildPdf() {
+    const content = document.getElementById('pdfContent');
+    const chantier = document.getElementById('meta-chantier').value || '—';
+    const batiment = document.getElementById('meta-batiment').value ? '(' + document.getElementById('meta-batiment').value + ')' : '';
+    const auteur = document.getElementById('meta-auteur').value || '—';
+    const date = document.getElementById('meta-date').value || '—';
+    const ref = document.getElementById('fiche-ref').textContent;
+
+    let tableRows = rows.map(r => `
+        <tr style="border-bottom:1px solid #eee;">
+            <td style="padding:10px; font-weight:700;">${r.logt || '-'}</td>
+            <td style="padding:10px;">${r.piece || '-'}</td>
+            <td style="padding:10px; text-align:center;">${r.hauteur || '-'}</td>
+            <td style="padding:10px; text-align:center; font-weight:700;">${r.solType || '-'}</td>
+            <td style="padding:10px; text-align:center;">${r.murHaut || '-'}</td>
+            <td style="padding:10px; text-align:center;">${r.long || '-'}</td>
+            <td style="padding:10px; text-align:center;">${r.plinthe || '-'}</td>
+        </tr>
+    `).join('');
+
+    // Design d'origine restauré exactement dans l'aperçu
+    content.innerHTML = `
+        <div style="font-family:'DM Sans',sans-serif; color:#333;">
+            <div style="display:flex; justify-content:space-between; border-bottom:3px solid #1A2B4A; padding-bottom:15px; margin-bottom:20px;">
+                <div>
+                    <h2 style="margin:0; color:#1A2B4A; font-family:'Syne',sans-serif; font-weight:800; font-size:18px;">Votre Entreprise</h2>
+                    <p style="margin:2px 0; font-size:11px; color:#666;">Menuiserie · Charpente · Agencement</p>
+                </div>
+                <div style="text-align:right;">
+                    <p style="font-weight:700; font-family:'Syne',sans-serif; font-size:14px; color:#1A2B4A;">Prise de cotes — Placards</p>
+                    <p style="margin:4px 0 0; background:var(--orange-l); color:var(--orange-d); font-size:10px; font-weight:700; display:inline-block; padding:3px 8px; border-radius:5px;">${ref}</p>
+                </div>
+            </div>
+
+            <table style="width:100%; border-collapse:collapse; font-size:12px; margin-bottom:15px;">
+              <tr>
+                <td style="padding:3px 0; color:#666; width:80px;">Chantier</td>
+                <td style="padding:3px 0; font-weight:600;">${chantier} ${batiment}</td>
+              </tr>
+              <tr>
+                <td style="padding:3px 0; color:#666;">Rédigé par</td>
+                <td style="padding:3px 0;">${auteur} le ${date}</td>
+              </tr>
+            </table>
+
+            <table style="width:100%; border-collapse:collapse; font-size:11.5px;">
+                <thead>
+                    <tr style="background:#1A2B4A; color:white;">
+                        <th style="padding:10px; text-align:left;">Logement</th>
+                        <th style="padding:10px; text-align:left;">Pièce</th>
+                        <th style="padding:10px; text-align:center;">Haut.</th>
+                        <th style="padding:10px; text-align:center;">F/C</th>
+                        <th style="padding:10px; text-align:center;">Mur/Mur</th>
+                        <th style="padding:10px; text-align:center;">Long.</th>
+                        <th style="padding:10px; text-align:center;">Plinthe</th>
+                    </tr>
+                </thead>
+                <tbody>${tableRows || '<tr><td colspan="7" style="text-align:center; padding:20px;">Aucune donnée</td></tr>'}</tbody>
+            </table>
+        </div>
+    `;
+}
+
+// ENVOI
+async function sendDoc() {
+    if(!rows.length) return showToast('Tableau vide !');
+    const btn = document.getElementById('btn-envoyer');
+    btn.disabled = true; btn.textContent = 'Envoi...';
+
+    const payload = {
+        ref: document.getElementById('fiche-ref').textContent,
+        chantier: document.getElementById('meta-chantier').value,
+        batiment: document.getElementById('meta-batiment').value,
+        auteur: document.getElementById('meta-auteur').value,
+        date: document.getElementById('meta-date').value,
+        lignes: rows
+    };
+
+    try {
+        await fetch(APPS_SCRIPT_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify(payload) });
+        showToast('✓ Envoyé au conducteur !');
+    } catch(e) {
+        showToast('Erreur lors de l\'envoi');
+    } finally {
+        btn.disabled = false; btn.textContent = 'Envoyer au Conducteur';
+    }
+}
+
+function showToast(m) {
+    const t = document.getElementById('toast'); document.getElementById('toastMsg').textContent = m;
+    t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+// Init
+(function() {
+    document.getElementById('meta-date').value = new Date().toLocaleDateString('fr-FR');
+    loadContacts();
+    addRow();
+})();
+</script>
+</body>
+</html>
