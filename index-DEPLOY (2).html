@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>ChantierPro — Loué Menuiserie</title>
+<link rel="icon" type="image/png" href="logo.png">
+<link rel="apple-touch-icon" href="logo.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="ChantierPro">
+<meta name="theme-color" content="#1A2B4A">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --orange:#D95818;--orange-l:#F8ECE4;--orange-d:#AA4110;
+  --bg:#F2F0EC;--card:#FFF;--text:#141210;--muted:#6A6460;
+  --border:#D8D4CE;--border2:#B8B4AE;
+  --blue:#1454A0;--blue-l:#DCE8F8;--blue-d:#0D3D7A;
+  --green:#196B3B;--green-l:#E1F2E9;
+  --purple:#6B3FA0;--purple-l:#EDE8F8;
+  --header-bg:#1A2B4A;
+  --r:8px;--rl:12px;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;flex-direction:column;}
+
+/* ── TOPBAR ── */
+.topbar{background:var(--header-bg);padding:0 16px;height:54px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:30;flex-shrink:0;}
+.tb-sq{width:28px;height:28px;background:var(--orange);border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.tb-sq svg{width:14px;height:14px;fill:white;}
+.tb-name{font-family:'Syne',sans-serif;font-weight:800;font-size:15px;color:white;letter-spacing:.2px;}
+.tb-sub{font-size:10px;color:rgba(255,255,255,.5);margin-left:2px;}
+
+/* ── ONGLETS NAVIGATION ── */
+.nav-tabs{background:var(--header-bg);border-top:1px solid rgba(255,255,255,.1);display:flex;flex-shrink:0;}
+.nav-tab{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:10px 8px;cursor:pointer;border:none;background:transparent;color:rgba(255,255,255,.5);transition:.2s;font-family:'DM Sans',sans-serif;border-bottom:2px solid transparent;}
+.nav-tab.active{color:white;border-bottom-color:var(--orange);}
+.nav-tab:hover{color:rgba(255,255,255,.8);}
+.nav-tab svg{width:20px;height:20px;}
+.nav-tab-label{font-size:11px;font-weight:500;}
+
+/* ── CONTENU ── */
+.tab-content{display:none;flex:1;}
+.tab-content.active{display:block;}
+.main{padding:16px;max-width:900px;margin:0 auto;}
+
+/* ── PAGE FICHES ── */
+.fiches-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:4px;}
+.fiche-card{background:var(--card);border:1.5px solid var(--border);border-radius:var(--rl);padding:22px 18px;cursor:pointer;transition:.2s;text-decoration:none;display:flex;flex-direction:column;gap:10px;position:relative;overflow:hidden;}
+.fiche-card:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(0,0,0,.1);}
+.fiche-card-icon{width:44px;height:44px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.fiche-card-icon svg{width:22px;height:22px;fill:white;}
+.fiche-card-title{font-family:'Syne',sans-serif;font-weight:700;font-size:14px;color:var(--text);}
+.fiche-card-sub{font-size:11.5px;color:var(--muted);line-height:1.5;}
+.fiche-card-arrow{position:absolute;bottom:16px;right:16px;color:var(--border2);}
+.fiche-card-arrow svg{width:16px;height:16px;}
+.section-title{font-family:'Syne',sans-serif;font-weight:700;font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:12px;margin-top:4px;}
+
+/* ── PAGE CHANTIERS ── */
+.chantiers-list{display:flex;flex-direction:column;gap:10px;}
+.chantier-card{background:var(--card);border:1px solid var(--border);border-radius:var(--rl);padding:14px 16px;cursor:pointer;transition:.15s;display:flex;align-items:center;gap:14px;}
+.chantier-card:hover{border-color:var(--blue);background:#F8FAFF;}
+.chantier-num{width:38px;height:38px;border-radius:9px;background:var(--blue-l);display:flex;align-items:center;justify-content:center;font-family:'Syne',sans-serif;font-weight:700;font-size:13px;color:var(--blue);flex-shrink:0;}
+.chantier-name{font-family:'Syne',sans-serif;font-weight:700;font-size:14px;color:var(--text);}
+.chantier-ref{font-size:11.5px;color:var(--muted);margin-top:2px;}
+.chantier-arrow{margin-left:auto;color:var(--border2);}
+.chantier-arrow svg{width:16px;height:16px;}
+.chantier-status{display:inline-flex;align-items:center;padding:2px 8px;border-radius:10px;font-size:10.5px;font-weight:600;}
+.status-en-cours{background:#E1F2E9;color:var(--green);}
+.status-termine{background:var(--bg);color:var(--muted);}
+
+/* ── ÉTAT CHARGEMENT / VIDE ── */
+.empty-state{padding:40px 20px;text-align:center;color:var(--muted);}
+.empty-state svg{width:40px;height:40px;color:var(--border);display:block;margin:0 auto 12px;}
+.empty-state-title{font-family:'Syne',sans-serif;font-weight:700;font-size:14px;margin-bottom:6px;}
+.empty-state-sub{font-size:12.5px;line-height:1.6;}
+.loading{display:flex;align-items:center;justify-content:center;gap:8px;padding:30px;color:var(--muted);font-size:13px;}
+.spinner{width:18px;height:18px;border:2px solid var(--border);border-top-color:var(--orange);border-radius:50%;animation:spin .7s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── MODAL CHANTIER ── */
+.modal-overlay{position:fixed;inset:0;background:rgba(20,18,16,.55);z-index:100;display:flex;flex-direction:column;justify-content:flex-end;opacity:0;pointer-events:none;transition:.25s;}
+.modal-overlay.open{opacity:1;pointer-events:all;}
+.modal-sheet{background:var(--card);border-radius:20px 20px 0 0;padding:20px 0 0;transform:translateY(100%);transition:.25s;max-height:85vh;display:flex;flex-direction:column;}
+.modal-overlay.open .modal-sheet{transform:translateY(0);}
+.modal-handle{width:36px;height:4px;background:var(--border);border-radius:2px;margin:0 auto 16px;}
+.modal-head{padding:0 20px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;}
+.modal-title{font-family:'Syne',sans-serif;font-weight:700;font-size:16px;}
+.modal-close{margin-left:auto;width:28px;height:28px;border-radius:7px;border:1px solid var(--border);background:none;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+.modal-close svg{width:13px;height:13px;}
+.modal-body{padding:16px 20px;overflow-y:auto;flex:1;}
+.sous-onglets{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;}
+.sous-onglet{padding:6px 14px;border-radius:20px;border:1.5px solid var(--border);font-size:12.5px;font-weight:500;cursor:pointer;transition:.15s;background:var(--bg);color:var(--muted);}
+.sous-onglet.active{background:var(--blue-l);color:var(--blue-d);border-color:var(--blue);}
+.sous-onglet:hover{border-color:var(--muted);}
+.docs-list{display:flex;flex-direction:column;gap:8px;}
+.doc-item{display:flex;align-items:center;gap:12px;padding:11px 14px;background:var(--bg);border:1px solid var(--border);border-radius:var(--r);cursor:pointer;text-decoration:none;transition:.15s;}
+.doc-item:hover{border-color:var(--blue);background:#F8FAFF;}
+.doc-icon{width:32px;height:32px;border-radius:7px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.doc-icon svg{width:16px;height:16px;}
+.doc-name{font-size:13px;font-weight:500;color:var(--text);}
+.doc-type{font-size:10.5px;color:var(--muted);margin-top:1px;}
+.docs-empty{padding:20px;text-align:center;color:var(--muted);font-size:12.5px;font-style:italic;}
+
+/* ── TOAST ── */
+.toast{position:fixed;bottom:18px;right:18px;background:var(--text);color:white;padding:11px 15px;border-radius:var(--r);font-size:13px;font-weight:500;z-index:400;display:flex;align-items:center;gap:8px;transform:translateY(60px);opacity:0;transition:.25s;max-width:300px;}
+.toast.show{transform:translateY(0);opacity:1;}
+
+@media(max-width:480px){.fiches-grid{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <div class="tb-sq"><svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></div>
+  <div>
+    <div class="tb-name">ChantierPro</div>
+  </div>
+  <div style="margin-left:auto;font-size:11px;color:rgba(255,255,255,.4)">Loué Menuiserie</div>
+</div>
+
+<!-- ONGLETS -->
+<nav class="nav-tabs">
+  <button class="nav-tab active" id="tab-fiches" onclick="showTab('fiches')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+    <span class="nav-tab-label">Fiches</span>
+  </button>
+  <button class="nav-tab" id="tab-chantiers" onclick="showTab('chantiers')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+    <span class="nav-tab-label">Chantiers</span>
+  </button>
+</nav>
+
+<!-- ═══ ONGLET FICHES ═══ -->
+<div class="tab-content active" id="content-fiches">
+  <div class="main">
+    <div class="section-title">Saisie terrain</div>
+    <div class="fiches-grid">
+
+      <!-- Prise de cotes -->
+      <a class="fiche-card" href="cotes.html" style="border-color:#B8D0F0">
+        <div class="fiche-card-icon" style="background:var(--blue)">
+          <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        </div>
+        <div>
+          <div class="fiche-card-title">Prise de cotes</div>
+          <div class="fiche-card-sub">Façades & aménagement placards</div>
+        </div>
+        <div class="fiche-card-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg></div>
+      </a>
+
+      <!-- Fiche fabrication -->
+      <a class="fiche-card" href="fiche-fabrication.html" style="border-color:#C8B8F0">
+        <div class="fiche-card-icon" style="background:var(--purple)">
+          <svg viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg>
+        </div>
+        <div>
+          <div class="fiche-card-title">Fiche fabrication</div>
+          <div class="fiche-card-sub">Divers, bloc porte, photo/croquis</div>
+        </div>
+        <div class="fiche-card-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg></div>
+      </a>
+
+    </div>
+  </div>
+</div>
+
+<!-- ═══ ONGLET CHANTIERS ═══ -->
+<div class="tab-content" id="content-chantiers">
+  <div class="main">
+    <div class="section-title">Liste des chantiers</div>
+    <div id="chantiers-container">
+      <div class="loading"><div class="spinner"></div>Chargement…</div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL CHANTIER (bottom sheet) -->
+<div class="modal-overlay" id="chantierModal">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-head">
+      <div>
+        <div class="modal-title" id="modal-chantier-name">—</div>
+        <div style="font-size:11.5px;color:var(--muted);margin-top:2px" id="modal-chantier-ref"></div>
+      </div>
+      <button class="modal-close" onclick="closeModal()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    </div>
+    <div class="modal-body">
+      <!-- Sous-onglets documents -->
+      <div class="sous-onglets" id="sous-onglets">
+        <button class="sous-onglet active" onclick="showSousOnglet('acces',this)">Accès</button>
+        <button class="sous-onglet" onclick="showSousOnglet('plans',this)">Plans</button>
+        <button class="sous-onglet" onclick="showSousOnglet('qt',this)">QT/Tableaux</button>
+        <button class="sous-onglet" onclick="showSousOnglet('cctp',this)">CCTP</button>
+        <button class="sous-onglet" onclick="showSousOnglet('securite',this)">Sécurité</button>
+        <button class="sous-onglet" onclick="showSousOnglet('fiches',this)">Fiches</button>
+        <button class="sous-onglet" onclick="showSousOnglet('notes',this)">Notes/Réunion</button>
+        <button class="sous-onglet" onclick="showSousOnglet('quitus',this)">Quitus</button>
+      </div>
+      <div id="docs-container" class="docs-list"></div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"><span id="toastMsg"></span></div>
+
+<script>
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw4iyVmaDgXTrq-yO-QArwhWbY57Ny0U8hCHcUq45Mxi7ZwheCFOQpfOAoX0oSD3QaUFQ/exec';
+
+let ALL_CHANTIERS = [];
+let currentChantier = null;
+let currentSousOnglet = 'acces';
+
+// ── Navigation ──
+function showTab(tab) {
+  document.querySelectorAll('.tab-content').forEach(el=>el.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(el=>el.classList.remove('active'));
+  document.getElementById('content-'+tab).classList.add('active');
+  document.getElementById('tab-'+tab).classList.add('active');
+  if(tab==='chantiers') loadChantiers();
+}
+
+// ── Chargement des chantiers ──
+function loadChantiers() {
+  const container = document.getElementById('chantiers-container');
+  container.innerHTML='<div class="loading"><div class="spinner"></div>Chargement…</div>';
+
+  if(!APPS_SCRIPT_URL || APPS_SCRIPT_URL==='https://script.google.com/macros/s/AKfycbw4iyVmaDgXTrq-yO-QArwhWbY57Ny0U8hCHcUq45Mxi7ZwheCFOQpfOAoX0oSD3QaUFQ/exec') {
+    renderChantiersFallback(); return;
+  }
+
+  // Si déjà chargé, on réaffiche directement
+  if(ALL_CHANTIERS.length) { renderChantiers(); return; }
+
+  window._homeCallback = function(data) {
+    clearTimeout(window._homeTO);
+    if(data && data.chantiers && data.chantiers.length) {
+      ALL_CHANTIERS = data.chantiers.map((c,i)=>({
+        id:i+1, nom:c.nom, reference:c.reference||'', statut:c.statut||'',
+      }));
+      renderChantiers();
+    } else {
+      renderChantiersFallback();
+    }
+    delete window._homeCallback; delete window._homeTO;
+    const s=document.getElementById('_jsonp_home'); if(s) s.remove();
+  };
+  window._homeTO = setTimeout(()=>{
+    if(window._homeCallback){ delete window._homeCallback; renderChantiersFallback(); }
+  }, 10000);
+  const sc=document.createElement('script'); sc.id='_jsonp_home';
+  sc.src=APPS_SCRIPT_URL+'?action=getContacts&callback=_homeCallback&t='+Date.now();
+  document.head.appendChild(sc);
+}
+
+function renderChantiers() {
+  const container = document.getElementById('chantiers-container');
+  if(!ALL_CHANTIERS.length) {
+    container.innerHTML=`<div class="empty-state">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>
+      <div class="empty-state-title">Aucun chantier</div>
+      <div class="empty-state-sub">Ajoutez des chantiers dans l'onglet Google Sheets</div>
+    </div>`;
+    return;
+  }
+  container.innerHTML=`<div class="chantiers-list">${ALL_CHANTIERS.map((c,i)=>`
+    <div class="chantier-card" onclick="openChantier(${c.id})">
+      <div class="chantier-num">${String(i+1).padStart(2,'0')}</div>
+      <div style="flex:1;min-width:0">
+        <div class="chantier-name">${c.nom}</div>
+        ${c.reference?`<div class="chantier-ref">Réf. ${c.reference}</div>`:''}
+      </div>
+      ${c.statut?`<span class="chantier-status ${c.statut==='En cours'?'status-en-cours':'status-termine'}">${c.statut}</span>`:''}
+      <div class="chantier-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg></div>
+    </div>`).join('')}</div>`;
+}
+
+function renderChantiersFallback() {
+  // Affichage sans données du Sheet — message d'aide
+  document.getElementById('chantiers-container').innerHTML=`<div class="empty-state">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>
+    <div class="empty-state-title">Chantiers à configurer</div>
+    <div class="empty-state-sub">Les chantiers s'afficheront automatiquement depuis votre Google Sheet.<br>En attendant, retrouvez vos fiches dans l'onglet <strong>Fiches</strong>.</div>
+  </div>`;
+}
+
+// ── Modal chantier ──
+function openChantier(id) {
+  currentChantier = ALL_CHANTIERS.find(c=>c.id===id);
+  if(!currentChantier) return;
+  document.getElementById('modal-chantier-name').textContent = currentChantier.nom;
+  document.getElementById('modal-chantier-ref').textContent  = currentChantier.reference ? 'Réf. '+currentChantier.reference : '';
+  currentSousOnglet = 'acces';
+  document.querySelectorAll('.sous-onglet').forEach((el,i)=>el.classList.toggle('active',i===0));
+  // Charger les dossiers Drive
+  document.getElementById('docs-container').innerHTML = '<div class="loading"><div class="spinner"></div>Chargement…</div>';
+  document.getElementById('chantierModal').classList.add('open');
+  document.body.style.overflow='hidden';
+  chargerDossiers(currentChantier.nom);
+}
+
+function chargerDossiers(chantierNom) {
+  // Vider le cache du chantier précédent
+  currentChantier.dossiers = null;
+
+  window._dossiersCB = function(data) {
+    clearTimeout(window._dossiersTO);
+    if(data && data.dossiers) {
+      currentChantier.dossiers = data.dossiers;
+    } else {
+      currentChantier.dossiers = {};
+    }
+    renderDocs(currentSousOnglet);
+    delete window._dossiersCB; delete window._dossiersTO;
+    const s=document.getElementById('_jsonp_dossiers'); if(s) s.remove();
+  };
+  window._dossiersTO = setTimeout(()=>{
+    if(window._dossiersCB){
+      delete window._dossiersCB;
+      document.getElementById('docs-container').innerHTML =
+        '<div class="docs-empty">Impossible de charger les documents.<br><span style="font-size:11px">Vérifiez la connexion ou le Apps Script.</span></div>';
+    }
+  }, 12000);
+
+  const sc=document.createElement('script'); sc.id='_jsonp_dossiers';
+  sc.src=APPS_SCRIPT_URL+'?action=getDossiers&chantier='+encodeURIComponent(chantierNom)+'&callback=_dossiersCB&t='+Date.now();
+  document.head.appendChild(sc);
+}
+
+function closeModal() {
+  document.getElementById('chantierModal').classList.remove('open');
+  document.body.style.overflow='';
+}
+
+document.getElementById('chantierModal').addEventListener('click',e=>{
+  if(e.target===document.getElementById('chantierModal')) closeModal();
+});
+
+function showSousOnglet(onglet, btn) {
+  currentSousOnglet = onglet;
+  document.querySelectorAll('.sous-onglet').forEach(el=>el.classList.remove('active'));
+  btn.classList.add('active');
+  renderDocs(onglet);
+}
+
+function renderDocs(onglet) {
+  const container = document.getElementById('docs-container');
+
+  // Encore en chargement
+  if(!currentChantier.dossiers) {
+    container.innerHTML='<div class="loading"><div class="spinner"></div>Chargement…</div>';
+    return;
+  }
+
+  const docs = currentChantier.dossiers[onglet] || [];
+
+  // Icônes par type
+  function docIcon(type) {
+    const icons = {
+      pdf  : {bg:'#FAE8E8',clr:'#B32E2E', path:'<path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/>'},
+      image: {bg:'var(--purple-l)',clr:'var(--purple)', path:'<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>'},
+      xls  : {bg:'var(--green-l)',clr:'var(--green)', path:'<path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/>'},
+      ppt  : {bg:'#FDF0D6',clr:'#7A4200', path:'<path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/>'},
+      doc  : {bg:'var(--blue-l)',clr:'var(--blue)', path:'<path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/>'},
+      link : {bg:'var(--bg)',clr:'var(--muted)', path:'<path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/>'},
+    };
+    return icons[type] || icons.link;
+  }
+
+  if(!docs.length) {
+    container.innerHTML=`<div class="docs-empty">
+      Aucun document dans ce dossier.<br>
+      <span style="font-size:11px">Déposez des fichiers dans le dossier Drive correspondant.</span>
+    </div>`;
+    return;
+  }
+
+  container.innerHTML = docs.map(d=>{
+    const ic = docIcon(d.type||'link');
+    return `<a class="doc-item" href="${d.url||'#'}" target="_blank" rel="noopener">
+      <div class="doc-icon" style="background:${ic.bg}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="${ic.clr}" stroke-width="2">${ic.path}</svg>
+      </div>
+      <div style="flex:1;min-width:0">
+        <div class="doc-name" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${d.nom||'Document'}</div>
+        <div class="doc-type">${d.date||''}</div>
+      </div>
+      <svg style="flex-shrink:0;color:var(--border2)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+    </a>`;
+  }).join('');
+}
+
+function showToast(m){ const t=document.getElementById('toast'); document.getElementById('toastMsg').textContent=m; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),3000); }
+
+// ── Init ──
+// Les chantiers se chargent au clic sur l'onglet
+</script>
+</body>
+</html>
