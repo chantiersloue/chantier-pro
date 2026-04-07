@@ -1,354 +1,61 @@
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>ChantierPro — Prise de cotes</title>
-<link rel="icon" type="image/png" href="apple-touch-icon.png">
-<link rel="apple-touch-icon" href="apple-touch-icon.png">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="ChantierPro">
-<meta name="theme-color" content="#1A2B4A">
-<link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
-<style>
-:root {
-  --orange:#D95818; --orange-l:#F8ECE4; --orange-d:#AA4110;
-  --bg:#F2F0EC; --card:#FFF; --text:#141210; --muted:#6A6460;
-  --border:#D8D4CE; --border2:#B8B4AE;
-  --blue:#1454A0; --blue-l:#DCE8F8; --blue-d:#0D3D7A;
-  --green:#196B3B; --green-l:#E1F2E9;
-  --amber:#9A5600; --amber-l:#FDF0D8;
-  --red:#B32E2E; --red-l:#FAE8E8;
-  --header-bg:#1A2B4A;
-  --r:8px; --rl:12px;
-}
-*{margin:0;padding:0;box-sizing:border-box;}
-body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;}
-
-.topbar{background:var(--header-bg);padding:0 16px;height:50px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:20;}
-.tb-logo{display:flex;align-items:center;gap:9px;}
-.tb-sq{width:26px;height:26px;background:var(--orange);border-radius:5px;display:flex;align-items:center;justify-content:center;}
-.tb-sq svg{width:13px;height:13px;fill:white;}
-.tb-name{font-family:'Syne',sans-serif;font-weight:700;font-size:14px;color:white;}
-
-.main{padding:16px;max-width:1100px;margin:0 auto;}
-
-.fiche-header{background:var(--card);border:1px solid var(--border);border-radius:var(--rl);padding:16px 20px;margin-bottom:14px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;}
-.fiche-logo-zone{display:flex;align-items:center;gap:10px;}
-.fiche-logo-box{width:44px;height:44px;background:var(--orange);border-radius:9px;display:flex;align-items:center;justify-content:center;}
-.fiche-logo-box svg{width:22px;height:22px;fill:white;}
-.fiche-co{font-family:'Syne',sans-serif;font-weight:800;font-size:15px;}
-.fiche-co-sub{font-size:10.5px;color:var(--muted);margin-top:1px;}
-.fiche-title-zone{flex:1;text-align:center;}
-.fiche-main-title{font-family:'Syne',sans-serif;font-weight:800;font-size:16px;letter-spacing:.3px;color:var(--header-bg);}
-.fiche-meta-zone{display:flex;flex-direction:column;gap:8px;min-width:240px;}
-.fiche-meta-row{display:flex;align-items:center;gap:8px;}
-.fiche-meta-label{font-size:11px;font-weight:500;color:var(--muted);white-space:nowrap;min-width:70px;}
-.fiche-meta-input{flex:1;padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;font-family:'DM Sans',sans-serif;background:var(--bg);outline:none;color:var(--text);}
-.fiche-meta-input:focus{border-color:var(--orange);background:white;}
-.fiche-ref-badge{background:var(--orange-l);color:var(--orange-d);border:1px solid #E8C4A8;border-radius:6px;padding:5px 11px;font-size:11.5px;font-weight:500;white-space:nowrap;}
-
-.plinthe-bloc{background:var(--card);border:1px solid var(--border);border-radius:var(--rl);padding:13px 18px;margin-bottom:14px;display:flex;align-items:center;gap:20px;flex-wrap:wrap;}
-.plinthe-title{font-family:'Syne',sans-serif;font-weight:700;font-size:13px;color:var(--text);}
-.pcase{display:flex;align-items:center;gap:8px;padding:8px 14px;border-radius:var(--r);border:1.5px solid var(--border);cursor:pointer;transition:.15s;user-select:none;}
-.pcase.active-gen{border-color:var(--green);background:var(--green-l);}
-.pcase.active-att{border-color:#C8860A;background:#FDF0D6;}
-
-.table-wrap{background:var(--card);border:1px solid var(--border);border-radius:var(--rl);overflow:hidden;margin-bottom:16px;}
-.table-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;}
-.cotes-table{width:100%;border-collapse:collapse;min-width:760px;}
-.th-group{padding:7px 10px;font-family:'Syne',sans-serif;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;text-align:center;border-bottom:1px solid var(--border);}
-.th-facade{background:#EBF1FA;color:var(--blue-d);border-right:1px solid var(--border);}
-.th-amenag{background:#E8F4EE;color:var(--green);border-right:1px solid var(--border);}
-.cotes-table thead tr:nth-child(2) th{padding:8px 6px;font-size:10.5px;font-weight:500;color:var(--muted);background:var(--bg);border-bottom:2px solid var(--border2);text-align:center;line-height:1.3;}
-.col-sep{border-right:1px solid var(--border2)!important;}
-.ti{width:100%;padding:8px;border:1px solid transparent;border-radius:6px;font-size:14px;font-family:'DM Sans',sans-serif;color:var(--text);background:transparent;outline:none;text-align:center;}
-.ti:focus{border-color:var(--orange);background:white;}
-
-.btn{display:inline-flex;align-items:center;gap:6px;padding:9px 15px;border-radius:var(--r);font-size:13.5px;font-weight:500;cursor:pointer;border:none;}
-.btn-primary{background:var(--orange);color:white;}
-.btn-secondary{background:var(--card);color:var(--text);border:1px solid var(--border);}
-.pend-btn{padding:5px 8px;border-radius:5px;font-size:12px;font-weight:600;cursor:pointer;border:1.5px solid var(--border);background:var(--bg);color:var(--muted);}
-.pend-btn.active{background:var(--orange-l);color:var(--orange-d);border-color:var(--orange);}
-
-.modal-overlay{position:fixed;inset:0;background:rgba(20,18,16,.55);z-index:100;display:none;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto;}
-.modal-overlay.open{display:flex;}
-.modal{background:var(--card);border-radius:var(--rl);width:100%;max-width:950px;margin-top:10px;padding:20px;}
-
-.toast{position:fixed;bottom:18px;right:18px;background:var(--text);color:white;padding:12px 16px;border-radius:var(--r);font-size:13px;opacity:0;transition:.25s;z-index:300;}
-.toast.show{opacity:1;}
-</style>
-</head>
-<body>
-
-<div class="topbar">
-  <div class="tb-logo"><div class="tb-sq"><svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></div><div class="tb-name">ChantierPro</div></div>
-  <button class="btn btn-secondary" style="padding:6px 12px;font-size:12.5px" onclick="openPreview()">Aperçu PDF</button>
-</div>
-
-<div class="main">
-  <div class="fiche-header">
-    <div class="fiche-logo-zone"><div class="fiche-logo-box"><svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></div><div><div class="fiche-co">Loué Menuiserie</div><div class="fiche-co-sub">Menuiserie · Charpente · Agencement</div></div></div>
-    <div class="fiche-title-zone"><div class="fiche-main-title">PRISE DE COTES — FAÇADES & PLACARDS</div></div>
-    <div class="fiche-meta-zone">
-      <div class="fiche-meta-row"><span class="fiche-meta-label">Chantier</span><input class="fiche-meta-input" id="meta-chantier" list="chantiers-list" autocomplete="off" onclick="this.select()"></div>
-      <div class="fiche-meta-row"><span class="fiche-meta-label">Bâtiment</span><input class="fiche-meta-input" id="meta-batiment"></div>
-      <div class="fiche-meta-row"><span class="fiche-meta-label">Rédigé par</span><input class="fiche-meta-input" id="meta-auteur" list="auteurs-list" autocomplete="off" onclick="this.select()"></div>
-      <div class="fiche-meta-row"><span class="fiche-meta-label">Date</span><input type="text" class="fiche-meta-input" id="meta-date" readonly></div>
-    </div>
-    <div class="fiche-ref-badge" id="fiche-ref">PC-2026-001</div>
-  </div>
-
-  <div class="plinthe-bloc">
-    <div class="plinthe-title">Hauteur de plinthe</div>
-    <div class="plinthe-cases">
-      <div class="pcase" id="pcase-gen" onclick="selectPlintheMode('gen')">Généralité</div>
-      <div class="pcase" id="pcase-att" onclick="selectPlintheMode('att')">Variables</div>
-    </div>
-    <div id="plinthe-gen-zone" style="display:none; margin-left:15px; align-items:center; gap:8px;">
-      <input type="number" id="plinthe-gen-val" placeholder="100" oninput="updatePlinthGen()" style="width:60px; padding:6px; border-radius:6px; border:1px solid var(--border);">
-      <span style="color:var(--green); font-size:12px;">mm</span>
-      <div class="non-posee-toggle" id="non-posee-toggle" onclick="toggleNonPosee()" style="padding:6px 12px; border:1px solid var(--border); border-radius:6px; font-size:12px; cursor:pointer;">Non posée</div>
-    </div>
-  </div>
-
-  <div class="plinthe-bloc" style="border-color:var(--red);background:#FFF8F8;">
-    <div class="plinthe-title" style="color:var(--red)">Socle sous façade</div>
-    <div style="display:flex;gap:10px;">
-      <div class="pcase" id="socle-oui" onclick="setSocle(true)">Oui</div>
-      <div class="pcase" id="socle-non" onclick="setSocle(false)">Non</div>
-    </div>
-  </div>
-
-  <div class="plinthe-bloc" style="border-color:var(--blue);background:#F5F8FE;">
-    <div class="plinthe-title" style="color:var(--blue)">Hauteur façade sur</div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap">
-      <div class="pcase" id="sol-chape" onclick="setSolMode('Chape')">Chape</div>
-      <div class="pcase" id="sol-fini" onclick="setSolMode('Fini')">Sol fini</div>
-      <div class="pcase" id="sol-socle" onclick="setSolMode('Socle déduit')">Socle déduit</div>
-    </div>
-  </div>
-
-  <div class="table-wrap">
-    <div class="table-scroll">
-      <table class="cotes-table">
-        <thead>
-          <tr>
-            <th class="th-group" rowspan="2" style="text-align:left;padding-left:12px;min-width:160px;">N° / Pièce</th>
-            <th class="th-group th-facade" colspan="4">FAÇADE</th>
-            <th class="th-group th-amenag" colspan="2">AMÉNAGEMENT</th>
-            <th class="th-group" colspan="2">PENDERIE</th>
-            <th class="th-group" id="th-plinthe-group" rowspan="2" style="display:none">PLINTHE</th>
-            <th class="th-group" id="th-socle-group" rowspan="2" style="display:none;background:#FAE8E8;color:var(--red)">SOCLE</th>
-            <th class="th-group" rowspan="2"></th>
-          </tr>
-          <tr>
-            <th class="col-sep">Haut.</th><th>Sol</th><th>Mur/Mur</th><th class="col-sep">Pl/Pl</th>
-            <th>Long.</th><th class="col-sep">Prof.</th><th>G</th><th>D</th>
-          </tr>
-        </thead>
-        <tbody id="tableBody"></tbody>
-      </table>
-    </div>
-    <button class="add-row-btn" onclick="addRow()" style="width:100%; padding:12px; border:none; color:var(--orange); font-weight:700; background:none; cursor:pointer;">+ Ajouter une ligne</button>
-  </div>
-
-  <div class="table-wrap" style="padding:16px;">
-    <div style="font-family:Syne; font-weight:700; font-size:13px; margin-bottom:8px; color:var(--header-bg);">Commentaires / Notes particulières</div>
-    <textarea id="commentaires" placeholder="Notes pour la fabrication..." style="width:100%; min-height:80px; padding:12px; border:1px solid var(--border); border-radius:var(--r); font-family:inherit; font-size:13px; outline:none; background:var(--bg); resize: vertical;"></textarea>
-  </div>
-
-  <div class="send-zone" style="background:var(--card); border:1px solid var(--border); border-radius:var(--rl); padding:20px; display:flex; justify-content:space-between; align-items:center;">
-    <div class="send-info"><div style="font-family:Syne; font-weight:700; font-size:14px;">Diffusion</div><div id="send-targets-list"></div></div>
-    <button class="btn btn-primary" id="btn-envoyer" onclick="sendDoc()" style="padding:12px 24px;">Envoyer l'alerte</button>
-  </div>
-</div>
-
-<div class="modal-overlay" id="pdfModal"><div class="modal"><div id="pdfContent"></div><div style="display:flex;justify-content:flex-end;gap:10px;margin-top:20px;border-top:1px solid #eee;padding-top:15px;"><button class="btn btn-secondary" onclick="closePreview()">Fermer</button><button class="btn btn-primary" onclick="sendDoc();closePreview()">Confirmer l'envoi</button></div></div></div>
-<div class="toast" id="toast"><span id="toastMsg">OK</span></div>
-
-<datalist id="chantiers-list"></datalist>
-<datalist id="auteurs-list"></datalist>
-
 <script>
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwFT3LiXCkCQlQl47V8W2HGkEoaC3kUUhNe_UshgTlBhD_6cI25qIIsrfAyRCfxOxyyCA/exec';
+const APPS_SCRIPT_URL = 'TA_NOUVELLE_URL_DE_DEPLOYEMENT'; // <--- ATTENTION À BIEN METTRE LA DERNIERE URL
 
 let rows = [];
-let rowCounter = 0;
-let plinthMode = '';
-let plinthNonPosee = false;
-let socleMode = false;
-let solMode = ''; 
-let CONDUCTEUR_DEFAUT = { name: 'Chargement…' };
-
-function loadContacts() {
-    window._contactsCallback = function(data) {
-        if(data && data.contacts) {
-            ALL_USERS = data.contacts.map((c, i) => ({ id: i+1, name: c.nom, default: String(c.conducteurDefaut).toUpperCase() === 'O' }));
-            const cond = ALL_USERS.find(u => u.default);
-            if(cond) CONDUCTEUR_DEFAUT = cond;
-            const dlA = document.getElementById('auteurs-list'); dlA.innerHTML = '';
-            ALL_USERS.forEach(u => { const opt = document.createElement('option'); opt.value = u.name; dlA.appendChild(opt); });
-            const dlC = document.getElementById('chantiers-list'); dlC.innerHTML = '';
-            (data.chantiers || []).forEach(c => { const opt = document.createElement('option'); opt.value = c.nom; dlC.appendChild(opt); });
-            document.getElementById('send-targets-list').innerHTML = `<div style="background:var(--header-bg);color:white;padding:5px 12px;border-radius:20px;font-size:12px;">${CONDUCTEUR_DEFAUT.name}</div>`;
-        }
-    };
-    const script = document.createElement('script');
-    script.src = APPS_SCRIPT_URL + '?action=getContacts&callback=_contactsCallback&t=' + Date.now();
-    document.head.appendChild(script);
-}
-
-function selectPlintheMode(mode) {
-    plinthMode = plinthMode === mode ? '' : mode;
-    document.getElementById('pcase-gen').className = 'pcase' + (plinthMode==='gen' ? ' active-gen' : '');
-    document.getElementById('pcase-att').className = 'pcase' + (plinthMode==='att' ? ' active-att' : '');
-    document.getElementById('plinthe-gen-zone').style.display = plinthMode==='gen' ? 'flex' : 'none';
-    document.getElementById('th-plinthe-group').style.display = plinthMode==='att' ? '' : 'none';
-    renderTable();
-}
-
-function updatePlinthGen() {
-    const val = document.getElementById('plinthe-gen-val').value;
-    rows.forEach(r => r.plinthe = val);
-}
-
-function toggleNonPosee() {
-    plinthNonPosee = !plinthNonPosee;
-    document.getElementById('non-posee-toggle').style.background = plinthNonPosee ? 'var(--amber-l)' : 'white';
-    document.getElementById('non-posee-toggle').style.borderColor = plinthNonPosee ? 'var(--amber)' : 'var(--border)';
-    rows.forEach(r => r.plinthe = plinthNonPosee ? 'Non posée' : '');
-}
-
-function setSocle(val) {
-    socleMode = val;
-    document.getElementById('socle-oui').className = 'pcase' + (val ? ' active-att' : '');
-    document.getElementById('socle-non').className = 'pcase' + (!val ? ' active-gen' : '');
-    document.getElementById('th-socle-group').style.display = val ? '' : 'none';
-    renderTable();
-}
+let solMode = "Non défini"; // Valeur par défaut
+let socleMode = "NON";
 
 function setSolMode(mode) {
     solMode = mode;
-    ['chape','fini','socle'].forEach(id => document.getElementById('sol-'+id).className = 'pcase');
-    const mid = mode === 'Chape' ? 'chape' : (mode === 'Fini' ? 'fini' : 'socle');
-    document.getElementById('sol-'+mid).className = 'pcase active-gen';
-    renderTable();
+    // Visuel
+    document.querySelectorAll('.pcase').forEach(el => el.classList.remove('active-gen'));
+    event.currentTarget.classList.add('active-gen');
+    renderTable(); // Rafraichit pour afficher le texte bleu dans le tableau
 }
 
-function addRow() {
-    rowCounter++;
-    rows.push({ id: rowCounter, logt:'', piece:'', hauteur:'', murHaut:'', plintheBas:'', long:'', prof:'', pendG:false, pendD:false, plinthe:'' });
-    renderTable();
+function setSocle(val) {
+    socleMode = val ? "OUI" : "NON";
+    document.getElementById('socle-oui').classList.toggle('active-att', val);
+    document.getElementById('socle-non').classList.toggle('active-gen', !val);
 }
 
-function renderTable() {
-    const tbody = document.getElementById('tableBody');
-    tbody.innerHTML = rows.map((r, i) => `
-        <tr>
-            <td class="col-sep"><input class="ti ti-left" style="font-weight:700" placeholder="Logt" value="${r.logt}" oninput="updateRow(${r.id},'logt',this.value)"><input class="ti ti-left" style="font-size:11px;color:var(--muted)" placeholder="Pièce" value="${r.piece}" oninput="updateRow(${r.id},'piece',this.value)"></td>
-            <td><input class="ti" type="number" value="${r.hauteur}" oninput="updateRow(${r.id},'hauteur',this.value)"></td>
-            <td style="text-align:center;font-size:11px;font-weight:700;color:var(--blue)">${solMode || '—'}</td>
-            <td><input class="ti" type="number" value="${r.murHaut}" oninput="updateRow(${r.id},'murHaut',this.value)"></td>
-            <td class="col-sep"><input class="ti" type="number" value="${r.plintheBas}" oninput="updateRow(${r.id},'plintheBas',this.value)"></td>
-            <td><input class="ti" type="number" value="${r.long}" oninput="updateRow(${r.id},'long',this.value)"></td>
-            <td class="col-sep"><input class="ti" type="number" value="${r.prof}" oninput="updateRow(${r.id},'prof',this.value)"></td>
-            <td style="text-align:center"><button class="pend-btn${r.pendG?' active':''}" onclick="togglePend(${r.id},'G')">G</button></td>
-            <td style="text-align:center"><button class="pend-btn${r.pendD?' active':''}" onclick="togglePend(${r.id},'D')">D</button></td>
-            ${plinthMode==='att' ? `<td><input class="ti" value="${r.plinthe}" oninput="updateRow(${r.id},'plinthe',this.value)"></td>` : ''}
-            ${socleMode ? `<td style="background:#FAE8E8;text-align:center;font-weight:800;color:var(--red)">OUI</td>` : ''}
-            <td style="text-align:center"><button class="del-row" onclick="deleteRow(${r.id})">×</button></td>
-        </tr>
-    `).join('');
-}
-
-function updateRow(id, f, v) { const r = rows.find(x=>x.id===id); if(r) r[f]=v; }
-function togglePend(id, s) { const r = rows.find(x=>x.id===id); if(r) { if(s==='G') r.pendG=!r.pendG; else r.pendD=!r.pendD; renderTable(); } }
-function deleteRow(id) { rows = rows.filter(x=>x.id!==id); renderTable(); }
-
-function openPreview() { buildPdf(); document.getElementById('pdfModal').classList.add('open'); }
-function closePreview() { document.getElementById('pdfModal').classList.remove('open'); }
-
-function buildPdf() {
-    const content = document.getElementById('pdfContent');
-    const chantier = document.getElementById('meta-chantier').value || '—';
-    const auteur = document.getElementById('meta-auteur').value || '—';
-    const date = document.getElementById('meta-date').value || '—';
-    const comms = document.getElementById('commentaires').value || '';
-
-    let tableRows = rows.map(r => `
-        <tr style="border-bottom:1px solid #eee">
-            <td style="padding:6px; font-size:11px;"><b>${r.logt || '-'}</b><br><small>${r.piece || '-'}</small></td>
-            <td style="padding:6px; text-align:center;">${r.hauteur || '-'}</td>
-            <td style="padding:6px; text-align:center;">${solMode || '-'}</td>
-            <td style="padding:6px; text-align:center;">${r.murHaut || '-'}</td>
-            <td style="padding:6px; text-align:center;">${r.plintheBas || '-'}</td>
-            <td style="padding:6px; text-align:center;">${r.long || '-'}</td>
-            <td style="padding:6px; text-align:center;">${r.prof || '-'}</td>
-            <td style="padding:6px; text-align:center;">${r.pendG?'G':''}</td>
-            <td style="padding:6px; text-align:center;">${r.pendD?'D':''}</td>
-            <td style="padding:6px; text-align:center;">${r.plinthe || '-'}</td>
-            <td style="padding:6px; text-align:center; ${socleMode ? 'color:red; font-weight:bold;' : ''}">${socleMode ? 'OUI' : 'NON'}</td>
-        </tr>
-    `).join('');
-
-    content.innerHTML = `
-        <div style="font-family:sans-serif;">
-            <div style="display:flex; justify-content:space-between; border-bottom:2px solid var(--header-bg); padding-bottom:10px; margin-bottom:15px;">
-                <h3 style="margin:0; color:var(--header-bg); font-family:Syne;">Aperçu PDF (Paysage)</h3>
-                <div style="text-align:right; font-size:11px;"><b>${chantier}</b><br>Par ${auteur} le ${date}</div>
-            </div>
-            <table style="width:100%; border-collapse:collapse; font-size:9px;">
-                <thead>
-                    <tr style="background:var(--header-bg); color:white;">
-                        <th style="padding:5px; text-align:left;">LOGT / PIÈCE</th>
-                        <th style="padding:5px;">HAUT.</th><th style="padding:5px;">SOL</th>
-                        <th style="padding:5px;">M/M</th><th style="padding:5px;">PL/PL</th>
-                        <th style="padding:5px;">LONG.</th><th style="padding:5px;">PROF.</th>
-                        <th style="padding:5px;">G</th><th style="padding:5px;">D</th>
-                        <th style="padding:5px;">PLINTHE</th><th style="padding:5px;">SOCLE</th>
-                    </tr>
-                </thead>
-                <tbody>${tableRows}</tbody>
-            </table>
-            ${comms ? `<div style="margin-top:15px; font-size:11px; padding:10px; background:#f5f5f5; border-radius:5px;"><b>Notes :</b><br>${comms}</div>` : ''}
-        </div>
-    `;
-}
+// ... (Gardes tes fonctions addRow et updateRow classiques) ...
 
 async function sendDoc() {
-    if(!rows.length) return showToast('Veuillez ajouter des lignes');
-    const btn = document.getElementById('btn-envoyer');
-    btn.disabled = true; btn.textContent = 'Envoi...';
+    if(rows.length === 0) return alert("Tableau vide");
 
     const payload = {
         action: 'submitCotes',
-        ref: document.getElementById('fiche-ref').textContent,
+        ref: document.getElementById('fiche-ref').innerText,
         chantier: document.getElementById('meta-chantier').value,
-        batiment: document.getElementById('meta-batiment').value || '',
+        batiment: document.getElementById('meta-batiment').value,
         auteur: document.getElementById('meta-auteur').value,
         date: document.getElementById('meta-date').value,
         solMode: solMode,
-        socle: socleMode ? 'OUI' : 'NON',
+        socle: socleMode,
         commentaires: document.getElementById('commentaires').value,
         lignes: rows
     };
 
+    // DEBUG : Affiche ce qui va être envoyé (Supprime cette ligne après test)
+    console.log("Envoi du payload:", payload);
+
+    const btn = document.getElementById('btn-envoyer');
+    btn.innerText = "Envoi en cours...";
+    btn.disabled = true;
+
     try {
-        await fetch(APPS_SCRIPT_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify(payload) });
-        showToast('✓ Fiche envoyée avec succès');
-    } catch(e) { showToast('Erreur d\'envoi'); console.error(e); }
-    finally { btn.disabled = false; btn.textContent = "Envoyer l'alerte"; }
+        await fetch(APPS_SCRIPT_URL, {
+            method: 'POST',
+            mode: 'no-cors',
+            body: JSON.stringify(payload)
+        });
+        alert("Envoyé !");
+    } catch (e) {
+        alert("Erreur");
+    } finally {
+        btn.innerText = "Envoyer l'alerte";
+        btn.disabled = false;
+    }
 }
-
-function showToast(m) { const t=document.getElementById('toast'); document.getElementById('toastMsg').textContent=m; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),3000); }
-
-(function(){
-    document.getElementById('meta-date').value = new Date().toLocaleDateString('fr-FR');
-    loadContacts();
-    addRow();
-})();
 </script>
-</body>
-</html>
