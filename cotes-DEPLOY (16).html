@@ -1,0 +1,776 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>ChantierPro — Prise de cotes</title>
+<link rel="icon" type="image/png" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="ChantierPro">
+<meta name="theme-color" content="#1A2B4A">
+<meta property="og:title" content="ChantierPro — Prise de cotes placards">
+<meta property="og:image" content="logo.png">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --orange:#D95818; --orange-l:#F8ECE4; --orange-d:#AA4110;
+  --bg:#F2F0EC; --card:#FFF; --text:#141210; --muted:#6A6460;
+  --border:#D8D4CE; --border2:#B8B4AE;
+  --blue:#1454A0; --blue-l:#DCE8F8; --blue-d:#0D3D7A;
+  --green:#196B3B; --green-l:#E1F2E9;
+  --amber:#9A5600; --amber-l:#FDF0D8;
+  --red:#B32E2E; --red-l:#FAE8E8;
+  --header-bg:#1A2B4A;
+  --r:8px; --rl:12px;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;}
+.topbar{background:var(--header-bg);padding:0 16px;height:50px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:20;}
+.tb-logo{display:flex;align-items:center;gap:9px;}
+.tb-sq{width:26px;height:26px;background:var(--orange);border-radius:5px;display:flex;align-items:center;justify-content:center;}
+.tb-sq svg{width:13px;height:13px;fill:white;}
+.tb-name{font-family:'Syne',sans-serif;font-weight:700;font-size:14px;color:white;}
+.tb-right{display:flex;gap:8px;}
+.main{padding:16px;max-width:1100px;margin:0 auto;}
+.fiche-header{background:var(--card);border:1px solid var(--border);border-radius:var(--rl);padding:16px 20px;margin-bottom:14px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;}
+.fiche-logo-zone{display:flex;align-items:center;gap:10px;}
+.fiche-logo-box{width:44px;height:44px;background:var(--orange);border-radius:9px;display:flex;align-items:center;justify-content:center;}
+.fiche-logo-box svg{width:22px;height:22px;fill:white;}
+.fiche-co{font-family:'Syne',sans-serif;font-weight:800;font-size:15px;}
+.fiche-co-sub{font-size:10.5px;color:var(--muted);margin-top:1px;}
+.fiche-title-zone{flex:1;text-align:center;}
+.fiche-main-title{font-family:'Syne',sans-serif;font-weight:800;font-size:16px;letter-spacing:.3px;color:var(--header-bg);}
+.fiche-main-sub{font-size:11px;color:var(--muted);margin-top:2px;}
+.fiche-meta-zone{display:flex;flex-direction:column;gap:8px;min-width:240px;}
+.fiche-meta-row{display:flex;align-items:center;gap:8px;}
+.fiche-meta-label{font-size:11px;font-weight:500;color:var(--muted);white-space:nowrap;min-width:70px;}
+.fiche-meta-input{flex:1;padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;font-family:'DM Sans',sans-serif;background:var(--bg);outline:none;color:var(--text);}
+.fiche-meta-input:focus{border-color:var(--orange);background:white;}
+.fiche-meta-input[readonly]{background:#EFECE8;color:var(--muted);cursor:default;}
+.fiche-ref-badge{background:var(--orange-l);color:var(--orange-d);border:1px solid #E8C4A8;border-radius:6px;padding:5px 11px;font-size:11.5px;font-weight:500;white-space:nowrap;}
+.required-star{color:var(--red);font-size:10px;margin-left:1px;vertical-align:super;}
+.plinthe-bloc{background:var(--card);border:1px solid var(--border);border-radius:var(--rl);padding:13px 18px;margin-bottom:14px;display:flex;align-items:center;gap:20px;flex-wrap:wrap;}
+.plinthe-title{font-family:'Syne',sans-serif;font-weight:700;font-size:13px;color:var(--text);}
+.plinthe-cases{display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
+.pcase{display:flex;align-items:center;gap:8px;padding:8px 14px;border-radius:var(--r);border:1.5px solid var(--border);cursor:pointer;transition:.15s;user-select:none;}
+.pcase:hover{border-color:var(--muted);}
+.pcase.active-gen{border-color:var(--green);background:var(--green-l);}
+.pcase.active-att{border-color:#C8860A;background:#FDF0D6;}
+.pcase.active-blue{border-color:var(--blue);background:var(--blue-l);}
+.pcase.active-red{border-color:var(--red);background:var(--red-l);}
+.pcase-check{width:18px;height:18px;border-radius:4px;border:1.5px solid var(--border2);display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:.15s;}
+.pcase-check svg{display:none;width:10px;height:10px;}
+.pcase.active-gen .pcase-check,.pcase.active-att .pcase-check,.pcase.active-blue .pcase-check,.pcase.active-red .pcase-check{background:currentColor;}
+.pcase.active-gen .pcase-check{background:var(--green);border-color:var(--green);}
+.pcase.active-att .pcase-check{background:#C8860A;border-color:#C8860A;}
+.pcase.active-blue .pcase-check{background:var(--blue);border-color:var(--blue);}
+.pcase.active-red .pcase-check{background:var(--red);border-color:var(--red);}
+.pcase-check svg{display:none;}
+.pcase.active-gen .pcase-check svg,.pcase.active-att .pcase-check svg,.pcase.active-blue .pcase-check svg,.pcase.active-red .pcase-check svg{display:block;}
+.pcase-text{font-size:13px;font-weight:500;}
+.pcase-sub{font-size:11px;color:var(--muted);margin-top:1px;}
+.plinthe-gen-zone{display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:var(--green-l);border:1.5px solid #B8DFC9;border-radius:var(--r);padding:10px 14px;}
+.plinthe-gen-input{display:flex;align-items:center;gap:7px;}
+.plinthe-gen-input input{width:90px;padding:7px 10px;border:1.5px solid var(--green);border-radius:6px;font-size:15px;font-family:'Syne',sans-serif;font-weight:700;text-align:center;background:white;color:var(--green);outline:none;}
+.plinthe-gen-input span{font-size:12px;color:var(--green);font-weight:500;}
+.sep-or{font-size:11.5px;color:var(--green);font-weight:600;padding:0 4px;}
+.non-posee-toggle{display:flex;align-items:center;gap:7px;padding:7px 13px;border:1.5px solid #B8DFC9;border-radius:6px;cursor:pointer;background:white;transition:.15s;user-select:none;}
+.non-posee-toggle:hover{border-color:var(--amber);}
+.non-posee-toggle.active{border-color:var(--amber);background:var(--amber-l);}
+.toolbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;}
+.toolbar-left{display:flex;gap:7px;align-items:center;flex-wrap:wrap;}
+.toolbar-right{display:flex;gap:7px;}
+.row-counter{background:var(--blue-l);color:var(--blue);border-radius:20px;padding:4px 12px;font-size:12px;font-weight:500;}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:9px 15px;border-radius:var(--r);font-size:13.5px;font-weight:500;cursor:pointer;border:none;font-family:'DM Sans',sans-serif;transition:.15s;}
+.btn-primary{background:var(--orange);color:white;}.btn-primary:hover{background:var(--orange-d);}
+.btn-secondary{background:var(--card);color:var(--text);border:1px solid var(--border);}.btn-secondary:hover{background:var(--bg);}
+.btn-ghost{background:transparent;color:var(--muted);padding:8px 10px;}.btn-ghost:hover{background:var(--bg);}
+.btn-lg{padding:11px 18px;font-size:14px;}
+.btn svg{width:14px;height:14px;}
+.field-error{border-color:var(--red)!important;background:#FFF0F0!important;}
+.validation-banner{background:var(--red-l);border:1px solid #EFC0C0;border-radius:var(--r);padding:10px 14px;margin-bottom:12px;display:none;font-size:13px;color:var(--red);align-items:center;gap:8px;}
+.validation-banner.show{display:flex;}
+.table-wrap{background:var(--card);border:1px solid var(--border);border-radius:var(--rl);overflow:hidden;margin-bottom:16px;}
+.table-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+.cotes-table{width:100%;border-collapse:collapse;min-width:680px;}
+.th-group{padding:7px 10px;font-family:'Syne',sans-serif;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;text-align:center;border-bottom:1px solid var(--border);}
+.th-id{background:#F7F5F1;color:var(--muted);border-right:1px solid var(--border);}
+.th-facade{background:#EBF1FA;color:var(--blue-d);border-right:1px solid var(--border);}
+.th-amenag{background:#E8F4EE;color:var(--green);border-right:1px solid var(--border);}
+.th-penderie{background:var(--orange-l);color:var(--orange-d);}
+.cotes-table thead tr:nth-child(2) th{padding:8px 6px;font-size:10.5px;font-weight:500;color:var(--muted);background:var(--bg);border-bottom:2px solid var(--border2);text-align:center;line-height:1.3;}
+.col-sep{border-right:1px solid var(--border2)!important;}
+.cotes-table tbody tr:hover{background:#FAFAF7;}
+.cotes-table tbody tr:nth-child(even){background:#FDFCFA;}
+.cotes-table tbody td{border-bottom:1px solid var(--border);padding:4px;vertical-align:middle;}
+.ti{width:100%;padding:7px 6px;border:1px solid transparent;border-radius:6px;font-size:14px;font-family:'DM Sans',sans-serif;color:var(--text);background:transparent;outline:none;text-align:center;transition:.15s;min-width:0;}
+.ti:focus{border-color:var(--orange);background:white;box-shadow:0 0 0 3px rgba(217,88,24,.1);}
+.ti:hover:not(:focus){border-color:var(--border);background:#FAFAF8;}
+.ti-left{text-align:left;}
+.ti-num{font-family:'Syne',sans-serif;font-weight:600;font-size:15px;}
+.row-num{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;background:var(--bg);border:1px solid var(--border);border-radius:50%;font-size:10px;color:var(--muted);font-weight:500;flex-shrink:0;}
+.pend-btn{padding:5px 7px;border-radius:5px;font-size:12px;font-weight:600;cursor:pointer;border:1.5px solid var(--border);background:var(--bg);color:var(--muted);transition:.15s;font-family:'Syne',sans-serif;}
+.pend-btn.active{background:var(--orange-l);color:var(--orange-d);border-color:var(--orange);}
+.del-row{background:none;border:none;cursor:pointer;color:var(--border2);padding:4px;border-radius:5px;transition:.15s;display:flex;align-items:center;}
+.del-row:hover{color:var(--orange-d);background:var(--orange-l);}
+.del-row svg{width:14px;height:14px;}
+.add-row-btn{display:flex;align-items:center;gap:8px;padding:12px 16px;color:var(--orange);cursor:pointer;font-size:13.5px;font-weight:500;border-top:1px solid var(--border);transition:.15s;background:transparent;width:100%;border:none;font-family:'DM Sans',sans-serif;}
+.add-row-btn:hover{background:#FEF8F4;}
+.summary-bar{background:var(--card);border:1px solid var(--border);border-radius:var(--rl);padding:14px 18px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:14px;}
+.sum-item{display:flex;flex-direction:column;gap:2px;}
+.sum-val{font-family:'Syne',sans-serif;font-size:20px;font-weight:700;}
+.sum-lbl{font-size:11px;color:var(--muted);}
+.send-zone{background:var(--card);border:1px solid var(--border);border-radius:var(--rl);padding:16px 20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;}
+.send-info{display:flex;flex-direction:column;gap:3px;}
+.send-title{font-family:'Syne',sans-serif;font-weight:700;font-size:14px;}
+.send-sub{font-size:12px;color:var(--muted);}
+.send-targets{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;align-items:center;}
+.stag{display:inline-flex;align-items:center;gap:5px;padding:5px 11px;border-radius:20px;font-size:12px;font-weight:500;}
+.stag-default{background:var(--header-bg);color:white;}
+.stag-extra{background:var(--blue-l);color:var(--blue-d);border:1px solid #B4CFF0;}
+.stag-rm{background:none;border:none;cursor:pointer;color:inherit;opacity:.7;padding:0;display:flex;align-items:center;margin-left:2px;}
+.btn-add-dest{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;font-size:12px;font-weight:500;cursor:pointer;border:1.5px dashed var(--border2);background:transparent;color:var(--muted);font-family:'DM Sans',sans-serif;transition:.15s;}
+.btn-add-dest:hover{border-color:var(--orange);color:var(--orange);background:var(--orange-l);}
+.send-btns{display:flex;gap:8px;flex-wrap:wrap;}
+.modal-overlay{position:fixed;inset:0;background:rgba(20,18,16,.55);z-index:100;display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto;opacity:0;pointer-events:none;transition:.2s;}
+.modal-overlay.open{opacity:1;pointer-events:all;}
+.modal{background:var(--card);border-radius:var(--rl);width:100%;max-width:900px;transform:translateY(8px);transition:.2s;margin-top:10px;}
+.modal-overlay.open .modal{transform:translateY(0);}
+.modal-head{padding:18px 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.modal-title{font-family:'Syne',sans-serif;font-weight:700;font-size:16px;}
+.modal-close{width:28px;height:28px;border-radius:7px;border:1px solid var(--border);background:none;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+.modal-close svg{width:13px;height:13px;}
+.modal-body{padding:20px 22px;}
+.modal-foot{padding:14px 22px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px;}
+.dest-modal{max-width:480px;}
+.dest-search{display:flex;align-items:center;gap:8px;background:var(--bg);border:1px solid var(--border);border-radius:var(--r);padding:8px 12px;margin-bottom:12px;}
+.dest-search input{border:none;background:transparent;font-family:'DM Sans',sans-serif;font-size:13.5px;color:var(--text);width:100%;outline:none;}
+.dest-list{display:flex;flex-direction:column;gap:5px;max-height:300px;overflow-y:auto;}
+.dest-item{display:flex;align-items:center;gap:11px;padding:10px 13px;border:1.5px solid var(--border);border-radius:var(--r);cursor:pointer;transition:.15s;}
+.dest-item:hover{border-color:var(--muted);}
+.dest-item.selected{border-color:var(--blue);background:var(--blue-l);}
+.dest-av{width:32px;height:32px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-family:'Syne',sans-serif;font-size:11px;font-weight:700;flex-shrink:0;background:var(--blue-l);color:var(--blue);}
+.dest-name{font-size:13.5px;font-weight:500;}
+.dest-role{font-size:11.5px;color:var(--muted);}
+.dest-check{margin-left:auto;width:20px;height:20px;border-radius:50%;border:2px solid var(--border);display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:.15s;}
+.dest-item.selected .dest-check{background:var(--blue);border-color:var(--blue);}
+.dest-check svg{display:none;width:10px;height:10px;}
+.dest-item.selected .dest-check svg{display:block;}
+.pdf-wrap{background:#E8E5E0;border-radius:var(--rl);padding:14px;}
+.pdf-pg{background:white;border-radius:7px;padding:24px 28px;box-shadow:0 2px 10px rgba(0,0,0,.12);max-width:760px;margin:0 auto;}
+.pdf-top{display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:12px;border-bottom:3px solid var(--header-bg);margin-bottom:14px;}
+.pdf-co{font-family:'Syne',sans-serif;font-weight:800;font-size:15px;color:var(--header-bg);}
+.pdf-co-sub{font-size:9.5px;color:var(--muted);}
+.pdf-doc-title{font-family:'Syne',sans-serif;font-weight:800;font-size:13px;color:var(--header-bg);text-align:center;}
+.pdf-table{width:100%;border-collapse:collapse;font-size:11px;margin-top:12px;border:1px solid var(--border);}
+.pdf-table th{padding:7px 8px;background:var(--header-bg);color:white;font-weight:600;text-align:center;font-size:10px;letter-spacing:.4px;}
+.pdf-table th.th-left{text-align:left;}
+.pdf-table td{padding:7px 8px;border:1px solid var(--border);text-align:center;font-size:11.5px;}
+.pdf-table td.td-left{text-align:left;}
+.pdf-table tbody tr:nth-child(even) td{background:#F7F5F1;}
+.toast{position:fixed;bottom:18px;right:18px;background:var(--text);color:white;padding:12px 16px;border-radius:var(--r);font-size:13px;font-weight:500;z-index:300;display:flex;align-items:center;gap:9px;transform:translateY(70px);opacity:0;transition:.25s;max-width:320px;}
+.toast.show{transform:translateY(0);opacity:1;}
+@media(max-width:700px){.fiche-title-zone{order:3;width:100%;text-align:left;}.fiche-meta-zone{min-width:100%;width:100%;}.main{padding:10px;}}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="tb-logo">
+    <div class="tb-sq"><svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></div>
+    <div class="tb-name">ChantierPro</div>
+  </div>
+  <div class="tb-right">
+    <button class="btn btn-secondary" style="padding:6px 12px;font-size:12.5px" onclick="openPreview()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+      Aperçu document
+    </button>
+  </div>
+</div>
+
+<div class="main">
+
+  <!-- HEADER FICHE -->
+  <div class="fiche-header">
+    <div class="fiche-logo-zone">
+      <div class="fiche-logo-box"><svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></div>
+      <div><div class="fiche-co">Loué Menuiserie</div><div class="fiche-co-sub">Menuiserie · Charpente · Agencement</div></div>
+    </div>
+    <div class="fiche-title-zone">
+      <div class="fiche-main-title">PRISE DE COTES — FAÇADES & AMÉNAGEMENT PLACARDS</div>
+      <div class="fiche-main-sub">Document unique — toutes pièces du chantier</div>
+    </div>
+    <div class="fiche-meta-zone">
+      <div class="fiche-meta-row">
+        <span class="fiche-meta-label">Chantier <span class="required-star">*</span></span>
+        <input class="fiche-meta-input" id="meta-chantier" placeholder="Choisir ou saisir…" list="chantiers-list" autocomplete="off" oninput="onChantierChangeCotes(this.value); updateSummary();">
+        <datalist id="chantiers-list"></datalist>
+      </div>
+      <div class="fiche-meta-row">
+        <span class="fiche-meta-label">Bâtiment</span>
+        <input class="fiche-meta-input" id="meta-batiment" placeholder="Ex : Bât. A…">
+      </div>
+      <div class="fiche-meta-row">
+        <span class="fiche-meta-label">Rédigé par <span class="required-star">*</span></span>
+        <input class="fiche-meta-input" id="meta-auteur" placeholder="Votre nom…" list="auteurs-list" autocomplete="off">
+        <datalist id="auteurs-list"></datalist>
+      </div>
+      <div class="fiche-meta-row">
+        <span class="fiche-meta-label">Date</span>
+        <input type="text" class="fiche-meta-input" id="meta-date" readonly>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- BLOC PLINTHE -->
+  <div class="plinthe-bloc">
+    <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+      <div style="width:30px;height:30px;background:var(--orange-l);border-radius:7px;display:flex;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" fill="none" stroke="var(--orange)" stroke-width="2.5" width="15" height="15"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><line x1="3" y1="20" x2="21" y2="20"/></svg></div>
+      <div><div class="plinthe-title">Hauteur de plinthe</div><div style="font-size:11px;color:var(--muted)">Mode général</div></div>
+    </div>
+    <div class="plinthe-cases">
+      <div class="pcase" id="pcase-gen" onclick="selectPlintheMode('gen')">
+        <div class="pcase-check" id="pcase-gen-check"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>
+        <div><div class="pcase-text">Généralité</div><div class="pcase-sub">Même hauteur partout</div></div>
+      </div>
+      <div class="pcase" id="pcase-att" onclick="selectPlintheMode('att')">
+        <div class="pcase-check" id="pcase-att-check"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>
+        <div><div class="pcase-text">⚠ Variables</div><div class="pcase-sub">Hauteurs différentes</div></div>
+      </div>
+    </div>
+    <div class="plinthe-gen-zone" id="plinthe-gen-zone" style="display:none">
+      <div class="plinthe-gen-input">
+        <input type="number" id="plinthe-gen-val" placeholder="ex: 100" oninput="updatePlinthGen()">
+        <span>mm</span>
+      </div>
+      <span class="sep-or">OU</span>
+      <div class="non-posee-toggle" id="non-posee-toggle" onclick="toggleNonPosee()"><span>Non posée</span></div>
+    </div>
+    <div id="plinthe-att-zone" style="display:none">
+      <span style="display:inline-flex;align-items:center;gap:5px;padding:4px 10px;background:#FDF0D6;color:#7A4200;border-radius:20px;font-size:11.5px;font-weight:600;border:1px solid #C8860A;">⚠ Colonne Plinthe ajoutée ligne par ligne</span>
+    </div>
+  </div>
+
+  <!-- BLOC SOCLE -->
+  <div class="plinthe-bloc" style="border-color:var(--red);background:#FFF8F8;">
+    <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+      <div style="width:30px;height:30px;background:#FAE8E8;border-radius:7px;display:flex;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" fill="none" stroke="var(--red)" stroke-width="2.5" width="15" height="15"><rect x="2" y="18" width="20" height="3" rx="1"/><rect x="4" y="14" width="16" height="4" rx="1"/></svg></div>
+      <div><div class="plinthe-title" style="color:var(--red)">Socle sous façade</div><div style="font-size:11px;color:var(--muted)">Présence d'un socle ?</div></div>
+    </div>
+    <div style="display:flex;gap:10px">
+      <div class="pcase" id="socle-oui" onclick="setSocle(true)">
+        <div class="pcase-check" id="socle-oui-check"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>
+        <div><div class="pcase-text">Oui</div><div class="pcase-sub">Socle posé</div></div>
+      </div>
+      <div class="pcase" id="socle-non" onclick="setSocle(false)">
+        <div class="pcase-check" id="socle-non-check"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>
+        <div><div class="pcase-text">Non</div><div class="pcase-sub">Pas de socle</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- BLOC SOL -->
+  <div class="plinthe-bloc" style="border-color:var(--blue);background:#F5F8FE;">
+    <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+      <div style="width:30px;height:30px;background:var(--blue-l);border-radius:7px;display:flex;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" fill="none" stroke="var(--blue)" stroke-width="2.5" width="15" height="15"><polyline points="3 9 12 2 21 9 21 20 15 20 15 14 9 14 9 20 3 20 3 9"/></svg></div>
+      <div><div class="plinthe-title" style="color:var(--blue)">Hauteur façade sur</div><div style="font-size:11px;color:var(--muted)">S'applique à toutes les lignes</div></div>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <div class="pcase" id="sol-chape" onclick="setSolMode('Chape')">
+        <div class="pcase-check" id="sol-chape-check"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>
+        <div><div class="pcase-text">Chape</div><div class="pcase-sub">Sur chape brute</div></div>
+      </div>
+      <div class="pcase" id="sol-fini" onclick="setSolMode('Fini')">
+        <div class="pcase-check" id="sol-fini-check"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>
+        <div><div class="pcase-text">Sol fini</div><div class="pcase-sub">Sol posé inclus</div></div>
+      </div>
+      <div class="pcase" id="sol-socle" onclick="setSolMode('Socle déduit')">
+        <div class="pcase-check" id="sol-socle-check"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>
+        <div><div class="pcase-text">Socle déduit</div><div class="pcase-sub">Hauteur socle retirée</div></div>
+      </div>
+    </div>
+    <div id="sol-badge" style="display:none">
+      <span id="sol-badge-text" style="display:inline-flex;align-items:center;gap:6px;padding:5px 13px;background:var(--blue-l);color:var(--blue);border-radius:20px;font-size:12px;font-weight:600;border:1.5px solid var(--blue)"></span>
+    </div>
+  </div>
+
+  <!-- TOOLBAR -->
+  <div class="toolbar">
+    <div class="toolbar-left">
+      <span class="row-counter" id="row-counter">0 ligne(s)</span>
+      <button class="btn btn-secondary" onclick="addRow()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Ajouter une ligne
+      </button>
+      <button class="btn btn-ghost" onclick="clearAll()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/></svg>
+        Tout effacer
+      </button>
+    </div>
+    <div class="toolbar-right">
+      <button class="btn btn-secondary" onclick="openPreview()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+        Aperçu PDF
+      </button>
+    </div>
+  </div>
+
+  <!-- VALIDATION BANNER -->
+  <div class="validation-banner" id="validationBanner">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+    <span id="validationMsg">Certains champs obligatoires sont manquants.</span>
+  </div>
+
+  <!-- TABLE -->
+  <div class="table-wrap">
+    <div class="table-scroll">
+      <table class="cotes-table">
+        <thead>
+          <tr>
+            <th style="text-align:left;padding-left:10px;min-width:110px;max-width:130px;">N°<span class="required-star">*</span>/Pièce</th>
+            <th style="min-width:90px">Haut.<br><small style="font-weight:400">Façade (mm)</small></th>
+            <th style="min-width:100px">Larg. Entre<br><small style="font-weight:400">Plinthes (mm)</small></th>
+            <th style="min-width:100px">Larg. Haut<br><small style="font-weight:400">Façade (mm)</small></th>
+            <th style="min-width:88px">Longueur<br><small style="font-weight:400">Amén. (mm)</small></th>
+            <th style="min-width:70px">Prof.<br><small style="font-weight:400">Amén. (mm)</small></th>
+            <th style="min-width:90px">Côté<br><small style="font-weight:400">Penderie</small></th>
+            <th style="min-width:80px">Haut.<br><small style="font-weight:400">Plinthe (mm)</small></th>
+            <th style="min-width:80px">Sol</th>
+            <th style="width:30px"></th>
+          </tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+    </div>
+    <button class="add-row-btn" onclick="addRow()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      Ajouter une ligne (logement / pièce)
+    </button>
+  </div>
+
+
+
+  <!-- COMMENTAIRES -->
+  <div class="table-wrap" style="padding:16px 18px;margin-bottom:14px;">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+      <svg viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2" width="15" height="15"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+      <span style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px;">Commentaires</span>
+      <span style="font-size:11px;color:var(--muted)">Notes particulières, informations fabrication…</span>
+    </div>
+    <textarea id="meta-commentaires" placeholder="Ex : Placard sous escalier — hauteur rampante. Attention linteau bas chambre 3…"
+      style="width:100%;min-height:80px;padding:10px 12px;border:1px solid var(--border);border-radius:var(--r);font-family:'DM Sans',sans-serif;font-size:13px;color:var(--text);background:var(--bg);outline:none;resize:vertical;line-height:1.6;"
+      onfocus="this.style.borderColor='var(--orange)';this.style.background='white'"
+      onblur="this.style.borderColor='';this.style.background='var(--bg)'"></textarea>
+  </div>
+
+  <!-- SEND ZONE -->
+  <div class="send-zone" style="flex-direction:column;align-items:stretch;gap:14px;">
+    <div style="display:flex;justify-content:flex-start;">
+      <button class="btn btn-secondary" onclick="window.location.href='index.html'" style="padding:10px 14px">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polyline points="15 18 9 12 15 6"/></svg>
+        Retour
+      </button>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+      <div>
+        <div class="send-title">Valider et diffuser le document</div>
+        <div class="send-sub">Envoyé automatiquement au conducteur sélectionné</div>
+      </div>
+      <div class="send-btns">
+        <button class="btn btn-secondary btn-lg" onclick="openPreview()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          Aperçu PDF
+        </button>
+        <button class="btn btn-primary btn-lg" id="btn-envoyer" onclick="sendDoc()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
+          Envoyer l'alerte
+        </button>
+      </div>
+    </div>
+    <!-- Conducteur -->
+    <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:12px 16px;background:var(--bg);border:1px solid var(--border);border-radius:var(--r);">
+      <div style="display:flex;flex-direction:column;gap:3px;flex:1;min-width:200px;">
+        <span style="font-size:10.5px;font-weight:500;color:var(--muted)">Conducteur de travaux <span style="color:var(--red);font-size:10px;vertical-align:super">*</span> <span style="font-size:10px;color:var(--muted)">(obligatoire)</span></span>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <input class="fiche-meta-input" id="select-conducteur" placeholder="Sélectionner un conducteur…"
+            list="conduc-list" autocomplete="off"
+            oninput="onConducteurInput()"
+            style="max-width:280px;flex:1">
+          <datalist id="conduc-list"></datalist>
+          <div id="conduc-check" style="display:none;width:22px;height:22px;border-radius:50%;background:var(--green);align-items:center;justify-content:center;flex-shrink:0;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" width="11" height="11"><polyline points="20 6 9 17 4 12"/></svg>
+          </div>
+        </div>
+        <span id="conduc-error" style="font-size:11px;color:var(--red);display:none;">Veuillez sélectionner un conducteur avant d'envoyer</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL PDF -->
+<div class="modal-overlay" id="pdfModal">
+  <div class="modal">
+    <div class="modal-head">
+      <div class="modal-title">Aperçu du document</div>
+      <button class="modal-close" onclick="closePreview()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    </div>
+    <div class="modal-body">
+      <div class="pdf-wrap"><div class="pdf-pg" id="pdfContent"></div></div>
+      <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:14px">
+        <button class="btn btn-secondary" onclick="closePreview()">Fermer</button>
+        <button class="btn btn-primary" onclick="sendDoc();closePreview()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
+          Envoyer l'alerte
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="15" height="15"><polyline points="20 6 9 17 4 12"/></svg><span id="toastMsg">OK</span></div>
+
+<script>
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw9xVp1o9yzAVpLoprai6YgfeWGDZwKHWPWv4MP-NAq_I2o69a4Sbr1GAz9dbvdD1TA_A/exec';
+
+let rows = [], rowCounter = 0, plinthMode = '', plinthNonPosee = false;
+let socleMode = false, solMode = '';
+let ALL_USERS = [], ALL_CHANTIERS_COTES = [];
+
+function onChantierChangeCotes(val) {
+  if(!val || !ALL_CHANTIERS_COTES.length) return;
+  const nomSaisi = val.split(' — ')[0];
+  const ch = ALL_CHANTIERS_COTES.find(c => c.nom.toLowerCase() === nomSaisi.toLowerCase());
+  if(ch && ch.conducteur) {
+    const el = document.getElementById('select-conducteur');
+    if(el) { el.value = ch.conducteur; onConducteurInput(); }
+  }
+}
+
+function onConducteurInput() {
+  const val   = document.getElementById('select-conducteur').value.trim();
+  const check = document.getElementById('conduc-check');
+  const err   = document.getElementById('conduc-error');
+  const found = ALL_USERS.some(u => u.name.toLowerCase() === val.toLowerCase() && u.conducteur);
+  if(check) check.style.display = found ? 'flex' : 'none';
+  if(err)   err.style.display = 'none';
+  document.getElementById('select-conducteur').style.borderColor = val ? (found ? 'var(--green)' : 'var(--border)') : '';
+}
+
+// ── CONTACTS JSONP ──
+function loadContacts() {
+  window._contactsCallback = function(data) {
+    clearTimeout(window._contactsTimeout);
+    if(data && data.contacts && data.contacts.length) {
+      ALL_USERS = data.contacts.map((c,i) => ({
+        id: i+1, name: c.nom, role: c.role||'',
+        email: c.email||'',
+        initials: c.nom.split(' ').map(p=>p[0]).join('').substring(0,2).toUpperCase(),
+        default: String(c.conducteurDefaut).toUpperCase()==='O',
+        chefEquipe: String(c.chefEquipe).toUpperCase()==='O',
+        conducteur: String(c.conducteurDefaut).toUpperCase()==='O' || (c.role||'').toLowerCase().includes('conducteur'),
+      }));
+      // Auteurs — chefs d'équipe dans datalist
+      const dlA = document.getElementById('auteurs-list'); dlA.innerHTML='';
+      ALL_USERS.filter(u=>u.chefEquipe).forEach(u=>{ const o=document.createElement('option'); o.value=u.name; dlA.appendChild(o); });
+      // Chantiers
+      const dlC = document.getElementById('chantiers-list'); dlC.innerHTML='';
+      ALL_CHANTIERS_COTES = data.chantiers||[];
+      (data.chantiers||[]).forEach(c=>{ const o=document.createElement('option'); o.value=c.reference?`${c.nom} — ${c.reference}`:c.nom; dlC.appendChild(o); });
+      // Conducteurs — datalist pour la send zone
+      const dlCo = document.getElementById('conduc-list'); dlCo.innerHTML='';
+      ALL_USERS.filter(u=>u.conducteur).forEach(u=>{ const o=document.createElement('option'); o.value=u.name; dlCo.appendChild(o); });
+    }
+    delete window._contactsCallback; delete window._contactsTimeout;
+    const s=document.getElementById('_jsonp_c'); if(s) s.remove();
+  };
+  window._contactsTimeout = setTimeout(()=>{ if(window._contactsCallback){ delete window._contactsCallback; } }, 15000);
+  const sc=document.createElement('script'); sc.id='_jsonp_c';
+  sc.src=APPS_SCRIPT_URL+'?action=getContacts&callback=_contactsCallback&t='+Date.now();
+  document.head.appendChild(sc);
+}
+
+// ── PLINTHE ──
+function selectPlintheMode(mode) {
+  plinthMode = plinthMode===mode ? '' : mode;
+  plinthNonPosee = false;
+  const g=document.getElementById('pcase-gen'), a=document.getElementById('pcase-att');
+  const gc=document.getElementById('pcase-gen-check'), ac=document.getElementById('pcase-att-check');
+  g.className='pcase'+(plinthMode==='gen'?' active-gen':'');
+  a.className='pcase'+(plinthMode==='att'?' active-att':'');
+  gc.style.background=plinthMode==='gen'?'var(--green)':''; gc.style.borderColor=plinthMode==='gen'?'var(--green)':'';
+  ac.style.background=plinthMode==='att'?'#C8860A':'';    ac.style.borderColor=plinthMode==='att'?'#C8860A':'';
+  document.getElementById('plinthe-gen-zone').style.display=plinthMode==='gen'?'flex':'none';
+  document.getElementById('plinthe-att-zone').style.display=plinthMode==='att'?'flex':'none';
+  if(plinthMode==='gen') updatePlinthGen();
+  renderTable();
+}
+
+function updatePlinthGen() {
+  const val=document.getElementById('plinthe-gen-val').value;
+  if(val){ plinthNonPosee=false; document.getElementById('non-posee-toggle').classList.remove('active'); }
+  // FIX 6 : applique à TOUTES les lignes
+  rows.forEach(r=>r.plinthe=val||'');
+}
+
+function toggleNonPosee() {
+  plinthNonPosee=!plinthNonPosee;
+  document.getElementById('non-posee-toggle').classList.toggle('active',plinthNonPosee);
+  if(plinthNonPosee){ document.getElementById('plinthe-gen-val').value=''; rows.forEach(r=>r.plinthe='Non posée'); }
+  else rows.forEach(r=>r.plinthe='');
+}
+
+// ── SOCLE ──
+function setSocle(val) {
+  socleMode=val;
+  const oe=document.getElementById('socle-oui'), ne=document.getElementById('socle-non');
+  const oc=document.getElementById('socle-oui-check'), nc=document.getElementById('socle-non-check');
+  oe.className='pcase'+(val?' active-red':''); ne.className='pcase'+(!val?' active-gen':'');
+  oc.style.background=val?'var(--red)':''; oc.style.borderColor=val?'var(--red)':'';
+  nc.style.background=!val?'var(--green)':''; nc.style.borderColor=!val?'var(--green)':'';
+  renderTable();
+}
+
+// ── SOL MODE ──
+function setSolMode(mode) {
+  solMode=solMode===mode?'':mode;
+  [['chape','Chape'],['fini','Fini'],['socle','Socle déduit']].forEach(([id,m])=>{
+    const el=document.getElementById('sol-'+id), chk=document.getElementById('sol-'+id+'-check');
+    const act=solMode===m;
+    el.className='pcase'+(act?' active-blue':'');
+    chk.style.background=act?'var(--blue)':''; chk.style.borderColor=act?'var(--blue)':'';
+  });
+  const badge=document.getElementById('sol-badge'), txt=document.getElementById('sol-badge-text');
+  if(solMode){ badge.style.display='flex'; txt.textContent='✓ Façade sur '+solMode; }
+  else badge.style.display='none';
+  renderTable(); updateSummary();
+}
+
+// ── TABLEAU ──
+function getMissingFields(r) {
+  const miss=[];
+  if(!r.logt.trim()) miss.push('N°');
+  if(!r.haut)        miss.push('Hauteur Façade');
+  if(!r.lep)         miss.push('Larg. Entre Plinthes');
+  if(!solMode)       miss.push('Type de sol');
+  return miss;
+}
+
+function highlightErrors(r) {
+  if(!r.logt.trim()){ const e=document.getElementById('f-logt-'+r.id); if(e) e.classList.add('field-error'); }
+  if(!r.haut)        { const e=document.getElementById('f-haut-'+r.id);  if(e) e.classList.add('field-error'); }
+  if(!r.lep)         { const e=document.getElementById('f-lep-'+r.id);   if(e) e.classList.add('field-error'); }
+}
+
+function addRow() {
+  if(rows.length>0) {
+    const last=rows[rows.length-1], miss=getMissingFields(last);
+    if(miss.length){ highlightErrors(last); showBanner(`Complétez la ligne ${rows.length} avant d'en ajouter une nouvelle (${miss.join(', ')})`); const el=document.getElementById('row-'+last.id); if(el) el.scrollIntoView({behavior:'smooth',block:'center'}); return; }
+  }
+  hideBanner(); rowCounter++;
+  // FIX 6 : hérite de la valeur plinthe générale
+  const plinthVal=plinthMode==='gen'?(plinthNonPosee?'Non posée':(document.getElementById('plinthe-gen-val').value||'')):'';
+  rows.push({id:rowCounter,logt:'',piece:'',haut:'',lep:'',lhf:'',long:'',prof:'',pend:'',plinthe:plinthVal,sol:solMode});
+  renderTable();
+  setTimeout(()=>{ const inp=document.getElementById('f-logt-'+rowCounter); if(inp) inp.focus(); },50);
+}
+
+function renderTable() {
+  const tbody=document.getElementById('tableBody');
+  if(!rows.length){
+    tbody.innerHTML=`<tr><td colspan="12" style="padding:28px;text-align:center;color:var(--muted);font-size:13.5px">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="32" height="32" style="display:block;margin:0 auto 10px;color:var(--border)"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+      Aucune ligne — cliquez sur "Ajouter une ligne" pour commencer</td></tr>`;
+    updateSummary(); return;
+  }
+  tbody.innerHTML=rows.map((r,i)=>`
+    <tr id="row-${r.id}">
+      <td class="col-sep" style="padding:4px 6px;min-width:110px;max-width:130px">
+        <div style="display:flex;align-items:center;gap:4px">
+          <span class="row-num">${i+1}</span>
+          <div style="display:flex;flex-direction:column;gap:2px;flex:1;min-width:0">
+            <input id="f-logt-${r.id}" class="ti ti-left" style="font-size:12px;font-weight:700" placeholder="Logt *" value="${r.logt}" oninput="updateRow(${r.id},'logt',this.value)" maxlength="4">
+            <input class="ti ti-left" style="font-size:11px;color:var(--muted)" placeholder="Pièce" value="${r.piece}" oninput="updateRow(${r.id},'piece',this.value)" maxlength="5">
+          </div>
+        </div>
+      </td>
+      <td><input id="f-haut-${r.id}" class="ti ti-num" placeholder="—" value="${r.haut}" type="number" oninput="updateRow(${r.id},'haut',this.value)"></td>
+      <td><input id="f-lep-${r.id}" class="ti ti-num" placeholder="—" value="${r.lep}" type="number" oninput="updateRow(${r.id},'lep',this.value)"></td>
+      <td><input class="ti ti-num" placeholder="—" value="${r.lhf}" type="number" oninput="updateRow(${r.id},'lhf',this.value)"></td>
+      <td><input id="f-long-${r.id}" class="ti ti-num" placeholder="—" value="${r.long}" type="number" oninput="updateRow(${r.id},'long',this.value)"></td>
+      <td><input class="ti ti-num" placeholder="—" value="${r.prof}" type="number" oninput="updateRow(${r.id},'prof',this.value)"></td>
+      <td><input class="ti" placeholder="D / G" value="${r.pend}" list="pend-list-${r.id}" oninput="updateRow(${r.id},'pend',this.value)" style="text-align:center"><datalist id="pend-list-${r.id}"><option value="D"><option value="G"><option value="D+G"></datalist></td>
+      <td>${plinthMode==='att'?'<input class="ti ti-num" placeholder="—" value="'+(r.plinthe||'')+'" type="number" oninput="updateRow('+r.id+',\'plinthe\',this.value)" style="color:#7A4200">':(plinthMode==='gen'?'<span style="font-size:11px;color:#7A4200">'+(r.plinthe||'—')+'</span>':'<span style="color:var(--muted);font-size:11px">—</span>')}</td>
+      <td><input class="ti" value="${r.sol||solMode||''}" list="sol-list-${r.id}" oninput="updateRow(${r.id},'sol',this.value)" style="font-size:11px;color:#1454A0;font-weight:600;text-align:center"><datalist id="sol-list-${r.id}"><option value="Chape"><option value="Sol fini"><option value="Socle déduit"></datalist></td>
+      ${socleMode?'<td style="border-left:2px solid var(--red);background:#FAE8E8;text-align:center;font-weight:800;color:var(--red);font-family:\'Syne\',sans-serif;font-size:12px">OUI</td>':''}
+      <td><button class="del-row" onclick="deleteRow(${r.id})" title="Supprimer">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/></svg>
+      </button></td>
+    </tr>`).join('');
+  updateSummary();
+}
+
+function updateRow(id,f,v) {
+  const r=rows.find(x=>x.id===id); if(!r) return; r[f]=v;
+  const map={logt:`f-logt-${id}`,haut:`f-haut-${id}`,lep:`f-lep-${id}`,long:`f-long-${id}`};
+  if(map[f]&&v){ const el=document.getElementById(map[f]); if(el) el.classList.remove('field-error'); }
+  updateSummary();
+}
+function togglePend(id,s){ const r=rows.find(x=>x.id===id); if(!r) return; r.pend=s; renderTable(); }
+function deleteRow(id){ rows=rows.filter(x=>x.id!==id); renderTable(); }
+function clearAll(){ if(rows.length&&!confirm('Effacer toutes les lignes ?')) return; rows=[]; rowCounter=0; renderTable(); }
+
+function updateSummary() {
+  const n=rows.length;
+  const rc=document.getElementById('row-counter');
+  if(rc) rc.textContent=`${n} ligne${n>1?'s':''}`;
+}
+
+document.getElementById('pdfModal').addEventListener('click',e=>{ if(e.target===document.getElementById('pdfModal')) closePreview(); });
+
+// ── VALIDATION ──
+function showBanner(msg){ const b=document.getElementById('validationBanner'); document.getElementById('validationMsg').textContent=msg; b.classList.add('show'); setTimeout(()=>b.classList.remove('show'),7000); }
+function hideBanner(){ document.getElementById('validationBanner').classList.remove('show'); }
+
+// ── PDF ──
+function openPreview(){ buildPdf(); document.getElementById('pdfModal').classList.add('open'); }
+function closePreview(){ document.getElementById('pdfModal').classList.remove('open'); }
+
+function buildPdf() {
+  const chantier=document.getElementById('meta-chantier').value||'—';
+  const batiment=document.getElementById('meta-batiment').value||'';
+  const auteur=document.getElementById('meta-auteur').value||'—';
+  const date=document.getElementById('meta-date').value||'—';
+  const commentaire=document.getElementById('meta-commentaires').value||'';
+  const plinthGenVal=plinthMode==='gen'?(plinthNonPosee?'Non posée':(document.getElementById('plinthe-gen-val').value?document.getElementById('plinthe-gen-val').value+' mm':'—')):null;
+  const hasSocle=socleMode;
+
+  const badges=[];
+  if(solMode) badges.push(`<span style="background:var(--blue-l);color:var(--blue-d);padding:3px 10px;border-radius:10px;font-weight:600;font-size:10.5px;border:1px solid var(--blue)">Façade sur : ${solMode}</span>`);
+  if(plinthGenVal) badges.push(`<span style="background:var(--green-l);color:var(--green);padding:3px 10px;border-radius:10px;font-weight:600;font-size:10.5px;border:1px solid var(--green)">Plinthe : ${plinthGenVal}</span>`);
+  if(socleMode) badges.push(`<span style="background:#FAE8E8;color:var(--red);padding:3px 10px;border-radius:10px;font-weight:700;font-size:10.5px;border:1px solid var(--red)">⚠ SOCLE présent</span>`);
+
+  const COLS = 10;
+  const rowsHtml=rows.length?rows.map((r,i)=>`
+    <tr style="background:${i%2===0?'white':'#F7F5F1'}">
+      <td style="padding:5px 4px;font-weight:700">${r.logt||'—'}</td>
+      <td style="padding:5px 4px">${r.piece||'—'}</td>
+      <td style="padding:5px 4px;font-weight:700;text-align:center">${r.haut||'—'}</td>
+      <td style="padding:5px 4px;text-align:center">${r.lep||'—'}</td>
+      <td style="padding:5px 4px;text-align:center">${r.lhf||'—'}</td>
+      <td style="padding:5px 4px;font-weight:700;text-align:center">${r.long||'—'}</td>
+      <td style="padding:5px 4px;text-align:center">${r.prof||'—'}</td>
+      <td style="padding:5px 4px;text-align:center">${r.pend||'—'}</td>
+      <td style="padding:5px 4px;text-align:center;color:#7A4200">${plinthMode==='gen'?plinthGenVal:(r.plinthe||'—')}</td>
+      <td style="padding:5px 4px;text-align:center;color:var(--blue-d);font-weight:600">${r.sol||solMode||'—'}</td>
+    </tr>`).join('')
+  :`<tr><td colspan="${COLS}" style="text-align:center;color:#999;padding:16px;font-style:italic">Aucune ligne saisie</td></tr>`;
+
+  const socleLabel = hasSocle ? 'Socle posé' : 'Pas de socle';
+  const socleColor = hasSocle ? '#B32E2E' : '#2A5A3A';
+
+  document.getElementById('pdfContent').innerHTML=`
+    <div class="pdf-top">
+      <div><div class="pdf-co">Loué Menuiserie</div><div class="pdf-co-sub">Menuiserie · Charpente · Agencement</div></div>
+      <div style="text-align:center">
+        <div class="pdf-doc-title">PRISE DE COTES — FAÇADES & AMÉNAGEMENT PLACARDS</div>
+        <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;font-size:11px;margin-top:6px;color:var(--muted)">
+          <span><strong style="color:var(--text)">Chantier :</strong> ${chantier}${batiment?' — '+batiment:''}</span>
+          <span><strong style="color:var(--text)">Par :</strong> ${auteur}</span>
+          <span><strong style="color:var(--text)">Date :</strong> ${date}</span>
+        </div>
+        ${badges.length?`<div style="display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin-top:7px">${badges.join('')}</div>`:''}
+      </div>
+      <div style="text-align:right">
+        <div style="background:${socleColor};color:white;padding:6px 14px;border-radius:5px;font-size:13px;font-weight:700">${socleLabel}</div>
+      </div>
+    </div>
+    <table class="pdf-table">
+      <thead>
+        <tr style="background:#1A2B4A;color:white">
+          <th style="padding:5px 4px;font-size:10px;text-align:left">N°</th>
+          <th style="padding:5px 4px;font-size:10px;text-align:left">Pièce</th>
+          <th style="padding:5px 4px;font-size:10px">Hauteur<br><small style="font-weight:400">Façade</small></th>
+          <th style="padding:5px 4px;font-size:10px">Larg. Entre<br><small style="font-weight:400">Plinthes</small></th>
+          <th style="padding:5px 4px;font-size:10px">Larg. Haut<br><small style="font-weight:400">Façade</small></th>
+          <th style="padding:5px 4px;font-size:10px">Longueur<br><small style="font-weight:400">Amén.</small></th>
+          <th style="padding:5px 4px;font-size:10px">Prof<br><small style="font-weight:400">Amén.</small></th>
+          <th style="padding:5px 4px;font-size:10px">Côté<br><small style="font-weight:400">Penderie</small></th>
+          <th style="padding:5px 4px;font-size:10px">Haut.<br><small style="font-weight:400">Plinthe</small></th>
+          <th style="padding:5px 4px;font-size:10px">Sol</th>
+        </tr>
+      </thead>
+      <tbody>${rowsHtml}</tbody>
+    </table>
+    ${commentaire?`<div style="margin-top:14px;padding:12px 14px;background:#F7F5F1;border:1px solid var(--border);border-radius:7px">
+      <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Commentaires</div>
+      <div style="font-size:12px;line-height:1.6;color:var(--text)">${commentaire.replace(/\n/g,'<br>')}</div>
+    </div>`:''}`;
+}
+
+
+// ── ENVOI ──
+async function sendDoc() {
+  if(!rows.length){ showToast('Ajoutez au moins une ligne avant d\'envoyer'); return; }
+  let errors=[];
+  const ci = document.getElementById('meta-chantier');
+  const ai = document.getElementById('meta-auteur');
+  const conducteurInput = document.getElementById('select-conducteur');
+  const conducteurVal = conducteurInput.value.trim();
+
+  if(!ci.value.trim()){ ci.classList.add('field-error'); errors.push('Chantier manquant'); } else ci.classList.remove('field-error');
+  if(!ai.value.trim()){ ai.classList.add('field-error'); errors.push('Rédigé par manquant'); } else ai.classList.remove('field-error');
+  if(!conducteurVal){
+    conducteurInput.classList.add('field-error');
+    document.getElementById('conduc-error').style.display='block';
+    errors.push('Conducteur non sélectionné');
+  } else { conducteurInput.classList.remove('field-error'); document.getElementById('conduc-error').style.display='none'; }
+  if(!solMode) errors.push('Type de sol non sélectionné');
+  rows.forEach((r,i)=>{ const m=getMissingFields(r); if(m.length){ highlightErrors(r); errors.push(`Ligne ${i+1} : ${m.join(', ')}`); } });
+  if(errors.length){ showBanner(errors.join(' — ')); return; }
+  hideBanner();
+
+  const plinthGenVal = plinthMode==='gen'?(plinthNonPosee?'Non posée':(document.getElementById('plinthe-gen-val').value||'')):'';
+
+  const payload = {
+    chantier: ci.value, batiment: document.getElementById('meta-batiment').value||'—',
+    auteur: ai.value, conducteur: conducteurVal,
+    date: document.getElementById('meta-date').value,
+    plinthMode, plinthGen: plinthGenVal, solMode,
+    socle: socleMode?'OUI':'NON',
+    commentaires: document.getElementById('meta-commentaires').value||'',
+    lignes: rows.map(r=>({
+      logt:r.logt, piece:r.piece,
+      haut:r.haut, lep:r.lep, lhf:r.lhf,
+      long:r.long, prof:r.prof, pend:r.pend,
+      plinthe: plinthMode==='gen'?plinthGenVal:(r.plinthe||''),
+      sol: r.sol||solMode,
+      socle: socleMode?'OUI':'NON',
+    }))
+  };
+
+  const btn=document.getElementById('btn-envoyer');
+  btn.disabled=true; btn.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> Envoi…';
+  try {
+    await fetch(APPS_SCRIPT_URL,{ method:'POST', mode:'no-cors', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) });
+    showToast(`✓ Fiche envoyée — ${conducteurVal} alerté`);
+  } catch(e){ showToast('Erreur réseau'); console.error(e); }
+  finally { btn.disabled=false; btn.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg> Envoyer l\'alerte'; }
+}
+
+function showToast(m){ const t=document.getElementById('toast'); document.getElementById('toastMsg').textContent=m; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),3500); }
+
+document.getElementById('meta-chantier').addEventListener('input',function(){ this.classList.remove('field-error'); updateSummary(); });
+document.getElementById('meta-auteur').addEventListener('input',function(){ this.classList.remove('field-error'); });
+
+(function(){
+  const now=new Date();
+  document.getElementById('meta-date').value=`${String(now.getDate()).padStart(2,'0')}/${String(now.getMonth()+1).padStart(2,'0')}/${now.getFullYear()}`;
+  loadContacts(); renderTable();
+})();
+</script>
+</body>
+</html>
