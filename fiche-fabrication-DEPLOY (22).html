@@ -1,0 +1,1264 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>ChantierPro — Fiche de Fabrication</title>
+<link rel="icon" type="image/png" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="ChantierPro Fab">
+<meta name="theme-color" content="#1A2B4A">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--orange:#D95818;--orange-l:#F8ECE4;--orange-d:#AA4110;--bg:#F2F0EC;--card:#FFF;--text:#141210;--muted:#6A6460;--border:#D8D4CE;--border2:#B8B4AE;--blue:#1454A0;--blue-l:#DCE8F8;--blue-d:#0D3D7A;--green:#196B3B;--green-l:#E1F2E9;--amber:#9A5600;--amber-l:#FDF0D8;--red:#B32E2E;--red-l:#FAE8E8;--purple:#6B3FA0;--purple-l:#EDE8F8;--header-bg:#1A2B4A;--r:8px;--rl:12px;}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;}
+.topbar{background:var(--header-bg);padding:0 16px;height:50px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:20;}
+.tb-logo{display:flex;align-items:center;gap:9px;}
+.tb-sq{width:26px;height:26px;background:var(--orange);border-radius:5px;display:flex;align-items:center;justify-content:center;}
+.tb-sq svg{width:13px;height:13px;fill:white;}
+.tb-name{font-family:'Syne',sans-serif;font-weight:700;font-size:14px;color:white;}
+.tb-badge{background:var(--purple);color:white;font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;letter-spacing:.4px;}
+.tb-right{display:flex;gap:8px;}
+.main{padding:16px;max-width:1200px;margin:0 auto;}
+
+/* HEADER */
+.fiche-header{background:var(--card);border:1px solid var(--border);border-radius:var(--rl);padding:16px 20px;margin-bottom:14px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;}
+.fiche-logo-zone{display:flex;align-items:center;gap:10px;}
+.fiche-logo-box{width:44px;height:44px;background:var(--purple);border-radius:9px;display:flex;align-items:center;justify-content:center;}
+.fiche-logo-box svg{width:22px;height:22px;fill:white;}
+.fiche-co{font-family:'Syne',sans-serif;font-weight:800;font-size:15px;}
+.fiche-co-sub{font-size:10.5px;color:var(--muted);margin-top:1px;}
+.fiche-title-zone{flex:1;text-align:center;}
+.fiche-main-title{font-family:'Syne',sans-serif;font-weight:800;font-size:16px;letter-spacing:.3px;color:var(--header-bg);}
+.fiche-main-sub{font-size:11px;color:var(--muted);margin-top:2px;}
+.fiche-meta-zone{display:flex;flex-direction:column;gap:7px;min-width:280px;}
+.fiche-meta-row{display:flex;align-items:center;gap:8px;}
+.fiche-meta-label{font-size:11px;font-weight:500;color:var(--muted);white-space:nowrap;min-width:75px;}
+.fiche-meta-input{flex:1;padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;font-family:'DM Sans',sans-serif;background:var(--bg);outline:none;color:var(--text);}
+.fiche-meta-input:focus{border-color:var(--orange);background:white;}
+.fiche-meta-input[readonly]{background:#EFECE8;color:var(--muted);cursor:default;}
+
+/* INFO GRID : 2 colonnes seulement */
+.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;}
+.info-card{background:var(--card);border:1px solid var(--border);border-radius:var(--rl);padding:14px 16px;}
+.info-card-title{font-family:'Syne',sans-serif;font-weight:700;font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;display:flex;align-items:center;gap:6px;}
+.info-card-title svg{width:13px;height:13px;}
+.info-field{display:flex;flex-direction:column;gap:4px;margin-bottom:8px;}
+.info-field:last-child{margin-bottom:0;}
+.info-label{font-size:11px;color:var(--muted);font-weight:500;}
+.info-input{padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;font-family:'DM Sans',sans-serif;background:var(--bg);outline:none;color:var(--text);width:100%;}
+.info-input:focus{border-color:var(--orange);background:white;}
+
+/* DÉLAI */
+.delai-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+.delai-btn{padding:6px 13px;border-radius:6px;border:1.5px solid var(--border);font-size:12px;font-weight:600;cursor:pointer;background:var(--bg);color:var(--muted);transition:.15s;font-family:'DM Sans',sans-serif;user-select:none;}
+.delai-btn.active{background:var(--blue-l);color:var(--blue-d);border-color:var(--blue);}
+.delai-date-input{padding:7px 10px;border:1.5px solid var(--border);border-radius:6px;font-size:14px;font-family:'Syne',sans-serif;font-weight:700;background:var(--bg);outline:none;color:var(--text);width:110px;}
+.delai-date-input:focus{border-color:var(--orange);background:white;}
+.delai-sem-input{width:70px;padding:7px 10px;border:1.5px solid var(--border);border-radius:6px;font-size:14px;font-family:'Syne',sans-serif;font-weight:700;text-align:center;background:var(--bg);outline:none;color:var(--text);}
+.delai-sem-input:focus{border-color:var(--orange);background:white;}
+
+/* BUTTONS */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:9px 15px;border-radius:var(--r);font-size:13.5px;font-weight:500;cursor:pointer;border:none;font-family:'DM Sans',sans-serif;transition:.15s;}
+.btn-primary{background:var(--orange);color:white;}.btn-primary:hover{background:var(--orange-d);}
+.btn-secondary{background:var(--card);color:var(--text);border:1px solid var(--border);}.btn-secondary:hover{background:var(--bg);}
+.btn-purple{background:var(--purple);color:white;}.btn-purple:hover{background:#542F80;}
+.btn-ghost{background:transparent;color:var(--muted);padding:8px 10px;}.btn-ghost:hover{background:var(--bg);}
+.btn-lg{padding:11px 18px;font-size:14px;}
+.btn svg{width:14px;height:14px;}
+
+/* VALIDATION */
+.field-error{border-color:var(--red)!important;background:#FFF0F0!important;}
+.validation-banner{background:var(--red-l);border:1px solid #EFC0C0;border-radius:var(--r);padding:10px 14px;margin-bottom:12px;display:none;font-size:13px;color:var(--red);align-items:center;gap:8px;}
+.validation-banner.show{display:flex;}
+
+/* MODE SELECTOR */
+.mode-selector{background:var(--card);border:1px solid var(--border);border-radius:var(--rl);padding:14px 18px;margin-bottom:14px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;}
+.mode-title{font-family:'Syne',sans-serif;font-weight:700;font-size:13px;}
+.mode-cards{display:flex;gap:10px;flex-wrap:wrap;}
+.mode-card{display:flex;align-items:center;gap:10px;padding:10px 16px;border-radius:var(--r);border:1.5px solid var(--border);cursor:pointer;transition:.15s;user-select:none;}
+.mode-card:hover{border-color:var(--muted);}
+.mode-card.active-photo{border-color:var(--purple);background:var(--purple-l);}
+.mode-card.active-table{border-color:var(--blue);background:var(--blue-l);}
+.mode-card-check{width:18px;height:18px;border-radius:4px;border:1.5px solid var(--border2);display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:.15s;}
+.mode-card.active-photo .mode-card-check{background:var(--purple);border-color:var(--purple);}
+.mode-card.active-table .mode-card-check{background:var(--blue);border-color:var(--blue);}
+.mode-card-check svg{display:none;width:10px;height:10px;}
+.mode-card.active-photo .mode-card-check svg,.mode-card.active-table .mode-card-check svg{display:block;}
+.mode-card-text{font-size:13px;font-weight:500;}
+.mode-card-sub{font-size:11px;color:var(--muted);margin-top:1px;}
+
+/* PHOTO */
+.photo-zone{background:var(--card);border:1px solid var(--border);border-radius:var(--rl);padding:20px;margin-bottom:14px;}
+.photo-drop{border:2px dashed var(--border2);border-radius:var(--rl);padding:28px 20px;text-align:center;cursor:pointer;transition:.2s;background:var(--bg);}
+.photo-drop:hover,.photo-drop.has-photo{border-color:var(--purple);border-style:solid;}
+.photo-drop svg{width:34px;height:34px;color:var(--border2);display:block;margin:0 auto 10px;}
+.photo-drop p{font-size:13.5px;color:var(--muted);margin-bottom:4px;}
+.photo-drop small{font-size:11.5px;color:var(--border2);}
+.photo-preview{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;margin-top:14px;}
+.photo-thumb{position:relative;border-radius:var(--r);overflow:hidden;aspect-ratio:4/3;background:#000;}
+.photo-thumb img{width:100%;height:100%;object-fit:cover;}
+.photo-thumb-del{position:absolute;top:5px;right:5px;width:22px;height:22px;border-radius:50%;background:rgba(0,0,0,.6);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+.photo-thumb-del svg{width:11px;height:11px;color:white;}
+.photo-label-input{position:absolute;bottom:0;left:0;right:0;background:rgba(26,43,74,.8);padding:5px 8px;}
+.photo-label-input input{background:transparent;border:none;color:white;font-size:11px;width:100%;outline:none;font-family:'DM Sans',sans-serif;}
+.photo-label-input input::placeholder{color:rgba(255,255,255,.5);}
+.add-photo-btn{display:flex;align-items:center;justify-content:center;gap:8px;padding:11px;border-radius:var(--r);border:1.5px dashed var(--border2);background:var(--bg);cursor:pointer;font-size:13px;color:var(--muted);transition:.15s;font-family:'DM Sans',sans-serif;margin-top:10px;width:100%;}
+.add-photo-btn:hover{border-color:var(--purple);color:var(--purple);background:var(--purple-l);}
+
+/* TOOLBAR */
+.toolbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;}
+.toolbar-left{display:flex;gap:7px;align-items:center;flex-wrap:wrap;}
+.row-counter{background:var(--purple-l);color:var(--purple);border-radius:20px;padding:4px 12px;font-size:12px;font-weight:500;}
+
+/* TABLE */
+.table-wrap{background:var(--card);border:1px solid var(--border);border-radius:var(--rl);overflow:hidden;margin-bottom:14px;}
+.table-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+.fab-table{width:100%;border-collapse:collapse;min-width:860px;}
+.th-group{padding:7px 8px;font-family:'Syne',sans-serif;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;text-align:center;border-bottom:1px solid var(--border);}
+.th-ref{background:#F7F5F1;color:var(--muted);border-right:1px solid var(--border);}
+.th-dim{background:#EBF1FA;color:var(--blue-d);border-right:1px solid var(--border);}
+.th-mat{background:#E8F4EE;color:var(--green);border-right:1px solid var(--border);}
+.th-fin{background:var(--purple-l);color:var(--purple);}
+.fab-table thead tr:nth-child(2) th{padding:6px 4px;font-size:10px;font-weight:500;color:var(--muted);background:var(--bg);border-bottom:2px solid var(--border2);text-align:center;line-height:1.3;}
+.col-sep{border-right:1px solid var(--border2)!important;}
+.fab-table tbody tr:hover{background:#FAFAF7;}
+.fab-table tbody tr:nth-child(even){background:#FDFCFA;}
+.fab-table tbody td{border-bottom:1px solid var(--border);padding:3px;vertical-align:middle;}
+.ti{width:100%;padding:6px 5px;border:1px solid transparent;border-radius:5px;font-size:13px;font-family:'DM Sans',sans-serif;color:var(--text);background:transparent;outline:none;text-align:center;transition:.15s;min-width:0;}
+.ti:focus{border-color:var(--orange);background:white;}
+.ti:hover:not(:focus){border-color:var(--border);background:#FAFAF8;}
+.ti-left{text-align:left;}
+.ti-num{font-family:'Syne',sans-serif;font-weight:600;font-size:14px;}
+.row-num{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;background:var(--bg);border:1px solid var(--border);border-radius:50%;font-size:10px;color:var(--muted);font-weight:500;flex-shrink:0;}
+.del-row{background:none;border:none;cursor:pointer;color:var(--border2);padding:3px;border-radius:4px;transition:.15s;display:flex;align-items:center;}
+.del-row:hover{color:var(--orange-d);background:var(--orange-l);}
+.del-row svg{width:13px;height:13px;}
+.add-row-btn{display:flex;align-items:center;gap:8px;padding:11px 16px;color:var(--purple);cursor:pointer;font-size:13.5px;font-weight:500;border-top:1px solid var(--border);transition:.15s;background:transparent;width:100%;border:none;font-family:'DM Sans',sans-serif;}
+.add-row-btn:hover{background:var(--purple-l);}
+
+/* SUMMARY */
+.summary-bar{background:var(--card);border:1px solid var(--border);border-radius:var(--rl);padding:14px 18px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:14px;}
+.sum-val{font-family:'Syne',sans-serif;font-size:20px;font-weight:700;}
+.sum-lbl{font-size:11px;color:var(--muted);}
+
+/* SEND */
+.send-zone{background:var(--card);border:1px solid var(--border);border-radius:var(--rl);padding:16px 20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;}
+.send-title{font-family:'Syne',sans-serif;font-weight:700;font-size:14px;}
+.send-sub{font-size:12px;color:var(--muted);}
+.send-targets{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;align-items:center;}
+.stag{display:inline-flex;align-items:center;gap:5px;padding:5px 11px;border-radius:20px;font-size:12px;font-weight:500;}
+.stag-default{background:var(--header-bg);color:white;}
+.send-btns{display:flex;gap:8px;flex-wrap:wrap;}
+
+/* MODAL */
+.modal-overlay{position:fixed;inset:0;background:rgba(20,18,16,.55);z-index:100;display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto;opacity:0;pointer-events:none;transition:.2s;}
+.modal-overlay.open{opacity:1;pointer-events:all;}
+.modal{background:var(--card);border-radius:var(--rl);width:100%;max-width:960px;transform:translateY(8px);transition:.2s;margin-top:10px;}
+.modal-overlay.open .modal{transform:translateY(0);}
+.modal-head{padding:18px 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.modal-title{font-family:'Syne',sans-serif;font-weight:700;font-size:16px;}
+.modal-close{width:28px;height:28px;border-radius:7px;border:1px solid var(--border);background:none;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+.modal-close svg{width:13px;height:13px;}
+.modal-body{padding:20px 22px;}
+
+/* PDF */
+.pdf-wrap{background:#E8E5E0;border-radius:var(--rl);padding:14px;overflow-x:auto;}
+.pdf-pg{background:white;border-radius:7px;padding:18px 22px;box-shadow:0 2px 10px rgba(0,0,0,.12);min-width:640px;margin:0 auto;}
+.pdf-top{display:flex;gap:14px;padding-bottom:10px;border-bottom:3px solid #4A6FA0;margin-bottom:12px;align-items:flex-start;}
+/* Colonne gauche réduite de moitié */
+.pdf-left-col{width:120px;flex-shrink:0;border:1.5px solid var(--border);border-radius:5px;overflow:hidden;}
+.pdf-left-row{padding:5px 8px;border-bottom:1px solid var(--border);}
+.pdf-left-row:last-child{border-bottom:none;}
+.pdf-left-label{font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);margin-bottom:1px;}
+.pdf-left-val{font-size:11px;font-weight:600;color:var(--text);}
+.pdf-left-val.big{font-family:'Syne',sans-serif;font-size:12px;font-weight:800;color:var(--header-bg);}
+.pdf-center-col{flex:1;}
+.pdf-co{font-family:'Syne',sans-serif;font-weight:800;font-size:14px;color:var(--header-bg);}
+.pdf-co-sub{font-size:9px;color:var(--muted);}
+.pdf-doc-title{font-family:'Syne',sans-serif;font-weight:800;font-size:12px;color:var(--header-bg);margin-top:7px;}
+.pdf-right-col{width:170px;flex-shrink:0;}
+.pdf-temps-table{width:100%;border-collapse:collapse;font-size:10px;border:1.5px solid var(--border);}
+.pdf-temps-table th{background:#4A6FA0;color:white;padding:4px 5px;text-align:center;font-size:8.5px;letter-spacing:.3px;}
+.pdf-temps-table td{padding:6px 5px;border:1px solid var(--border);text-align:center;height:20px;}
+.pdf-temps-table .op-label{text-align:left;font-weight:500;font-size:9.5px;}
+.pdf-fab-table{width:100%;border-collapse:collapse;font-size:10px;border:1px solid var(--border);}
+.pdf-fab-table th{padding:5px 6px;background:#4A6FA0;color:white;font-weight:600;text-align:center;font-size:9px;letter-spacing:.3px;}
+.pdf-fab-table th.th-left{text-align:left;}
+.pdf-fab-table td{padding:5px 6px;border:1px solid var(--border);text-align:center;font-size:10.5px;}
+.pdf-fab-table td.td-left{text-align:left;}
+.pdf-fab-table tbody tr:nth-child(even) td{background:#F7F5F1;}
+.pdf-photo-grid{display:flex;flex-direction:column;gap:10px;margin-top:10px;}
+.pdf-photo-item{border:1px solid var(--border);border-radius:5px;overflow:hidden;}
+.pdf-photo-item img{width:100%;height:auto;max-height:420px;object-fit:contain;display:block;background:#F7F5F1;}
+.pdf-photo-caption{padding:4px 8px;font-size:9px;color:var(--muted);background:#F7F5F1;text-align:center;border-top:1px solid var(--border);}
+.table-wrap-pad{background:var(--card);border:1px solid var(--border);border-radius:var(--rl);padding:16px 18px;}
+
+/* TOAST */
+.toast{position:fixed;bottom:18px;right:18px;background:var(--text);color:white;padding:12px 16px;border-radius:var(--r);font-size:13px;font-weight:500;z-index:300;display:flex;align-items:center;gap:9px;transform:translateY(70px);opacity:0;transition:.25s;max-width:320px;}
+.toast.show{transform:translateY(0);opacity:1;}
+@media(max-width:700px){.info-grid{grid-template-columns:1fr;}.fiche-title-zone{order:3;width:100%;text-align:left;}.fiche-meta-zone{min-width:100%;width:100%;}.main{padding:10px;}}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="tb-logo">
+    <div class="tb-sq"><svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></div>
+    <div class="tb-name">ChantierPro</div>
+    <span class="tb-badge">FABRICATION</span>
+  </div>
+  <div class="tb-right">
+    <button class="btn btn-secondary" style="padding:6px 12px;font-size:12.5px" onclick="openPreview()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+      Aperçu
+    </button>
+  </div>
+</div>
+
+<div class="main">
+
+  <!-- HEADER FICHE -->
+  <div class="fiche-header">
+    <div class="fiche-logo-zone">
+      <div class="fiche-logo-box"><svg viewBox="0 0 24 24" fill="white"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg></div>
+      <div><div class="fiche-co">Loué Menuiserie</div><div class="fiche-co-sub">Menuiserie · Charpente · Agencement</div></div>
+    </div>
+    <div class="fiche-title-zone">
+      <div class="fiche-main-title">FICHE DE FABRICATION</div>
+      <div class="fiche-main-sub">Atelier — Document de production</div>
+    </div>
+    <div class="fiche-meta-zone">
+      <div class="fiche-meta-row">
+        <span class="fiche-meta-label">Chantier <span style="color:var(--red);font-size:10px;vertical-align:super">*</span></span>
+        <input class="fiche-meta-input" id="meta-chantier" placeholder="Choisir ou saisir…" list="chantiers-list" autocomplete="off" oninput="onChantierFabChange(this.value)">
+        <datalist id="chantiers-list"></datalist>
+      </div>
+      <div class="fiche-meta-row">
+        <span class="fiche-meta-label">N° Série</span>
+        <input class="fiche-meta-input" id="meta-serie" readonly style="background:#EFECE8;color:var(--muted);cursor:default;font-style:italic;font-size:12px" value="" placeholder="Auto">
+      </div>
+      <div class="fiche-meta-row">
+        <span class="fiche-meta-label">Rédigé par <span style="color:var(--red);font-size:10px;vertical-align:super">*</span></span>
+        <input class="fiche-meta-input" id="meta-auteur" placeholder="Votre nom…" list="auteurs-list" autocomplete="off">
+        <datalist id="auteurs-list"></datalist>
+      </div>
+      <div class="fiche-meta-row">
+        <span class="fiche-meta-label">Date</span>
+        <input type="text" class="fiche-meta-input" id="meta-date" readonly>
+      </div>
+    </div>
+  </div>
+
+  <!-- INFO GRID : Délai + Précisions chantier -->
+  <div class="info-grid">
+
+    <!-- DÉLAI -->
+    <div class="info-card">
+      <div class="info-card-title" style="color:var(--amber)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        Délai souhaité
+      </div>
+      <div class="delai-row">
+        <button class="delai-btn active" id="delai-pour" onclick="setDelaiType('pour')">Pour le</button>
+        <button class="delai-btn" id="delai-sem" onclick="setDelaiType('semaine')">Semaine</button>
+        <!-- Zone "Pour le" : date JJ/MM -->
+        <div id="zone-delai-pour" style="display:flex;align-items:center;gap:6px">
+          <input type="text" class="delai-date-input" id="delai-date" placeholder="JJ/MM"
+            maxlength="5" oninput="formatDelaiDate(this)">
+        </div>
+        <!-- Zone "Semaine" : S01 à S52 -->
+        <div id="zone-delai-sem" style="display:none;align-items:center;gap:6px">
+          <span style="font-size:12px;color:var(--muted);font-weight:600">S</span>
+          <input type="number" class="delai-sem-input" id="delai-sem-val" min="1" max="52" placeholder="19">
+        </div>
+      </div>
+    </div>
+
+    <!-- PRÉCISIONS CHANTIER -->
+    <div class="info-card">
+      <div class="info-card-title" style="color:var(--green)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>
+        Précisions chantier
+      </div>
+      <div class="info-field">
+        <label class="info-label">Bâtiment / Étage / Zone</label>
+        <input class="info-input" id="meta-zone" placeholder="Ex : Bât. A — R+2 Aile Nord">
+      </div>
+      <div class="info-field">
+        <label class="info-label">N° ou référence interne</label>
+        <input class="info-input" id="meta-ref-chantier" placeholder="Ex : 307">
+      </div>
+    </div>
+  </div>
+
+  <!-- AJOUT DE BLOCS -->
+  <div class="mode-selector" style="flex-direction:column;align-items:stretch;gap:12px;">
+    <div style="display:flex;align-items:center;gap:8px;">
+      <div style="width:30px;height:30px;background:var(--purple-l);border-radius:7px;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+        <svg viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="2.5" width="15" height="15"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/></svg>
+      </div>
+      <div><div class="mode-title">Ajouter un bloc</div><div style="font-size:11px;color:var(--muted)">Combinez plusieurs types dans la même fiche</div></div>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-start;">
+      <!-- Divers -->
+      <button class="btn btn-secondary" onclick="addBloc('divers')" style="gap:8px">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Divers
+        <span style="font-size:10px;color:var(--muted)">Panneaux, bois…</span>
+      </button>
+      <!-- Photo -->
+      <button class="btn btn-secondary" onclick="addBloc('photo')" style="gap:8px">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Photo / Croquis
+        <span style="font-size:10px;color:var(--muted)">Photo d'un croquis</span>
+      </button>
+      <!-- Bloc porte + sous-choix -->
+      <div style="display:flex;flex-direction:column;gap:6px;">
+        <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+          <span style="font-size:12px;font-weight:600;color:var(--text)">Bloc porte :</span>
+          <button class="btn btn-secondary" onclick="addBloc('porte','complet')" style="gap:6px;font-size:12.5px">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Bloc complet
+          </button>
+          <button class="btn btn-secondary" onclick="addBloc('porte','vantail')" style="gap:6px;font-size:12.5px">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Vantail seul
+          </button>
+          <button class="btn btn-secondary" onclick="addBloc('porte','huisserie')" style="gap:6px;font-size:12.5px">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Huisserie seule
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- VALIDATION BANNER -->
+  <div class="validation-banner" id="validationBanner">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+    <span id="validationMsg">Certains champs sont manquants.</span>
+  </div>
+
+  <!-- CONTENEUR DES BLOCS (rempli dynamiquement) -->
+  <div id="blocs-container"></div>
+
+  <!-- COMMENTAIRES -->
+  <div class="table-wrap-pad" style="margin-bottom:14px">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+      <svg viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2" width="15" height="15"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+      <span style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px">Commentaires / Notes</span>
+    </div>
+    <textarea id="meta-commentaires" placeholder="Instructions particulières, particularités de fabrication…"
+      style="width:100%;min-height:70px;padding:10px 12px;border:1px solid var(--border);border-radius:var(--r);font-family:'DM Sans',sans-serif;font-size:13px;color:var(--text);background:var(--bg);outline:none;resize:vertical;line-height:1.6;"
+      onfocus="this.style.borderColor='var(--orange)';this.style.background='white'"
+      onblur="this.style.borderColor='';this.style.background='var(--bg)'"></textarea>
+  </div>
+
+  <!-- SEND ZONE -->
+  <div class="send-zone" style="flex-direction:column;align-items:stretch;gap:14px;">
+    <div style="display:flex;justify-content:flex-start;">
+      <button class="btn btn-secondary" onclick="window.location.href='index.html'" style="padding:10px 14px">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polyline points="15 18 9 12 15 6"/></svg>
+        Retour
+      </button>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+      <div>
+        <div class="send-title">Envoyer la fiche de fabrication</div>
+        <div class="send-sub">Envoyé automatiquement au chef d'atelier + conducteur sélectionné</div>
+      </div>
+      <div class="send-btns">
+        <button class="btn btn-secondary btn-lg" onclick="openPreview()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          Aperçu PDF
+        </button>
+        <button class="btn btn-purple btn-lg" id="btn-envoyer" onclick="sendDoc()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
+          Envoyer la fiche
+        </button>
+      </div>
+    </div>
+    <!-- Destinataires -->
+    <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:12px 16px;background:var(--bg);border:1px solid var(--border);border-radius:var(--r);">
+      <!-- Chef d'atelier : automatique -->
+      <div style="display:flex;flex-direction:column;gap:3px;">
+        <span style="font-size:10.5px;color:var(--muted);font-weight:500">Chef d'atelier <span style="color:var(--green);font-weight:700">✓ auto</span></span>
+        <div class="stag stag-default" id="tag-chef-atelier">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="11" height="11"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          <span id="label-chef-atelier">Chargement…</span>
+        </div>
+      </div>
+      <div style="width:1px;height:36px;background:var(--border)"></div>
+      <!-- Conducteur : sélection obligatoire -->
+      <div style="display:flex;flex-direction:column;gap:3px;flex:1;min-width:200px;">
+        <span style="font-size:10.5px;font-weight:500;color:var(--muted)">Conducteur de travaux <span style="color:var(--red);font-size:10px;vertical-align:super">*</span> <span style="font-size:10px;color:var(--muted)">(obligatoire)</span></span>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <input class="fiche-meta-input" id="select-conducteur" placeholder="Sélectionner un conducteur…"
+            list="conduc-list" autocomplete="off"
+            oninput="onConducteurInput()"
+            style="max-width:280px;flex:1">
+          <datalist id="conduc-list"></datalist>
+          <div id="conduc-check" style="display:none;width:22px;height:22px;border-radius:50%;background:var(--green);display:none;align-items:center;justify-content:center;flex-shrink:0;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" width="11" height="11"><polyline points="20 6 9 17 4 12"/></svg>
+          </div>
+        </div>
+        <span id="conduc-error" style="font-size:11px;color:var(--red);display:none;">Veuillez sélectionner un conducteur avant d'envoyer</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL PDF -->
+<div class="modal-overlay" id="pdfModal">
+  <div class="modal">
+    <div class="modal-head">
+      <div class="modal-title">Aperçu — Fiche de fabrication</div>
+      <button class="modal-close" onclick="closePreview()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    </div>
+    <div class="modal-body">
+      <div class="pdf-wrap"><div class="pdf-pg" id="pdfContent"></div></div>
+      <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:14px">
+        <button class="btn btn-secondary" onclick="closePreview()">Fermer</button>
+        <button class="btn btn-purple" onclick="sendDoc();closePreview()">Envoyer</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="15" height="15"><polyline points="20 6 9 17 4 12"/></svg><span id="toastMsg">OK</span></div>
+
+<script>
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw5M3sh6EFb0t_oXiZ7qUeQI60ePGredIz9UjjQAWSXUGoWx_M3p8QE0O7B5KqyBV8/exec';
+
+// Listes locales par défaut — enrichies depuis Google Sheets
+let MATERIAUX  = ['Chêne massif','Hêtre massif','Noyer massif','Pin massif','MDF','MDF hydro','Médium','Aggloméré','Contre-plaqué','Contreplaqué bouleau','OSB','Aluminium','PVC','Verre','Inox','Autre'];
+let FINITIONS  = ['Brut','Poncé','Peint blanc','Peint RAL…','Huilé','Verni mat','Verni satiné','Verni brillant','Lazuré','Teinté','Stratifié blanc','Stratifié bois','Mélaminé blanc','Autre'];
+let QUINCAILLE = ['Charnières invisibles','Charnières visibles','Coulisses tiroir','Poignée barre','Poignée bouton','Serrure 3 points','Serrure à larder','Loquet','Ferme-porte','Pivots','Crémaillère réglable','Tasseaux','Équerres','Vis à bois','Chevilles','Rien','Autre'];
+
+let rows=[], rowCounter=0, photos=[], currentMode='', delaiType='pour';
+let ALL_USERS=[], CONDUCTEUR_DEFAUT={name:'—'}, CHEF_ATELIER={name:'Non défini'};
+let ALL_CHANTIERS_FAB=[];
+
+// Pré-remplir conducteur selon chantier sélectionné
+function onChantierFabChange(val) {
+  if(!val || !ALL_CHANTIERS_FAB.length) return;
+  const nomSaisi = val.split(' — ')[0]; // gérer "Nom — REF"
+  const c = ALL_CHANTIERS_FAB.find(x=>x.nom.toLowerCase()===nomSaisi.toLowerCase());
+  if(c && c.conducteur) {
+    const el = document.getElementById('select-conducteur');
+    if(el && !el.value) {
+      el.value = c.conducteur;
+      onConducteurInput();
+    }
+  }
+  updateSummary();
+}
+
+// ── CONTACTS + LISTES DEPUIS SHEETS ──
+function loadContacts() {
+  if(!APPS_SCRIPT_URL) return;
+  window._fabCB = function(data) {
+    clearTimeout(window._fabTO);
+    if(data && data.contacts) {
+      ALL_USERS = data.contacts.map((c,i)=>({
+        id:i+1, name:c.nom, role:c.role||'',
+        default:    String(c.conducteurDefaut).toUpperCase()==='O',
+        chefEquipe: String(c.chefEquipe).toUpperCase()==='O',
+        chefAtelier:String(c.chefAtelier||'').toUpperCase()==='O',
+        conducteur: String(c.conducteurDefaut).toUpperCase()==='O' || (c.role||'').toLowerCase().includes('conducteur'),
+      }));
+
+      // Chef d'atelier (colonne chefAtelier=O, sinon conducteur par défaut en fallback)
+      const chef = ALL_USERS.find(u=>u.chefAtelier) || ALL_USERS.find(u=>u.default);
+      if(chef) {
+        CHEF_ATELIER = chef;
+        const el = document.getElementById('label-chef-atelier');
+        if(el) el.textContent = chef.name;
+      }
+
+      // Datalist auteurs (chefs d'équipe) — saisie libre possible
+      const dlA=document.getElementById('auteurs-list'); dlA.innerHTML='';
+      ALL_USERS.filter(u=>u.chefEquipe).forEach(u=>{const o=document.createElement('option');o.value=u.name;dlA.appendChild(o);});
+
+      // Datalist chantiers — saisie libre possible
+      const dlC=document.getElementById('chantiers-list'); dlC.innerHTML='';
+      ALL_CHANTIERS_FAB = data.chantiers || [];
+      ALL_CHANTIERS_FAB.forEach(c=>{const o=document.createElement('option');o.value=c.reference?`${c.nom} — ${c.reference}`:c.nom;dlC.appendChild(o);});
+
+      // Datalist conducteurs (send zone)
+      const dlCo=document.getElementById('conduc-list'); dlCo.innerHTML='';
+      ALL_USERS.filter(u=>u.conducteur).forEach(u=>{const o=document.createElement('option');o.value=u.name;dlCo.appendChild(o);});
+
+      // Listes évolutives depuis Sheets
+      if(data.materiaux  && data.materiaux.length)  MATERIAUX  = data.materiaux;
+      if(data.finitions   && data.finitions.length)  FINITIONS  = data.finitions;
+      if(data.quincaille  && data.quincaille.length) QUINCAILLE = data.quincaille;
+
+      if(rows.length) renderTable();
+    }
+    delete window._fabCB; delete window._fabTO;
+    const s=document.getElementById('_jfab'); if(s) s.remove();
+  };
+  window._fabTO=setTimeout(()=>{if(window._fabCB){delete window._fabCB;}},15000);
+  const sc=document.createElement('script'); sc.id='_jfab';
+  sc.src=APPS_SCRIPT_URL+'?action=getContacts&callback=_fabCB&t='+Date.now();
+  document.head.appendChild(sc);
+}
+
+// ── DÉLAI ──
+function getNumeroSemaineProchaine() {
+  const now = new Date();
+  const prochaineLundi = new Date(now);
+  prochaineLundi.setDate(now.getDate() + (7 - now.getDay() + 1) % 7 || 7);
+  const debut = new Date(prochaineLundi.getFullYear(), 0, 1);
+  const diff = prochaineLundi - debut;
+  const semaine = Math.ceil((diff / 86400000 + debut.getDay() + 1) / 7);
+  return Math.min(semaine, 52);
+}
+
+function setDelaiType(t) {
+  delaiType=t;
+  document.getElementById('delai-pour').classList.toggle('active',t==='pour');
+  document.getElementById('delai-sem').classList.toggle('active',t==='semaine');
+  // Pour le : affiche date, cache semaine
+  document.getElementById('zone-delai-pour').style.display=t==='pour'?'flex':'none';
+  // Semaine : affiche semaine avec valeur par défaut, cache date
+  document.getElementById('zone-delai-sem').style.display=t==='semaine'?'flex':'none';
+  if(t==='semaine') {
+    const inp=document.getElementById('delai-sem-val');
+    if(!inp.value) inp.value=String(getNumeroSemaineProchaine()).padStart(2,'0');
+  }
+  if(t==='pour') {
+    // Vider la semaine quand on repasse sur "pour le"
+    document.getElementById('delai-sem-val').value='';
+  }
+}
+
+function formatDelaiDate(input) {
+  let v=input.value.replace(/\D/g,'');
+  if(v.length>2) v=v.substring(0,2)+'/'+v.substring(2,4);
+  input.value=v;
+}
+
+function getDelaiLabel() {
+  if(delaiType==='pour') {
+    const d=document.getElementById('delai-date').value;
+    return d ? `Pour le ${d}` : '—';
+  } else {
+    const s=document.getElementById('delai-sem-val').value;
+    return s ? `Semaine S${String(s).padStart(2,'0')}` : '—';
+  }
+}
+
+// ── MODE / TYPE ──
+let porteType = 'complet'; // complet | vantail | huisserie
+let porteRows = [], porteCounter = 0;
+
+function setMode(mode) {
+  currentMode = mode;
+  // Reset styles
+  ['divers','photo','porte'].forEach(m => {
+    const el = document.getElementById('mode-'+m); if(!el) return;
+    el.className = 'mode-card' + (mode===m ? (m==='photo'?' active-photo':m==='porte'?' active-att':' active-table') : '');
+  });
+  document.getElementById('zone-photo').style.display  = mode==='photo'  ? 'block' : 'none';
+  document.getElementById('zone-table').style.display  = mode==='divers' ? 'block' : 'none';
+  document.getElementById('zone-porte').style.display  = mode==='porte'  ? 'block' : 'none';
+  document.getElementById('sous-choix-porte').style.display = mode==='porte' ? 'flex' : 'none';
+  if(mode==='porte') renderPorteTable();
+}
+
+function setPorteType(type) {
+  porteType = type;
+  ['complet','vantail','huisserie'].forEach(t => {
+    document.getElementById('porte-'+t).classList.toggle('active', t===type);
+  });
+  porteRows = []; porteCounter = 0;
+  renderPorteTable();
+}
+
+// ── BLOC PORTE — tableau dynamique selon sous-type ──
+function addPorteRow() {
+  porteCounter++;
+  const base = {id:porteCounter, repere:'', qt:''};
+  if(porteType==='vantail'||porteType==='complet') {
+    Object.assign(base, {haut:'', larg:'', sens:'', ferrageType:'', ferrageQt:'', nature:''});
+  }
+  if(porteType==='huisserie'||porteType==='complet') {
+    Object.assign(base, {support:'', epSupport:'', ferrage:'', ferrageHQt:'', sens:'', feuillure:'', rainure:''});
+  }
+  if(porteType==='vantail'||porteType==='huisserie') {
+    Object.assign(base, {serrure:''});
+  }
+  porteRows.push(base);
+  renderPorteTable();
+  setTimeout(()=>{ const inp=document.getElementById('pr-rep-'+porteCounter); if(inp) inp.focus(); },50);
+}
+
+function deletePorteRow(id) { porteRows=porteRows.filter(x=>x.id!==id); renderPorteTable(); }
+function clearPorteRows()   { if(porteRows.length&&!confirm('Effacer toutes les lignes ?')) return; porteRows=[]; porteCounter=0; renderPorteTable(); }
+function updatePorteRow(id,f,v) { const r=porteRows.find(x=>x.id===id); if(r) r[f]=v; }
+
+function renderPorteTable() {
+  const tbl = document.getElementById('porte-table');
+  if(!tbl) return;
+  document.getElementById('row-counter-porte').textContent = `${porteRows.length} ligne${porteRows.length>1?'s':''}`;
+
+  const isVantail    = porteType==='vantail'    || porteType==='complet';
+  const isHuisserie  = porteType==='huisserie'  || porteType==='complet';
+  const isComplet    = porteType==='complet';
+  const label = porteType==='complet'?'Bloc porte complet':porteType==='vantail'?'Vantail seul':'Huisserie seule';
+
+  // Ferrage et serrure : uniquement pour vantail seul et huisserie seule (pas complet)
+  const showFerrageV  = porteType === 'vantail';    // ferrage côté vantail
+  const showFerrageH  = isHuisserie;                 // ferrage côté huisserie toujours
+  const showSerrure   = porteType !== 'complet';     // serrure : vantail seul + huisserie seule
+
+  // En-têtes groupes
+  const colsV = 3 + (showFerrageV ? 2 : 0);   // haut/larg/sens [+ferrage+Qt]
+  const colsH = 2 + 2 + 1 + 1 + 1;            // support/ep/ferrage/Qt/sens/feuillure/rainure = 7 fixe
+  const colsHFull = 7;
+
+  let thV = isVantail ? `
+    <th class="th-group th-dim" colspan="${colsV}${showSerrure&&porteType==='vantail'?'+1':''}" style="background:#EBF1FA;color:var(--blue-d)">VANTAIL</th>` : '';
+  let thH = isHuisserie ? `
+    <th class="th-group th-dim" colspan="${colsHFull}${showSerrure&&porteType==='huisserie'?'+1':''}" style="background:#E8F4EE;color:var(--green)">HUISSERIE</th>` : '';
+
+  // Recalcul propre des colspan
+  const nbColsV = isVantail ? (3 + (showFerrageV?2:0)) : 0;
+  const nbColsH = isHuisserie ? 7 : 0;
+  const nbColsS = showSerrure ? 1 : 0;
+
+  thV = isVantail ? `<th class="th-group th-dim" colspan="${nbColsV}" style="background:#EBF1FA;color:var(--blue-d)">VANTAIL</th>` : '';
+  thH = isHuisserie ? `<th class="th-group th-dim" colspan="${nbColsH}" style="background:#E8F4EE;color:var(--green)">HUISSERIE</th>` : '';
+  const thS = showSerrure ? `<th class="th-group th-dim" colspan="1" style="background:#F5F0FA;color:var(--purple)">SERRURE</th>` : '';
+
+  let th2V = isVantail ? `
+    <th style="min-width:80px">Hauteur<br><small>mm</small></th>
+    <th style="min-width:80px">Largeur<br><small>mm</small></th>
+    <th style="min-width:90px">Sens</th>
+    ${showFerrageV ? `
+    <th style="min-width:110px">Ferrage<br><small>fiches/paumelle</small></th>
+    <th style="min-width:55px">QT<br><small>ferrage</small></th>` : ''}
+    ` : '';
+
+  let th2H = isHuisserie ? `
+    <th style="min-width:120px">Type support</th>
+    <th style="min-width:75px">Ép. sup.<br><small>mm</small></th>
+    <th style="min-width:100px">Ferrage</th>
+    <th style="min-width:50px">QT<br><small>ferrage</small></th>
+    <th style="min-width:80px">Sens</th>
+    <th style="min-width:130px">Feuillure</th>
+    <th class="col-sep" style="min-width:90px">Rainure<br><small>joint iso</small></th>` : '';
+
+  const th2S = showSerrure ? `<th style="min-width:130px">Serrure</th>` : '';
+
+  // Nature reste côté vantail (séparateur)
+  const th2Nature = isVantail ? `<th class="col-sep" style="min-width:120px">Nature</th>` : '';
+  thV = isVantail ? `<th class="th-group th-dim" colspan="${nbColsV + 1}" style="background:#EBF1FA;color:var(--blue-d)">VANTAIL</th>` : ''; // +1 pour Nature
+
+  tbl.innerHTML = `
+    <thead>
+      <tr>
+        <th class="th-group th-ref col-sep" rowspan="2" style="vertical-align:middle;text-align:left;padding-left:8px;min-width:55px">Rep.</th>
+        <th class="th-group th-ref col-sep" rowspan="2" style="vertical-align:middle;min-width:50px">QT</th>
+        ${thV}${thH}${thS}
+        <th class="th-group th-ref" rowspan="2" style="vertical-align:middle;width:26px"></th>
+      </tr>
+      <tr>
+        ${th2V}${th2Nature}${th2H}${th2S}
+      </tr>
+    </thead>
+    <tbody id="porteBody"></tbody>`;
+
+  const tbody = document.getElementById('porteBody');
+  if(!porteRows.length) {
+    const cols = 3 + (isVantail?6:0) + (isHuisserie?6:0);
+    tbody.innerHTML=`<tr><td colspan="${cols}" style="padding:22px;text-align:center;color:var(--muted);font-size:13px">
+      Aucune ligne — cliquez "Ajouter une ligne"</td></tr>`;
+    return;
+  }
+
+  const SENS_LIST    = ['DP','GP','GP 2 vtx','DP 2 vtx','Peu importe'];
+  const FERRAGE_LIST = ['Fiches Recouvrement','Paumelles Chants Droits','Charnières Invisible'];
+  const NATURE_LIST  = ['Alvéolaire','Feu','Acoustique','Âme pleine'];
+  const SUPPORT_LIST = ['Doublage','Cloison','Tunnel','Feuillure'];
+  const FEUIL_LIST   = ['Chant droit','Recouvrement'];
+  const OUI_NON      = ['Oui','Non'];
+  const SERRURE_LIST = ['1pt axe 40','1pt axe 50','3pts axe 50','Batteuse carré','Batteuse triangle','3ptsA2P* axe 50'];
+
+  function combo(id,field,list,val,ph){
+    return `<input class="ti ti-left" style="font-size:12px" placeholder="${ph||'—'}" value="${val||''}"
+      list="dl-${id}-${field}" oninput="updatePorteRow(${id},'${field}',this.value)">
+    <datalist id="dl-${id}-${field}">${list.map(v=>`<option value="${v}">`).join('')}</datalist>`;
+  }
+
+  tbody.innerHTML = porteRows.map((r,i)=>{
+    let tdV = isVantail ? `
+      <td><input class="ti ti-num" placeholder="—" value="${r.haut||''}" type="number" oninput="updatePorteRow(${r.id},'haut',this.value)"></td>
+      <td><input class="ti ti-num" placeholder="—" value="${r.larg||''}" type="number" oninput="updatePorteRow(${r.id},'larg',this.value)"></td>
+      <td>${combo(r.id,'sens',SENS_LIST,r.sens,'Sens')}</td>
+      ${showFerrageV ? `
+      <td>${combo(r.id,'ferrageType',FERRAGE_LIST,r.ferrageType,'Type')}</td>
+      <td><input class="ti ti-num" placeholder="—" value="${r.ferrageQt||''}" type="number" oninput="updatePorteRow(${r.id},'ferrageQt',this.value)"></td>` : ''}
+      <td class="col-sep">${combo(r.id,'nature',NATURE_LIST,r.nature,'Nature')}</td>` : '';
+
+    let tdH = isHuisserie ? `
+      <td>${combo(r.id,'support',SUPPORT_LIST,r.support,'Support')}</td>
+      <td><input class="ti ti-num" placeholder="—" value="${r.epSupport||''}" type="number" oninput="updatePorteRow(${r.id},'epSupport',this.value)"></td>
+      <td>${combo(r.id,'ferrage',FERRAGE_LIST,r.ferrage,'Ferrage')}</td>
+      <td><input class="ti ti-num" placeholder="—" value="${r.ferrageHQt||''}" type="number" oninput="updatePorteRow(${r.id},'ferrageHQt',this.value)" style="max-width:48px"></td>
+      <td>${combo(r.id,'sens',SENS_LIST,r.sens,'Sens')}</td>
+      <td>${combo(r.id,'feuillure',FEUIL_LIST,r.feuillure,'Feuillure')}</td>
+      <td class="col-sep">${combo(r.id,'rainure',OUI_NON,r.rainure,'Oui/Non')}</td>` : '';
+
+    // Serrure : vantail seul et huisserie seule uniquement (pas complet)
+    const tdS = showSerrure ? `
+      <td>${combo(r.id,'serrure',SERRURE_LIST,r.serrure,'Serrure')}</td>` : '';
+
+    return `<tr id="pr-row-${r.id}">
+      <td class="col-sep" style="padding:3px 4px;min-width:55px">
+        <div style="display:flex;align-items:center;gap:3px">
+          <span class="row-num">${i+1}</span>
+          <input id="pr-rep-${r.id}" class="ti ti-left" style="font-weight:700;font-size:12px" placeholder="Rep." value="${r.repere||''}" oninput="updatePorteRow(${r.id},'repere',this.value)" maxlength="8">
+        </div>
+      </td>
+      <td class="col-sep"><input class="ti ti-num" placeholder="—" value="${r.qt||''}" type="number" oninput="updatePorteRow(${r.id},'qt',this.value)" style="max-width:48px"></td>
+      ${tdV}${tdH}${tdS}
+      <td><button class="del-row" onclick="deletePorteRow(${r.id})">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/></svg>
+      </button></td>
+    </tr>`;
+  }).join('');
+}
+
+// ── PHOTOS (ancien système global — non utilisé) ──
+function handlePhotos(files){}
+function renderPhotos(){}
+function removePhoto(i){}
+
+// ── ANCIEN TABLEAU (non utilisé) ──
+function addRow(){}
+function renderTable(){}
+function updateRow(id,f,v){}
+function deleteRow(id){}
+function clearRows(){}
+
+// ══════════════════════════════════════════════
+// SYSTÈME DE BLOCS CUMULATIFS
+// ══════════════════════════════════════════════
+let blocs = [];
+let blocCounter = 0;
+
+const PORTE_LABELS = { complet:'Bloc porte complet', vantail:'Vantail seul', huisserie:'Huisserie seule' };
+
+function addBloc(type, porteType) {
+  blocCounter++;
+  blocs.push({ id:blocCounter, type, porteType:porteType||'complet', rows:[], photos:[] });
+  renderBlocs();
+  // Ajoute automatiquement une première ligne
+  setTimeout(()=>{ addBlocRow(blocCounter); },50);
+  setTimeout(()=>{
+    const el=document.getElementById('bloc-'+blocCounter);
+    if(el) el.scrollIntoView({behavior:'smooth',block:'start'});
+  },100);
+  updateSummary();
+}
+
+function removeBloc(id) {
+  if(!confirm('Supprimer ce bloc ?')) return;
+  const b=blocs.find(x=>x.id===id);
+  if(b) b.photos.forEach(p=>URL.revokeObjectURL(p.url));
+  blocs=blocs.filter(x=>x.id!==id);
+  renderBlocs(); updateSummary();
+}
+
+function renderBlocs() {
+  const container=document.getElementById('blocs-container');
+  if(!blocs.length){ container.innerHTML=''; return; }
+  container.innerHTML=blocs.map(b=>renderBlocHTML(b)).join('');
+}
+
+function renderBlocHTML(b) {
+  const colors = {
+    divers:{bg:'#EBF1FA',border:'var(--blue)',icon:'#1454A0'},
+    photo :{bg:'var(--purple-l)',border:'var(--purple)',icon:'var(--purple)'},
+    porte :{bg:'#FDF0D6',border:'#C8860A',icon:'#7A4200'},
+  };
+  const c = colors[b.type];
+  const label = b.type==='porte' ? PORTE_LABELS[b.porteType] : (b.type==='photo'?'Photo / Croquis':'Divers');
+  const addLabel = b.type==='photo' ? 'Ajouter photo' : 'Ajouter ligne';
+  let content='';
+  if(b.type==='divers') content=`<div id="bloc-content-${b.id}">${diversTableHTML(b)}</div>`;
+  if(b.type==='photo')  content=renderPhotoContent(b);
+  if(b.type==='porte')  content=`<div id="bloc-content-${b.id}">${porteTableHTML(b)}</div>`;
+
+  return `<div id="bloc-${b.id}" class="table-wrap" style="border:2px solid ${c.border};margin-bottom:14px;">
+    <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:${c.bg};border-bottom:1px solid ${c.border}">
+      <span style="font-family:'Syne',sans-serif;font-weight:700;font-size:12px;color:${c.icon}">${label}</span>
+      <span style="font-size:11px;color:var(--muted)">Bloc ${b.id}</span>
+      <div style="margin-left:auto;display:flex;gap:6px;">
+        <button class="btn btn-ghost" style="padding:4px 10px;font-size:12px;color:${c.icon}" onclick="addBlocRow(${b.id})">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          ${addLabel}
+        </button>
+        <button class="btn btn-ghost" style="padding:4px 8px;color:var(--red)" onclick="removeBloc(${b.id})" title="Supprimer">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/></svg>
+        </button>
+      </div>
+    </div>
+    ${content}
+  </div>`;
+}
+
+function addBlocRow(blocId) {
+  const b=blocs.find(x=>x.id===blocId); if(!b) return;
+  if(b.type==='photo') { document.getElementById('photo-input-cam-'+blocId).click(); return; }
+  rowCounter++;
+  const row={id:rowCounter,repere:'',qte:'',long:'',larg:'',haut:'',epais:'',section:'',materiau:'',finition:'',quincaillerie:'',observations:''};
+  if(b.type==='porte') {
+    const isV=b.porteType==='vantail'||b.porteType==='complet';
+    const isH=b.porteType==='huisserie'||b.porteType==='complet';
+    if(isV) Object.assign(row,{haut:'',larg:'',sens:'',ferrageType:'',ferrageQt:'',nature:''});
+    if(isH) Object.assign(row,{support:'',epSupport:'',ferrage:'',ferrageHQt:'',sens:'',feuillure:'',rainure:''});
+  }
+  b.rows.push(row);
+  const cel=document.getElementById('bloc-content-'+blocId);
+  if(cel){ if(b.type==='divers') cel.innerHTML=diversTableHTML(b); if(b.type==='porte') cel.innerHTML=porteTableHTML(b); }
+  updateSummary();
+  setTimeout(()=>{ const inp=document.getElementById('br-rep-'+rowCounter); if(inp) inp.focus(); },50);
+}
+
+function deleteBlocRow(blocId,rowId) {
+  const b=blocs.find(x=>x.id===blocId); if(!b) return;
+  b.rows=b.rows.filter(r=>r.id!==rowId);
+  const cel=document.getElementById('bloc-content-'+blocId);
+  if(cel){ if(b.type==='divers') cel.innerHTML=diversTableHTML(b); if(b.type==='porte') cel.innerHTML=porteTableHTML(b); }
+  updateSummary();
+}
+
+function updateBlocRow(blocId,rowId,field,val) {
+  const b=blocs.find(x=>x.id===blocId); if(!b) return;
+  const r=b.rows.find(x=>x.id===rowId); if(r) r[field]=val;
+}
+
+// ── DIVERS TABLE ──
+function diversTableHTML(b) {
+  if(!b.rows.length) return `<div style="padding:18px;text-align:center;color:var(--muted);font-size:13px">Aucune ligne — cliquez "Ajouter ligne"</div>`;
+  const thead=`<thead><tr>
+    <th class="th-group th-ref col-sep" rowspan="2" style="vertical-align:middle;text-align:left;padding-left:8px;min-width:55px">Rep.</th>
+    <th class="th-group th-ref col-sep" rowspan="2" style="vertical-align:middle;min-width:50px">Qté</th>
+    <th class="th-group th-dim" colspan="5">DIMENSIONS (mm)</th>
+    <th class="th-group th-mat col-sep" rowspan="2" style="vertical-align:middle;min-width:115px">Matériau</th>
+    <th class="th-group th-fin" colspan="2">FINITION &amp; QUINCAILLERIE</th>
+    <th class="th-group th-ref" rowspan="2" style="vertical-align:middle;min-width:140px">Observations</th>
+    <th class="th-group th-ref" rowspan="2" style="width:26px"></th>
+  </tr><tr>
+    <th style="min-width:72px">Long.</th><th style="min-width:72px">Larg.</th><th style="min-width:72px">Haut.</th>
+    <th style="min-width:20px;padding:0 2px;color:var(--muted);font-weight:400;font-size:10px">ou</th>
+    <th style="min-width:65px">Épais.</th><th class="col-sep" style="min-width:72px">Section</th>
+    <th style="min-width:115px">Finition</th><th class="col-sep" style="min-width:120px">Quincaillerie</th>
+  </tr></thead>`;
+  const tbody=b.rows.map((r,i)=>`<tr style="background:${i%2===0?'white':'#FDFCFA'}">
+    <td class="col-sep" style="padding:3px 4px;min-width:55px"><div style="display:flex;align-items:center;gap:3px"><span class="row-num">${i+1}</span>
+      <input id="br-rep-${r.id}" class="ti ti-left" style="font-weight:700;font-size:12px" placeholder="Rep." value="${r.repere}" oninput="updateBlocRow(${b.id},${r.id},'repere',this.value)" maxlength="8"></div></td>
+    <td class="col-sep"><input class="ti ti-num" placeholder="—" value="${r.qte}" type="number" oninput="updateBlocRow(${b.id},${r.id},'qte',this.value)" style="max-width:48px"></td>
+    <td><input class="ti ti-num" placeholder="—" value="${r.long}" type="number" oninput="updateBlocRow(${b.id},${r.id},'long',this.value)"></td>
+    <td><input class="ti ti-num" placeholder="—" value="${r.larg}" type="number" oninput="updateBlocRow(${b.id},${r.id},'larg',this.value)"></td>
+    <td><input class="ti ti-num" placeholder="—" value="${r.haut}" type="number" oninput="updateBlocRow(${b.id},${r.id},'haut',this.value)"></td>
+    <td><input class="ti ti-num" placeholder="—" value="${r.epais}" type="number" oninput="updateBlocRow(${b.id},${r.id},'epais',this.value)"></td>
+    <td class="col-sep"><input class="ti" placeholder="40×90" value="${r.section}" oninput="updateBlocRow(${b.id},${r.id},'section',this.value)" style="font-size:12px"></td>
+    <td class="col-sep"><input class="ti ti-left" style="font-size:12px" placeholder="Matériau…" value="${r.materiau}" list="dl-m-${r.id}" oninput="updateBlocRow(${b.id},${r.id},'materiau',this.value)"><datalist id="dl-m-${r.id}">${MATERIAUX.map(m=>`<option value="${m}">`).join('')}</datalist></td>
+    <td><input class="ti ti-left" style="font-size:12px" placeholder="Finition…" value="${r.finition}" list="dl-f-${r.id}" oninput="updateBlocRow(${b.id},${r.id},'finition',this.value)"><datalist id="dl-f-${r.id}">${FINITIONS.map(f=>`<option value="${f}">`).join('')}</datalist></td>
+    <td class="col-sep"><input class="ti ti-left" style="font-size:12px" placeholder="Quincaillerie…" value="${r.quincaillerie}" list="dl-q-${r.id}" oninput="updateBlocRow(${b.id},${r.id},'quincaillerie',this.value)"><datalist id="dl-q-${r.id}">${QUINCAILLE.map(q=>`<option value="${q}">`).join('')}</datalist></td>
+    <td><input class="ti ti-left" style="font-size:12px" placeholder="Notes…" value="${r.observations}" oninput="updateBlocRow(${b.id},${r.id},'observations',this.value)"></td>
+    <td><button class="del-row" onclick="deleteBlocRow(${b.id},${r.id})"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/></svg></button></td>
+  </tr>`).join('');
+  return `<div class="table-scroll"><table class="fab-table" style="min-width:860px">${thead}<tbody>${tbody}</tbody></table></div>`;
+}
+
+// ── PHOTO ──
+function renderPhotoContent(b) {
+  const thumbs=b.photos.map((p,i)=>`
+    <div class="photo-thumb"><img src="${p.url}" alt="Photo ${i+1}">
+      <button class="photo-thumb-del" onclick="removeBlocPhoto(${b.id},${i})"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+      <div class="photo-label-input"><input type="text" placeholder="Légende…" value="${p.label}" oninput="blocs.find(x=>x.id==${b.id}).photos[${i}].label=this.value"></div>
+    </div>`).join('');
+  const drop=!b.photos.length?`
+    <div style="text-align:center;padding:14px;color:var(--muted);font-size:13px">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="32" height="32"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
+      <p style="margin:6px 0 2px">Aucune photo</p>
+    </div>`:'';
+  return `<div id="bloc-content-${b.id}" style="padding:14px">
+    ${drop}<div class="photo-preview">${thumbs}</div>
+    <div style="display:flex;gap:8px;margin-top:8px">
+      <button class="add-photo-btn" style="flex:1" onclick="document.getElementById('photo-input-cam-${b.id}').click()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
+        Prendre une photo
+      </button>
+      <button class="add-photo-btn" style="flex:1" onclick="document.getElementById('photo-input-gallery-${b.id}').click()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+        Depuis la galerie
+      </button>
+    </div>
+    <input type="file" id="photo-input-cam-${b.id}" accept="image/*" capture="environment" onchange="handleBlocPhotos(${b.id},this.files)" style="display:none">
+    <input type="file" id="photo-input-gallery-${b.id}" accept="image/*" multiple onchange="handleBlocPhotos(${b.id},this.files)" style="display:none">
+  </div>`;
+}
+
+function handleBlocPhotos(blocId, files) {
+  const b=blocs.find(x=>x.id===blocId); if(!b) return;
+  let loaded=0;
+  Array.from(files).forEach(f=>{
+    const reader=new FileReader();
+    reader.onload=function(e){
+      const dataUri=e.target.result; // ex: "data:image/jpeg;base64,..."
+      const base64=dataUri.split(',')[1];
+      b.photos.push({file:f, url:dataUri, base64:base64, mimeType:f.type, label:''});
+      loaded++;
+      if(loaded===files.length){ renderBlocs(); updateSummary(); }
+    };
+    reader.readAsDataURL(f);
+  });
+}
+function removeBlocPhoto(blocId,idx) {
+  const b=blocs.find(x=>x.id===blocId); if(!b) return;
+  b.photos.splice(idx,1);
+  renderBlocs(); updateSummary();
+}
+
+// ── PORTE TABLE ──
+function porteTableHTML(b) {
+  const isV = b.porteType==='vantail'||b.porteType==='complet';
+  const isH = b.porteType==='huisserie'||b.porteType==='complet';
+  if(!b.rows.length) return `<div style="padding:18px;text-align:center;color:var(--muted);font-size:13px">Aucune ligne — cliquez "Ajouter ligne"</div>`;
+
+  const SENS    = ['DP','GP','GP 2 vtx','DP 2 vtx','Peu importe'];
+  const FERRAGE = ['Fiches Recouvrement','Paumelles Chants Droits','Charnières Invisible'];
+  const NATURE  = ['Alvéolaire','Feu','Acoustique','Âme pleine'];
+  const SUPPORT = ['Doublage','Cloison','Tunnel','Feuillure'];
+  const FEUIL   = ['Chant droit','Recouvrement'];
+  const OUINON  = ['Oui','Non'];
+  const SERRURE = ['1pt axe 40','1pt axe 50','3pts axe 50','3pts A2P*','Triangle','Batteuse'];
+
+  function combo(uid,field,list,val,ph){
+    return `<input class="ti ti-left" style="font-size:12px" placeholder="${ph||'—'}" value="${val||''}" list="dbl-${uid}-${field}" oninput="updateBlocRow(${b.id},${uid},'${field}',this.value)"><datalist id="dbl-${uid}-${field}">${list.map(v=>`<option value="${v}">`).join('')}</datalist>`;
+  }
+
+  const nbColsV = isV ? 4 : 0;
+  const nbColsH = isH ? 5 : 0;
+
+  const thV = isV ? `<th class="th-group th-dim" colspan="${nbColsV}" style="background:#EBF1FA;color:var(--blue-d)">VANTAIL</th>` : '';
+  const thH = isH ? `<th class="th-group th-dim" colspan="${nbColsH}" style="background:#E8F4EE;color:var(--green)">HUISSERIE</th>` : '';
+  const thC = `<th class="th-group th-dim" colspan="3" style="background:#F5F0FA;color:var(--purple)">FERRAGE / SERRURE</th>`;
+
+  const th2V = isV ? `
+    <th style="min-width:75px">Hauteur<br><small>mm</small></th>
+    <th style="min-width:75px">Largeur<br><small>mm</small></th>
+    <th style="min-width:85px">Sens</th>
+    <th class="col-sep" style="min-width:110px">Nature</th>` : '';
+
+  const th2H = isH ? `
+    <th style="min-width:110px">Type support</th>
+    <th style="min-width:65px">Ép. sup.<br><small>mm</small></th>
+    <th style="min-width:80px">Sens</th>
+    <th style="min-width:120px">Feuillure</th>
+    <th class="col-sep" style="min-width:80px">Rainure<br><small>joint iso</small></th>` : '';
+
+  const th2C = `
+    <th style="min-width:110px">Ferrage</th>
+    <th style="min-width:50px">QT</th>
+    <th style="min-width:130px">Serrure</th>`;
+
+  const thead = `<thead>
+    <tr>
+      <th class="th-group th-ref col-sep" rowspan="2" style="vertical-align:middle;text-align:left;padding-left:8px;min-width:55px">Rep.</th>
+      <th class="th-group th-ref col-sep" rowspan="2" style="vertical-align:middle;min-width:50px">QT</th>
+      ${thV}${thH}${thC}
+      <th class="th-group th-ref" rowspan="2" style="vertical-align:middle;width:26px"></th>
+    </tr>
+    <tr>${th2V}${th2H}${th2C}</tr>
+  </thead>`;
+
+  const tbody = b.rows.map((r,i) => {
+    const tdV = isV ? `
+      <td><input class="ti ti-num" placeholder="—" value="${r.haut||''}" type="number" oninput="updateBlocRow(${b.id},${r.id},'haut',this.value)"></td>
+      <td><input class="ti ti-num" placeholder="—" value="${r.larg||''}" type="number" oninput="updateBlocRow(${b.id},${r.id},'larg',this.value)"></td>
+      <td>${combo(r.id,'sens',SENS,r.sens,'Sens')}</td>
+      <td class="col-sep">${combo(r.id,'nature',NATURE,r.nature,'Nature')}</td>` : '';
+
+    const tdH = isH ? `
+      <td>${combo(r.id,'support',SUPPORT,r.support,'Support')}</td>
+      <td><input class="ti ti-num" placeholder="—" value="${r.epSupport||''}" type="number" oninput="updateBlocRow(${b.id},${r.id},'epSupport',this.value)"></td>
+      <td>${combo(r.id,'sensH',SENS,r.sensH||r.sens||'','Sens')}</td>
+      <td>${combo(r.id,'feuillure',FEUIL,r.feuillure,'Feuillure')}</td>
+      <td class="col-sep">${combo(r.id,'rainure',OUINON,r.rainure,'Oui/Non')}</td>` : '';
+
+    const tdC = `
+      <td>${combo(r.id,'ferrageType',FERRAGE,r.ferrageType,'Type')}</td>
+      <td><input class="ti ti-num" placeholder="—" value="${r.ferrageQt||''}" type="number" oninput="updateBlocRow(${b.id},${r.id},'ferrageQt',this.value)" style="max-width:48px"></td>
+      <td>${combo(r.id,'serrure',SERRURE,r.serrure,'Serrure')}</td>`;
+
+    return `<tr style="background:${i%2===0?'white':'#FDFCFA'}">
+      <td class="col-sep" style="padding:3px 4px;min-width:55px">
+        <div style="display:flex;align-items:center;gap:3px">
+          <span class="row-num">${i+1}</span>
+          <input id="br-rep-${r.id}" class="ti ti-left" style="font-weight:700;font-size:12px" placeholder="Rep." value="${r.repere||''}" oninput="updateBlocRow(${b.id},${r.id},'repere',this.value)" maxlength="8">
+        </div>
+      </td>
+      <td class="col-sep"><input class="ti ti-num" value="${r.qt||r.qte||''}" type="number" oninput="updateBlocRow(${b.id},${r.id},'qt',this.value)" style="max-width:48px"></td>
+      ${tdV}${tdH}${tdC}
+      <td><button class="del-row" onclick="deleteBlocRow(${b.id},${r.id})"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/></svg></button></td>
+    </tr>`;
+  }).join('');
+
+  const minWidth = 200 + (isV ? 4*90 : 0) + (isH ? 5*90 : 0) + 3*110;
+  return `<div class="table-scroll"><table class="fab-table" style="min-width:${minWidth}px">${thead}<tbody>${tbody}</tbody></table></div>`;
+}
+
+function updateSummary() {
+  // Mise à jour légère — pas d'éléments de récap affichés
+}
+
+// ── DESTINATAIRES ──
+function onConducteurInput() {
+  const val=document.getElementById('select-conducteur').value.trim();
+  const check=document.getElementById('conduc-check');
+  const err=document.getElementById('conduc-error');
+  const found=ALL_USERS.some(u=>u.name.toLowerCase()===val.toLowerCase()&&u.conducteur);
+  if(check) check.style.display=found?'flex':'none';
+  if(err)   err.style.display='none';
+  document.getElementById('select-conducteur').style.borderColor=val?(found?'var(--green)':'var(--border)'):'';
+}
+
+// ── PDF ──
+function openPreview()  { buildPdf(); document.getElementById('pdfModal').classList.add('open'); }
+function closePreview() { document.getElementById('pdfModal').classList.remove('open'); }
+document.getElementById('pdfModal').addEventListener('click',e=>{if(e.target===document.getElementById('pdfModal'))closePreview();});
+
+function buildPdf() {
+  const chantier    = document.getElementById('meta-chantier').value    || '—';
+  const serie       = document.getElementById('meta-serie').value       || '';
+  const auteur      = document.getElementById('meta-auteur').value      || '—';
+  const date        = document.getElementById('meta-date').value        || '—';
+  const refCh       = document.getElementById('meta-ref-chantier').value|| '';
+  const zone        = document.getElementById('meta-zone').value        || '';
+  const commentaire = document.getElementById('meta-commentaires').value|| '';
+  const delaiLabel  = getDelaiLabel();
+  const conducteur  = document.getElementById('select-conducteur').value || '—';
+
+  // ── Rendu de chaque bloc ──
+  const blocsHtml = blocs.map(b => {
+    const label = b.type==='porte' ? PORTE_LABELS[b.porteType] : (b.type==='photo'?'Photo / Croquis':'Divers');
+    const hdrColor = b.type==='divers'?'#4A6FA5':b.type==='photo'?'#8B6FC0':'#B07840';
+    let content='';
+
+    if(b.type==='divers' && b.rows.length) {
+      const rHtml=b.rows.map((r,i)=>`<tr style="background:${i%2===0?'white':'#F7F5F1'}">
+        <td class="td-left" style="padding:4px 5px;font-weight:700">${r.repere||'—'}</td>
+        <td style="padding:4px 5px;text-align:center;font-weight:700">${r.qte||'—'}</td>
+        <td style="padding:4px 5px;text-align:center">${r.long||'—'}</td>
+        <td style="padding:4px 5px;text-align:center">${r.larg||'—'}</td>
+        <td style="padding:4px 5px;text-align:center">${r.haut||'—'}</td>
+        <td style="padding:4px 5px;text-align:center">${r.epais||'—'}</td>
+        <td style="padding:4px 5px;text-align:center">${r.section||'—'}</td>
+        <td class="td-left" style="padding:4px 5px">${r.materiau||'—'}</td>
+        <td class="td-left" style="padding:4px 5px">${r.finition||'—'}</td>
+        <td class="td-left" style="padding:4px 5px">${r.quincaillerie||'—'}</td>
+        <td class="td-left" style="padding:4px 5px;font-size:9.5px">${r.observations||''}</td>
+      </tr>`).join('');
+      content=`<table class="pdf-fab-table"><thead>
+        <tr><th class="th-left" rowspan="2" style="vertical-align:middle;background:#4A6FA0">Rep.</th><th rowspan="2" style="vertical-align:middle;background:#4A6FA0">Qté</th><th colspan="5" style="background:#4A6FA0">DIMENSIONS (mm)</th><th class="th-left" rowspan="2" style="vertical-align:middle;background:#4A6FA0">Matériau</th><th class="th-left" rowspan="2" style="vertical-align:middle;background:#4A6FA0">Finition</th><th class="th-left" rowspan="2" style="vertical-align:middle;background:#4A6FA0">Quincaillerie</th><th class="th-left" rowspan="2" style="vertical-align:middle;background:#4A6FA0">Observations</th></tr>
+        <tr><th style="background:#4A6FA0">Long.</th><th style="background:#4A6FA0">Larg.</th><th style="background:#4A6FA0">Haut.</th><th style="background:#4A6FA0">Épais.</th><th style="background:#4A6FA0">Section</th></tr>
+      </thead><tbody>${rHtml}</tbody></table>`;
+    }
+
+    if(b.type==='photo' && b.photos.length) {
+      content=`<div class="pdf-photo-grid">${b.photos.map(p=>`<div class="pdf-photo-item"><img src="${p.dataUrl||p.url||''}" alt="${p.label||'Photo'}">${p.label?`<div class="pdf-photo-caption">${p.label}</div>`:''}</div>`).join('')}</div>`;
+    }
+
+    if(b.type==='porte' && b.rows.length) {
+      const isV=b.porteType==='vantail'||b.porteType==='complet';
+      const isH=b.porteType==='huisserie'||b.porteType==='complet';
+
+      const nbColsV = isV ? 4 : 0;
+      const nbColsH = isH ? 5 : 0;
+      const thV=isV?`<th colspan="${nbColsV}" style="background:#4A6FA5">VANTAIL</th>`:'';
+      const thH=isH?`<th colspan="${nbColsH}" style="background:#3D7A52">HUISSERIE</th>`:'';
+      const thC=`<th colspan="3" style="background:#6B3FA0">FERRAGE / SERRURE</th>`;
+
+      const th2V=isV?`<th>Haut.</th><th>Larg.</th><th>Sens</th><th>Nature</th>`:'';
+      const th2H=isH?`<th>Support</th><th>Ép.</th><th>Sens</th><th>Feuillure</th><th>Rainure</th>`:'';
+      const th2C=`<th>Ferrage</th><th>QT</th><th>Serrure</th>`;
+
+      const pHtml=b.rows.map((r,i)=>{
+        const tdV=isV?`<td>${r.haut||'—'}</td><td>${r.larg||'—'}</td><td>${r.sens||'—'}</td><td>${r.nature||'—'}</td>`:'';
+        const tdH=isH?`<td>${r.support||'—'}</td><td>${r.epSupport||'—'}</td><td>${r.sensH||r.sens||'—'}</td><td>${r.feuillure||'—'}</td><td>${r.rainure||'—'}</td>`:'';
+        const tdC=`<td>${r.ferrageType||'—'}</td><td>${r.ferrageQt||'—'}</td><td>${r.serrure||'—'}</td>`;
+        return `<tr style="background:${i%2===0?'white':'#F7F5F1'}"><td class="td-left" style="padding:4px 5px;font-weight:700">${r.repere||'—'}</td><td style="padding:4px 5px;text-align:center;font-weight:700">${r.qt||r.qte||'—'}</td>${tdV}${tdH}${tdC}</tr>`;
+      }).join('');
+      content=`<table class="pdf-fab-table"><thead>
+        <tr><th class="th-left" rowspan="2" style="vertical-align:middle">Rep.</th><th rowspan="2" style="vertical-align:middle">QT</th>${thV}${thH}${thC}</tr>
+        <tr>${th2V}${th2H}${th2C}</tr>
+      </thead><tbody>${pHtml}</tbody></table>`;
+    }
+
+    if(!content) content=`<div style="padding:10px;color:#999;font-size:11px;font-style:italic">Bloc vide</div>`;
+
+    return `<div style="margin-top:12px;border:1.5px solid #D8D4CE;border-radius:6px;overflow:hidden">
+      <div style="background:${hdrColor};padding:5px 10px"><span style="font-family:'Syne',sans-serif;font-weight:700;font-size:10px;color:white;text-transform:uppercase;letter-spacing:.5px">${label} — Bloc ${b.id}</span></div>
+      <div style="padding:${b.type==='photo'?'8px':'0'}">${content}</div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('pdfContent').innerHTML=`
+    <div class="pdf-top">
+      <div class="pdf-left-col">
+        ${serie?`<div class="pdf-left-row"><div class="pdf-left-label">N° Série</div><div class="pdf-left-val big">${serie}</div></div>`:''}
+        <div class="pdf-left-row"><div class="pdf-left-label">Date</div><div class="pdf-left-val">${date}</div></div>
+        <div class="pdf-left-row"><div class="pdf-left-label">Chantier</div><div class="pdf-left-val big">${chantier}${refCh?' / '+refCh:''}</div></div>
+        <div class="pdf-left-row"><div class="pdf-left-label">Responsable</div><div class="pdf-left-val">${auteur}</div></div>
+        <div class="pdf-left-row"><div class="pdf-left-label">Délai</div><div class="pdf-left-val" style="color:#9A5600;font-weight:700">${delaiLabel}</div></div>
+        ${zone?`<div class="pdf-left-row"><div class="pdf-left-label">Zone</div><div class="pdf-left-val">${zone}</div></div>`:''}
+      </div>
+      <div class="pdf-center-col">
+        <div class="pdf-co">Loué Menuiserie</div>
+        <div class="pdf-co-sub">Menuiserie · Charpente · Agencement</div>
+        <div class="pdf-doc-title">FICHE DE FABRICATION</div>
+        <div style="margin-top:5px;font-size:10px;color:#6A6460">Chef d'atelier : <strong style="color:#141210">${CHEF_ATELIER.name}</strong> &nbsp;·&nbsp; Conducteur : <strong style="color:#141210">${conducteur}</strong></div>
+      </div>
+      <div class="pdf-right-col">
+        <div style="font-size:8.5px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:#6A6460;margin-bottom:4px">Opérateurs / Temps</div>
+        <table class="pdf-temps-table">
+          <thead><tr><th style="text-align:left;min-width:60px">Opérateur</th><th>Objectif</th><th>Réalisé</th></tr></thead>
+          <tbody>
+            <tr><td class="op-label"></td><td></td><td></td></tr>
+            <tr><td class="op-label"></td><td></td><td></td></tr>
+            <tr><td class="op-label"></td><td></td><td></td></tr>
+            <tr><td class="op-label"></td><td></td><td></td></tr>
+            <tr><td class="op-label"></td><td></td><td></td></tr>
+            <tr><td class="op-label"></td><td></td><td></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    ${blocsHtml}
+    ${commentaire?`<div style="margin-top:10px;padding:8px 10px;background:#F7F5F1;border:1px solid #D8D4CE;border-radius:5px"><div style="font-size:8.5px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:#6A6460;margin-bottom:3px">Commentaires</div><div style="font-size:10.5px;line-height:1.6">${commentaire.replace(/\n/g,'<br>')}</div></div>`:''}`;
+}
+
+// ── ENVOI ──
+async function sendDoc() {
+  let errors=[];
+  const ci=document.getElementById('meta-chantier'), ai=document.getElementById('meta-auteur');
+  const conducteurInput=document.getElementById('select-conducteur');
+  const conducteurVal=conducteurInput.value.trim();
+
+  if(!ci.value.trim()){ ci.classList.add('field-error'); errors.push('Chantier manquant'); } else ci.classList.remove('field-error');
+  if(!ai.value.trim()){ ai.classList.add('field-error'); errors.push('Rédigé par manquant'); } else ai.classList.remove('field-error');
+  if(!conducteurVal){
+    conducteurInput.classList.add('field-error');
+    document.getElementById('conduc-error').style.display='block';
+    errors.push('Conducteur non sélectionné');
+  } else { conducteurInput.classList.remove('field-error'); document.getElementById('conduc-error').style.display='none'; }
+  if(!blocs.length) errors.push('Ajoutez au moins un bloc');
+
+  if(errors.length){
+    const b=document.getElementById('validationBanner');
+    document.getElementById('validationMsg').textContent=errors.join(' — ');
+    b.classList.add('show'); setTimeout(()=>b.classList.remove('show'),7000); return;
+  }
+  document.getElementById('validationBanner').classList.remove('show');
+  if(!APPS_SCRIPT_URL){ showToast('⚠ URL Apps Script manquante'); return; }
+
+  const btn=document.getElementById('btn-envoyer');
+  btn.disabled=true;
+  btn.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> Envoi…';
+
+  try {
+    // ── Payload : données + photos base64 ──
+    // Le PDF est généré côté Apps Script (plus fiable)
+    // Les photos sont envoyées en base64 séparément
+    const serie = document.getElementById('meta-serie').value;
+
+    const photosBase64 = [];
+    blocs.filter(b=>b.type==='photo').forEach(b=>{
+      b.photos.forEach((p,i)=>{
+        if(p.base64) photosBase64.push({
+          data: p.base64,
+          mimeType: p.mimeType||'image/jpeg',
+          label: p.label||`Photo ${i+1}`
+        });
+      });
+    });
+
+    const payload={
+      type:'fabrication',
+      chantier:ci.value, serie,
+      auteur:ai.value, chefAtelier:CHEF_ATELIER.name, conducteur:conducteurVal,
+      date:document.getElementById('meta-date').value,
+      refChantier:document.getElementById('meta-ref-chantier').value,
+      zone:document.getElementById('meta-zone').value,
+      delai:getDelaiLabel(),
+      commentaires:document.getElementById('meta-commentaires').value,
+      photosBase64,
+      blocs: blocs.map(b=>({ id:b.id, type:b.type, porteType:b.porteType, rows:b.rows, nbPhotos:b.photos.length })),
+    };
+
+    // Si pas de photos → envoi direct en no-cors
+    // Si photos → on compresse d'abord chaque image à 800px max
+    if(photosBase64.length > 0) {
+      // Compression légère des photos avant envoi
+      const compressed = await Promise.all(photosBase64.map(p => compressImage(p)));
+      payload.photosBase64 = compressed;
+    }
+
+    await fetch(APPS_SCRIPT_URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    showToast(`✓ Fiche envoyée — ${CHEF_ATELIER.name} & ${conducteurVal} alertés`);
+
+  } catch(e){
+    showToast('Erreur : '+e.message); console.error(e);
+  } finally {
+    btn.disabled=false;
+    btn.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg> Envoyer la fiche';
+  }
+}
+
+// Compresse une image base64 à max 1200px et qualité 0.7
+async function compressImage(photo) {
+  return new Promise(resolve => {
+    const img = new Image();
+    img.onload = () => {
+      const MAX = 1200;
+      let w = img.width, h = img.height;
+      if(w > MAX || h > MAX) {
+        if(w > h) { h = Math.round(h * MAX/w); w = MAX; }
+        else       { w = Math.round(w * MAX/h); h = MAX; }
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width=w; canvas.height=h;
+      canvas.getContext('2d').drawImage(img,0,0,w,h);
+      const dataUri = canvas.toDataURL('image/jpeg', 0.7);
+      resolve({ data: dataUri.split(',')[1], mimeType:'image/jpeg', label:photo.label });
+    };
+    img.onerror = () => resolve(photo); // fallback : garder l'original
+    img.src = 'data:'+photo.mimeType+';base64,'+photo.data;
+  });
+}
+
+function showToast(m){ const t=document.getElementById('toast'); document.getElementById('toastMsg').textContent=m; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),3500); }
+
+document.getElementById('meta-chantier').addEventListener('input',function(){ this.classList.remove('field-error'); updateSummary(); });
+document.getElementById('meta-auteur').addEventListener('input',function(){ this.classList.remove('field-error'); });
+
+(function(){
+  const now=new Date();
+  document.getElementById('meta-date').value=`${String(now.getDate()).padStart(2,'0')}/${String(now.getMonth()+1).padStart(2,'0')}/${now.getFullYear()}`;
+  loadContacts();
+})();
+</script>
+</body>
+</html>
