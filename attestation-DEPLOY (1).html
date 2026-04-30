@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Loué App — Attestation</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#1A2B4A">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F2F0EC;--card:#FFF;--text:#141210;--muted:#6A6460;
+  --border:#D8D4CE;--blue:#1454A0;--blue-l:#DCE8F8;--blue-d:#0D3A7A;
+  --green:#196B3B;--green-l:#E1F2E9;--red:#B32E2E;--red-l:#FAE8E8;
+  --purple:#6B3FA0;--purple-l:#EDE8F8;--teal:#0D7A6B;--teal-l:#E0F5F2;
+  --amber:#B87A00;--amber-l:#FFF3CC;--header-bg:#1A2B4A;--r:8px;--rl:12px;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding-bottom:100px;}
+.topbar{background:var(--header-bg);padding:0 16px;height:50px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:20;}
+.tb-left{display:flex;align-items:center;gap:9px;}
+.tb-sq{width:26px;height:26px;background:var(--purple);border-radius:5px;display:flex;align-items:center;justify-content:center;}
+.tb-sq svg{width:13px;height:13px;stroke:white;fill:none;stroke-width:2.5;}
+.tb-name{font-family:'Syne',sans-serif;font-weight:700;font-size:14px;color:white;}
+.tb-badge{background:var(--purple);color:white;font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;}
+.brouillon-bar{background:var(--amber-l);border-bottom:1px solid var(--amber);padding:8px 16px;display:none;align-items:center;justify-content:space-between;gap:10px;}
+.brouillon-bar.show{display:flex;}
+.brouillon-bar span{font-size:12px;color:var(--amber);font-weight:500;}
+.brouillon-btns{display:flex;gap:6px;}
+.main{padding:14px;max-width:860px;margin:0 auto;}
+.section{background:var(--card);border:1px solid var(--border);border-radius:var(--rl);margin-bottom:12px;overflow:hidden;}
+.section-head{display:flex;align-items:center;gap:9px;padding:12px 16px;border-bottom:1px solid var(--border);background:#FAFAF8;}
+.section-head svg{width:15px;height:15px;flex-shrink:0;}
+.section-title{font-family:'Syne',sans-serif;font-weight:700;font-size:13px;}
+.section-body{padding:14px 16px;}
+.meta-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+@media(max-width:480px){.meta-grid{grid-template-columns:1fr;}}
+.meta-full{grid-column:1/-1;}
+.meta-field{display:flex;flex-direction:column;gap:4px;}
+.meta-label{font-size:11px;color:var(--muted);font-weight:500;}
+.meta-input{padding:9px 12px;border:1px solid var(--border);border-radius:var(--r);font-size:13.5px;font-family:'DM Sans',sans-serif;background:var(--bg);outline:none;color:var(--text);width:100%;}
+.meta-input:focus{border-color:var(--purple);background:white;}
+.meta-input.error{border-color:var(--red)!important;background:#FFF0F0!important;}
+select.meta-input{appearance:none;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' fill='none' stroke='%236A6460' stroke-width='2' xmlns='http://www.w3.org/2000/svg'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;background-size:16px;padding-right:32px;}
+/* Types d'attestation */
+.type-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.type-btn{padding:12px 10px;border-radius:var(--r);border:2px solid var(--border);background:var(--bg);cursor:pointer;font-family:'DM Sans',sans-serif;font-size:12.5px;font-weight:500;text-align:center;color:var(--muted);transition:.15s;display:flex;flex-direction:column;align-items:center;gap:5px;}
+.type-btn svg{width:20px;height:20px;opacity:.45;}
+.type-btn.active{border-color:var(--purple);background:var(--purple-l);color:var(--purple);}
+.type-btn.active svg{opacity:1;stroke:var(--purple);}
+/* Champs DAS */
+.das-grid{display:flex;flex-direction:column;gap:10px;}
+/* Asservissements */
+.asserv-group{display:flex;flex-wrap:wrap;gap:7px;}
+.asserv-item{display:flex;align-items:center;gap:6px;padding:7px 11px;border:1.5px solid var(--border);border-radius:var(--r);cursor:pointer;font-size:12.5px;background:var(--bg);transition:.15s;user-select:none;}
+.asserv-item.active{background:var(--purple-l);border-color:var(--purple);color:var(--purple);}
+/* Points DAS */
+.das-points{display:flex;flex-direction:column;gap:6px;}
+.das-point-row{display:flex;align-items:center;gap:10px;padding:9px 12px;background:var(--bg);border:1px solid var(--border);border-radius:var(--r);}
+.das-point-label{flex:1;font-size:13px;}
+.das-states{display:flex;gap:4px;}
+.das-state-btn{padding:5px 10px;border-radius:6px;border:1.5px solid var(--border);background:white;cursor:pointer;font-size:11px;font-weight:600;transition:.15s;font-family:'DM Sans',sans-serif;}
+.das-state-btn.ok.active{background:var(--green);border-color:var(--green);color:white;}
+.das-state-btn.so.active{background:#888;border-color:#888;color:white;}
+.das-state-btn.nc.active{background:var(--red);border-color:var(--red);color:white;}
+/* Photos */
+.add-photo-row{display:flex;gap:8px;margin-top:8px;}
+.add-photo-btn{flex:1;padding:9px 8px;border-radius:var(--r);border:1.5px dashed var(--border);background:var(--bg);cursor:pointer;font-size:12px;color:var(--muted);display:flex;align-items:center;justify-content:center;gap:6px;font-family:'DM Sans',sans-serif;}
+.photos-grid{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;}
+.photo-thumb{position:relative;width:72px;height:72px;border-radius:var(--r);overflow:hidden;border:1px solid var(--border);}
+.photo-thumb img{width:100%;height:100%;object-fit:cover;}
+.photo-thumb-del{position:absolute;top:2px;right:2px;width:18px;height:18px;border-radius:50%;background:rgba(0,0,0,.6);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+.photo-thumb-del svg{width:9px;height:9px;stroke:white;}
+/* Signature */
+.sig-box{border:1.5px solid var(--border);border-radius:var(--r);overflow:hidden;}
+.sig-label-bar{font-size:11px;font-weight:700;color:var(--muted);padding:7px 12px;background:#FAFAF8;border-bottom:1px solid var(--border);text-transform:uppercase;letter-spacing:.4px;}
+.sig-canvas-wrap{background:white;position:relative;}
+canvas.sig{display:block;width:100%;height:150px;touch-action:none;cursor:crosshair;}
+.sig-clear{position:absolute;top:6px;right:6px;width:26px;height:26px;border-radius:6px;border:1px solid var(--border);background:white;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+/* Boutons */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:9px 15px;border-radius:var(--r);font-size:13px;font-weight:500;cursor:pointer;border:none;font-family:'DM Sans',sans-serif;transition:.15s;}
+.btn-secondary{background:var(--card);color:var(--text);border:1px solid var(--border);}
+.btn-primary{background:var(--purple);color:white;}
+.btn-success{background:var(--green);color:white;}
+.btn-sm{padding:7px 12px;font-size:12px;}
+.btn-lg{padding:12px 18px;font-size:14px;}
+.val-banner{background:var(--red-l);border:1px solid #EFC0C0;border-radius:var(--r);padding:10px 14px;margin-bottom:12px;display:none;font-size:13px;color:var(--red);align-items:center;gap:8px;}
+.val-banner.show{display:flex;}
+.bottom-bar{position:fixed;bottom:0;left:0;right:0;background:var(--card);border-top:1px solid var(--border);padding:10px 12px;display:flex;gap:8px;z-index:15;flex-wrap:wrap;}
+.toast{position:fixed;bottom:88px;left:50%;transform:translateX(-50%) translateY(40px);background:var(--text);color:white;padding:10px 16px;border-radius:var(--r);font-size:13px;z-index:300;opacity:0;transition:.25s;pointer-events:none;}
+.toast.show{transform:translateX(-50%) translateY(0);opacity:1;}
+.pdf-modal{position:fixed;inset:0;background:rgba(20,18,16,.7);z-index:150;display:none;align-items:center;justify-content:center;padding:16px;}
+.pdf-modal.open{display:flex;}
+.pdf-inner{background:white;border-radius:var(--rl);width:100%;max-width:720px;max-height:90vh;display:flex;flex-direction:column;}
+.pdf-head{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--border);}
+.pdf-title{font-family:'Syne',sans-serif;font-weight:700;font-size:15px;}
+.pdf-body{flex:1;overflow-y:auto;padding:18px;}
+.pdf-close{width:32px;height:32px;border-radius:6px;border:1px solid var(--border);background:var(--bg);cursor:pointer;display:flex;align-items:center;justify-content:center;}
+textarea.meta-input{resize:vertical;min-height:80px;}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="tb-left">
+    <div class="tb-sq">
+      <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+    </div>
+    <span class="tb-name">Attestation</span>
+  </div>
+  <span class="tb-badge">ATTEST.</span>
+</div>
+
+<!-- Barre brouillon -->
+<div class="brouillon-bar" id="brouillon-bar">
+  <span>📋 Brouillon enregistré — reprendre ou vider ?</span>
+  <div class="brouillon-btns">
+    <button class="btn btn-secondary btn-sm" onclick="chargerBrouillon()">Reprendre</button>
+    <button class="btn btn-sm" style="background:var(--red-l);color:var(--red);border:1px solid var(--red)" onclick="viderBrouillon()">Vider</button>
+  </div>
+</div>
+
+<div class="main">
+
+  <div class="val-banner" id="val-banner">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+    <span id="val-msg"></span>
+  </div>
+
+  <!-- TYPE D'ATTESTATION -->
+  <div class="section">
+    <div class="section-head">
+      <svg viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+      <span class="section-title">Type d'attestation <span style="color:var(--red)">*</span></span>
+    </div>
+    <div class="section-body">
+      <div class="type-grid">
+        <button class="type-btn" onclick="selectType('mise-oeuvre',this)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg>
+          Mise en œuvre
+        </button>
+        <button class="type-btn" onclick="selectType('levee-obs',this)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+          Levée d'observations
+        </button>
+        <button class="type-btn" onclick="selectType('das',this)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+          Contrôle DAS
+        </button>
+        <button class="type-btn" onclick="selectType('autre',this)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          Autre
+        </button>
+      </div>
+      <!-- Saisie libre si "Autre" -->
+      <div id="type-autre-field" style="display:none;margin-top:10px">
+        <input class="meta-input" id="type-autre-text" placeholder="Préciser le type d'attestation…">
+      </div>
+    </div>
+  </div>
+
+  <!-- EN-TÊTE -->
+  <div class="section">
+    <div class="section-head">
+      <svg viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>
+      <span class="section-title">Chantier & Signataire</span>
+    </div>
+    <div class="section-body">
+      <div class="meta-grid">
+        <div class="meta-field meta-full">
+          <div class="meta-label">Chantier <span style="color:var(--red)">*</span></div>
+          <select class="meta-input" id="meta-chantier" onchange="onChantierChange(this.value)">
+            <option value="">— Sélectionner —</option>
+          </select>
+        </div>
+        <div class="meta-field meta-full">
+          <div class="meta-label">Précision chantier <span style="font-size:10px;color:var(--muted)">(optionnel)</span></div>
+          <input class="meta-input" id="meta-precision" placeholder="Ex : Bâtiment A, Niveau 2, Appt 12…">
+        </div>
+        <div class="meta-field">
+          <div class="meta-label">Signataire <span style="color:var(--red)">*</span></div>
+          <input class="meta-input" id="meta-signataire" placeholder="Nom…" list="signataires-list" autocomplete="off">
+          <datalist id="signataires-list"></datalist>
+        </div>
+        <div class="meta-field">
+          <div class="meta-label">Date</div>
+          <input class="meta-input" id="meta-date" type="date">
+        </div>
+        <div class="meta-field meta-full">
+          <div class="meta-label">Référence document <span style="font-size:10px;color:var(--muted)">(PV OPR, rapport bureau de contrôle…)</span></div>
+          <input class="meta-input" id="meta-ref" placeholder="Ex : PV-OPR-2025-014…">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- OBJET (commun à tous sauf DAS qui a ses propres champs) -->
+  <div class="section" id="section-objet">
+    <div class="section-head">
+      <svg viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+      <span class="section-title" id="objet-title">Objet de l'attestation</span>
+    </div>
+    <div class="section-body">
+      <textarea class="meta-input" id="meta-objet" rows="5" placeholder="Décrire l'objet de l'attestation…"></textarea>
+    </div>
+  </div>
+
+  <!-- CHAMPS SPÉCIFIQUES DAS -->
+  <div class="section" id="section-das" style="display:none">
+    <div class="section-head">
+      <svg viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+      <span class="section-title">Identification du bloc porte</span>
+    </div>
+    <div class="section-body">
+      <div class="meta-grid">
+        <div class="meta-field">
+          <div class="meta-label">N° Bloc porte <span style="color:var(--red)">*</span></div>
+          <input class="meta-input" id="das-numero" placeholder="Ex : BP-01…">
+        </div>
+        <div class="meta-field">
+          <div class="meta-label">Étage / Niveau</div>
+          <input class="meta-input" id="das-etage" placeholder="Ex : RDC, R+1…">
+        </div>
+        <div class="meta-field meta-full">
+          <div class="meta-label">Localisation</div>
+          <input class="meta-input" id="das-localisation" placeholder="Ex : Couloir principal, Hall entrée…">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section" id="section-das-asserv" style="display:none">
+    <div class="section-head">
+      <svg viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12"/></svg>
+      <span class="section-title">Type(s) d'asservissement</span>
+    </div>
+    <div class="section-body">
+      <div class="asserv-group" id="asserv-group">
+        <div class="asserv-item" onclick="this.classList.toggle('active')">Détecteur de fumée</div>
+        <div class="asserv-item" onclick="this.classList.toggle('active')">SSI / Centrale</div>
+        <div class="asserv-item" onclick="this.classList.toggle('active')">Commande manuelle</div>
+        <div class="asserv-item" onclick="this.classList.toggle('active')">Coupure électrique</div>
+        <div class="asserv-item" onclick="this.classList.toggle('active')">Télécommande</div>
+        <div class="asserv-item" onclick="this.classList.toggle('active')">Bouton poussoir</div>
+        <div class="asserv-item" onclick="this.classList.toggle('active')">Gâche électrique</div>
+        <div class="asserv-item" onclick="this.classList.toggle('active')">Électro-aimant</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section" id="section-das-points" style="display:none">
+    <div class="section-head" style="justify-content:space-between">
+      <div style="display:flex;align-items:center;gap:9px">
+        <svg viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="2" width="15" height="15"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+        <span class="section-title">Points de contrôle DAS</span>
+      </div>
+      <div style="display:flex;gap:8px;font-size:11px;font-weight:600">
+        <span style="color:var(--green)" id="das-count-ok">0 ✓</span>
+        <span style="color:#888" id="das-count-so">0 —</span>
+        <span style="color:var(--red)" id="das-count-nc">0 ✗</span>
+      </div>
+    </div>
+    <div class="section-body">
+      <div class="das-points" id="das-points-list"></div>
+    </div>
+  </div>
+
+  <!-- PHOTOS -->
+  <div class="section" id="section-photos">
+    <div class="section-head">
+      <svg viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="2"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
+      <span class="section-title">Photos <span style="font-size:10px;color:var(--muted);font-weight:400">(optionnel)</span></span>
+    </div>
+    <div class="section-body">
+      <div class="photos-grid" id="photos-grid"></div>
+      <div class="add-photo-row">
+        <button class="add-photo-btn" onclick="document.getElementById('photo-cam').click()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
+          Prendre une photo
+        </button>
+        <button class="add-photo-btn" onclick="document.getElementById('photo-gal').click()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+          Depuis la galerie
+        </button>
+      </div>
+      <input type="file" id="photo-cam" accept="image/*" capture="environment" style="display:none" onchange="addPhotos(this.files)">
+      <input type="file" id="photo-gal" accept="image/*" multiple style="display:none" onchange="addPhotos(this.files)">
+    </div>
+  </div>
+
+  <!-- SIGNATURE -->
+  <div class="section">
+    <div class="section-head">
+      <svg viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+      <span class="section-title">Signature</span>
+    </div>
+    <div class="section-body">
+      <div class="sig-box">
+        <div class="sig-label-bar">Signature du signataire</div>
+        <div class="sig-canvas-wrap">
+          <canvas class="sig" id="sig-canvas" width="600" height="150"></canvas>
+          <button class="sig-clear" onclick="clearSig()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- BOTTOM BAR -->
+<div class="bottom-bar">
+  <button class="btn btn-secondary" onclick="window.location.href='index.html'" style="padding:10px 14px">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polyline points="15 18 9 12 15 6"/></svg>
+    Retour
+  </button>
+  <button class="btn btn-secondary" onclick="sauvegarderBrouillon()" style="padding:10px 14px" title="Sauvegarder brouillon">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+    Brouillon
+  </button>
+  <button class="btn btn-secondary btn-lg" style="flex:1" onclick="openPreview()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+    Aperçu
+  </button>
+  <button class="btn btn-primary btn-lg" style="flex:1" id="btn-envoyer" onclick="sendAttestation()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
+    Envoyer
+  </button>
+</div>
+
+<!-- PDF MODAL -->
+<div class="pdf-modal" id="pdfModal">
+  <div class="pdf-inner">
+    <div class="pdf-head">
+      <span class="pdf-title">Aperçu — Attestation</span>
+      <button class="pdf-close" onclick="closePreview()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="pdf-body" id="pdf-preview"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"><span id="toastMsg"></span></div>
+
+<script>
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw5M3sh6EFb0t_oXiZ7qUeQI60ePGredIz9UjjQAWSXUGoWx_M3p8QE0O7B5KqyBV8/exec';
+const BROUILLON_KEY   = 'loue_attestation_brouillon';
+
+// ── DONNÉES ──
+const DAS_POINTS = [
+  'Fermeture automatique sur déclenchement',
+  'Fermeture manuelle (poignée/bouton)',
+  'Maintien en position ouverte',
+  'Déverrouillage sur alarme',
+  'Réarmement après essai',
+  'État du mécanisme de fermeture',
+  'Signalétique conforme',
+  'Accessibilité dégagée',
+  'Joint coupe-feu en bon état',
+  'Charnières et bras de fermeture',
+  'Absence de calage/obstruction',
+  'Seuil (aucun obstacle)',
+];
+
+let currentType = null;
+let photos = [];      // {url, base64, mime}
+let dasStates = {};   // {label: 'ok'|'so'|'nc'}
+let ALL_CHANTIERS = [], ALL_CONTACTS = [], conducteurEmail = '';
+let sigInitDone = false;
+
+// ── TYPE SÉLECTION ──
+function selectType(type, btn) {
+  currentType = type;
+  document.querySelectorAll('.type-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+
+  const isDas = type === 'das';
+  document.getElementById('section-das').style.display        = isDas ? '' : 'none';
+  document.getElementById('section-das-asserv').style.display = isDas ? '' : 'none';
+  document.getElementById('section-das-points').style.display = isDas ? '' : 'none';
+  document.getElementById('section-objet').style.display      = isDas ? 'none' : '';
+  document.getElementById('type-autre-field').style.display   = type==='autre' ? '' : 'none';
+
+  if(isDas && !Object.keys(dasStates).length) {
+    DAS_POINTS.forEach(p=>{ dasStates[p] = null; });
+    renderDasPoints();
+  }
+
+  // Adapter le titre objet
+  const titres = {'mise-oeuvre':'Objet — Mise en œuvre','levee-obs':'Objet — Observations levées','autre':'Objet de l\'attestation'};
+  document.getElementById('objet-title').textContent = titres[type]||'Objet de l\'attestation';
+}
+
+// ── DAS POINTS ──
+function renderDasPoints() {
+  const list = document.getElementById('das-points-list');
+  list.innerHTML = DAS_POINTS.map(p => {
+    const s = dasStates[p];
+    return `<div class="das-point-row">
+      <span class="das-point-label">${p}</span>
+      <div class="das-states">
+        <button class="das-state-btn ok${s==='ok'?' active':''}" onclick="setDasState('${p.replace(/'/g,"\\'")}','ok',this.closest('.das-point-row'))">✓ OK</button>
+        <button class="das-state-btn so${s==='so'?' active':''}" onclick="setDasState('${p.replace(/'/g,"\\'")}','so',this.closest('.das-point-row'))">— S.O.</button>
+        <button class="das-state-btn nc${s==='nc'?' active':''}" onclick="setDasState('${p.replace(/'/g,"\\'")}','nc',this.closest('.das-point-row'))">✗ N.C.</button>
+      </div>
+    </div>`;
+  }).join('');
+  updateDasCounts();
+}
+
+function setDasState(label, state, row) {
+  dasStates[label] = dasStates[label]===state ? null : state;
+  row.querySelectorAll('.das-state-btn').forEach(b=>b.classList.remove('active'));
+  if(dasStates[label]) row.querySelector('.das-state-btn.'+state).classList.add('active');
+  updateDasCounts();
+}
+
+function updateDasCounts() {
+  const vals = Object.values(dasStates);
+  document.getElementById('das-count-ok').textContent = vals.filter(v=>v==='ok').length + ' ✓';
+  document.getElementById('das-count-so').textContent = vals.filter(v=>v==='so').length + ' —';
+  document.getElementById('das-count-nc').textContent = vals.filter(v=>v==='nc').length + ' ✗';
+}
+
+function getAsservissements() {
+  return [...document.querySelectorAll('#asserv-group .asserv-item.active')].map(el=>el.textContent.trim()).join(', ');
+}
+
+// ── PHOTOS ──
+function addPhotos(files) {
+  Array.from(files).forEach(file=>{
+    const r=new FileReader();
+    r.onload=e=>{
+      photos.push({url:e.target.result, base64:e.target.result.split(',')[1], mime:file.type});
+      renderPhotos();
+    };
+    r.readAsDataURL(file);
+  });
+}
+function renderPhotos() {
+  document.getElementById('photos-grid').innerHTML = photos.map((p,i)=>`
+    <div class="photo-thumb">
+      <img src="${p.url}">
+      <button class="photo-thumb-del" onclick="deletePhoto(${i})">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="9" height="9"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>`).join('');
+}
+function deletePhoto(i) { photos.splice(i,1); renderPhotos(); }
+
+// ── SIGNATURE ──
+const canvas = document.getElementById('sig-canvas');
+const ctx    = canvas.getContext('2d');
+let drawing=false, sigEmpty=true;
+function initSig(){
+  if(sigInitDone) return;
+  sigInitDone=true;
+  const w=canvas.offsetWidth||600;
+  canvas.width=w*window.devicePixelRatio; canvas.height=150*window.devicePixelRatio;
+  ctx.scale(window.devicePixelRatio,window.devicePixelRatio);
+  ctx.strokeStyle='#141210'; ctx.lineWidth=2; ctx.lineCap='round'; ctx.lineJoin='round';
+}
+function getPos(e){const r=canvas.getBoundingClientRect(),t=e.touches?e.touches[0]:e;return{x:(t.clientX-r.left)*(canvas.width/r.width)/window.devicePixelRatio,y:(t.clientY-r.top)*(canvas.height/r.height)/window.devicePixelRatio};}
+canvas.addEventListener('mousedown',e=>{drawing=true;ctx.beginPath();const p=getPos(e);ctx.moveTo(p.x,p.y);});
+canvas.addEventListener('mousemove',e=>{if(!drawing)return;const p=getPos(e);ctx.lineTo(p.x,p.y);ctx.stroke();sigEmpty=false;});
+canvas.addEventListener('mouseup',()=>drawing=false);
+canvas.addEventListener('touchstart',e=>{e.preventDefault();drawing=true;ctx.beginPath();const p=getPos(e);ctx.moveTo(p.x,p.y);},{passive:false});
+canvas.addEventListener('touchmove',e=>{e.preventDefault();if(!drawing)return;const p=getPos(e);ctx.lineTo(p.x,p.y);ctx.stroke();sigEmpty=false;},{passive:false});
+canvas.addEventListener('touchend',()=>drawing=false);
+function clearSig(){ctx.clearRect(0,0,canvas.width/window.devicePixelRatio,canvas.height/window.devicePixelRatio);sigEmpty=true;}
+function getSig(){return sigEmpty?null:canvas.toDataURL('image/png');}
+
+// ── CONTACTS ──
+function loadContacts(){
+  if(!APPS_SCRIPT_URL||APPS_SCRIPT_URL.length<50) return;
+  window._attCB=function(data){
+    clearTimeout(window._attTO);
+    if(data){
+      if(data.contacts){
+        ALL_CONTACTS=data.contacts;
+        const dl=document.getElementById('signataires-list'); dl.innerHTML='';
+        data.contacts.forEach(c=>{dl.innerHTML+=`<option value="${c.nom}">`; });
+      }
+      if(data.chantiers){
+        ALL_CHANTIERS=data.chantiers;
+        const sel=document.getElementById('meta-chantier');
+        while(sel.options.length>1) sel.remove(1);
+        data.chantiers.forEach(c=>{const o=document.createElement('option');o.value=c.nom;o.textContent=c.nom+(c.reference?' — '+c.reference:'');sel.appendChild(o);});
+      }
+    }
+    delete window._attCB; delete window._attTO;
+    const s=document.getElementById('_jsonp_att'); if(s) s.remove();
+  };
+  window._attTO=setTimeout(()=>{if(window._attCB){delete window._attCB;}},15000);
+  const sc=document.createElement('script'); sc.id='_jsonp_att';
+  sc.src=APPS_SCRIPT_URL+'?action=getContacts&callback=_attCB&t='+Date.now();
+  document.head.appendChild(sc);
+}
+
+function onChantierChange(val){
+  const ch=ALL_CHANTIERS.find(x=>x.nom===val);
+  if(ch&&ch.conducteur){
+    const c=ALL_CONTACTS.find(x=>x.nom&&x.nom.toLowerCase()===ch.conducteur.toLowerCase());
+    conducteurEmail=c?c.email:'';
+  } else conducteurEmail='';
+}
+
+// ── BROUILLON (localStorage) ──
+function getBrouillonData(){
+  return {
+    type          : currentType,
+    typeAutreText : document.getElementById('type-autre-text').value,
+    chantier      : document.getElementById('meta-chantier').value,
+    precision     : document.getElementById('meta-precision').value,
+    signataire    : document.getElementById('meta-signataire').value,
+    date          : document.getElementById('meta-date').value,
+    ref           : document.getElementById('meta-ref').value,
+    objet         : document.getElementById('meta-objet').value,
+    dasNumero     : document.getElementById('das-numero').value,
+    dasEtage      : document.getElementById('das-etage').value,
+    dasLocalisation: document.getElementById('das-localisation').value,
+    asservissements: [...document.querySelectorAll('#asserv-group .asserv-item.active')].map(el=>el.textContent.trim()),
+    dasStates     : dasStates,
+    photos        : photos.map(p=>({url:p.url,base64:p.base64,mime:p.mime})),
+  };
+}
+
+function sauvegarderBrouillon(){
+  try {
+    localStorage.setItem(BROUILLON_KEY, JSON.stringify(getBrouillonData()));
+    showToast('✓ Brouillon sauvegardé');
+  } catch(e){ showToast('Erreur sauvegarde'); }
+}
+
+function chargerBrouillon(){
+  try {
+    const raw = localStorage.getItem(BROUILLON_KEY);
+    if(!raw) return;
+    const d = JSON.parse(raw);
+    // Type
+    if(d.type){
+      const btn = document.querySelector(`.type-btn[onclick*="${d.type}"]`);
+      if(btn) selectType(d.type, btn);
+    }
+    if(d.typeAutreText) document.getElementById('type-autre-text').value=d.typeAutreText;
+    // Champs
+    if(d.chantier){ document.getElementById('meta-chantier').value=d.chantier; onChantierChange(d.chantier); }
+    if(d.precision) document.getElementById('meta-precision').value=d.precision;
+    if(d.signataire) document.getElementById('meta-signataire').value=d.signataire;
+    if(d.date) document.getElementById('meta-date').value=d.date;
+    if(d.ref) document.getElementById('meta-ref').value=d.ref;
+    if(d.objet) document.getElementById('meta-objet').value=d.objet;
+    // DAS
+    if(d.dasNumero) document.getElementById('das-numero').value=d.dasNumero;
+    if(d.dasEtage) document.getElementById('das-etage').value=d.dasEtage;
+    if(d.dasLocalisation) document.getElementById('das-localisation').value=d.dasLocalisation;
+    if(d.asservissements){
+      document.querySelectorAll('#asserv-group .asserv-item').forEach(el=>{
+        if(d.asservissements.includes(el.textContent.trim())) el.classList.add('active');
+      });
+    }
+    if(d.dasStates){ dasStates=d.dasStates; renderDasPoints(); }
+    // Photos
+    if(d.photos){ photos=d.photos; renderPhotos(); }
+    document.getElementById('brouillon-bar').classList.remove('show');
+    showToast('✓ Brouillon chargé');
+  } catch(e){ showToast('Erreur chargement'); }
+}
+
+function viderBrouillon(){
+  localStorage.removeItem(BROUILLON_KEY);
+  document.getElementById('brouillon-bar').classList.remove('show');
+  showToast('Brouillon supprimé');
+}
+
+// ── APERÇU PDF ──
+function buildPdfHtml(){
+  const chantier   = document.getElementById('meta-chantier').value||'—';
+  const precision  = document.getElementById('meta-precision').value||'';
+  const chFull     = precision ? `${chantier} — ${precision}` : chantier;
+  const signataire = document.getElementById('meta-signataire').value||'—';
+  const date       = document.getElementById('meta-date').value;
+  const dateF      = date?date.split('-').reverse().join('/'):'—';
+  const ref        = document.getElementById('meta-ref').value||'';
+  const objet      = document.getElementById('meta-objet').value||'';
+  const sig        = getSig();
+
+  const typeLabels = {'mise-oeuvre':'Attestation de mise en œuvre','levee-obs':'Attestation de levée d\'observations','das':'Attestation de contrôle — Bloc porte DAS','autre':document.getElementById('type-autre-text').value||'Attestation'};
+  const typeLabel  = typeLabels[currentType]||'Attestation';
+
+  let corpsHtml = '';
+
+  if(currentType==='das'){
+    const numero   = document.getElementById('das-numero').value||'—';
+    const etage    = document.getElementById('das-etage').value||'—';
+    const localisa = document.getElementById('das-localisation').value||'—';
+    const asserv   = getAsservissements()||'—';
+    const lignes   = DAS_POINTS.map((p,i)=>{
+      const s=dasStates[p];
+      const cl=s==='ok'?'#196B3B':s==='nc'?'#B32E2E':s==='so'?'#888':'#999';
+      const lb=s==='ok'?'✓ OK':s==='nc'?'✗ N.C.':s==='so'?'— S.O.':'—';
+      return `<tr style="background:${i%2===0?'white':'#FAFAF8'}">
+        <td style="padding:6px 8px;border:1px solid #D8D4CE;font-size:11px">${p}</td>
+        <td style="padding:6px 8px;border:1px solid #D8D4CE;font-size:11px;font-weight:700;color:${cl};text-align:center">${lb}</td>
+      </tr>`;
+    }).join('');
+    const nbOk=Object.values(dasStates).filter(v=>v==='ok').length;
+    const nbNc=Object.values(dasStates).filter(v=>v==='nc').length;
+    corpsHtml=`
+    <table style="width:100%;border-collapse:collapse;margin-bottom:10px">
+      <tr><td style="padding:6px 8px;border:1px solid #D8D4CE;background:#FAFAF8;font-size:9px;font-weight:700;text-transform:uppercase;color:#6A6460;width:38%">N° Bloc porte</td><td style="padding:6px 8px;border:1px solid #D8D4CE;font-weight:700">${numero}</td></tr>
+      <tr><td style="padding:6px 8px;border:1px solid #D8D4CE;background:#FAFAF8;font-size:9px;font-weight:700;text-transform:uppercase;color:#6A6460">Étage / Niveau</td><td style="padding:6px 8px;border:1px solid #D8D4CE">${etage}</td></tr>
+      <tr><td style="padding:6px 8px;border:1px solid #D8D4CE;background:#FAFAF8;font-size:9px;font-weight:700;text-transform:uppercase;color:#6A6460">Localisation</td><td style="padding:6px 8px;border:1px solid #D8D4CE">${localisa}</td></tr>
+      <tr><td style="padding:6px 8px;border:1px solid #D8D4CE;background:#FAFAF8;font-size:9px;font-weight:700;text-transform:uppercase;color:#6A6460">Asservissement(s)</td><td style="padding:6px 8px;border:1px solid #D8D4CE">${asserv}</td></tr>
+    </table>
+    <table style="width:100%;border-collapse:collapse;margin-bottom:10px">
+      <thead><tr>
+        <th style="padding:6px 8px;background:#1A2B4A;color:white;font-size:9px;text-align:left;width:75%">Point de contrôle</th>
+        <th style="padding:6px 8px;background:#1A2B4A;color:white;font-size:9px;text-align:center">Résultat</th>
+      </tr></thead>
+      <tbody>${lignes}</tbody>
+    </table>
+    <div style="padding:7px 10px;background:${nbNc>0?'#FAE8E8':'#E1F2E9'};border:1px solid ${nbNc>0?'#B32E2E':'#196B3B'};border-radius:4px;font-size:10px;font-weight:700;color:${nbNc>0?'#B32E2E':'#196B3B'};margin-bottom:10px">
+      Bilan : ${nbOk} conforme(s) · ${nbNc} non conforme(s) · ${Object.values(dasStates).filter(v=>v==='so').length} sans objet
+    </div>`;
+  } else {
+    corpsHtml=`<div style="padding:10px 12px;background:#F7F5F1;border:1px solid #D8D4CE;border-radius:4px;font-size:11px;line-height:1.7;white-space:pre-wrap;margin-bottom:12px">${objet||'—'}</div>`;
+  }
+
+  // Couleur selon le type de document
+  const typeColor = {'mise-oeuvre':'#1A6B3B','levee-obs':'#B32E2E','das':'#1A2B4A','autre':'#6B3FA0'}[currentType]||'#1A2B4A';
+
+  // Zones photo
+  let photosHtml = '';
+  if(photos.length){
+    const cols = photos.length===1 ? 1 : 2;
+    const tdW  = cols===1 ? '100%' : '50%';
+    photosHtml = '<table style="width:100%;border-collapse:collapse"><tbody>'
+      + photos.reduce((rows,p,i)=>{
+          if(i%cols===0) rows.push([]);
+          rows[rows.length-1].push('<td style="width:'+tdW+';padding:4px;text-align:center;vertical-align:top"><img src="'+p.url+'" style="max-width:100%;max-height:90mm;border:1px solid #D8D4CE;border-radius:3px;"></td>');
+          return rows;
+        },[]).map(row=>'<tr>'+row.join('')+'</tr>').join('')
+      + '</tbody></table>';
+  }
+
+  return `<div style="font-family:Arial,sans-serif;font-size:11px;max-width:680px;margin:0 auto;color:#1A1A1A">
+
+    <table style="width:100%;border-collapse:collapse;border-bottom:2px solid ${typeColor};padding-bottom:8px;margin-bottom:12px">
+      <tr>
+        <td style="vertical-align:top;width:38%">
+          <div style="font-weight:800;font-size:13px;color:#1A2B4A">Loué Menuiserie</div>
+          <div style="font-size:8px;color:#6A6460">Menuiserie · Charpente · Agencement</div>
+        </td>
+        <td style="text-align:center;vertical-align:middle">
+          <div style="font-weight:900;font-size:14px;color:${typeColor};letter-spacing:.5px">${typeLabel.toUpperCase()}</div>
+        </td>
+        <td style="text-align:right;vertical-align:top;font-size:9px;color:#6A6460;white-space:nowrap">
+          <div>${dateF}</div>
+          <div style="font-weight:700;color:#1A1A1A">${signataire}</div>
+        </td>
+      </tr>
+    </table>
+
+    <div style="border:1px solid #D8D4CE;border-radius:4px;padding:6px 10px;margin-bottom:8px">
+      <div style="font-size:8px;font-weight:700;text-transform:uppercase;color:#6A6460;margin-bottom:2px">Chantier</div>
+      <div style="font-weight:800;font-size:14px;text-align:center;color:#1A2B4A">${chantier}</div>
+    </div>
+
+    <table style="width:100%;border-collapse:collapse;margin-bottom:8px">
+      <tr>
+        <td style="width:50%;padding-right:5px">
+          <div style="border:1px solid #D8D4CE;border-radius:4px;padding:6px 10px;min-height:30px">
+            <div style="font-size:8px;font-weight:700;text-transform:uppercase;color:#6A6460;margin-bottom:2px">·Précisions</div>
+            <div style="font-size:11px">${precision||'&nbsp;'}</div>
+          </div>
+        </td>
+        <td style="width:50%;padding-left:5px">
+          <div style="border:1px solid #D8D4CE;border-radius:4px;padding:6px 10px;min-height:30px">
+            <div style="font-size:8px;font-weight:700;text-transform:uppercase;color:#6A6460;margin-bottom:2px">Réf documents</div>
+            <div style="font-size:11px">${ref||'&nbsp;'}</div>
+          </div>
+        </td>
+      </tr>
+    </table>
+
+    ${currentType==='das' ? corpsHtml : '<div style="border:1px solid #D8D4CE;border-radius:4px;padding:8px 10px;margin-bottom:8px;min-height:100px"><div style="font-size:8px;font-weight:700;text-transform:uppercase;color:#6A6460;margin-bottom:4px">Objet</div><div style="font-size:11px;line-height:1.6;white-space:pre-wrap">'+(objet||'&nbsp;')+'</div></div>'}
+
+    <table style="width:100%;border-collapse:collapse;margin-top:8px">
+      <tr>
+        <td style="width:62%;padding-right:8px;vertical-align:top">
+          <div style="border:1px solid #D8D4CE;border-radius:4px;padding:8px;min-height:120px">
+            <div style="font-size:8px;font-weight:700;text-transform:uppercase;color:#6A6460;margin-bottom:6px">Photo</div>
+            ${photosHtml}
+          </div>
+        </td>
+        <td style="width:38%;vertical-align:bottom">
+          <div style="border:1px solid #D8D4CE;border-radius:4px;padding:8px;height:100px;text-align:center">
+            <div style="font-size:8px;font-weight:700;text-transform:uppercase;color:#6A6460;margin-bottom:4px">Signature</div>
+            ${sig?'<img src="'+sig+'" style="max-width:100%;max-height:72px;">':''}
+          </div>
+          <div style="font-size:8.5px;color:#6A6460;margin-top:3px;text-align:right">${signataire} — ${dateF}</div>
+        </td>
+      </tr>
+    </table>
+
+  </div>`;}
+
+function openPreview(){document.getElementById('pdf-preview').innerHTML=buildPdfHtml();document.getElementById('pdfModal').classList.add('open');}
+function closePreview(){document.getElementById('pdfModal').classList.remove('open');}
+
+// ── ENVOI ──
+async function sendAttestation(){
+  const chantier   = document.getElementById('meta-chantier').value;
+  const signataire = document.getElementById('meta-signataire').value.trim();
+  let errors=[];
+  if(!currentType)  errors.push('Type d\'attestation non sélectionné');
+  if(!chantier)     errors.push('Chantier non sélectionné');
+  if(!signataire)   { document.getElementById('meta-signataire').classList.add('error'); errors.push('Signataire manquant'); }
+  else               document.getElementById('meta-signataire').classList.remove('error');
+  if(currentType==='das' && !document.getElementById('das-numero').value.trim()) errors.push('N° bloc porte manquant');
+
+  if(errors.length){
+    const b=document.getElementById('val-banner'); b.classList.add('show');
+    document.getElementById('val-msg').textContent=errors.join(' — ');
+    return;
+  }
+  document.getElementById('val-banner').classList.remove('show');
+
+  const typeLabels={'mise-oeuvre':'Mise en œuvre','levee-obs':'Levée d\'observations','das':'Contrôle DAS','autre':document.getElementById('type-autre-text').value||'Attestation'};
+  const date=document.getElementById('meta-date').value;
+  const payload={
+    type       : 'attestation',
+    typeAttest : currentType,
+    typeLabel  : typeLabels[currentType]||'',
+    chantier   : chantier,
+    precision  : document.getElementById('meta-precision').value||'',
+    signataire : signataire,
+    date       : date?date.split('-').reverse().join('/'):'',
+    ref        : document.getElementById('meta-ref').value||'',
+    objet      : document.getElementById('meta-objet').value||'',
+    dasNumero  : document.getElementById('das-numero').value||'',
+    dasEtage   : document.getElementById('das-etage').value||'',
+    dasLocalisation: document.getElementById('das-localisation').value||'',
+    asservissements: getAsservissements(),
+    dasPoints  : currentType==='das' ? DAS_POINTS.map(p=>({label:p, state:dasStates[p]||''})) : [],
+    photos     : photos.map(p=>({data:p.base64,mime:p.mime})),
+    signature  : getSig()||'',
+    conducteurEmail: conducteurEmail,
+  };
+
+  const btn=document.getElementById('btn-envoyer');
+  btn.disabled=true; btn.innerHTML='Envoi…';
+  try {
+    await fetch(APPS_SCRIPT_URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    localStorage.removeItem(BROUILLON_KEY); // Nettoyer brouillon après envoi
+    showToast('✓ Attestation envoyée');
+  } catch(e){showToast('Erreur réseau');}
+  finally{
+    btn.disabled=false;
+    btn.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg> Envoyer';
+  }
+}
+
+function showToast(m){const t=document.getElementById('toast');document.getElementById('toastMsg').textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3000);}
+document.getElementById('pdfModal').addEventListener('click',e=>{if(e.target===document.getElementById('pdfModal'))closePreview();});
+
+window.addEventListener('load',()=>{
+  initSig();
+  loadContacts();
+  const now=new Date();
+  document.getElementById('meta-date').value=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+  // Vérifier si brouillon existe
+  if(localStorage.getItem(BROUILLON_KEY)){
+    document.getElementById('brouillon-bar').classList.add('show');
+  }
+});
+</script>
+</body>
+</html>
