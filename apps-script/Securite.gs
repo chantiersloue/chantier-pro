@@ -57,6 +57,26 @@ function preparerDonnees_(brut) {
   return data;
 }
 
+// Copie des données reçues pour les modèles uniques (modeles/*.js) : textes laissés bruts
+// (le modèle les échappe lui-même), images contrôlées comme dans preparerDonnees_
+function validerImages_(brut) {
+  function nettoyer(v, cle) {
+    if (v === null || v === undefined) return v;
+    if (Array.isArray(v)) return v.map(x => nettoyer(x, cle));
+    if (typeof v === 'object') {
+      const o = {};
+      Object.keys(v).forEach(k => { o[k] = nettoyer(v[k], k); });
+      return o;
+    }
+    if (typeof v !== 'string') return v;
+    if (CHAMPS_IMAGE_URL.indexOf(cle) > -1) return /^data:image\/(png|jpeg);base64,[A-Za-z0-9+\/=]+$/.test(v) ? v : '';
+    if (cle === 'data') return /^[A-Za-z0-9+\/=\s]*$/.test(v) ? v : '';
+    if (cle === 'mimeType' || cle === 'mime') return /^image\/(jpeg|png|webp|gif)$/.test(v) ? v : 'image/jpeg';
+    return v;
+  }
+  return nettoyer(brut || {}, '');
+}
+
 // Ne garde du HTML que gras / italique / souligné / retours à la ligne et des <span> avec
 // couleur, graisse ou taille. Tout le reste (scripts, liens, images, attributs) est supprimé.
 function nettoyerHtmlRiche_(html) {

@@ -26,14 +26,17 @@
   };
 
   // ── Indicateur d'envoi, toujours visible : « ✓ Tout est envoyé » / « ⏳ 2 fiches en attente » ──
+  // Si la page a prévu une place dans sa barre du haut (#loue-envoi-place), l'indicateur s'y met en version courte
   function indicateur() {
     var b = document.getElementById('loue-envoi');
     if (b) return b;
+    var place = document.getElementById('loue-envoi-place');
     b = document.createElement('button');
     b.id = 'loue-envoi'; b.type = 'button'; b.className = 'loue-envoi ok';
     b.setAttribute('aria-live', 'polite');
+    b.dataset.compact = place ? '1' : '';
     b.addEventListener('click', function () { afficherFile(); });
-    document.body.appendChild(b);
+    (place || document.body).appendChild(b);
     return b;
   }
   var derniereListe = [];
@@ -42,11 +45,19 @@
     var b = indicateur();
     var attente = liste.filter(function (e) { return e.etat !== 'erreur'; }).length;
     var erreurs = liste.length - attente;
-    if (!liste.length) { b.className = 'loue-envoi ok'; b.textContent = '✓ Tout est envoyé'; return; }
-    b.className = 'loue-envoi ' + (erreurs ? 'erreur' : 'attente');
-    b.textContent = (erreurs ? '⚠ ' + erreurs + ' fiche(s) à vérifier' : '')
-      + (erreurs && attente ? ' · ' : '')
-      + (attente ? '⏳ ' + attente + ' fiche(s) en attente' : '') + ' — toucher';
+    var compact = b.dataset.compact === '1';
+    var long;
+    if (!liste.length) {
+      long = 'Tout est envoyé';
+      b.className = 'loue-envoi ok' + (compact ? ' compact' : '');
+      b.textContent = compact ? '✓' : '✓ ' + long;
+    } else {
+      long = (erreurs ? erreurs + ' fiche(s) à vérifier' : '') + (erreurs && attente ? ', ' : '') + (attente ? attente + ' fiche(s) en attente' : '');
+      b.className = 'loue-envoi ' + (erreurs ? 'erreur' : 'attente') + (compact ? ' compact' : '');
+      b.textContent = compact ? (erreurs ? '⚠ ' + erreurs : '⏳ ' + attente) : (erreurs ? '⚠ ' : '⏳ ') + long + ' — toucher';
+    }
+    b.setAttribute('aria-label', long + '. Toucher pour voir le détail.');
+    b.title = long;
   }
 
   // Liste détaillée de la file, avec « Envoyer maintenant »
@@ -77,8 +88,8 @@
   if (LOUE.surEvenement) {
     LOUE.surEvenement(function (ev) {
       if (ev.type === 'file') majIndicateur(ev.liste);
-      if (ev.type === 'envoyee') LOUE.message('✓ ' + ev.element.libelle + ' envoyée' + (ev.reponse && ev.reponse.message ? ' — ' + ev.reponse.message : ''), 6000);
-      if (ev.type === 'erreur') LOUE.message('⚠ ' + ev.element.libelle + ' refusée : ' + ev.element.message, 8000);
+      if (ev.type === 'envoyee') LOUE.message('✓ Fiche « ' + ev.element.libelle + ' » envoyée' + (ev.reponse && ev.reponse.message ? ' — ' + ev.reponse.message : ''), 6000);
+      if (ev.type === 'erreur') LOUE.message('⚠ Fiche « ' + ev.element.libelle + ' » refusée : ' + ev.element.message, 8000);
       if (ev.type === 'stockage') LOUE.message('⚠ Le téléphone ne peut pas garder les fiches : ' + (ev.message || 'stockage indisponible'), 8000);
     });
   }

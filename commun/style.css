@@ -13,6 +13,13 @@
 .loue-envoi.ok      { background: #E1F2E9; color: #145A31; opacity: .85; }
 .loue-envoi.attente { background: #FFE8A3; color: #5A3D00; }
 .loue-envoi.erreur  { background: #B32E2E; color: #fff; }
+/* Version courte, dans la barre du haut de la page */
+.loue-envoi.compact { position: static; min-width: 48px; padding: 8px 10px; box-shadow: none; opacity: 1; }
+
+/* Mode test : le bandeau rouge occupe le haut, le reste descend d'autant */
+body.loue-test { padding-top: 40px; }
+body.loue-test .topbar { top: 40px; }
+body.loue-test .loue-envoi:not(.compact) { top: 48px; }
 
 /* Message temporaire */
 .loue-message {
@@ -38,6 +45,17 @@
 .loue-file button { min-height: 44px; padding: 8px 14px; border-radius: 10px; border: 1px solid #999; background: #f4f4f4; font: inherit; }
 .loue-file .loue-btn { width: 100%; background: #1A2B4A; color: #fff; border: 0; font-weight: 700; }
 .loue-file-aide { font-size: 13px; color: #555; }
+
+/* Bannière « Brouillon retrouvé » */
+.loue-brouillon {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 650; display: flex; flex-wrap: wrap; align-items: center; gap: 10px;
+  padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px)); background: #1A2B4A; color: #fff;
+  box-shadow: 0 -2px 12px rgba(0,0,0,.25); font: 15px/1.35 system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+.loue-brouillon span { flex: 1; min-width: 180px; }
+.loue-brouillon button { min-height: 44px; padding: 8px 16px; border-radius: 8px; font: 700 15px system-ui, sans-serif; cursor: pointer; }
+.loue-brouillon [data-oui] { background: #0D7A6B; color: #fff; border: 0; }
+.loue-brouillon [data-non] { background: transparent; color: #fff; border: 1px solid rgba(255,255,255,.6); }
 
 /* Impression (PC) : seul le document s'imprime, sans les boutons ni l'indicateur */
 @media print {

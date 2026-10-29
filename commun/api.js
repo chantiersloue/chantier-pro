@@ -36,11 +36,12 @@
   function base() {
     if (basePromesse) return basePromesse;
     basePromesse = new Promise(function (ok, ko) {
-      var req = indexedDB.open('loue', 1);
+      var req = indexedDB.open('loue', 2);
       req.onupgradeneeded = function () {
         var db = req.result;
-        if (!db.objectStoreNames.contains('file'))   db.createObjectStore('file', { keyPath: 'id' });
-        if (!db.objectStoreNames.contains('photos')) db.createObjectStore('photos', { keyPath: 'id' });
+        if (!db.objectStoreNames.contains('file'))       db.createObjectStore('file', { keyPath: 'id' });
+        if (!db.objectStoreNames.contains('photos'))     db.createObjectStore('photos', { keyPath: 'id' });
+        if (!db.objectStoreNames.contains('brouillons')) db.createObjectStore('brouillons', { keyPath: 'cle' });
       };
       req.onsuccess = function () { ok(req.result); };
       req.onerror = function () { basePromesse = null; ko(req.error); };
@@ -52,7 +53,8 @@
       return new Promise(function (ok, ko) {
         var tx = db.transaction(nom, mode);
         var res = action(tx.objectStore(nom));
-        tx.oncomplete = function () { ok(res && res.result !== undefined ? res.result : res); };
+        // Une demande IndexedDB renvoie son résultat (undefined si rien n'est trouvé), jamais la demande elle-même
+        tx.oncomplete = function () { ok(res && typeof IDBRequest !== 'undefined' && res instanceof IDBRequest ? res.result : res); };
         tx.onerror = tx.onabort = function () { ko(tx.error || new Error('Stockage du téléphone indisponible')); };
       });
     });

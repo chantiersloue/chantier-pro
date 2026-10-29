@@ -6,6 +6,7 @@
 <title>Loué App</title>
 <link rel="icon" type="image/png" href="apple-touch-icon.png">
 <link rel="manifest" href="manifest.json">
+<link rel="stylesheet" href="commun/style.css">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -136,6 +137,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
   <img src="logo.png" alt="Loué Menuiserie" style="height:36px;width:auto;object-fit:contain;">
   <div class="tb-name">Loué App</div>
   <div class="tb-company">Loué Menuiserie</div>
+  <span id="loue-envoi-place"></span>
 </div>
 
 <!-- ═══ ACCUEIL ═══ -->
@@ -434,6 +436,8 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 <div class="toast" id="toast"></div>
 
 <script src="commun/config.js"></script>
+<script src="commun/api.js"></script>
+<script src="commun/ui.js"></script>
 <script>
 // Adresse Apps Script : écrite UNE seule fois, dans commun/config.js
 const APPS_SCRIPT_URL = (window.LOUE_CONFIG || {}).url || 'https://config-introuvable.invalid/';

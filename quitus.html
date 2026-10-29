@@ -2,195 +2,153 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Loué App — Quitus</title>
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Quitus">
+<meta name="apple-mobile-web-app-title" content="Loué App">
 <meta name="theme-color" content="#1A2B4A">
-<link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="commun/style.css">
 <style>
-:root{--orange:#D95818;--bg:#F2F0EC;--card:#FFF;--text:#141210;--muted:#6A6460;--border:#D8D4CE;--border2:#B8B4AE;--blue:#1454A0;--blue-l:#DCE8F8;--green:#196B3B;--green-l:#E1F2E9;--red:#B32E2E;--red-l:#FAE8E8;--purple:#6B3FA0;--purple-l:#EDE8F8;--teal:#0D7A6B;--teal-l:#E0F5F2;--header-bg:#1A2B4A;--r:8px;--rl:12px;}
+:root{--bg:#F2F0EC;--card:#FFF;--text:#141210;--muted:#5E5854;--border:#D8D4CE;--border2:#B8B4AE;--green:#196B3B;--green-l:#E1F2E9;--red:#B32E2E;--red-l:#FAE8E8;--teal:#0D7A6B;--teal-l:#E0F5F2;--header-bg:#1A2B4A;--r:8px;--rl:12px;}
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
-body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding-bottom:90px;}
-.topbar{background:var(--header-bg);padding:0 16px;height:50px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:20;}
-.tb-left{display:flex;align-items:center;gap:9px;}
-.tb-sq{width:26px;height:26px;background:var(--green);border-radius:5px;display:flex;align-items:center;justify-content:center;}
-.tb-sq svg{width:13px;height:13px;stroke:white;fill:none;stroke-width:2.5;}
-.tb-name{font-family:'Syne',sans-serif;font-weight:700;font-size:14px;color:white;}
-.tb-badge{background:var(--green);color:white;font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;}
+body{font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding-bottom:96px;font-size:16px;}
+.topbar{background:var(--header-bg);padding:0 12px;min-height:56px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:20;}
+.tb-name{font-weight:800;font-size:17px;color:white;flex:1;}
 .main{padding:14px;max-width:860px;margin:0 auto;}
 .section{background:var(--card);border:1px solid var(--border);border-radius:var(--rl);margin-bottom:12px;overflow:hidden;}
-.section-head{display:flex;align-items:center;gap:9px;padding:12px 16px;border-bottom:1px solid var(--border);background:#FAFAF8;}
-.section-head svg{width:15px;height:15px;flex-shrink:0;}
-.section-title{font-family:'Syne',sans-serif;font-weight:700;font-size:13px;}
+.section-head{padding:12px 16px;border-bottom:1px solid var(--border);background:#FAFAF8;font-weight:800;font-size:15px;}
 .section-body{padding:14px 16px;}
-.meta-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
-@media(max-width:480px){.meta-grid{grid-template-columns:1fr;}}
+.meta-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+@media(max-width:600px){.meta-grid{grid-template-columns:1fr;}}
 .meta-full{grid-column:1/-1;}
-.meta-field{display:flex;flex-direction:column;gap:4px;}
-.meta-label{font-size:11px;color:var(--muted);font-weight:500;}
-.meta-input{padding:9px 12px;border:1px solid var(--border);border-radius:var(--r);font-size:13.5px;font-family:'DM Sans',sans-serif;background:var(--bg);outline:none;color:var(--text);width:100%;}
-.meta-input:focus{border-color:var(--green);background:white;}
-.meta-input[readonly]{background:#EFECE8;color:var(--muted);cursor:default;}
+.meta-field{display:flex;flex-direction:column;gap:5px;}
+.meta-label{font-size:14px;color:var(--muted);font-weight:600;}
+.meta-input{min-height:48px;padding:10px 12px;border:1px solid var(--border2);border-radius:var(--r);font-size:16px;font-family:inherit;background:#fff;outline:none;color:var(--text);width:100%;}
+.meta-input:focus{border-color:var(--green);}
+.meta-input[readonly]{background:#EFECE8;color:var(--muted);}
 .meta-input.error{border-color:var(--red)!important;background:#FFF0F0!important;}
-textarea.meta-input{min-height:80px;resize:vertical;line-height:1.6;}
-/* Soldé */
+textarea.meta-input{min-height:100px;resize:vertical;line-height:1.5;}
+.oblig{color:var(--red);}
+.aide{font-size:14px;color:var(--muted);margin-bottom:10px;line-height:1.4;}
 .solde-row{display:flex;gap:10px;}
-.solde-btn{flex:1;padding:12px;border-radius:var(--r);border:2px solid var(--border);background:var(--bg);font-size:14px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;transition:.15s;text-align:center;}
+.solde-btn{flex:1;min-height:56px;border-radius:var(--r);border:2px solid var(--border2);background:#fff;font-size:18px;font-weight:800;cursor:pointer;font-family:inherit;}
 .solde-btn.oui.active{background:var(--green-l);border-color:var(--green);color:var(--green);}
 .solde-btn.non.active{background:var(--red-l);border-color:var(--red);color:var(--red);}
-/* Signature */
 .sig-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
-.sig-box{border:1.5px solid var(--border);border-radius:var(--r);overflow:hidden;}
-.sig-label{font-size:11px;font-weight:700;color:var(--muted);padding:7px 12px;background:#FAFAF8;border-bottom:1px solid var(--border);text-transform:uppercase;letter-spacing:.4px;}
-.sig-canvas-wrap{background:white;position:relative;}
-canvas.sig{display:block;width:100%;height:150px;touch-action:none;cursor:crosshair;background:white;}
-.sig-clear{position:absolute;top:6px;right:6px;width:26px;height:26px;border-radius:6px;border:1px solid var(--border);background:white;cursor:pointer;display:flex;align-items:center;justify-content:center;}
-.sig-clear svg{width:12px;height:12px;}
-/* Photos */
-.photo-add-btn{display:flex;align-items:center;gap:8px;padding:11px 15px;background:var(--bg);border:1.5px dashed var(--border2);border-radius:var(--r);cursor:pointer;font-size:13px;color:var(--muted);width:100%;margin-bottom:10px;}
-.photo-add-btn svg{width:16px;height:16px;flex-shrink:0;}
+@media(max-width:600px){.sig-row{grid-template-columns:1fr;}}
+.sig-box{border:1.5px solid var(--border2);border-radius:var(--r);overflow:hidden;}
+.sig-label{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:14px;font-weight:700;color:var(--muted);padding:4px 4px 4px 12px;background:#FAFAF8;border-bottom:1px solid var(--border);}
+canvas.sig{display:block;width:100%;aspect-ratio:2/1;background:white;cursor:crosshair;}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:48px;padding:10px 16px;border-radius:var(--r);font-size:16px;font-weight:700;cursor:pointer;border:none;font-family:inherit;}
+.btn-secondary{background:var(--card);color:var(--text);border:1px solid var(--border2);}
+.btn-green{background:var(--green);color:white;}
+.btn-petit{min-height:44px;padding:6px 12px;font-size:14px;}
+.btn:disabled{opacity:.5;cursor:default;}
+.photo-btns{display:flex;gap:8px;margin-bottom:10px;}
+.photo-btns .btn{flex:1;border:1.5px dashed var(--border2);background:#fff;color:var(--text);font-weight:600;}
 .photos-list{display:flex;flex-direction:column;gap:10px;}
 .photo-item{background:var(--bg);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;}
-.photo-item-head{display:flex;align-items:center;gap:8px;padding:8px 12px;background:white;border-bottom:1px solid var(--border);}
-.photo-item-num{font-family:'Syne',sans-serif;font-weight:700;font-size:11px;color:var(--teal);}
-.photo-item-label{flex:1;border:none;background:none;font-size:13px;font-family:'DM Sans',sans-serif;color:var(--text);outline:none;}
-.photo-item-label::placeholder{color:var(--muted);}
-.photo-del{width:28px;height:28px;border-radius:6px;border:1px solid var(--border);background:white;cursor:pointer;display:flex;align-items:center;justify-content:center;}
-.photo-del svg{width:13px;height:13px;}
-.photo-preview-img{width:100%;max-height:320px;object-fit:contain;display:block;background:#f0ede8;}
-/* Destinataires */
-.dest-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;min-height:4px;}
-.dest-chip{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;background:var(--teal-l);border:1px solid var(--teal);border-radius:20px;font-size:12px;color:var(--teal);font-weight:500;}
-.dest-chip button{background:none;border:none;cursor:pointer;color:var(--teal);display:flex;align-items:center;padding:0;}
-.dest-chip button svg{width:11px;height:11px;}
+.photo-item-head{display:flex;align-items:center;gap:8px;padding:4px 4px 4px 12px;background:white;border-bottom:1px solid var(--border);}
+.photo-item-num{font-weight:800;font-size:14px;color:var(--teal);}
+.photo-item-label{flex:1;min-height:44px;border:none;background:none;font-size:16px;font-family:inherit;color:var(--text);outline:none;}
+.photo-item img{width:100%;max-height:320px;object-fit:contain;display:block;background:#f0ede8;}
+.dest-chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px;}
+.dest-chip{display:inline-flex;align-items:center;gap:4px;padding:2px 2px 2px 12px;background:var(--teal-l);border:1px solid var(--teal);border-radius:22px;font-size:15px;color:var(--teal);font-weight:600;}
+.dest-chip button{width:40px;height:40px;border:none;background:none;font-size:20px;color:var(--teal);cursor:pointer;}
 .dest-row{display:flex;gap:8px;position:relative;}
-.dest-input{flex:1;padding:9px 12px;border:1px solid var(--border);border-radius:var(--r);font-size:13px;font-family:'DM Sans',sans-serif;background:var(--bg);outline:none;color:var(--text);}
-.dest-input:focus{border-color:var(--teal);background:white;}
-.dest-suggestions{position:absolute;top:100%;left:0;right:60px;background:white;border:1px solid var(--border);border-radius:var(--r);z-index:50;max-height:160px;overflow-y:auto;box-shadow:0 4px 16px rgba(0,0,0,.1);display:none;}
+.dest-row .meta-input{flex:1;}
+.dest-suggestions{position:absolute;top:100%;left:0;right:0;background:white;border:1px solid var(--border);border-radius:var(--r);z-index:50;max-height:240px;overflow-y:auto;box-shadow:0 4px 16px rgba(0,0,0,.15);display:none;}
 .dest-suggestions.open{display:block;}
-.dest-sugg-item{padding:9px 12px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--bg);}
-.dest-sugg-item:hover{background:var(--teal-l);}
-.dest-sugg-item small{color:var(--muted);font-size:11px;margin-left:6px;}
-/* Boutons */
-.btn{display:inline-flex;align-items:center;gap:6px;padding:9px 15px;border-radius:var(--r);font-size:13.5px;font-weight:500;cursor:pointer;border:none;font-family:'DM Sans',sans-serif;transition:.15s;}
-.btn-secondary{background:var(--card);color:var(--text);border:1px solid var(--border);}
-.btn-green{background:var(--green);color:white;}
-.btn-sm{padding:7px 11px;font-size:12px;}
-.val-banner{background:var(--red-l);border:1px solid #EFC0C0;border-radius:var(--r);padding:10px 14px;margin-bottom:12px;display:none;font-size:13px;color:var(--red);align-items:center;gap:8px;}
-.val-banner.show{display:flex;}
-.bottom-bar{position:fixed;bottom:0;left:0;right:0;background:var(--card);border-top:1px solid var(--border);padding:12px 16px;display:flex;gap:10px;z-index:15;}
-.toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%) translateY(40px);background:var(--text);color:white;padding:10px 16px;border-radius:var(--r);font-size:13px;z-index:300;opacity:0;transition:.25s;white-space:nowrap;pointer-events:none;}
-.toast.show{transform:translateX(-50%) translateY(0);opacity:1;}
-.pdf-modal{position:fixed;inset:0;background:rgba(20,18,16,.7);z-index:150;display:none;align-items:center;justify-content:center;padding:16px;}
-.pdf-modal.open{display:flex;}
-.pdf-inner{background:white;border-radius:var(--rl);width:100%;max-width:800px;max-height:90vh;display:flex;flex-direction:column;}
-.pdf-head{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--border);}
-.pdf-head-title{font-family:'Syne',sans-serif;font-weight:700;font-size:14px;}
-.pdf-close{width:30px;height:30px;border-radius:7px;border:1px solid var(--border);background:none;cursor:pointer;display:flex;align-items:center;justify-content:center;}
-.pdf-close svg{width:13px;height:13px;}
-#pdfContent{overflow-y:auto;padding:20px;font-family:Arial,sans-serif;font-size:11px;flex:1;}
+.dest-sugg-item{min-height:48px;padding:12px;cursor:pointer;font-size:16px;border-bottom:1px solid var(--bg);}
+.dest-sugg-item small{color:var(--muted);font-size:14px;margin-left:6px;}
+.val-banner{background:var(--red-l);border:1px solid #EFC0C0;border-radius:var(--r);padding:12px 14px;margin-bottom:12px;display:none;font-size:15px;color:var(--red);font-weight:600;}
+.val-banner.show{display:block;}
+.listes-info{font-size:13px;color:var(--muted);margin-top:6px;}
+.bottom-bar{position:fixed;bottom:0;left:0;right:0;background:var(--card);border-top:1px solid var(--border);padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px));display:flex;gap:10px;z-index:15;}
+.apercu{position:fixed;inset:0;background:rgba(20,18,16,.7);z-index:150;display:none;flex-direction:column;padding:12px;}
+.apercu.open{display:flex;}
+body.loue-test .apercu{padding-top:52px;}
+.apercu-inner{background:white;border-radius:var(--rl);width:100%;max-width:860px;margin:0 auto;flex:1;display:flex;flex-direction:column;overflow:hidden;}
+.apercu-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:10px 12px;border-bottom:1px solid var(--border);}
+.apercu-head b{flex:1;font-size:16px;}
+.apercu iframe{flex:1;border:0;width:100%;background:#fff;}
+.apercu-aide{font-size:13px;color:var(--muted);padding:6px 12px;border-top:1px solid var(--border);}
 </style>
 </head>
 <body>
 
-<div class="topbar">
-  <div class="tb-left">
-    <div class="tb-sq"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>
-    <span class="tb-name">Loué App</span>
-  </div>
-  <span class="tb-badge">Quitus</span>
-  <button class="btn btn-secondary btn-sm" onclick="openPreview()" style="color:var(--text)">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-    Aperçu
-  </button>
+<div class="topbar no-print">
+  <a class="btn btn-secondary btn-petit" href="index.html" aria-label="Retour à l'accueil">‹ Retour</a>
+  <span class="tb-name">Quitus</span>
+  <span id="loue-envoi-place"></span>
+  <button class="btn btn-secondary btn-petit" type="button" onclick="ouvrirApercu()">Aperçu</button>
 </div>
 
 <div class="main">
 
-  <div class="val-banner" id="valBanner">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-    <span id="valMsg"></span>
-  </div>
+  <div class="val-banner" id="valBanner" role="alert"></div>
 
   <!-- DESTINATAIRES -->
   <div class="section">
-    <div class="section-head">
-      <svg viewBox="0 0 24 24" fill="none" stroke="var(--teal)" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
-      <span class="section-title" style="color:var(--teal)">Destinataires</span>
-    </div>
+    <div class="section-head" style="color:var(--teal)">Destinataires</div>
     <div class="section-body">
-      <div style="font-size:11.5px;color:var(--muted);margin-bottom:8px;">Vous recevrez automatiquement une copie.</div>
+      <div class="aide">Le conducteur du chantier reçoit automatiquement une copie. Ajoutez ici les autres destinataires (2 adresses hors liste au maximum).</div>
       <div class="dest-chips" id="dest-chips"></div>
       <div class="dest-row">
-        <input class="dest-input" id="dest-input" type="email" placeholder="nom@email.com" autocomplete="off"
-          oninput="filterDest(this.value)"
-          onkeydown="if(event.key==='Enter'){event.preventDefault();addDest();}">
+        <input class="meta-input" id="dest-input" type="email" inputmode="email" placeholder="nom@exemple.fr" autocomplete="off" data-brouillon="non"
+          oninput="filtrerDest(this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();ajouterDest();}">
         <div class="dest-suggestions" id="dest-sugg"></div>
-        <button class="btn btn-secondary btn-sm" onclick="addDest()">+ Ajouter</button>
+        <button class="btn btn-secondary" type="button" onclick="ajouterDest()">+ Ajouter</button>
       </div>
     </div>
   </div>
 
   <!-- INFORMATIONS -->
   <div class="section">
-    <div class="section-head">
-      <svg viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
-      <span class="section-title" style="color:var(--green)">Informations</span>
-    </div>
+    <div class="section-head" style="color:var(--green)">Informations</div>
     <div class="section-body">
       <div class="meta-grid">
         <div class="meta-field meta-full">
-          <div class="meta-label">Chantier <span style="color:var(--red)">*</span></div>
-          <select class="meta-input" id="meta-chantier" onchange="onChantierChange(this.value)">
-            <option value="">— Sélectionner —</option>
-          </select>
+          <label class="meta-label" for="meta-chantier">Chantier <span class="oblig">*</span></label>
+          <input class="meta-input" id="meta-chantier" list="liste-chantiers" placeholder="Choisir ou taper le chantier" autocomplete="off" onchange="surChantier(this.value)">
+          <datalist id="liste-chantiers"></datalist>
+          <div class="listes-info" id="listes-info"></div>
         </div>
         <div class="meta-field meta-full">
-          <div class="meta-label">Précision chantier <span style="font-size:10px;color:var(--muted)">(optionnel — ex : n° appt, nom acquéreur…)</span></div>
-          <input class="meta-input" id="meta-precision" placeholder="Ex : Appt 12, M. Dupont…">
+          <label class="meta-label" for="meta-precision">Précision chantier (facultatif : n° d'appartement, nom de l'acquéreur…)</label>
+          <input class="meta-input" id="meta-precision" placeholder="Ex. : appt 12, M. Dupont">
         </div>
         <div class="meta-field">
-          <div class="meta-label">Date</div>
+          <label class="meta-label" for="meta-date">Date</label>
           <input class="meta-input" id="meta-date" readonly>
         </div>
         <div class="meta-field">
-          <div class="meta-label">Heure</div>
+          <label class="meta-label" for="meta-heure">Heure</label>
           <input class="meta-input" id="meta-heure" readonly>
         </div>
         <div class="meta-field meta-full">
-          <div class="meta-label">Client <span style="color:var(--red)">*</span></div>
-          <input class="meta-input" id="meta-intervenant" placeholder="Nom du client…" list="intervenants-list" autocomplete="off">
-          <datalist id="intervenants-list"></datalist>
+          <label class="meta-label" for="meta-intervenant">Client <span class="oblig">*</span></label>
+          <input class="meta-input" id="meta-intervenant" placeholder="Nom du client" autocomplete="off">
         </div>
         <div class="meta-field meta-full">
-          <div class="meta-label">Description Intervention <span style="color:var(--red)">*</span></div>
-          <textarea class="meta-input" id="meta-description" placeholder="Description de l'intervention…"></textarea>
+          <label class="meta-label" for="meta-description">Description de l'intervention <span class="oblig">*</span></label>
+          <textarea class="meta-input" id="meta-description" placeholder="Ce qui a été fait (le micro du clavier permet de dicter)"></textarea>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- PHOTO (obligatoire) -->
+  <!-- PHOTOS -->
   <div class="section">
-    <div class="section-head">
-      <svg viewBox="0 0 24 24" fill="none" stroke="var(--teal)" stroke-width="2"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
-      <span class="section-title" style="color:var(--teal)">Photo / Croquis <span style="color:var(--red)">*</span></span>
-    </div>
+    <div class="section-head" style="color:var(--teal)">Photos <span class="oblig">*</span></div>
     <div class="section-body">
-      <input type="file" id="photo-input-cam" accept="image/*" capture="environment" style="display:none" onchange="handlePhotos(this.files)">
-      <input type="file" id="photo-input-gallery" accept="image/*" multiple style="display:none" onchange="handlePhotos(this.files)">
-      <div style="display:flex;gap:8px;margin-bottom:10px">
-        <button class="photo-add-btn" style="flex:1" onclick="document.getElementById('photo-input-cam').click()">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
-          Prendre une photo
-        </button>
-        <button class="photo-add-btn" style="flex:1" onclick="document.getElementById('photo-input-gallery').click()">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-          Depuis la galerie
-        </button>
+      <input type="file" id="photo-cam" accept="image/*" capture="environment" hidden onchange="ajouterPhotos(this.files);this.value=''">
+      <input type="file" id="photo-galerie" accept="image/*" multiple hidden onchange="ajouterPhotos(this.files);this.value=''">
+      <div class="photo-btns">
+        <button class="btn" type="button" onclick="document.getElementById('photo-cam').click()">📷 Prendre une photo</button>
+        <button class="btn" type="button" onclick="document.getElementById('photo-galerie').click()">🖼 Galerie</button>
       </div>
       <div class="photos-list" id="photos-list"></div>
     </div>
@@ -198,39 +156,27 @@ canvas.sig{display:block;width:100%;height:150px;touch-action:none;cursor:crossh
 
   <!-- SOLDÉ -->
   <div class="section">
-    <div class="section-head">
-      <svg viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
-      <span class="section-title" style="color:var(--green)">Soldé <span style="color:var(--red)">*</span></span>
-    </div>
+    <div class="section-head" style="color:var(--green)">Soldé <span class="oblig">*</span></div>
     <div class="section-body">
       <div class="solde-row">
-        <button class="solde-btn oui" id="solde-oui" onclick="setSolde('OUI')">✓ OUI</button>
-        <button class="solde-btn non" id="solde-non" onclick="setSolde('NON')">✗ NON</button>
+        <button class="solde-btn oui" id="solde-oui" type="button" onclick="choisirSolde('OUI')">✓ OUI</button>
+        <button class="solde-btn non" id="solde-non" type="button" onclick="choisirSolde('NON')">✗ NON</button>
       </div>
     </div>
   </div>
 
   <!-- SIGNATURES -->
   <div class="section">
-    <div class="section-head">
-      <svg viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/></svg>
-      <span class="section-title" style="color:var(--green)">Signatures</span>
-    </div>
+    <div class="section-head" style="color:var(--green)">Signatures</div>
     <div class="section-body">
       <div class="sig-row">
         <div class="sig-box">
-          <div class="sig-label">Entreprise Loué</div>
-          <div class="sig-canvas-wrap">
-            <canvas class="sig" id="sig-loue" width="300" height="150"></canvas>
-            <button class="sig-clear" onclick="clearSig('sig-loue')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/></svg></button>
-          </div>
+          <div class="sig-label">Entreprise Loué <button class="btn btn-secondary btn-petit" type="button" onclick="SIG.loue.effacer()">Effacer</button></div>
+          <canvas class="sig" id="sig-loue"></canvas>
         </div>
         <div class="sig-box">
-          <div class="sig-label">Client</div>
-          <div class="sig-canvas-wrap">
-            <canvas class="sig" id="sig-intervenant" width="300" height="150"></canvas>
-            <button class="sig-clear" onclick="clearSig('sig-intervenant')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/></svg></button>
-          </div>
+          <div class="sig-label">Client <button class="btn btn-secondary btn-petit" type="button" onclick="SIG.client.effacer()">Effacer</button></div>
+          <canvas class="sig" id="sig-intervenant"></canvas>
         </div>
       </div>
     </div>
@@ -238,387 +184,241 @@ canvas.sig{display:block;width:100%;height:150px;touch-action:none;cursor:crossh
 
 </div>
 
-<!-- BOTTOM BAR -->
-<div class="bottom-bar">
-  <button class="btn btn-secondary" onclick="window.location.href='index.html'" style="padding:10px 14px">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polyline points="15 18 9 12 15 6"/></svg>
-    Retour
-  </button>
-  <button class="btn btn-green" id="btn-envoyer" onclick="sendDoc()" style="flex:1;justify-content:center">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
-    Envoyer le quitus
-  </button>
+<div class="bottom-bar no-print">
+  <a class="btn btn-secondary" href="index.html">‹ Retour</a>
+  <button class="btn btn-green" id="btn-envoyer" type="button" onclick="envoyer()" style="flex:1">Envoyer le quitus</button>
 </div>
 
-<!-- PDF MODAL -->
-<div class="pdf-modal" id="pdfModal">
-  <div class="pdf-inner">
-    <div class="pdf-head">
-      <span class="pdf-head-title">Aperçu PDF</span>
-      <button class="pdf-close" onclick="document.getElementById('pdfModal').classList.remove('open')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+<!-- APERÇU (le même modèle que le PDF envoyé par mail) -->
+<div class="apercu" id="apercu" role="dialog" aria-label="Aperçu du PDF">
+  <div class="apercu-inner">
+    <div class="apercu-head">
+      <b>Aperçu du PDF</b>
+      <button class="btn btn-secondary btn-petit" type="button" onclick="imprimer()">🖨 Imprimer</button>
+      <button class="btn btn-secondary btn-petit" type="button" onclick="imprimer(true)">⬇ Enregistrer en PDF</button>
+      <button class="btn btn-secondary btn-petit" type="button" onclick="fermerApercu()">Fermer</button>
     </div>
-    <div id="pdfContent"></div>
+    <iframe id="apercu-cadre" title="Aperçu du quitus"></iframe>
+    <div class="apercu-aide" id="apercu-aide">« Enregistrer en PDF » : dans la fenêtre qui s'ouvre, choisissez l'imprimante « Enregistrer au format PDF » (ou « Microsoft Print to PDF »).</div>
   </div>
 </div>
 
-<div class="toast" id="toast"></div>
-
 <script src="commun/config.js"></script>
+<script src="commun/api.js"></script>
+<script src="commun/ui.js"></script>
+<script src="commun/photos.js"></script>
+<script src="commun/signature.js"></script>
+<script src="commun/brouillon.js"></script>
 <script src="commun/adresses.js"></script>
+<script src="modeles/quitus.js"></script>
 <script>
-// Adresse Apps Script : écrite UNE seule fois, dans commun/config.js
-const APPS_SCRIPT_URL = (window.LOUE_CONFIG || {}).url || 'https://config-introuvable.invalid/';
-
-// ═══════════════════════════════════════════════════════════════
-// BROUILLON AUTOMATIQUE — sauvegarde locale anti-perte (générique)
-// Enregistre la saisie dans le téléphone ; photos/signatures exclues.
-// ═══════════════════════════════════════════════════════════════
-const _BR_KEY = 'brouillon_quitus';
-let _brEnvoye = false, _brTO = null, _brRef = '{}';
-
-function _brCapturer(){
-  const champs = {};
-  document.querySelectorAll('input[id], select[id], textarea[id]').forEach(el=>{
-    if(el.type==='file' || el.type==='password' || el.readOnly || el.disabled) return;
-    if(el.type==='checkbox' || el.type==='radio') champs[el.id] = { c: el.checked };
-    else champs[el.id] = { v: el.value };
-  });
-  return { t: Date.now(), champs };
-}
-function _brSnapshot(){ return JSON.stringify(_brCapturer().champs); }
-function _brModifie(){ return _brSnapshot() !== _brRef; }
-
-function _brSauver(){
-  if(_brEnvoye) return;
-  try{
-    if(!_brModifie()){ return; }          // rien de neuf vs état initial → ne pas écraser
-    localStorage.setItem(_BR_KEY, JSON.stringify(_brCapturer()));
-  }catch(e){}
-}
-function _brSauverDebounce(){ _brEnvoye=false; clearTimeout(_brTO); _brTO=setTimeout(_brSauver,700); }
-function _brEffacer(){ try{ localStorage.removeItem(_BR_KEY); }catch(e){} }
-
-function _brRestaurer(etat){
-  try{
-    Object.keys(etat.champs||{}).forEach(id=>{
-      const el=document.getElementById(id); if(!el) return;
-      const o=etat.champs[id];
-      if(o.c!==undefined){ el.checked=o.c; }
-      else {
-        if(el.tagName==='SELECT' && o.v && ![...el.options].some(x=>x.value===o.v)){
-          const op=document.createElement('option'); op.value=o.v; op.textContent=o.v; el.appendChild(op);
-        }
-        el.value=o.v;
-      }
-      el.dispatchEvent(new Event('change',{bubbles:true}));
-      el.dispatchEvent(new Event('input',{bubbles:true}));
-    });
-  }catch(e){ console.error('Restauration brouillon:',e); }
-}
-
-function _brAfficherBanniere(etat){
-  if(document.getElementById('_br-banner')) return;
-  const d=new Date(etat.t||Date.now());
-  const quand=`${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')} à ${String(d.getHours()).padStart(2,'0')}h${String(d.getMinutes()).padStart(2,'0')}`;
-  const bar=document.createElement('div'); bar.id='_br-banner';
-  bar.style.cssText='position:fixed;left:0;right:0;bottom:0;z-index:99999;background:#1A2B4A;color:#fff;padding:12px 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;box-shadow:0 -2px 12px rgba(0,0,0,.25);font-size:13px';
-  const txt=document.createElement('span'); txt.style.cssText='flex:1;min-width:170px';
-  txt.textContent=`📝 Brouillon retrouvé (${quand}). Le restaurer ?`;
-  const bR=document.createElement('button'); bR.textContent='Restaurer';
-  bR.style.cssText='background:#0D7A6B;color:#fff;border:none;padding:9px 16px;border-radius:6px;font-weight:700;font-size:13px;cursor:pointer';
-  bR.onclick=()=>{ _brRestaurer(etat); bar.remove(); };
-  const bI=document.createElement('button'); bI.textContent='Repartir à zéro';
-  bI.style.cssText='background:transparent;color:#fff;border:1px solid rgba(255,255,255,.5);padding:9px 14px;border-radius:6px;font-size:13px;cursor:pointer';
-  bI.onclick=()=>{ _brEffacer(); bar.remove(); };
-  bar.appendChild(txt); bar.appendChild(bR); bar.appendChild(bI);
-  document.body.appendChild(bar);
-}
-
-function _brInit(){
-  _brRef = _brSnapshot();                 // état initial (après pré-remplissages) = référence
-  document.addEventListener('input', _brSauverDebounce, true);
-  document.addEventListener('change', _brSauverDebounce, true);
-  setInterval(_brSauver, 4000);
-  let etat=null;
-  try{ const raw=localStorage.getItem(_BR_KEY); if(raw) etat=JSON.parse(raw); }catch(e){}
-  if(etat && etat.champs) _brAfficherBanniere(etat);
-}
-setTimeout(_brInit, 500);  // laisse les pré-remplissages (date, etc.) se faire d'abord
-
-// Décode la réponse Google (JSON pur ou JSONP). Ajouté pour le chargement anonyme.
-function _parseRep(txt){ txt=(txt||'').trim(); if(txt.charAt(0)==='{'||txt.charAt(0)==='[') return JSON.parse(txt); const a=txt.indexOf('('),b=txt.lastIndexOf(')'); if(a>-1&&b>a) return JSON.parse(txt.slice(a+1,b)); throw new Error('format inattendu'); }
-const TYPE_DOC = 'quitus';
-
-let photos = [];
-let destinataires = [];
+'use strict';
+// ── État de la fiche ──
+let photos = [];          // [{ id, blob, url, label }]
+let destinataires = [];   // adresses ajoutées à la main ou choisies dans la liste
 let soldeVal = '';
-let MOI = {name:'', email:''};
-let ALL_DEST = [];
-let ALL_CHANTIERS = [];
+let LISTES = { contacts: [], contactNotes: [], chantiers: [] };
+const SIG = {
+  loue: LOUE.signature(document.getElementById('sig-loue')),
+  client: LOUE.signature(document.getElementById('sig-intervenant')),
+};
 
-(function(){
-  const now=new Date(), pad=n=>String(n).padStart(2,'0');
-  document.getElementById('meta-date').value=`${pad(now.getDate())}/${pad(now.getMonth()+1)}/${now.getFullYear()}`;
-  document.getElementById('meta-heure').value=`${pad(now.getHours())}h${pad(now.getMinutes())}`;
-  loadContacts();
-  initSig('sig-loue'); initSig('sig-intervenant');
+// ── Date et heure du jour ──
+(function () {
+  const now = new Date(), p = n => String(n).padStart(2, '0');
+  document.getElementById('meta-date').value = p(now.getDate()) + '/' + p(now.getMonth() + 1) + '/' + now.getFullYear();
+  document.getElementById('meta-heure').value = p(now.getHours()) + 'h' + p(now.getMinutes());
 })();
 
-function setSolde(v){
-  soldeVal=v;
-  document.getElementById('solde-oui').classList.toggle('active',v==='OUI');
-  document.getElementById('solde-non').classList.toggle('active',v==='NON');
-}
-
-function loadContacts(){
-  if(!APPS_SCRIPT_URL) return;
-  window._quitCB=function(data){
-    clearTimeout(window._quitTO);
-    if(data){
-      if(data.contacts){
-        const dl=document.getElementById('intervenants-list'); dl.innerHTML='';
-        data.contacts.forEach(c=>{dl.innerHTML+=`<option value="${c.nom}">`;});
-        const moiDefaut=data.contacts.find(c=>c.conducteurDefaut==='O');
-        if(moiDefaut){MOI={name:moiDefaut.nom,email:moiDefaut.email};}
-        ALL_DEST=data.contactNotes||[];
-        window._allContacts=data.contacts||[];
-      }
-      if(data.chantiers){
-        ALL_CHANTIERS=data.chantiers;
-        const sel = document.getElementById('meta-chantier');
-        while(sel.options.length > 1) sel.remove(1);
-        data.chantiers.forEach(c=>{
-          const o=document.createElement('option');
-          o.value=c.nom; o.textContent=c.nom+(c.reference?' — '+c.reference:'');
-          sel.appendChild(o);
-        });
-      }
-    }
-    delete window._quitCB; delete window._quitTO;
-    const s=document.getElementById('_jsonp_quit'); if(s) s.remove();
-  };
-  window._quitTO=setTimeout(()=>{if(window._quitCB){delete window._quitCB;}},10000);
-  // Méthode ANONYME d'abord (sans cookies Google) ; repli sur JSONP si échec
-  fetch(APPS_SCRIPT_URL+'?action=getContacts&callback=_quitCB&t='+Date.now(), {credentials:'omit', redirect:'follow'})
-    .then(r=>{ if(!r.ok) throw 0; return r.text(); })
-    .then(t=>{ if(window._quitCB) window._quitCB(_parseRep(t)); })
-    .catch(()=>{
-      const sc=document.createElement('script'); sc.id='_jsonp_quit';
-      sc.src=APPS_SCRIPT_URL+'?action=getContacts&callback=_quitCB&t='+Date.now();
-      document.head.appendChild(sc);
-    });
-}
-
-function onChantierChange(val){
-  if(!val||!ALL_CHANTIERS.length) return;
-  const ch=ALL_CHANTIERS.find(x=>x.nom.toLowerCase()===val.toLowerCase());
-  if(ch&&ch.conducteur){
-    const contact=ALL_DEST.find(x=>x.nom&&x.nom.toLowerCase()===ch.conducteur.toLowerCase());
-    if(contact) MOI={name:contact.nom,email:contact.email};
-    else{
-      const cu=(window._allContacts||[]).find(x=>x.nom&&x.nom.toLowerCase()===ch.conducteur.toLowerCase());
-      if(cu) MOI={name:cu.nom,email:cu.email||''};
-    }
+// ── Listes (chantiers, contacts) : réseau, sinon dernière liste gardée dans le téléphone ──
+const listesPretes = LOUE.chargerListes().then(r => {
+  LISTES = Object.assign(LISTES, r.donnees || {});
+  document.getElementById('liste-chantiers').innerHTML = (LISTES.chantiers || [])
+    .map(c => '<option value="' + LOUE.esc(c.nom) + '">' + LOUE.esc(c.reference || '') + '</option>').join('');
+  if (r.depuisLeTelephone) {
+    const d = new Date(r.date);
+    document.getElementById('listes-info').textContent = 'Pas de réseau : listes du ' + d.toLocaleDateString('fr-FR') + ' gardées dans le téléphone.';
   }
-}
+}).catch(err => {
+  document.getElementById('listes-info').textContent = 'Listes indisponibles (pas de réseau). Tapez le nom du chantier : la fiche partira quand même.';
+});
 
-function filterDest(val){
-  const sugg=document.getElementById('dest-sugg');
-  if(!val||val.length<1){sugg.classList.remove('open');return;}
-  const m=ALL_DEST.filter(u=>u.nom.toLowerCase().includes(val.toLowerCase())||u.email.toLowerCase().includes(val.toLowerCase()));
-  if(!m.length){sugg.classList.remove('open');return;}
-  sugg.innerHTML=m.map(u=>`<div class="dest-sugg-item" onclick="selectDest('${u.email}')">${u.nom} <small>${u.email}</small></div>`).join('');
+// Conducteur du chantier : reçoit une copie (colonne D de l'onglet Chantiers)
+function conducteurDuChantier() {
+  const nom = document.getElementById('meta-chantier').value.trim().toLowerCase();
+  const ch = (LISTES.chantiers || []).find(c => String(c.nom).toLowerCase() === nom);
+  if (!ch || !ch.conducteur) return '';
+  const c = (LISTES.contacts || []).concat(LISTES.contactNotes || []).find(x => String(x.nom).toLowerCase() === String(ch.conducteur).toLowerCase());
+  return c ? c.email : '';
+}
+function surChantier() { /* le conducteur est recalculé à l'envoi */ }
+
+// ── Destinataires ──
+function filtrerDest(val) {
+  const sugg = document.getElementById('dest-sugg');
+  const v = (val || '').toLowerCase();
+  const liste = (LISTES.contactNotes || []).concat(LISTES.contacts || []).filter(u => u.email);
+  const m = v ? liste.filter(u => String(u.nom).toLowerCase().includes(v) || String(u.email).toLowerCase().includes(v)).slice(0, 8) : [];
+  if (!m.length) { sugg.classList.remove('open'); return; }
+  sugg.innerHTML = m.map(u => '<div class="dest-sugg-item" data-email="' + LOUE.esc(u.email) + '">' + LOUE.esc(u.nom) + ' <small>' + LOUE.esc(u.email) + '</small></div>').join('');
   sugg.classList.add('open');
 }
-function selectDest(email){document.getElementById('dest-input').value=email;document.getElementById('dest-sugg').classList.remove('open');addDest();}
-function addDest(){
-  const input=document.getElementById('dest-input');
-  const val=input.value.trim(); if(!val) return;
-  if(!val.includes('@')||!val.includes('.')){input.style.borderColor='var(--red)';setTimeout(()=>input.style.borderColor='',2000);return;}
-  if(destinataires.includes(val)){input.value='';return;}
-  // Lot 0 : 2 adresses hors liste au maximum par fiche
-  if(window.LOUE_refuserAdresseLibre && LOUE_refuserAdresseLibre(val, destinataires, [...(window._allContacts||[]), ...(ALL_DEST||[])])){input.value='';return;}
-  destinataires.push(val); renderDest(); input.value='';
+document.getElementById('dest-sugg').addEventListener('click', ev => {
+  const item = ev.target.closest('[data-email]');
+  if (!item) return;
+  document.getElementById('dest-input').value = item.getAttribute('data-email');
+  ajouterDest();
+});
+function ajouterDest() {
+  const input = document.getElementById('dest-input');
+  const val = input.value.trim();
   document.getElementById('dest-sugg').classList.remove('open');
+  if (!val) return;
+  if (!/^[^\s@]+@[^\s@]+\.[A-Za-z]{2,}$/.test(val)) { LOUE.message('Adresse mail invalide (exemple : nom@exemple.fr)'); input.classList.add('error'); return; }
+  input.classList.remove('error');
+  if (destinataires.includes(val)) { input.value = ''; return; }
+  if (window.LOUE_refuserAdresseLibre && LOUE_refuserAdresseLibre(val, destinataires, (LISTES.contacts || []).concat(LISTES.contactNotes || []))) { input.value = ''; return; }
+  destinataires.push(val); afficherDest(); input.value = '';
+  document.dispatchEvent(new Event('change'));   // brouillon
 }
-function removeDest(i){destinataires.splice(i,1);renderDest();}
-function renderDest(){
-  document.getElementById('dest-chips').innerHTML=destinataires.map((d,i)=>`
-    <span class="dest-chip">${d}<button onclick="removeDest(${i})"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></span>`).join('');
+function retirerDest(i) { destinataires.splice(i, 1); afficherDest(); document.dispatchEvent(new Event('change')); }
+function afficherDest() {
+  document.getElementById('dest-chips').innerHTML = destinataires.map((d, i) =>
+    '<span class="dest-chip">' + LOUE.esc(d) + '<button type="button" aria-label="Retirer" onclick="retirerDest(' + i + ')">×</button></span>').join('');
 }
-document.addEventListener('click',e=>{if(!e.target.closest('.dest-row'))document.getElementById('dest-sugg').classList.remove('open');});
+document.addEventListener('click', e => { if (!e.target.closest('.dest-row')) document.getElementById('dest-sugg').classList.remove('open'); });
 
-function handlePhotos(files){
-  Array.from(files).forEach(f=>{
-    const r=new FileReader();
-    r.onload=e=>{photos.push({dataUrl:e.target.result,mimeType:f.type,label:''});renderPhotos();};
-    r.readAsDataURL(f);
-  });
-}
-function removePhoto(i){photos.splice(i,1);renderPhotos();}
-function renderPhotos(){
-  document.getElementById('photos-list').innerHTML=photos.map((p,i)=>`
-    <div class="photo-item">
-      <div class="photo-item-head">
-        <span class="photo-item-num">Photo ${i+1}</span>
-        <input class="photo-item-label" placeholder="Légende…" value="${p.label}" oninput="photos[${i}].label=this.value">
-        <button class="photo-del" onclick="removePhoto(${i})"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/></svg></button>
-      </div>
-      <img class="photo-preview-img" src="${p.dataUrl}">
-    </div>`).join('');
+// ── Soldé ──
+function choisirSolde(v) {
+  soldeVal = v;
+  document.getElementById('solde-oui').classList.toggle('active', v === 'OUI');
+  document.getElementById('solde-non').classList.toggle('active', v === 'NON');
+  document.dispatchEvent(new Event('change'));
 }
 
-// ── SIGNATURES ──
-function initSig(id){
-  const c = document.getElementById(id);
-  const ctx = c.getContext('2d');
-  let drawing = false;
-  function pos(e){
-    const r=c.getBoundingClientRect(), s=e.touches?e.touches[0]:e;
-    return {x:(s.clientX-r.left)*c.width/r.width, y:(s.clientY-r.top)*c.height/r.height};
+// ── Photos : compressées dès qu'on les ajoute (200 à 400 Ko chacune) ──
+async function ajouterPhotos(fichiers) {
+  for (const f of Array.from(fichiers || [])) {
+    if (photos.length >= LOUE.PHOTOS_MAX) { LOUE.message(LOUE.PHOTOS_MAX + ' photos au maximum par fiche'); break; }
+    try {
+      const blob = await LOUE.compresserPhoto(f);
+      photos.push({ id: LOUE.nouvelId('photo'), blob, url: URL.createObjectURL(blob), label: '' });
+    } catch (err) { LOUE.message(err.message, 8000); }
   }
-  function down(e){ e.preventDefault(); drawing=true; const p=pos(e); ctx.beginPath(); ctx.moveTo(p.x,p.y); }
-  function move(e){ e.preventDefault(); if(!drawing) return; const p=pos(e); ctx.lineTo(p.x,p.y); ctx.strokeStyle='#141210'; ctx.lineWidth=2.5; ctx.lineCap='round'; ctx.lineJoin='round'; ctx.stroke(); }
-  function up(e){ e.preventDefault(); drawing=false; ctx.closePath(); }
-  c.addEventListener('mousedown',down,{passive:false});
-  c.addEventListener('mousemove',move,{passive:false});
-  c.addEventListener('mouseup',up,{passive:false});
-  c.addEventListener('touchstart',down,{passive:false});
-  c.addEventListener('touchmove',move,{passive:false});
-  c.addEventListener('touchend',up,{passive:false});
+  afficherPhotos();
+  document.dispatchEvent(new Event('change'));
 }
-function clearSig(id){ const c=document.getElementById(id); c.getContext('2d').clearRect(0,0,c.width,c.height); }
-function getSigDataUrl(id){ return document.getElementById(id).toDataURL('image/png'); }
-
-function openPreview(){buildPdf();document.getElementById('pdfModal').classList.add('open');}
-
-function buildPdf(){
-  const chantier    =document.getElementById('meta-chantier').value||'—';
-  const precision   =document.getElementById('meta-precision').value||'';
-  const chantierFull= precision ? `${chantier} — ${precision}` : chantier;
-  const date        =document.getElementById('meta-date').value||'—';
-  const heure       =document.getElementById('meta-heure').value||'—';
-  const intervenant =document.getElementById('meta-intervenant').value||'—';
-  const description =document.getElementById('meta-description').value||'';
-  const solde       =soldeVal||'—';
-  const sigLoue     =getSigDataUrl('sig-loue');
-  const sigInt      =getSigDataUrl('sig-intervenant');
-
-  const soldeColor=solde==='OUI'?'#196B3B':solde==='NON'?'#B32E2E':'#6A6460';
-  const soldeBg=solde==='OUI'?'#E1F2E9':solde==='NON'?'#FAE8E8':'#F2F0EC';
-
-  const sigsHtml = `
-    <table style="width:100%;border-collapse:collapse;margin-top:14px">
-      <tr>
-        <td style="width:50%;padding-right:8px;vertical-align:top">
-          <div style="font-size:9px;font-weight:700;text-transform:uppercase;color:#6A6460;margin-bottom:4px">Signature Entreprise Loué</div>
-          <div style="border:1px solid #D8D4CE;border-radius:4px;height:80px;display:flex;align-items:center;justify-content:center;background:#FAFAF8">
-            <img src="${sigLoue}" style="max-width:100%;max-height:76px;">
-          </div>
-        </td>
-        <td style="width:50%;padding-left:8px;vertical-align:top">
-          <div style="font-size:9px;font-weight:700;text-transform:uppercase;color:#6A6460;margin-bottom:4px">Signature Client</div>
-          <div style="border:1px solid #D8D4CE;border-radius:4px;height:80px;display:flex;align-items:center;justify-content:center;background:#FAFAF8">
-            <img src="${sigInt}" style="max-width:100%;max-height:76px;">
-          </div>
-        </td>
-      </tr>
-    </table>`;
-
-  let photosHtml = '';
-  if(photos.length===1){
-    photosHtml=`<div style="margin-top:10px;border:1px solid #D8D4CE;border-radius:5px;overflow:hidden">
-      <div style="background:#E1F2E9;padding:5px 10px;border-bottom:1px solid #196B3B;font-size:9px;font-weight:700;color:#196B3B">Photo</div>
-      <div style="padding:8px;text-align:center"><img src="${photos[0].dataUrl}" style="max-width:100%;max-height:100mm;display:block;margin:0 auto;"></div>
-    </div>`;
-  } else if(photos.length>=2){
-    for(let i=0;i<photos.length;i+=2){
-      const p1=photos[i],p2=photos[i+1];
-      photosHtml+=`<div style="page-break-before:always;padding:10px">
-        <table style="width:100%;border-collapse:collapse"><tr>
-          <td style="width:50%;padding-right:6px;text-align:center"><img src="${p1.dataUrl}" style="max-width:100%;max-height:110mm;display:block;margin:0 auto;"></td>
-          ${p2?`<td style="width:50%;padding-left:6px;text-align:center"><img src="${p2.dataUrl}" style="max-width:100%;max-height:110mm;display:block;margin:0 auto;"></td>`:'<td></td>'}
-        </tr></table>
-        ${i+2>=photos.length?sigsHtml:''}
-      </div>`;
-    }
-  }
-  const sigsAfter = photos.length<=1 ? sigsHtml : '';
-
-  document.getElementById('pdfContent').innerHTML=`
-    <div style="border-bottom:3px solid #196B3B;padding-bottom:10px;margin-bottom:12px;">
-      <table style="width:100%;border-collapse:collapse"><tr>
-        <td style="vertical-align:middle"><div style="font-weight:800;font-size:16px;color:#1A2B4A">Loué Menuiserie</div><div style="font-size:9px;color:#6A6460">Menuiserie · Charpente · Agencement</div></td>
-        <td style="text-align:right;vertical-align:middle"><div style="font-weight:800;font-size:14px;color:#196B3B">QUITUS</div><div style="font-size:11px;color:#6A6460;margin-top:3px">Chantier : <b>${chantierFull}</b> — Le ${date} à ${heure}</div></td>
-      </tr></table>
-    </div>
-    <div style="padding:10px 12px;background:#E1F2E9;border:1.5px solid #196B3B;border-radius:5px;margin-bottom:10px;font-size:12px"><strong>Client :</strong> ${intervenant}</div>
-    ${description?`<div style="padding:10px 12px;background:#F7F5F1;border:1px solid #D8D4CE;border-radius:5px;margin-bottom:10px"><div style="font-size:8px;font-weight:700;text-transform:uppercase;color:#6A6460;margin-bottom:5px">Description Intervention</div><div style="font-size:11px;line-height:1.7;white-space:pre-wrap;word-break:break-word">${description}</div></div>`:''}
-    <div style="display:inline-flex;align-items:center;padding:8px 14px;background:${soldeBg};border:1.5px solid ${soldeColor};border-radius:8px;margin-bottom:12px"><span style="font-size:12px;font-weight:700;color:${soldeColor}">SOLDÉ : ${solde}</span></div>
-    ${photosHtml}
-    ${sigsAfter}`;
+function retirerPhoto(i) { URL.revokeObjectURL(photos[i].url); photos.splice(i, 1); afficherPhotos(); document.dispatchEvent(new Event('change')); }
+function afficherPhotos() {
+  const liste = document.getElementById('photos-list');
+  liste.innerHTML = photos.map((p, i) =>
+    '<div class="photo-item"><div class="photo-item-head"><span class="photo-item-num">Photo ' + (i + 1) + '</span>'
+    + '<input class="photo-item-label" data-i="' + i + '" placeholder="Légende…" data-brouillon="non" value="' + LOUE.esc(p.label) + '">'
+    + '<button class="btn btn-secondary btn-petit" type="button" onclick="retirerPhoto(' + i + ')">Retirer</button></div>'
+    + '<img src="' + p.url + '" alt="Photo ' + (i + 1) + '"></div>').join('');
+  liste.querySelectorAll('.photo-item-label').forEach(el => el.addEventListener('input', () => { photos[+el.dataset.i].label = el.value; }));
 }
 
-async function sendDoc(){
-  const errors=[];
-  const chantierEl=document.getElementById('meta-chantier');
-  const interveEl=document.getElementById('meta-intervenant');
-  const descEl=document.getElementById('meta-description');
-  [chantierEl,interveEl,descEl].forEach(el=>el.classList.remove('error'));
-  if(!chantierEl.value.trim()){chantierEl.classList.add('error');errors.push('Chantier manquant');}
-  if(!interveEl.value.trim()){interveEl.classList.add('error');errors.push('Client manquant');}
-  if(!descEl.value.trim()){descEl.classList.add('error');errors.push('Description manquante');}
-  if(!soldeVal){errors.push('Indiquez si soldé OUI ou NON');}
-  if(!photos.length){errors.push('Au moins une photo obligatoire');}
-  if(errors.length){
-    const b=document.getElementById('valBanner');
-    document.getElementById('valMsg').textContent=errors.join(' — ');
-    b.classList.add('show');setTimeout(()=>b.classList.remove('show'),7000);return;
-  }
-  document.getElementById('valBanner').classList.remove('show');
-  const btn=document.getElementById('btn-envoyer');
-  btn.disabled=true;btn.textContent='Envoi…';
+// ── Brouillon automatique : champs + destinataires + soldé + photos + signatures ──
+const BROUILLON = LOUE.brouillon({
+  cle: 'quitus',
+  anciennesCles: ['brouillon_quitus'],
+  pret: listesPretes,
+  capturer: () => ({
+    destinataires: destinataires.slice(), solde: soldeVal,
+    photos: photos.map(p => ({ id: p.id, blob: p.blob, label: p.label })),
+    sigLoue: SIG.loue.lireTraits(), sigClient: SIG.client.lireTraits(),
+  }),
+  restaurer: x => {
+    destinataires = (x.destinataires || []).slice(); afficherDest();
+    if (x.solde) choisirSolde(x.solde);
+    photos = (x.photos || []).filter(p => p.blob).map(p => ({ id: p.id, blob: p.blob, url: URL.createObjectURL(p.blob), label: p.label || '' }));
+    afficherPhotos();
+    if (x.sigLoue) SIG.loue.ecrireTraits(x.sigLoue);
+    if (x.sigClient) SIG.client.ecrireTraits(x.sigClient);
+  },
+});
 
-  const photosB64=await Promise.all(photos.map(p=>compressPhoto(p)));
-  const tousDestinataires=[...new Set([...(MOI.email?[MOI.email]:[]),...destinataires])];
-
-  const payload={
-    type:TYPE_DOC,
-    chantier:chantierEl.value,
-    precision:document.getElementById('meta-precision').value||'',
-    date:document.getElementById('meta-date').value,
-    heure:document.getElementById('meta-heure').value,
-    intervenant:interveEl.value, description:descEl.value,
-    solde:soldeVal,
-    sigLoue:getSigDataUrl('sig-loue'), sigIntervenant:getSigDataUrl('sig-intervenant'),
-    destinataires:tousDestinataires, photosBase64:photosB64,
+// ── Données de la fiche (mêmes noms de champs qu'avant la refonte) ──
+function donneesFiche(pourApercu) {
+  const v = id => document.getElementById(id).value.trim();
+  const copie = conducteurDuChantier();
+  return {
+    chantier: v('meta-chantier'), precision: v('meta-precision'),
+    date: v('meta-date'), heure: v('meta-heure'),
+    intervenant: v('meta-intervenant'), description: document.getElementById('meta-description').value,
+    solde: soldeVal,
+    sigLoue: SIG.loue.versDataUrl(), sigIntervenant: SIG.client.versDataUrl(),
+    destinataires: [...new Set([...(copie ? [copie] : []), ...destinataires])],
+    // Aperçu : photos lues sur place ; envoi : références aux photos envoyées une par une
+    photosBase64: photos.map(p => pourApercu ? { data: p.dataB64 || '', mimeType: 'image/jpeg', label: p.label } : { photoRef: p.id, label: p.label }),
   };
+}
 
-  try{
-    await fetch(APPS_SCRIPT_URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
-    showToast('✓ Quitus envoyé !'); _brEnvoye=true; _brEffacer();
-  }catch(e){showToast('Erreur réseau');}
-  finally{
-    btn.disabled=false;
-    btn.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg> Envoyer le quitus';
+// ── Aperçu, impression, enregistrement en PDF (le même modèle que le PDF du mail) ──
+async function ouvrirApercu() {
+  for (const p of photos) if (!p.dataB64) p.dataB64 = (await LOUE.blobEnDataUrl(p.blob)).split(',')[1];
+  document.getElementById('apercu-cadre').srcdoc = modele_quitus(donneesFiche(true), LOUE.esc);
+  document.getElementById('apercu').classList.add('open');
+}
+function fermerApercu() { document.getElementById('apercu').classList.remove('open'); }
+function imprimer(enPdf) {
+  const cadre = document.getElementById('apercu-cadre');
+  if (enPdf) LOUE.message('Choisissez l’imprimante « Enregistrer au format PDF »', 6000);
+  cadre.contentWindow.focus();
+  cadre.contentWindow.print();
+}
+
+// Remet la fiche à blanc (après rangement dans la file) pour éviter un double envoi
+function viderFiche() {
+  ['meta-precision', 'meta-intervenant', 'meta-description'].forEach(id => { document.getElementById(id).value = ''; });
+  destinataires = []; afficherDest();
+  soldeVal = ''; document.getElementById('solde-oui').classList.remove('active'); document.getElementById('solde-non').classList.remove('active');
+  photos.forEach(p => URL.revokeObjectURL(p.url)); photos = []; afficherPhotos();
+  SIG.loue.ecrireTraits([]); SIG.client.ecrireTraits([]);
+  window.scrollTo(0, 0);
+}
+
+// ── Envoi : la fiche est rangée dans le téléphone, puis part (tout de suite ou au retour du réseau) ──
+let envoiEnCours = false;
+async function envoyer() {
+  if (envoiEnCours) return;
+  const erreurs = [];
+  const champ = id => document.getElementById(id);
+  ['meta-chantier', 'meta-intervenant', 'meta-description'].forEach(id => champ(id).classList.remove('error'));
+  if (!champ('meta-chantier').value.trim())     { champ('meta-chantier').classList.add('error');     erreurs.push('chantier manquant'); }
+  if (!champ('meta-intervenant').value.trim())  { champ('meta-intervenant').classList.add('error');  erreurs.push('client manquant'); }
+  if (!champ('meta-description').value.trim())  { champ('meta-description').classList.add('error');  erreurs.push('description manquante'); }
+  if (!soldeVal)              erreurs.push('indiquez si c’est soldé : OUI ou NON');
+  if (!photos.length)         erreurs.push('au moins une photo');
+  if (SIG.loue.estVide())     erreurs.push('signature de l’entreprise');
+  if (SIG.client.estVide())   erreurs.push('signature du client');
+  const bandeau = document.getElementById('valBanner');
+  if (erreurs.length) {
+    bandeau.textContent = 'À compléter : ' + erreurs.join(', ') + '.';
+    bandeau.classList.add('show'); bandeau.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    return;
+  }
+  bandeau.classList.remove('show');
+  envoiEnCours = true;
+  const bouton = document.getElementById('btn-envoyer');
+  bouton.disabled = true; bouton.textContent = 'Rangement dans le téléphone…';
+  try {
+    const d = donneesFiche(false);
+    await LOUE.mettreEnFile('quitus', d, photos.map(p => ({ id: p.id, blob: p.blob })), 'Quitus');
+    await BROUILLON.effacer();   // la fiche est à l'abri dans la file d'envoi
+    LOUE.message('Quitus rangé dans le téléphone. Envoi en cours… (voir l’indicateur en haut)', 6000);
+    viderFiche();
+    LOUE.viderFile();   // on reste sur la page : quitter maintenant couperait l'envoi en cours (il reprendrait plus tard)
+    BROUILLON.reprendre();
+    bouton.disabled = false; bouton.textContent = 'Envoyer le quitus';
+    envoiEnCours = false;
+  } catch (err) {
+    LOUE.message('⚠ Impossible de ranger la fiche dans le téléphone : ' + err.message + '. Ne fermez pas la page et réessayez.', 10000);
+    bouton.disabled = false; bouton.textContent = 'Envoyer le quitus';
+    envoiEnCours = false;
   }
 }
-
-async function compressPhoto(p){
-  return new Promise(resolve=>{
-    const img=new Image();
-    img.onload=()=>{
-      const MAX=1200;let w=img.naturalWidth,h=img.naturalHeight;
-      if(w>MAX||h>MAX){if(w>h){h=Math.round(h*MAX/w);w=MAX;}else{w=Math.round(w*MAX/h);h=MAX;}}
-      const c=document.createElement('canvas');c.width=w;c.height=h;
-      c.getContext('2d').drawImage(img,0,0,w,h);
-      resolve({data:c.toDataURL('image/jpeg',.72).split(',')[1],mimeType:'image/jpeg',label:p.label||''});
-    };
-    img.src=p.dataUrl;
-  });
-}
-
-function showToast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3500);}
 </script>
 </body>
 </html>

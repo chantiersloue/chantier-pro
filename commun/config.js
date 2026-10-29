@@ -37,14 +37,17 @@
   }
 
   // Mode test : bandeau rouge permanent, pour ne jamais confondre avec la vraie appli
-  if (enTest) {
+  if (window.LOUE_CONFIG.env !== 'prod') {
     document.addEventListener('DOMContentLoaded', function () {
       var b = document.createElement('div');
-      b.textContent = URL_TEST
-        ? 'MODE TEST — données de la copie TEST — revenir à la vraie appli : ajouter ?env=prod à l’adresse'
-        : 'MODE TEST demandé mais aucune URL de test n’est réglée dans commun/config.js — rien ne sera envoyé';
-      b.setAttribute('style', 'position:fixed;left:0;right:0;top:0;z-index:9999;background:#B32E2E;color:#fff;' +
-        'font:700 13px/1.3 sans-serif;padding:8px 12px;text-align:center;pointer-events:none');
+      b.textContent = window.LOUE_CONFIG.env === 'local'
+        ? 'MODE LOCAL (développement) — faux serveur sur l’ordinateur'
+        : URL_TEST
+          ? 'MODE TEST — copie TEST — pour revenir : ajouter ?env=prod à l’adresse'
+          : 'MODE TEST demandé mais aucune URL de test n’est réglée — rien ne sera envoyé';
+      document.body.classList.add('loue-test');
+      b.setAttribute('style', 'position:fixed;left:0;right:0;top:0;height:40px;overflow:hidden;z-index:9999;background:#B32E2E;color:#fff;' +
+        'font:700 12px/1.25 sans-serif;padding:6px 10px;text-align:center;pointer-events:none');
       document.body.appendChild(b);
     });
   }
