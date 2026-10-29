@@ -33,7 +33,7 @@
       b.textContent = URL_TEST
         ? 'MODE TEST — données de la copie TEST — revenir à la vraie appli : ajouter ?env=prod à l’adresse'
         : 'MODE TEST demandé mais aucune URL de test n’est réglée dans commun/config.js — rien ne sera envoyé';
-      b.setAttribute('style', 'position:fixed;left:0;right:0;bottom:0;z-index:9999;background:#B32E2E;color:#fff;' +
+      b.setAttribute('style', 'position:fixed;left:0;right:0;top:0;z-index:9999;background:#B32E2E;color:#fff;' +
         'font:700 13px/1.3 sans-serif;padding:8px 12px;text-align:center;pointer-events:none');
       document.body.appendChild(b);
     });

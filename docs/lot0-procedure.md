@@ -11,13 +11,21 @@
 | Les gars, sur les fiches de saisie | Remplir, signer, envoyer | **Identique** |
 | Les gars, tuile *Chantiers* | 8 onglets (Accès, Plans, CCTP…) | **Seulement « Plans »** (les autres reviennent avec le carnet, lot 4) |
 | Une adresse tapée à la main (pas dans le Sheet) | Recevait n'importe quel mail | Reçoit un mail **au texte imposé** + le PDF ; 2 par fiche, 10 par jour ; le conducteur du chantier (ou toi) en **copie cachée** ; noté dans l'onglet **Journal** |
-| Quelqu'un qui connaît l'adresse Apps Script | Pouvait envoyer des mails à n'importe qui au nom de Loué | Ne peut plus (voir ligne au-dessus) |
+| Quelqu'un qui connaît l'adresse Apps Script | Pouvait envoyer des mails à n'importe qui au nom de Loué | Ne peut plus écrire qu'aux personnes **déjà dans ton Sheet** (voir « Risque qui reste » ci-dessous), et à 10 adresses libres par jour, au texte imposé, avec toi en copie |
 | Fichiers Drive des dossiers Accès, CCTP, Sécurité, Fiches, Quitus… | Partagés « tous ceux qui ont le lien » | **Accès limité** (Plans et Planning restent partagés) |
 | Fin de journée chargée (quota de 100 mails presque atteint) | Mails perdus sans rien dire | Mails **reportés** (onglet « Mails en attente ») et renvoyés toutes les 2 h ; tes mails à toi passent toujours |
 
 ⚠️ **À savoir** : une note de réunion envoyée à **plus de 2 adresses qui ne sont pas dans le Sheet** n'en servira que 2. Pour un externe régulier (archi, BET, client), **ajoute-le une fois pour toutes dans l'onglet *Contacts notes*** (colonne A : nom, colonne B : adresse) : il reçoit alors le mail normal, sans limite.
 
-Le relais de mails est fermé. **La liste des contacts reste lisible** par quelqu'un qui connaît l'adresse, jusqu'au lot 2 (connexion) : les pages actuelles en ont besoin.
+### Risque qui reste jusqu'au lot 2 (connexion)
+
+Le relais vers **n'importe qui** est fermé. Mais tant qu'il n'y a pas de connexion par mot de passe (lot 2), quelqu'un qui connaît l'adresse Apps Script peut encore :
+- **lire la liste de tes contacts** (noms, mails), dont les pages actuelles ont besoin ;
+- **envoyer une fausse fiche aux personnes de cette liste** (archis, clients de *Contacts notes*), avec le sujet et le contenu qu'il veut, comme le permet aujourd'hui une vraie fiche.
+
+C'est conforme à ta demande (« les destinataires du Sheet ne voient aucun changement »). Le lot 2 ferme ce dernier accès. Si tu vois passer un mail étrange, regarde l'onglet **Journal** et préviens-moi.
+
+**Message sur le téléphone** : sur la note de réunion, le quitus et les deux bordereaux, une **3ᵉ adresse tapée à la main** est refusée tout de suite avec un message. En revanche, le plafond de **10 par jour** n'est connu que du serveur : s'il est atteint, la fiche part quand même aux destinataires du Sheet, et seul l'onglet *Journal* (plus un mail d'alerte à toi) le signale.
 
 ---
 
@@ -32,7 +40,7 @@ Les 10 pages lisent désormais l'adresse Apps Script dans **un seul fichier**, `
 
 **Option 2 : upload manuel.**
 1. Sur github.com, dans le dépôt `chantier-pro`, branche `main` : **Add file → Upload files**.
-2. Glisse **le dossier `commun`** (il contient `config.js`) et les 10 pages : `index.html`, `cotes.html`, `fiche-fabrication.html`, `note-reunion.html`, `bordereau-orga.html`, `bordereau-materiaux.html`, `quitus.html`, `attestation.html`, `reception-support.html`, `absence.html`. Ajoute aussi `CLAUDE.md`.
+2. Glisse **le dossier `commun`** (il contient `config.js` et `adresses.js`) et les 10 pages : `index.html`, `cotes.html`, `fiche-fabrication.html`, `note-reunion.html`, `bordereau-orga.html`, `bordereau-materiaux.html`, `quitus.html`, `attestation.html`, `reception-support.html`, `absence.html`. Ajoute aussi `CLAUDE.md`.
 3. En bas : « Commit changes ».
 
 **Vérification A** :
@@ -58,7 +66,7 @@ Les 10 pages lisent désormais l'adresse Apps Script dans **un seul fichier**, `
    Clique **Enregistrer les propriétés du script**.
 4. Retour à l'éditeur (icône `< >`). En haut, dans la liste des fonctions, choisis **`verifierConfig`** puis **▶ Exécuter**.
    - Google demande une autorisation : **Examiner les autorisations** → ton compte → écran « Google n'a pas validé cette application » → **Paramètres avancés** → **Accéder à … (non sécurisé)** → **Autoriser**. C'est normal : c'est ton propre script.
-   - En bas, le « Journal d'exécution » affiche des ✅. Un ❌ = me prévenir avec une capture.
+   - En bas, le « Journal d'exécution » affiche des ✅. **Seul le ❌ « Déclencheur » est normal à ce stade** (il s'installe à l'étape 6). Tout autre ❌ = me prévenir avec une capture.
 5. Choisis **`anonymiserCopieTest`** → ▶ Exécuter. Le journal dit « N adresse(s) remplacée(s) ». Désormais, tous les mails du TEST arrivent dans **ta** boîte (`tonadresse+contact1@gmail.com`, etc.).
 6. Choisis **`installerDeclencheurs`** → ▶ Exécuter (renvoi automatique des mails reportés toutes les 2 h).
 7. **Déployer** (bouton bleu en haut à droite) → **Nouveau déploiement** → roue ⚙ → **Application Web** :
@@ -74,7 +82,7 @@ Les 10 pages lisent désormais l'adresse Apps Script dans **un seul fichier**, `
 ## Étape C — Tester chaque fiche sur TEST
 
 Sur ton téléphone, ouvre l'appli en ajoutant **`?env=test`** à l'adresse (exemple : `https://chantiersloue.github.io/chantier-pro/?env=test`).
-- Un **bandeau rouge « MODE TEST »** apparaît en bas de toutes les pages : tu es sur la copie TEST.
+- Un **bandeau rouge « MODE TEST »** apparaît en haut de toutes les pages : tu es sur la copie TEST.
 - Pour revenir à la vraie appli : même adresse avec **`?env=prod`** (le bandeau disparaît).
 
 Pour chaque ligne : remplis la fiche **avec une signature et une photo** quand la fiche en a, envoie, puis coche.
@@ -101,9 +109,19 @@ Ensuite, partages sur TEST (dans l'éditeur Apps Script du TEST) :
 2. Regarde l'onglet **« Partages (lot 0) »** du Sheet TEST : colonne *Décision* = « garder » pour Plans et Planning, « à retirer » pour le reste.
 3. **`retirerPartages`** → ▶. Colonne *État* = « retiré le … ».
 4. Contrôle : copie l'adresse d'un fichier « retiré » et ouvre-la dans une **fenêtre de navigation privée** → « Accès refusé ». Un fichier de *Plans* s'ouvre toujours.
-5. Essai du retour arrière : **`remettrePartages`** → ▶, vérifie que le fichier s'ouvre à nouveau, puis relance **`retirerPartages`**.
+5. Essai du retour arrière : **`remettrePartages`** → ▶, vérifie que le fichier s'ouvre à nouveau, puis relance **`retirerPartages`** → il redevient « Accès refusé ».
+6. Pour un essai plus dur : dans CHANTIERPRO-TEST, partage **un dossier chantier entier** « tous ceux qui ont le lien », puis refais 1 à 4. Les fichiers de ce dossier doivent finir « Accès refusé », sauf ceux de *Plans*.
+
+**Ne relance pas `listerPartages` une fois des partages retirés** : la fonction refuse de toute façon, car l'onglet sert au retour arrière. Pour refaire une liste, renomme d'abord l'onglet (exemple : « Partages (lot 0) ancien »).
 
 **Si une ligne n'est pas verte : arrête-toi et envoie-moi une capture.** Je corrige en priorité.
+
+### Sortir du mode test (obligatoire)
+
+Le mode test reste mémorisé dans le téléphone, **y compris dans l'appli installée sur l'écran d'accueil**. Si tu l'oublies, tes vraies fiches partiraient vers la copie TEST.
+1. Dans le navigateur : ouvre l'adresse de l'appli avec **`?env=prod`** → le bandeau rouge disparaît.
+2. Ouvre l'appli **depuis son icône** sur l'écran d'accueil : vérifie que le bandeau rouge n'est **pas** là. S'il y est, ouvre l'appli, ajoute `?env=prod` à l'adresse si possible, sinon supprime l'icône et réinstalle l'appli depuis le navigateur.
+3. Fais-le sur **chaque téléphone** qui a servi aux tests.
 
 ---
 
@@ -125,7 +143,15 @@ Ensuite, partages sur TEST (dans l'éditeur Apps Script du TEST) :
    5. contrôle en navigation privée comme sur TEST.
    En cas de problème : ▶ `remettrePartages` remet tout comme avant.
 
-**Retour arrière complet** : recolle `_prive/Code-avant-lot0.gs`, Nouvelle version, et `remettrePartages` si besoin. Les pages de l'étape A n'ont pas besoin d'être retirées (elles marchent avec l'ancien et le nouveau serveur).
+**Après tes tests (une fois la production validée)** : la copie TEST reste en ligne et a ses propres plafonds. Tant qu'elle est active, l'ensemble prod + TEST accepte jusqu'à 20 adresses libres par jour au lieu de 10. Pour l'éteindre entre deux lots : éditeur Apps Script du TEST → **Déployer → Gérer les déploiements** → ton déploiement → **Archiver**. Je réactiverai le TEST au lot suivant.
+
+**Retour arrière complet, DANS CET ORDRE** (le nouveau code doit encore être en place pour l'étape 1) :
+1. ▶ `remettrePartages` (si des partages ont été retirés). Si l'onglet « Partages (lot 0) » a été perdu : Fichier → Importer → ton `_prive/partages-avant-lot0.csv` → « Remplacer la feuille actuelle », dans un onglet nommé exactement `Partages (lot 0)`, puis ▶ `remettrePartages` ;
+2. supprime le déclencheur : icône ⏰ **Déclencheurs** (à gauche) → ligne `renvoyerMailsEnAttente` → ⋮ → **Supprimer** ;
+3. regarde l'onglet « Mails en attente » : les lignes « en attente » ne partiront plus, note-les ;
+4. recolle `_prive/Code-avant-lot0.gs`, puis **Gérer les déploiements → Modifier → Nouvelle version**, et vérifie que l'URL affiche « v4 OK ».
+
+Les pages de l'étape A n'ont pas besoin d'être retirées : elles marchent avec l'ancien et le nouveau serveur.
 
 ---
 
