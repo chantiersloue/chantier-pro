@@ -31,3 +31,12 @@
 | D0-22 | Une place du plafond « 10 adresses libres par jour » est consommée même si le mail est reporté pour quota | Rendre la place au report | Cas rare (quota presque épuisé ET adresse libre) ; le mail part quand même plus tard. Simplicité. |
 | D0-23 | Chemins de l'onglet *Partages* séparés par « › » et non « / » | « / » | Certains noms de chantiers contiennent « / » (100-PARTICULIERS/DIVERS) : leurs *Plans* auraient été retirés par erreur (revue, tour 2). |
 | D0-24 | Fonction de secours `remettreDepuisSauvegarde` pour le cas où l'onglet *Partages* est perdu | Retélécharger le CSV après le retrait | La sauvegarde est prise avant le retrait (colonne État vide) : `remettrePartages` n'y trouverait rien. |
+
+## Essai S1 et carnet (validé par Franck le 29/10/2026)
+
+| # | Décision | Options écartées | Pourquoi |
+|---|---|---|---|
+| S1-1 | Plans du carnet en tuiles **WebP qualité 0,7 à 200 dpi** (pyramide de 3 ou 4 niveaux) ; documents texte à 150 dpi | JPEG ; 100 ou 150 dpi pour les plans | Lisibilité vérifiée par Franck sur son téléphone ; WebP 36 % plus léger que JPEG à qualité égale |
+| S1-2 | **Pas de PDF dans Drive**, sauf case « garder le PDF » cochée pour un document | PDF toujours gardé | Stockage ; validé par Franck |
+| S1-3 | Au lot 4, Franck connecte dans l'appli Claude le dossier Drive du carnet (comme son dossier MEGA) ; je lui indique alors le chemin exact, et un essai est fait avec un vrai skill | Dépôt par le connecteur Google Drive de Claude | Accord de Franck ; même mécanisme que pour MEGA |
+| L-1 | Livraison par branche `livraison/lot-N` (partant de `main`, seulement le lot) poussée sur GitHub ; Franck crée et fusionne la demande de fusion | Upload manuel | Accord de Franck ; l'outil `gh` n'est pas installé sur le PC, donc Franck ouvre la demande de fusion depuis un lien préparé |
