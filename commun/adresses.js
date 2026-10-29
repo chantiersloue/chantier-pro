@@ -12,6 +12,8 @@ window.LOUE_refuserAdresseLibre = function (val, deja, contacts) {
   (contacts || []).forEach(function (c) {
     String((c && c.email) || '').split(/[,;\s]+/).forEach(function (e) { if (e) connues[e.toLowerCase()] = true; });
   });
+  // Liste des contacts pas encore chargée (réseau faible) : on ne peut pas juger, le serveur contrôlera
+  if (!Object.keys(connues).length) return false;
   function estLibre(e) { return !connues[String(e || '').trim().toLowerCase()]; }
   if (!estLibre(val)) return false;
   var libres = (deja || []).filter(estLibre).length;

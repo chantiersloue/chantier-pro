@@ -1504,18 +1504,23 @@ function adressesConnues_() {
 function distribuer_(o) {
   const connues = adressesConnues_();
   const vues = {}, servies = [], libres = [];
-  // Toujours un tableau, 20 adresses au plus (sinon un pirate pourrait remplir le Journal)
+  // Toujours un tableau. Les adresses du Sheet sont toutes servies ; les autres (libres ou mal formées)
+  // sont examinées 20 au plus, pour qu'un pirate ne puisse pas remplir le Journal.
   const liste = (Array.isArray(o.adresses) ? o.adresses : [])
-    .reduce((acc, a) => acc.concat(String(a || '').split(/[,;]+/)), []).slice(0, 20);
+    .reduce((acc, a) => acc.concat(String(a || '').split(/[,;]+/)), []);
+  let horsSheet = 0, ignorees = 0;
   liste.forEach(a => {
     const email = String(a || '').trim();
     if (!email) return;
     const cle = email.toLowerCase();
     if (vues[cle]) return;
     vues[cle] = true;
+    if (connues[cle]) { servies.push(email); return; }
+    if (++horsSheet > 20) { ignorees++; return; }
     if (!estEmail_(email)) { journal_(o, email, 'refusé', 'adresse mal formée'); return; }
-    if (connues[cle]) servies.push(email); else libres.push(email);
+    libres.push(email);
   });
+  if (ignorees) journal_(o, ignorees + ' autre(s) adresse(s)', 'refusé', 'plus de 20 adresses hors Sheet sur une fiche');
 
   servies.forEach(email => envoyer_(o, email, { sujet: o.sujet, texte: o.texte, html: o.html || '', bcc: '' }, 'connue'));
 
@@ -1549,7 +1554,7 @@ function distribuer_(o) {
 
 // Envoie un mail, ou le reporte si le quota du jour est trop bas
 function envoyer_(o, email, m, mode) {
-  const besoin    = m.bcc ? 2 : 1;
+  const besoin    = 1 + (m.bcc ? decouperAdresses_(m.bcc).length || 1 : 0);
   const pourAdmin = !m.bcc && email.toLowerCase() === String(emailAdmin_()).toLowerCase();
   let reste = 0;
   try { reste = MailApp.getRemainingDailyQuota(); } catch (e) {}
@@ -1665,7 +1670,7 @@ function renvoyerMailsEnAttente() {
       valeurs.forEach((r, i) => {
         if (r[10] !== 'en attente') return;
         const email = r[3], bcc = r[4];
-        const besoin = bcc ? 2 : 1;
+        const besoin = 1 + (bcc ? decouperAdresses_(bcc).length || 1 : 0);
         const pourAdmin = !bcc && String(email).toLowerCase() === String(emailAdmin_()).toLowerCase();
         const reste = MailApp.getRemainingDailyQuota();
         if (reste < besoin || (!pourAdmin && reste - besoin < RESERVE_ADMIN)) return;  // on retentera plus tard
@@ -1782,7 +1787,7 @@ function listerPartages() {
       const el = it.next();
       const chemin = cheminDansAppli_(el, rootId, planningId, cache);
       if (!chemin) continue;  // fichier hors de l'appli : on n'y touche pas
-      const morceaux = chemin.split('/');
+      const morceaux = chemin.split(' › ');
       const garder = morceaux[0] === 'PLANNING' || (morceaux[0] === 'RACINE' && SOUS_DOSSIERS_PARTAGES.indexOf(morceaux[2]) > -1);
       lignes.push([phase === 'fichiers' ? 'fichier' : 'dossier', el.getName(), chemin, el.getId(),
         String(el.getSharingAccess()), String(el.getSharingPermission()),
@@ -1809,6 +1814,7 @@ function listerPartages() {
 // Chemin d'un fichier ou dossier depuis la racine de l'appli ("RACINE/…" ou "PLANNING/…"), ou '' s'il est ailleurs
 function cheminDansAppli_(el, rootId, planningId, cache) {
   const id0 = el.getId();
+  const SEP = ' › ';   // et non « / », qui apparaît dans certains noms de chantiers
   if (id0 === rootId) return 'RACINE';
   if (id0 === planningId) return 'PLANNING';
   const noms = [el.getName()];
@@ -1827,9 +1833,9 @@ function cheminDansAppli_(el, rootId, planningId, cache) {
   }
   // Le cache retient, pour chaque dossier traversé, son chemin complet (ou '' s'il est hors de l'appli)
   for (let k = 0; k < traverses.length; k++) {
-    cache[traverses[k]] = base ? base + '/' + noms.slice(k + 1).reverse().join('/') : '';
+    cache[traverses[k]] = base ? base + SEP + noms.slice(k + 1).reverse().join(SEP) : '';
   }
-  return base ? base + '/' + noms.reverse().join('/') : '';
+  return base ? base + SEP + noms.reverse().join(SEP) : '';
 }
 
 function retirerPartages() {
@@ -1848,6 +1854,13 @@ function retirerPartages() {
 
 function remettrePartages() {
   return modifierPartages_(r => String(r[7]).indexOf('retiré') === 0,
+    (el, r) => el.setSharing(DriveApp.Access[r[4]], DriveApp.Permission[r[5]]), 'remis le ');
+}
+
+// Secours : si l'onglet a été perdu et réimporté depuis la sauvegarde CSV (colonne État vide),
+// remet le partage d'origine de TOUTES les lignes « à retirer », quel que soit leur état.
+function remettreDepuisSauvegarde() {
+  return modifierPartages_(r => String(r[7]).indexOf('remis') !== 0,
     (el, r) => el.setSharing(DriveApp.Access[r[4]], DriveApp.Permission[r[5]]), 'remis le ');
 }
 

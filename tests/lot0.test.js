@@ -371,7 +371,7 @@ test('destinataires : une chaîne au lieu d\'un tableau est ignorée, 20 adresse
   assert.strictEqual(g.mails.length, 0);
   const beaucoup = Array.from({ length: 500 }, (_, i) => 'pirate' + i + '@x.test');
   poster(g, { type: 'note', chantier: 'CHANTIER TEST 1', destinataires: beaucoup });
-  assert.ok(journal(g).length <= 20, 'journal borné : ' + journal(g).length);
+  assert.ok(journal(g).length <= 21, 'journal borné (20 lignes + 1 ligne de résumé) : ' + journal(g).length);
 });
 test('cellule Contacts avec deux adresses : les deux sont servies comme avant', () => {
   const g = environnement();
@@ -384,5 +384,30 @@ test('serveur occupé : l\'adresse libre est refusée avec le bon motif (pas « 
   const g = environnement({ verrouOccupe: true });
   poster(g, { type: 'quitus', chantier: 'CHANTIER TEST 1', destinataires: ['client@x.test'] });
   assert.ok(/serveur occupé/.test(journal(g)[0][5]));
+});
+
+console.log('Corrections du 2e tour de revue');
+test('plus de 20 destinataires du Sheet : tous servis', () => {
+  const lignes = [['Nom', 'Email']];
+  for (let i = 0; i < 25; i++) lignes.push(['Interv ' + i, 'interv' + i + '@ext.test']);
+  const g = environnement();
+  g.feuilles['Contacts notes'].lignes = lignes;
+  poster(g, { type: 'note', chantier: 'CHANTIER TEST 1', destinataires: lignes.slice(1).map(l => l[1]) });
+  assert.strictEqual(g.mails.length, 25);
+});
+test('retour arrière depuis la sauvegarde CSV (colonne État vide)', () => {
+  const g = environnement();
+  const ch = g.creerElement('dossier', '100-PARTICULIERS/DIVERS', g.racine);
+  const plan = g.creerElement('fichier', 'plan.pdf', g.creerElement('dossier', 'Plans', ch));
+  const codes = g.creerElement('fichier', 'codes.pdf', g.creerElement('dossier', 'Accès', ch));
+  [plan, codes].forEach(f => { f.acces = 'ANYONE_WITH_LINK'; f.permission = 'VIEW'; });
+  g.ctx.listerPartages();
+  const sauvegarde = g.feuilles['Partages (lot 0)'].lignes.map(l => l.slice());
+  assert.strictEqual(sauvegarde.find(l => l[1] === 'plan.pdf')[6], 'garder', 'un « / » dans le nom du chantier ne décale plus le chemin');
+  g.ctx.retirerPartages();
+  assert.strictEqual(codes.acces, 'PRIVATE');
+  g.feuilles['Partages (lot 0)'].lignes = sauvegarde;   // onglet perdu puis réimporté depuis le CSV
+  g.ctx.remettreDepuisSauvegarde();
+  assert.strictEqual(codes.acces, 'ANYONE_WITH_LINK');
 });
 console.log('\n' + reussis + ' test(s) réussi(s)' + (process.exitCode ? ' — DES TESTS ÉCHOUENT' : ''));
