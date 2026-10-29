@@ -47,7 +47,8 @@
     return JSON.parse(JSON.stringify(v, function (k, x) { return x instanceof Blob ? null : x; }));
   }
 
-  // options : { cle, anciennesCles: [], capturer: () => extra, restaurer: (extra) => {}, pret: Promise (facultatif) }
+  // options : { cle, anciennesCles: [], capturer: () => extra, restaurer: (extra) => {}, pret: Promise (facultatif),
+  //             convertirAncien: (ancien) => { t, champs, extra } (facultatif) }
   LOUE.brouillon = function (options) {
     var cle = 'brouillon_' + options.cle;
     var cleLocale = 'loue_brouillon_' + ENV + '_' + options.cle;
@@ -130,7 +131,10 @@
     function lireAncien() {
       for (var i = 0; i < anciennes.length; i++) {
         var v = lireLocal(anciennes[i]);
-        if (v && (v.champs || v.t)) return { cle: cle, t: v.t || Date.now(), champs: v.champs || {}, extra: {} };
+        if (!v || !(v.champs || v.t)) continue;
+        // Format propre à une page (ex. cotes : champs « id: valeur » + lignes) : la page fournit la conversion
+        if (options.convertirAncien) { var c = options.convertirAncien(v); return { cle: cle, t: c.t || Date.now(), champs: c.champs || {}, extra: c.extra || {} }; }
+        return { cle: cle, t: v.t || Date.now(), champs: v.champs || {}, extra: {} };
       }
       return null;
     }

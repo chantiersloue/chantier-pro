@@ -194,72 +194,23 @@ function envoyerEmailCotes(data, horodatage, brut) {
 
   console.log('Email cotes — conducteur:', brut.conducteur, '| email:', emailCond);
 
-  const chantier     = data.chantier || '—';
-  const hasSocle     = data.socle === 'OUI';
-  const commentaires = data.commentaires || '';
-
-  const lignesHtml = (data.lignes||[]).map((l,i) => `
-    <tr style="background:${i%2===0?'#F7F5F1':'white'}">
-      <td style="padding:5px 4px;border:1px solid #ddd;font-weight:700">${l.logt||'—'}</td>
-      <td style="padding:5px 4px;border:1px solid #ddd">${l.piece||'—'}</td>
-      <td style="padding:5px 4px;border:1px solid #ddd;text-align:center;font-weight:700">${l.haut||'—'}</td>
-      <td style="padding:5px 4px;border:1px solid #ddd;text-align:center">${l.lep||'—'}</td>
-      <td style="padding:5px 4px;border:1px solid #ddd;text-align:center">${l.lhf||'—'}</td>
-      <td style="padding:5px 4px;border:1px solid #ddd;text-align:center;font-weight:700">${l.long||'—'}</td>
-      <td style="padding:5px 4px;border:1px solid #ddd;text-align:center">${l.prof||'—'}</td>
-      <td style="padding:5px 4px;border:1px solid #ddd;text-align:center">${l.pend||'—'}</td>
-      <td style="padding:5px 4px;border:1px solid #ddd;text-align:center;color:#7A4200">${l.plinthe||'—'}</td>
-      <td style="padding:5px 4px;border:1px solid #ddd;text-align:center;color:#1454A0;font-weight:600">${l.sol||'—'}</td>
-      ${hasSocle?`<td style="padding:5px 4px;border:1px solid #ddd;text-align:center;background:#FAE8E8;font-weight:700;color:#B32E2E">OUI</td>`:''}
-    </tr>`).join('');
-
-  const htmlPDF = `<html><head><style>
-    @page{size:landscape;margin:1cm}
-    body{font-family:Arial,sans-serif;font-size:10px;margin:0}
-    table{width:100%;border-collapse:collapse}
-    th{background:#1A2B4A;color:white;padding:5px 4px;font-size:9px;text-align:center}
-    td{border:1px solid #ddd;padding:5px 4px;font-size:10px}
-  </style></head><body>
-    <table style="margin-bottom:10px;border-bottom:3px solid #1A2B4A;padding-bottom:8px"><tr>
-      <td style="border:none"><div style="font-weight:800;font-size:14px;color:#1A2B4A">Loué Menuiserie</div><div style="font-size:9px;color:#999">Menuiserie · Charpente · Agencement</div></td>
-      <td style="border:none;text-align:center">
-        <div style="font-weight:800;font-size:12px;color:#1A2B4A">PRISE DE COTES — FAÇADES &amp; PLACARDS</div>
-        <div style="font-size:10px;color:#666;margin-top:3px">Chantier : <b>${chantier}</b> &nbsp;|&nbsp; Par : <b>${data.auteur||'—'}</b> &nbsp;|&nbsp; Date : <b>${data.date||'—'}</b></div>
-      </td>
-      <td style="border:none;text-align:right">
-        <div style="background:${hasSocle?'#B32E2E':'#2A5A3A'};color:white;padding:6px 14px;border-radius:4px;font-weight:700;font-size:13px;display:inline-block">${hasSocle?'SOCLE POSÉ':'PAS DE SOCLE'}</div>
-      </td>
-    </tr></table>
-    <table><thead><tr>
-      <th style="text-align:left">N°</th>
-      <th style="text-align:left">Pièce</th>
-      <th>Hauteur<br><span style="font-weight:400;font-size:7px">Façade</span></th>
-      <th>Larg. Entre<br><span style="font-weight:400;font-size:7px">Plinthes</span></th>
-      <th>Larg. Haut<br><span style="font-weight:400;font-size:7px">Façade</span></th>
-      <th>Longueur<br><span style="font-weight:400;font-size:7px">Amén.</span></th>
-      <th>Prof<br><span style="font-weight:400;font-size:7px">Amén.</span></th>
-      <th>Côté<br><span style="font-weight:400;font-size:7px">Penderie</span></th>
-      <th>Haut.<br><span style="font-weight:400;font-size:7px">Plinthe</span></th>
-      <th>Sol</th>
-      ${hasSocle?'<th style="background:#B32E2E">Socle</th>':''}
-    </tr></thead><tbody>${lignesHtml}</tbody></table>
-    ${commentaires?`<div style="margin-top:10px;padding:8px;border:1px solid #ccc"><b>Commentaires :</b> ${commentaires}</div>`:''}
-  </body></html>`;
+  // Lot 1 : PDF fabriqué par le modèle unique (modeles/cotes.js, copié dans Modeles.gs), le même que l'aperçu de la page
+  const htmlPDF = modele_cotes(validerImages_(brut), esc_);
 
   const nomPDF = nomFichier_(`Cotes_${brut.chantier||'—'}_${brut.date||''}.pdf`);
 
   // Classement Drive
   let fichier = null;
+  const blobPdf = HtmlService.createHtmlOutput(htmlPDF).getAs('application/pdf').setName(nomPDF);
   try {
-    const blobDrive = HtmlService.createHtmlOutput(htmlPDF).getAs('application/pdf').setName(nomPDF);
-    fichier = classerFichierDrive(blobDrive, brut.chantier||'—', 'Fiches', nomPDF);
+    fichier = classerFichierDrive(blobPdf, brut.chantier||'—', 'Fiches', nomPDF);
   } catch(err) { console.error('Drive cotes:', err.message); }
 
   distribuer_({
     fiche: 'cotes', chantier: brut.chantier, adresses: destinataires,
     sujet: `[Loué App] Prise de cotes — ${brut.chantier||'—'}`, fichier: fichier, nomPDF: nomPDF,
     texte: 'Bonjour,\n\nVeuillez trouver ci-joint la fiche de prise de cotes.\n\nLoué App',
-    faireBlob: () => HtmlService.createHtmlOutput(htmlPDF).getAs('application/pdf').setName(nomPDF),
+    faireBlob: () => blobPdf,
   });
 }
 

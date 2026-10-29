@@ -76,3 +76,6 @@
 | D1-29 | Mention de l'organigramme : orthographe corrigée (« passe général », « Les frais sont supportés… ») | Texte d'origine | CLAUDE.md : corriger l'orthographe des textes affichés. |
 | D1-30 | CSS commun des fiches dans `commun/fiche.css` | Recopier dans chaque page | Une seule mise en page à maintenir. |
 | D1-31 | Les anciens brouillons (d'avant la refonte) ne sont repris qu'en mode normal, jamais en mode test ou local | Partout | Un essai ne doit jamais consommer un vrai brouillon. |
+| D1-32 | Prise de cotes : page **rénovée** plutôt que réécrite (ses règles de plinthe, socle, sol et son tableau sont gardés) ; seuls l'envoi, le brouillon, l'aperçu (modèle unique) et les bugs changent | Réécriture complète | Moins de risque de régression sur des cotes. |
+| D1-33 | Cotes : logement jusqu'à 12 caractères et pièce jusqu'à 30 (au lieu de 4 et 5) ; colonne « Socle » ajoutée à l'en-tête ; changer le type de sol met à jour les lignes qui suivaient l'ancien ; valeur « Fini » unifiée ; bâtiment, plinthe générale et type de sol affichés dans le PDF | — | Bugs de l'audit. |
+| D1-34 | Brouillon : une page peut fournir la conversion de son ancien format (`convertirAncien`) ; utilisé par les cotes (lignes et modes) | — | L'ancien brouillon des cotes avait un format à lui. |
