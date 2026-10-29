@@ -26,6 +26,16 @@
     version: VERSION_APPLI,
   };
 
+  // Développement uniquement (ordinateur, jamais GitHub Pages) : faux serveur local, ?api=http://127.0.0.1:8790/exec
+  if (/^(localhost|127\.0\.0\.1)$/.test(location.hostname)) {
+    var api = null;
+    try { api = new URLSearchParams(location.search).get('api'); } catch (e) {}
+    if (api && /^http:\/\/127\.0\.0\.1:\d+\/exec$/.test(api)) { try { sessionStorage.setItem('loue_api', api); } catch (e) {} }
+    var locale = null;
+    try { locale = sessionStorage.getItem('loue_api'); } catch (e) {}
+    if (locale) { window.LOUE_CONFIG.env = 'local'; window.LOUE_CONFIG.url = locale; }
+  }
+
   // Mode test : bandeau rouge permanent, pour ne jamais confondre avec la vraie appli
   if (enTest) {
     document.addEventListener('DOMContentLoaded', function () {
