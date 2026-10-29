@@ -330,6 +330,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 <div class="toast" id="toast"><span id="toastMsg"></span></div>
 
 <script src="commun/config.js"></script>
+<script src="commun/adresses.js"></script>
 <script>
 // Adresse Apps Script : écrite UNE seule fois, dans commun/config.js
 const APPS_SCRIPT_URL = (window.LOUE_CONFIG || {}).url || 'https://config-introuvable.invalid/';
@@ -540,10 +541,12 @@ function addDest() {
     return;
   }
   if(destinataires.includes(val)) { input.value=''; return; }
+  // Lot 0 : 2 adresses hors liste au maximum par fiche
+  if(window.LOUE_refuserAdresseLibre && LOUE_refuserAdresseLibre(val, destinataires, [...(window._allContacts||[]), ...(ALL_DEST_NOTES||[])])){input.value='';return;}
   destinataires.push(val);
   renderDest();
   input.value='';
-  document.getElementById('dest-list').classList.remove('open');
+  document.getElementById('dest-sugg').classList.remove('open');
 }
 function removeDest(i) { destinataires.splice(i,1); renderDest(); }
 function renderDest() {

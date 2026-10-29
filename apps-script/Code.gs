@@ -1084,7 +1084,7 @@ function traiterAbsence(data, brut) {
   // 3. Destinataires calculés par le serveur : contacts colonne H = O, plus l'email perso
   //    (une adresse inconnue du Sheet est traitée comme « adresse libre » : contenu imposé, plafonds, journal)
   const notifies = getContactsRaw().filter(r=>String(r[7]).toUpperCase()==='O').map(r=>r[2]);
-  const destinataires = [...notifies, ...(brut.destinataires||[]), brut.emailPerso].filter(Boolean);
+  const destinataires = [...notifies, ...(Array.isArray(brut.destinataires) ? brut.destinataires : []), brut.emailPerso].filter(Boolean);
   if(!destinataires.length) destinataires.push(emailAdmin_());
 
   const sujet = `[Loué App] Demande d'absence — ${brut.nom||'?'} — ${brut.dateAbsence||'?'}`;
@@ -1460,7 +1460,12 @@ function emailContact_(nom) {
   const n = String(nom || '').trim().toLowerCase();
   if (!n) return '';
   const r = getContactsRaw().find(r => String(r[0]).trim().toLowerCase() === n);
-  return r && estEmail_(r[2]) ? String(r[2]).trim() : '';
+  return r ? decouperAdresses_(r[2]).join(', ') : '';
+}
+
+// Une cellule peut contenir plusieurs adresses (« a@x.fr, b@x.fr ») : on les sépare
+function decouperAdresses_(v) {
+  return String(v || '').split(/[,;\s]+/).map(s => s.trim()).filter(estEmail_);
 }
 
 // Ligne du chantier dans l'onglet Chantiers (colonne A), ou null s'il n'existe pas
@@ -1484,7 +1489,7 @@ function adressesConnues_() {
   if (ADRESSES_CONNUES_) return ADRESSES_CONNUES_;
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const res = {};
-  const ajouter = v => { const e = String(v || '').trim().toLowerCase(); if (estEmail_(e)) res[e] = true; };
+  const ajouter = v => decouperAdresses_(v).forEach(e => { res[e.toLowerCase()] = true; });
   const sc = ss.getSheetByName(SHEET_CONTACTS);
   if (sc) sc.getDataRange().getValues().slice(1).forEach(r => ajouter(r[2]));
   const sn = ss.getSheetByName(SHEET_CONTACT_NOTES);
@@ -1499,7 +1504,10 @@ function adressesConnues_() {
 function distribuer_(o) {
   const connues = adressesConnues_();
   const vues = {}, servies = [], libres = [];
-  (o.adresses || []).forEach(a => {
+  // Toujours un tableau, 20 adresses au plus (sinon un pirate pourrait remplir le Journal)
+  const liste = (Array.isArray(o.adresses) ? o.adresses : [])
+    .reduce((acc, a) => acc.concat(String(a || '').split(/[,;]+/)), []).slice(0, 20);
+  liste.forEach(a => {
     const email = String(a || '').trim();
     if (!email) return;
     const cle = email.toLowerCase();
@@ -1519,9 +1527,12 @@ function distribuer_(o) {
       alerte_('Adresse refusée (plus de ' + MAX_LIBRES_PAR_FICHE + ' adresses libres sur une fiche « ' + libelle + ' ») : ' + email);
       return;
     }
-    if (!reserverLibre_()) {
-      journal_(o, email, 'refusé', 'plafond de ' + MAX_LIBRES_PAR_JOUR + ' adresses libres par jour atteint');
-      alerte_('Adresse refusée (plafond de ' + MAX_LIBRES_PAR_JOUR + ' adresses libres par jour atteint) : ' + email);
+    const place = reserverLibre_();
+    if (place !== 'ok') {
+      const motif = place === 'verrou' ? 'serveur occupé, adresse non servie (renvoyer la fiche plus tard)'
+                                       : 'plafond de ' + MAX_LIBRES_PAR_JOUR + ' adresses libres par jour atteint';
+      journal_(o, email, 'refusé', motif);
+      alerte_('Adresse refusée (' + motif + ') : ' + email);
       return;
     }
     const copie = emailConducteurChantier_(o.chantier) || emailAdmin_();
@@ -1605,15 +1616,18 @@ function journal_(o, adresse, statut, motif) {
 }
 
 // Un mail d'alerte à Franck au plus une fois par jour (le détail est dans l'onglet Journal)
-function alerte_(texte) {
+function alerte_(texte, sorte) {
+  sorte = sorte || 'refus';
   const props = PropertiesService.getScriptProperties();
-  const cle = 'ALERTE_' + jour_();
+  const cle = 'ALERTE_' + sorte.toUpperCase() + '_' + jour_();
   if (props.getProperty(cle)) return;
   props.setProperty(cle, '1');
   try {
     if (MailApp.getRemainingDailyQuota() < 1) return;
-    GmailApp.sendEmail(emailAdmin_(), "[Loué App] Envoi refusé — voir l'onglet Journal",
-      texte + "\n\nLes refus suivants de la journée sont notés dans l'onglet « Journal » du Sheet, sans autre mail.\n\nLoué App",
+    const sujet = sorte === 'abandon' ? "[Loué App] Mail abandonné — voir l'onglet Mails en attente"
+                                      : "[Loué App] Envoi refusé — voir l'onglet Journal";
+    GmailApp.sendEmail(emailAdmin_(), sujet,
+      texte + "\n\nLes cas suivants de la journée sont notés dans l'onglet « Journal » du Sheet, sans autre mail.\n\nLoué App",
       { name: NOM_ENTREPRISE });
   } catch (err) { console.error('alerte_ :', err.message); }
 }
@@ -1621,14 +1635,14 @@ function alerte_(texte) {
 // Réserve une place dans le plafond quotidien des adresses libres
 function reserverLibre_() {
   const verrou = LockService.getScriptLock();
-  if (!verrou.tryLock(10000)) return false;
+  if (!verrou.tryLock(10000)) return 'verrou';
   try {
     const props = PropertiesService.getScriptProperties();
     const cle = 'LIBRES_' + jour_();
     const n = Number(props.getProperty(cle) || 0);
-    if (n >= MAX_LIBRES_PAR_JOUR) return false;
+    if (n >= MAX_LIBRES_PAR_JOUR) return 'plafond';
     props.setProperty(cle, String(n + 1));
-    return true;
+    return 'ok';
   } finally {
     verrou.releaseLock();
   }
@@ -1647,6 +1661,7 @@ function renvoyerMailsEnAttente() {
     const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_ATTENTE);
     if (sh && sh.getLastRow() > 1) {
       const valeurs = sh.getRange(2, 1, sh.getLastRow() - 1, 14).getValues();
+      const envoyesCePassage = [];
       valeurs.forEach((r, i) => {
         if (r[10] !== 'en attente') return;
         const email = r[3], bcc = r[4];
@@ -1662,23 +1677,25 @@ function renvoyerMailsEnAttente() {
           if (bcc)  opts.bcc = bcc;
           GmailApp.sendEmail(email, r[5], r[6], opts);
           r[10] = 'envoyé';
+          envoyesCePassage.push(r[8]);
           journal_({ fiche: r[1], chantier: r[2] }, email, 'envoyé', 'mail reporté, envoyé au ' + essais + 'e essai');
         } catch (err) {
           r[10] = essais >= MAX_ESSAIS_ATTENTE ? 'abandonné' : 'en attente';
-          if (r[10] === 'abandonné') alerte_('Mail abandonné après ' + essais + ' essais : ' + email + ' (' + err.message + ')');
+          if (r[10] === 'abandonné') alerte_('Mail abandonné après ' + essais + ' essais : ' + email + ' (' + err.message + '). Le PDF est conservé.', 'abandon');
         }
         r[11] = essais;
         r[12] = new Date();
         sh.getRange(i + 2, 11, 1, 3).setValues([[r[10], r[11], r[12]]]);
       });
-      // PDF temporaires (absences) : à la corbeille quand plus aucun mail ne les attend
-      const encore = valeurs.filter(r => r[10] === 'en attente').map(r => r[8]);
+      // PDF temporaires (absences) envoyés pendant ce passage : à la corbeille si plus aucun mail ne les attend
+      // (ceux des mails abandonnés sont gardés)
+      const bloques = valeurs.filter(r => r[10] !== 'envoyé').map(r => r[8]);
       const vus = {};
-      valeurs.forEach(r => {
-        if (!r[8] || vus[r[8]] || encore.indexOf(r[8]) > -1) return;
-        vus[r[8]] = true;
+      envoyesCePassage.forEach(id => {
+        if (!id || vus[id] || bloques.indexOf(id) > -1) return;
+        vus[id] = true;
         try {
-          const f = DriveApp.getFileById(r[8]);
+          const f = DriveApp.getFileById(id);
           const parents = f.getParents();
           if (!f.isTrashed() && parents.hasNext() && parents.next().getName() === '_MAILS EN ATTENTE') f.setTrashed(true);
         } catch (e) {}
@@ -1688,7 +1705,7 @@ function renvoyerMailsEnAttente() {
     const props = PropertiesService.getScriptProperties();
     const aujourdhui = jour_();
     props.getKeys().forEach(k => {
-      if (/^(LIBRES|ALERTE)_\d{4}-\d{2}-\d{2}$/.test(k) && k.slice(-10) < aujourdhui) props.deleteProperty(k);
+      if (/^(LIBRES|ALERTE_[A-Z]+)_\d{4}-\d{2}-\d{2}$/.test(k) && k.slice(-10) < aujourdhui) props.deleteProperty(k);
     });
   } finally {
     verrou.releaseLock();
@@ -1739,13 +1756,23 @@ function listerPartages() {
   let phase = props.getProperty('PARTAGES_PHASE') || '';
   const sh = feuille_(SHEET_PARTAGES, ['Type','Nom','Chemin','ID',"Accès d'origine","Permission d'origine",'Décision','État']);
   if (!phase || phase === 'terminé') {
-    if (sh.getLastRow() > 1) sh.getRange(2, 1, sh.getLastRow() - 1, 8).clearContent();
+    if (sh.getLastRow() > 1) {
+      const etats = sh.getRange(2, 8, sh.getLastRow() - 1, 1).getValues().map(r => String(r[0]));
+      if (etats.some(e => /^(retiré|remis)/.test(e))) {
+        const msg = "Refusé : l'onglet « " + SHEET_PARTAGES + " » sert au retour arrière (des partages ont déjà été retirés). "
+          + "Pour refaire une liste, renommer d'abord cet onglet (exemple : « Partages (lot 0) ancien »).";
+        Logger.log(msg);
+        return msg;
+      }
+      sh.getRange(2, 1, sh.getLastRow() - 1, 8).clearContent();
+    }
     phase = 'fichiers';
     props.deleteProperty('PARTAGES_JETON');
   }
   const requete = "(visibility = 'anyoneWithLink' or visibility = 'anyoneCanFind') and trashed = false";
   const cache = {};
   const lignes = [];
+  let total = 0;
   while (phase !== 'terminé') {
     const jeton = props.getProperty('PARTAGES_JETON');
     const it = jeton
@@ -1755,11 +1782,14 @@ function listerPartages() {
       const el = it.next();
       const chemin = cheminDansAppli_(el, rootId, planningId, cache);
       if (!chemin) continue;  // fichier hors de l'appli : on n'y touche pas
-      const garder = chemin.indexOf('PLANNING') === 0 || chemin.split('/').indexOf('Plans') > -1;
+      const morceaux = chemin.split('/');
+      const garder = morceaux[0] === 'PLANNING' || (morceaux[0] === 'RACINE' && SOUS_DOSSIERS_PARTAGES.indexOf(morceaux[2]) > -1);
       lignes.push([phase === 'fichiers' ? 'fichier' : 'dossier', el.getName(), chemin, el.getId(),
         String(el.getSharingAccess()), String(el.getSharingPermission()),
         garder ? 'garder' : 'à retirer', ''].map(cellule_));
     }
+    // Les lignes sont écrites AVANT d'enregistrer où l'on en est : rien n'est perdu si l'exécution est coupée
+    if (lignes.length) { sh.getRange(sh.getLastRow() + 1, 1, lignes.length, 8).setValues(lignes); total += lignes.length; lignes.length = 0; }
     if (it.hasNext()) {
       props.setProperty('PARTAGES_JETON', it.getContinuationToken());
       props.setProperty('PARTAGES_PHASE', phase);
@@ -1769,10 +1799,9 @@ function listerPartages() {
     phase = phase === 'fichiers' ? 'dossiers' : 'terminé';
     props.setProperty('PARTAGES_PHASE', phase);
   }
-  if (lignes.length) sh.getRange(sh.getLastRow() + 1, 1, lignes.length, 8).setValues(lignes);
   const msg = phase === 'terminé'
-    ? 'Liste terminée (' + (sh.getLastRow() - 1) + " éléments). Télécharger l'onglet en CSV dans _prive/, puis lancer retirerPartages()."
-    : 'À suivre : ' + lignes.length + ' éléments ajoutés. Relancer listerPartages() pour continuer.';
+    ? 'Liste terminée (' + (sh.getLastRow() - 1) + " élément(s)). Télécharger l'onglet en CSV dans _prive/, puis lancer retirerPartages()."
+    : 'À suivre : ' + total + ' élément(s) ajouté(s). Relancer listerPartages() pour continuer.';
   Logger.log(msg);
   return msg;
 }
@@ -1809,7 +1838,12 @@ function retirerPartages() {
     Logger.log("La liste n'est pas terminée : lancer d'abord listerPartages() jusqu'à « Liste terminée ».");
     return;
   }
-  return modifierPartages_(r => r[7] === '', el => el.setSharing(DriveApp.Access.PRIVATE, DriveApp.Permission.NONE), 'retiré le ');
+  return modifierPartages_(r => r[7] === '' || String(r[7]).indexOf('remis') === 0 || String(r[7]).indexOf('erreur') === 0,
+    el => {
+      // Un fichier rendu privé par son dossier (partage hérité) n'a plus rien à retirer
+      if (String(el.getSharingAccess()) === 'PRIVATE') return 'déjà privé (dossier parent)';
+      el.setSharing(DriveApp.Access.PRIVATE, DriveApp.Permission.NONE);
+    }, 'retiré le ');
 }
 
 function remettrePartages() {
@@ -1823,13 +1857,17 @@ function modifierPartages_(aTraiter, action, texteEtat) {
   if (!sh || sh.getLastRow() < 2) { Logger.log('Onglet « ' + SHEET_PARTAGES + ' » vide.'); return; }
   const valeurs = sh.getRange(2, 1, sh.getLastRow() - 1, 8).getValues();
   let faits = 0, restants = 0;
-  valeurs.forEach((r, i) => {
+  // Les dossiers d'abord : leurs fichiers perdent alors le partage hérité
+  const ordre = valeurs.map((r, i) => i).sort((a, b) => (valeurs[a][0] === 'dossier' ? 0 : 1) - (valeurs[b][0] === 'dossier' ? 0 : 1));
+  ordre.forEach(i => {
+    const r = valeurs[i];
     if (r[6] !== 'à retirer' || !aTraiter(r)) return;
     if (Date.now() - debut > DUREE_MAX_MS) { restants++; return; }
     try {
       const el = r[0] === 'dossier' ? DriveApp.getFolderById(r[3]) : DriveApp.getFileById(r[3]);
-      action(el, r);
-      sh.getRange(i + 2, 8).setValue(texteEtat + Utilities.formatDate(new Date(), 'Europe/Paris', 'dd/MM/yyyy HH:mm'));
+      const note = action(el, r);
+      sh.getRange(i + 2, 8).setValue(texteEtat + Utilities.formatDate(new Date(), 'Europe/Paris', 'dd/MM/yyyy HH:mm')
+        + (note ? ' — ' + note : ''));
       faits++;
     } catch (err) {
       sh.getRange(i + 2, 8).setValue('erreur : ' + err.message);

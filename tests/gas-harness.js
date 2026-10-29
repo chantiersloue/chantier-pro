@@ -64,8 +64,13 @@ function creerGoogle(options = {}) {
       getMimeType: () => (extra && extra.mime) || 'application/pdf',
       getLastUpdated: () => new Date(2026, 9, 29),
       getParents: () => it(el.parents),
-      setSharing: (a, p) => { el.acces = a; el.permission = p; },
-      getSharingAccess: () => el.acces, getSharingPermission: () => el.permission,
+      setSharing: (a, p) => {
+        // Option « heritage » : comme Drive, on ne peut pas retirer un partage hérité du dossier parent
+        if (options.heritage && a === 'PRIVATE' && el.acces === 'PRIVATE' && accesEffectif(el) !== 'PRIVATE')
+          throw new Error('Permission héritée du dossier parent');
+        el.acces = a; el.permission = p;
+      },
+      getSharingAccess: () => accesEffectif(el), getSharingPermission: () => el.permission,
       isTrashed: () => el.corbeille, setTrashed: v => { el.corbeille = v; },
       getBlob: () => blob(el.contenu || '', el.nom),
       getFiles: () => it(el.enfants.filter(e => e.type === 'fichier')),
@@ -75,6 +80,12 @@ function creerGoogle(options = {}) {
       createFile: b => creerElement('fichier', b.getName(), el, { contenu: b.contenu }).api,
     };
     return el;
+  }
+  // Accès réel d'un élément : le sien, ou (option « heritage ») celui d'un dossier parent partagé
+  function accesEffectif(el) {
+    if (!options.heritage || el.acces !== 'PRIVATE') return el.acces;
+    for (let p = el.parents[0]; p; p = p.parents[0]) if (p.acces !== 'PRIVATE') return p.acces;
+    return el.acces;
   }
   const DriveApp = {
     Access: { ANYONE: 'ANYONE', ANYONE_WITH_LINK: 'ANYONE_WITH_LINK', PRIVATE: 'PRIVATE' },
@@ -88,7 +99,7 @@ function creerGoogle(options = {}) {
   };
   function recherche(type, depart) {
     const liste = Object.values(elements).filter(e => e.type === type && !e.corbeille &&
-      (e.acces === 'ANYONE_WITH_LINK' || e.acces === 'ANYONE'));
+      (accesEffectif(e) === 'ANYONE_WITH_LINK' || accesEffectif(e) === 'ANYONE'));
     let i = depart;
     return { hasNext: () => i < liste.length, next: () => liste[i++].api, getContinuationToken: () => 'jeton:' + i };
   }
@@ -138,7 +149,7 @@ function creerGoogle(options = {}) {
   const contexte = {
     SpreadsheetApp: { getActiveSpreadsheet: () => ss },
     DriveApp, HtmlService, GmailApp, MailApp, PropertiesService, Utilities, ScriptApp,
-    LockService: { getScriptLock: () => ({ tryLock: () => true, releaseLock: () => {} }) },
+    LockService: { getScriptLock: () => ({ tryLock: () => !options.verrouOccupe, releaseLock: () => {} }) },
     Session: { getEffectiveUser: () => ({ getEmail: () => 'franck@loue.test' }),
                getActiveUser: () => ({ getEmail: () => '' }) },
     ContentService: { MimeType: { TEXT: 'text', JSON: 'json', JAVASCRIPT: 'js' },

@@ -327,4 +327,62 @@ test('anonymiserCopieTest : refuse sur le vrai Sheet, remplace sur TEST', () => 
   assert.strictEqual(t.feuilles['Contacts'].lignes[2][2], 'franck+contact2@loue.test');
   assert.strictEqual(t.feuilles['Contacts notes'].lignes[1][1], 'franck+contact4@loue.test');
 });
+
+console.log('Corrections après la revue indépendante');
+test('remettre puis retirer à nouveau : les partages sont bien retirés', () => {
+  const g = environnement();
+  const ch = g.creerElement('dossier', 'CHANTIER TEST 1', g.racine);
+  const codes = g.creerElement('fichier', 'codes.pdf', g.creerElement('dossier', 'Accès', ch));
+  codes.acces = 'ANYONE_WITH_LINK'; codes.permission = 'VIEW';
+  g.ctx.listerPartages(); g.ctx.retirerPartages(); g.ctx.remettrePartages();
+  assert.strictEqual(codes.acces, 'ANYONE_WITH_LINK');
+  g.ctx.retirerPartages();
+  assert.strictEqual(codes.acces, 'PRIVATE');
+});
+test('relancer listerPartages après un retrait : refusé (la liste sert au retour arrière)', () => {
+  const g = environnement();
+  const ch = g.creerElement('dossier', 'CHANTIER TEST 1', g.racine);
+  const f = g.creerElement('fichier', 'codes.pdf', g.creerElement('dossier', 'Accès', ch));
+  f.acces = 'ANYONE_WITH_LINK'; f.permission = 'VIEW';
+  g.ctx.listerPartages(); g.ctx.retirerPartages();
+  assert.ok(/Refusé/.test(g.ctx.listerPartages()));
+  g.ctx.remettrePartages();
+  assert.strictEqual(f.acces, 'ANYONE_WITH_LINK', 'le retour arrière marche toujours');
+});
+test('partage hérité : dossiers traités d\'abord, fichiers marqués « déjà privé »', () => {
+  const g = environnement({ heritage: true });
+  const ch = g.creerElement('dossier', 'CHANTIER TEST 1', g.racine);
+  ch.acces = 'ANYONE_WITH_LINK'; ch.permission = 'VIEW';
+  const plans = g.creerElement('dossier', 'Plans', ch);
+  const plan = g.creerElement('fichier', 'plan.pdf', plans); plan.acces = 'ANYONE_WITH_LINK'; plan.permission = 'VIEW';
+  const codes = g.creerElement('fichier', 'codes.pdf', g.creerElement('dossier', 'Accès', ch));
+  g.ctx.listerPartages();
+  const r = g.ctx.retirerPartages();
+  assert.ok(/Terminé/.test(r), r);
+  assert.strictEqual(ch.acces, 'PRIVATE');
+  assert.strictEqual(g.contexte.DriveApp.getFileById(codes.id).getSharingAccess(), 'PRIVATE', 'codes.pdf plus accessible');
+  assert.strictEqual(plan.acces, 'ANYONE_WITH_LINK', 'le plan reste partagé');
+  const etats = g.feuilles['Partages (lot 0)'].lignes.slice(1).map(l => l[7]);
+  assert.ok(etats.every(e => !/erreur/.test(e)), etats.join(' | '));
+});
+test('destinataires : une chaîne au lieu d\'un tableau est ignorée, 20 adresses au plus', () => {
+  const g = environnement();
+  poster(g, { type: 'note', chantier: 'CHANTIER TEST 1', destinataires: 'a@x.test' });
+  assert.strictEqual(g.mails.length, 0);
+  const beaucoup = Array.from({ length: 500 }, (_, i) => 'pirate' + i + '@x.test');
+  poster(g, { type: 'note', chantier: 'CHANTIER TEST 1', destinataires: beaucoup });
+  assert.ok(journal(g).length <= 20, 'journal borné : ' + journal(g).length);
+});
+test('cellule Contacts avec deux adresses : les deux sont servies comme avant', () => {
+  const g = environnement();
+  g.feuilles['Contacts'].lignes[2][2] = 'seb@loue.test, bureau@loue.test';
+  poster(g, { type: 'cotes', chantier: 'CHANTIER TEST 1', conducteur: "Sébastien L'ÉQUIPE", lignes: [] });
+  assert.deepStrictEqual(destinatairesDe(g), ['bureau@loue.test', 'seb@loue.test']);
+  assert.strictEqual(journal(g).length, 0, "aucune n'est traitée comme adresse libre");
+});
+test('serveur occupé : l\'adresse libre est refusée avec le bon motif (pas « plafond »)', () => {
+  const g = environnement({ verrouOccupe: true });
+  poster(g, { type: 'quitus', chantier: 'CHANTIER TEST 1', destinataires: ['client@x.test'] });
+  assert.ok(/serveur occupé/.test(journal(g)[0][5]));
+});
 console.log('\n' + reussis + ' test(s) réussi(s)' + (process.exitCode ? ' — DES TESTS ÉCHOUENT' : ''));
