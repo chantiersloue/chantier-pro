@@ -420,14 +420,8 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
     <div class="modal-body">
       <div class="onglets-scroll">
         <div class="onglets-inner">
-          <button class="sOnglet active" onclick="showSousOnglet('acces',this)">Accès</button>
-          <button class="sOnglet" onclick="showSousOnglet('plans',this)">Plans</button>
-          <button class="sOnglet" onclick="showSousOnglet('qt',this)">QT/Tableaux</button>
-          <button class="sOnglet" onclick="showSousOnglet('cctp',this)">CCTP</button>
-          <button class="sOnglet" onclick="showSousOnglet('securite',this)">Sécurité</button>
-          <button class="sOnglet" onclick="showSousOnglet('fiches',this)">Fiches</button>
-          <button class="sOnglet" onclick="showSousOnglet('notes',this)">Notes/Réunion</button>
-          <button class="sOnglet" onclick="showSousOnglet('quitus',this)">Quitus</button>
+          <!-- Lot 0 : seul le dossier Plans reste consultable ; les autres reviendront avec le carnet de chantier (lot 4) -->
+          <button class="sOnglet active" onclick="showSousOnglet('plans',this)">Plans</button>
         </div>
       </div>
       <div class="docs-scroll">
@@ -439,11 +433,13 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 
 <div class="toast" id="toast"></div>
 
+<script src="commun/config.js"></script>
 <script>
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw5M3sh6EFb0t_oXiZ7qUeQI60ePGredIz9UjjQAWSXUGoWx_M3p8QE0O7B5KqyBV8/exec';
+// Adresse Apps Script : écrite UNE seule fois, dans commun/config.js
+const APPS_SCRIPT_URL = (window.LOUE_CONFIG || {}).url || 'https://config-introuvable.invalid/';
 let ALL_CHANTIERS = [];
 let currentChantier = null;
-let currentSousOnglet = 'acces';
+let currentSousOnglet = 'plans';
 
 // ── Navigation ──
 function showPage(p) {
@@ -530,7 +526,7 @@ function openChantier(id) {
   currentChantier = ALL_CHANTIERS.find(c=>c.id===id); if(!currentChantier) return;
   document.getElementById('modal-chantier-name').textContent = currentChantier.nom;
   document.getElementById('modal-chantier-ref').textContent  = currentChantier.reference?'Réf. '+currentChantier.reference:'';
-  currentSousOnglet='acces';
+  currentSousOnglet='plans';
   document.querySelectorAll('.sOnglet').forEach((el,i)=>el.classList.toggle('active',i===0));
   document.getElementById('docs-container').innerHTML='<div class="loading"><div class="spinner"></div>Chargement…</div>';
   document.getElementById('chantierModal').classList.add('open');
