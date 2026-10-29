@@ -346,8 +346,10 @@ textarea.meta-input{resize:vertical;min-height:80px;}
 
 <div class="toast" id="toast"><span id="toastMsg"></span></div>
 
+<script src="commun/config.js"></script>
 <script>
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw5M3sh6EFb0t_oXiZ7qUeQI60ePGredIz9UjjQAWSXUGoWx_M3p8QE0O7B5KqyBV8/exec';
+// Adresse Apps Script : écrite UNE seule fois, dans commun/config.js
+const APPS_SCRIPT_URL = (window.LOUE_CONFIG || {}).url || 'https://config-introuvable.invalid/';
 const BROUILLON_KEY   = 'loue_attestation_brouillon';
 
 // ── DONNÉES ──

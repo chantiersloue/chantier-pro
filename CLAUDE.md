@@ -8,15 +8,16 @@ ChantierPro est l'application web de chantier de **Loué Menuiserie** (menuiseri
 - **Front** : pages HTML statiques sur GitHub Pages (dépôt `chantiersloue/chantier-pro`, publié sur `chantiersloue.github.io/chantier-pro`). PWA avec `manifest.json`. **Le dépôt est public** : tout ce qui est dans le code est visible par n'importe qui.
 - **Back** : Google Apps Script (`apps-script/`) : données, génération des PDF, envoi des mails.
 - **Données** : Google Sheets (onglets Chantiers, Fonctions, Types…). Le conducteur est pré-rempli depuis la colonne D de l'onglet Chantiers. Structure détaillée dans `docs/structure-sheet.md`.
-- **Documents** : Google Drive (dossier racine `1VUEOvq6Wvyqpvf6ISaoJfJXwLCR-OYxm`).
+- **Documents** : Google Drive. Les identifiants des dossiers ne sont jamais dans le dépôt : ils sont dans les « Propriétés du script » d'Apps Script, et notés dans `_prive/ids-drive.txt`.
 - **Compte Google** : compte gratuit (grand public), créé par Franck au nom de Loué. Pas de Google Workspace.
-- **URL Apps Script** : celle présente dans le code fait foi. Elle change à chaque nouveau déploiement.
+- **URL Apps Script** : écrite à un seul endroit, `commun/config.js` (URL de production et URL de test, mode test avec `?env=test`). Elle change à chaque nouveau déploiement.
 - **Dossier `_prive/`** (exclu de GitHub par `.gitignore`) : exemples réels de documents, copie anonymisée du Sheet (`exemple-sheet.xlsx`), sauvegardes. Lis-le librement, mais **ne copie jamais son contenu** dans un fichier suivi par Git, et ne retire jamais `_prive/` du `.gitignore`.
 - **Environnement de test** : copie du Sheet « ChantierPro TEST » et dossier Drive « CHANTIERPRO-TEST ». Leurs identifiants sont dans `_prive/ids-test.txt`. Tous les essais se font là, jamais sur les vraies données.
 
 ## Pages existantes
 - `index.html` : accueil avec tuiles de navigation.
-- Fiches métier : `cotes.html`, `fiche-fabrication.html`, `note-reunion.html`, `bordereau-orga.html`, `bordereau-materiaux.html`, `quitus.html`, `attestation.html`.
+- Fiches métier : `cotes.html`, `fiche-fabrication.html`, `note-reunion.html`, `bordereau-orga.html`, `bordereau-materiaux.html`, `quitus.html`, `attestation.html`, `reception-support.html`.
+- Hors chantier : `absence.html` (demande d'absence d'un salarié).
 - Toutes les fiches ont : un bouton Retour, un brouillon automatique avec bannière de restauration, des signatures sur canvas 300×150, un chargement via `chargerAppsScript` / `chargerJSONP` / `_parseRep`.
 
 ## Contraintes absolues

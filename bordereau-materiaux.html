@@ -275,8 +275,10 @@ canvas.sig{display:block;width:100%;height:150px;touch-action:none;cursor:crossh
 
 <div class="toast" id="toast"></div>
 
+<script src="commun/config.js"></script>
 <script>
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw5M3sh6EFb0t_oXiZ7qUeQI60ePGredIz9UjjQAWSXUGoWx_M3p8QE0O7B5KqyBV8/exec';
+// Adresse Apps Script : écrite UNE seule fois, dans commun/config.js
+const APPS_SCRIPT_URL = (window.LOUE_CONFIG || {}).url || 'https://config-introuvable.invalid/';
 
 // ═══════════════════════════════════════════════════════════════
 // BROUILLON AUTOMATIQUE — sauvegarde locale anti-perte (générique)
