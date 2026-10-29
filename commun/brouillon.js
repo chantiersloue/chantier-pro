@@ -99,6 +99,7 @@
       document.addEventListener('change', differer, true);
       setInterval(sauver, 4000);
       window.addEventListener('pagehide', sauver);
+      document.addEventListener('loue-avant-maj', sauver);   // mise à jour de l'appli : on sauve avant de recharger
       document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'hidden') sauver(); });
       LOUE.stockage.lire('brouillons', cle).catch(function () { return null; }).then(function (sauve) {
         sauve = sauve || lireAncien();

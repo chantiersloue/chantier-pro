@@ -40,3 +40,17 @@
 | S1-2 | **Pas de PDF dans Drive**, sauf case « garder le PDF » cochée pour un document | PDF toujours gardé | Stockage ; validé par Franck |
 | S1-3 | Au lot 4, Franck connecte dans l'appli Claude le dossier Drive du carnet (comme son dossier MEGA) ; je lui indique alors le chemin exact, et un essai est fait avec un vrai skill | Dépôt par le connecteur Google Drive de Claude | Accord de Franck ; même mécanisme que pour MEGA |
 | L-1 | Livraison par branche `livraison/lot-N` (partant de `main`, seulement le lot) poussée sur GitHub ; Franck crée et fusionne la demande de fusion | Upload manuel | Accord de Franck ; l'outil `gh` n'est pas installé sur le PC, donc Franck ouvre la demande de fusion depuis un lien préparé |
+
+## Lot 1
+
+| # | Décision | Options écartées | Pourquoi |
+|---|---|---|---|
+| D1-1 | Code serveur découpé en 5 fichiers par thème (`Config`, `Api`, `Documents`, `Securite`, `Admin`) + `Modeles.gs` généré | Un seul `Code.gs` | Lisibilité ; chaque fichier se colle en entier. |
+| D1-2 | API v5 : la page envoie `{action:'fiche', id, donnees}` ; l'ancien format reste accepté pendant la migration des pages | Tout basculer d'un coup | Les pages non encore refondues continuent de marcher. |
+| D1-3 | Photos envoyées une par une avant la fiche, rangées dans `_PHOTOS EN COURS/<n° de fiche>`, intégrées au PDF puis mises à la corbeille | Garder les photos dans Drive | Comme avant : les photos des fiches ne vivent que dans le PDF (stockage). Les notes et signalements (lots 3 et 7) les garderont. |
+| D1-4 | Le brouillon est effacé dès que la fiche est rangée dans la file d'envoi du téléphone (et non après la réponse du serveur) | Attendre la réponse du serveur | La file la protège déjà ; attendre laisserait un brouillon et une fiche en double. |
+| D1-5 | Après envoi, la page reste ouverte et se vide (au lieu de revenir à l'accueil) | Retour à l'accueil | Quitter la page couperait l'envoi en cours ; il reprendrait plus tard, mais le poseur croirait que c'est parti. |
+| D1-6 | Champ « Chantier » : liste à choix + saisie libre (au lieu d'une liste fermée) | Liste fermée | Sans réseau et sans liste gardée, le poseur peut quand même remplir et envoyer. |
+| D1-7 | Champ « Client » du quitus : plus de suggestions | Proposer les contacts | Les suggestions étaient… les salariés de Loué (audit). |
+| D1-8 | Polices système à la place de Google Fonts | Garder Google Fonts | Écran blanc en 3G ; une dépendance en moins. |
+| D1-9 | Le service worker n'a pas pu être essayé dans le navigateur de test (il refuse les service workers) ; il sera vérifié sur les téléphones pendant le test du lot 1 | — | Limite de l'outil de test, pas du code ; `outils/sw-secours.js` est prêt en cas de souci. |
