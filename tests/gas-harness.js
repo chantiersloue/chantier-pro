@@ -72,12 +72,13 @@ function creerGoogle(options = {}) {
       },
       getSharingAccess: () => accesEffectif(el), getSharingPermission: () => el.permission,
       isTrashed: () => el.corbeille, setTrashed: v => { el.corbeille = v; },
-      getBlob: () => blob(el.contenu || '', el.nom),
+      getBlob: () => blob(el.contenu || '', el.nom, extra && extra.mime),
       getFiles: () => it(el.enfants.filter(e => e.type === 'fichier')),
       getFolders: () => it(el.enfants.filter(e => e.type === 'dossier')),
       getFoldersByName: n => it(el.enfants.filter(e => e.type === 'dossier' && e.nom === n)),
+      getFilesByName: n => it(el.enfants.filter(e => e.type === 'fichier' && e.nom === n && !e.corbeille)),
       createFolder: n => creerElement('dossier', n, el).api,
-      createFile: b => creerElement('fichier', b.getName(), el, { contenu: b.contenu }).api,
+      createFile: b => creerElement('fichier', b.getName(), el, { contenu: b.contenu, mime: b.mime }).api,
     };
     return el;
   }
@@ -105,10 +106,11 @@ function creerGoogle(options = {}) {
   }
 
   // ── Blob / HTML → PDF ──
-  function blob(contenu, nom) {
-    const b = { contenu, nom,
+  function blob(contenu, nom, mime) {
+    const b = { contenu, nom, mime,
       setName: n => { b.nom = n; return b; }, getName: () => b.nom,
-      copyBlob: () => blob(contenu, b.nom) };
+      getBytes: () => Array.from(Buffer.from(typeof contenu === 'string' ? contenu : contenu, typeof contenu === 'string' ? 'utf8' : undefined)),
+      copyBlob: () => blob(contenu, b.nom, mime) };
     return b;
   }
   const HtmlService = { createHtmlOutput: html => ({ getAs: () => blob(html, 'sans-nom.pdf') }) };
@@ -137,6 +139,9 @@ function creerGoogle(options = {}) {
   }) };
   const deux = n => String(n).padStart(2, '0');
   const Utilities = {
+    base64Decode: s => Array.from(Buffer.from(s, 'base64')),
+    base64Encode: octets => Buffer.from(octets).toString('base64'),
+    newBlob: (octets, mime, nom) => blob(Buffer.from(octets), nom, mime),
     formatDate: (d, tz, f) => f.replace('yyyy', d.getFullYear()).replace('MM', deux(d.getMonth() + 1))
       .replace('dd', deux(d.getDate())).replace('HH', deux(d.getHours())).replace('mm', deux(d.getMinutes())),
   };
