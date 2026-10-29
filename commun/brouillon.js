@@ -74,10 +74,14 @@
 
     // ── Liste des brouillons mis de côté ──
     function lireListe() {
+      // Fusion des deux copies (IndexedDB avec photos, localStorage sans) : rien n'est masqué si l'une est en retard
       return lireBase(cleListe).then(function (b) {
-        var liste = (b && b.liste) || lireLocal(cleListeLocale) || [];
+        var parT = {};
+        (lireLocal(cleListeLocale) || []).concat((b && b.liste) || []).forEach(function (e) { if (e && e.t) parT[e.t] = e; });
         var limite = Date.now() - 30 * 24 * 3600 * 1000;
-        return liste.filter(function (e) { return e && e.t > limite; });
+        return Object.keys(parT).map(function (k) { return parT[k]; })
+          .filter(function (e) { return e.t > limite; })
+          .sort(function (x, y) { return y.t - x.t; });
       });
     }
     function ecrireListe(liste) {

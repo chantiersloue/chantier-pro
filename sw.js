@@ -1,18 +1,17 @@
 // ═══════════════════════════════════════════════════════════════
 // Loué App — service worker : garde l'appli dans le téléphone pour l'ouvrir SANS réseau.
-// À CHAQUE LIVRAISON : augmenter VERSION (sinon les téléphones gardent l'ancienne version).
-// En cas de gros problème : remplacer ce fichier par outils/sw-secours.js (voir ce fichier).
+// VERSION et les numéros « ?v= » sont mis à jour AUTOMATIQUEMENT par « node outils/construire.js » :
+// ne pas les modifier à la main. En cas de gros problème : remplacer ce fichier par outils/sw-secours.js.
 // Les échanges avec Apps Script ne passent JAMAIS par ce cache (fiches, listes : gérés par commun/api.js).
 // ═══════════════════════════════════════════════════════════════
-const VERSION = 'loue-5.0.0-1';
+const VERSION = 'loue-baafd8a91f';
 const A_GARDER = [
   './', 'index.html', 'quitus.html',
   'cotes.html', 'fiche-fabrication.html', 'note-reunion.html', 'bordereau-orga.html', 'bordereau-materiaux.html',
   'attestation.html', 'reception-support.html', 'absence.html',
-  'commun/config.js', 'commun/api.js', 'commun/ui.js', 'commun/photos.js', 'commun/signature.js',
-  'commun/brouillon.js', 'commun/adresses.js', 'commun/hors-ligne.js', 'commun/style.css',
-  'modeles/quitus.js',
   'manifest.json', 'logo.png', 'apple-touch-icon.png',
+  // Fichiers communs et modèles, avec leur numéro de version (liste fabriquée par outils/construire.js)
+  /*COMMUNS*/ 'commun/adresses.js?v=baafd8a91f', 'commun/api.js?v=baafd8a91f', 'commun/brouillon.js?v=baafd8a91f', 'commun/config.js?v=baafd8a91f', 'commun/hors-ligne.js?v=baafd8a91f', 'commun/photos.js?v=baafd8a91f', 'commun/signature.js?v=baafd8a91f', 'commun/ui.js?v=baafd8a91f', 'commun/style.css?v=baafd8a91f', 'modeles/quitus.js?v=baafd8a91f',
 ];
 
 self.addEventListener('install', ev => {
@@ -29,18 +28,22 @@ self.addEventListener('activate', ev => {
 // La page demande d'activer la nouvelle version (bandeau « Nouvelle version — toucher pour mettre à jour »)
 self.addEventListener('message', ev => { if (ev.data === 'activer') self.skipWaiting(); });
 
-// Réseau d'abord avec un délai maximal (3 s), puis le cache. Utilisé pour TOUS les fichiers de l'appli :
-// avec du réseau, page et scripts sont toujours de la même version (jamais une nouvelle page avec un ancien script).
-function reseauDAbord(requete, delaiMs) {
+function garder(requete, rep) {
+  if (rep && rep.ok) { const copie = rep.clone(); caches.open(VERSION).then(c => c.put(requete, copie)); }
+  return rep;
+}
+
+// Pages : réseau d'abord ; au bout de 3 s, la copie du téléphone SI elle existe, sinon on continue d'attendre le réseau
+function pageReseauDAbord(requete) {
+  const reseau = fetch(requete).then(rep => garder(requete, rep));
+  const copie = () => caches.match(requete, { ignoreSearch: true }).then(r => r || caches.match('index.html'));
   return new Promise(resolve => {
     let fini = false;
-    const depuisCache = () => caches.match(requete, { ignoreSearch: true })
-      .then(r => r || (requete.mode === 'navigate' ? caches.match('index.html') : Response.error()));
-    const minuteur = setTimeout(() => { if (!fini) { fini = true; resolve(depuisCache()); } }, delaiMs);
-    fetch(requete).then(rep => {
-      if (rep && rep.ok) caches.open(VERSION).then(c => c.put(requete, rep.clone()));
-      if (!fini) { fini = true; clearTimeout(minuteur); resolve(rep); }
-    }).catch(() => { if (!fini) { fini = true; clearTimeout(minuteur); resolve(depuisCache()); } });
+    const minuteur = setTimeout(() => {
+      caches.match(requete, { ignoreSearch: true }).then(r => { if (r && !fini) { fini = true; resolve(r); } });
+    }, 3000);
+    reseau.then(rep => { if (!fini) { fini = true; clearTimeout(minuteur); resolve(rep); } })
+      .catch(() => { if (!fini) { fini = true; clearTimeout(minuteur); resolve(copie()); } });
   });
 }
 
@@ -50,5 +53,16 @@ self.addEventListener('fetch', ev => {
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return;                // Apps Script, Google… : jamais en cache ici
   if (url.pathname.indexOf('/tests/') > -1 || url.pathname.indexOf('/_prive/') > -1) return;
-  ev.respondWith(reseauDAbord(req, 3000));
+  if (req.mode === 'navigate' || /\.html$/.test(url.pathname) || url.pathname.endsWith('/')) {
+    ev.respondWith(pageReseauDAbord(req));
+    return;
+  }
+  // Fichier versionné (« ?v=… ») : la copie EXACTE de cette version si le téléphone l'a, sinon le réseau.
+  // Une page reçoit donc toujours les scripts de SA version, même sur un réseau faible.
+  if (url.searchParams.has('v')) {
+    ev.respondWith(caches.match(req).then(r => r || fetch(req).then(rep => garder(req, rep))));
+    return;
+  }
+  // Autres fichiers (images…) : réseau, sinon la copie du téléphone
+  ev.respondWith(fetch(req).then(rep => garder(req, rep)).catch(() => caches.match(req, { ignoreSearch: true })));
 });

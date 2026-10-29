@@ -1,18 +1,24 @@
-// Fabrique apps-script/Modeles.gs à partir des modèles uniques de modeles/*.js.
-//   node outils/construire.js           → écrit apps-script/Modeles.gs
-//   node outils/construire.js --verifier → échoue si Modeles.gs n'est pas à jour (utilisé par les tests)
-// Ainsi, le PDF envoyé par le serveur et l'aperçu de la page viennent du MÊME modèle.
+// Prépare une livraison. À lancer après CHAQUE modification de commun/, modeles/ ou d'une page :
+//   node outils/construire.js           → met tout à jour
+//   node outils/construire.js --verifier → échoue si quelque chose n'est pas à jour (utilisé par les tests)
+// Ce que fait la commande :
+//  1. apps-script/Modeles.gs = copie des modèles uniques de modeles/*.js (le PDF du serveur et l'aperçu
+//     de la page viennent ainsi du MÊME modèle) ;
+//  2. numéro de version « ?v=… » ajouté à chaque fichier commun dans les pages (une page charge toujours
+//     les scripts de SA version, même hors réseau) ;
+//  3. sw.js : VERSION et liste des fichiers à garder dans le téléphone.
 'use strict';
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 
 const racine = path.join(__dirname, '..');
-const dossier = path.join(racine, 'modeles');
-const cible = path.join(racine, 'apps-script', 'Modeles.gs');
+const lire = f => fs.readFileSync(path.join(racine, f), 'utf8').replace(/\r\n/g, '\n');
+const liste = (dossier, ext) => fs.readdirSync(path.join(racine, dossier)).filter(f => f.endsWith(ext)).sort().map(f => dossier + '/' + f);
 
-function fabriquer() {
-  const fichiers = fs.readdirSync(dossier).filter(f => f.endsWith('.js')).sort();
-  const morceaux = fichiers.map(f => '// ── modeles/' + f + ' ──\n' + fs.readFileSync(path.join(dossier, f), 'utf8').replace(/\r\n/g, '\n').trim() + '\n');
+// 1. Modeles.gs
+function fabriquerModeles() {
+  const morceaux = liste('modeles', '.js').map(f => '// ── ' + f + ' ──\n' + lire(f).trim() + '\n');
   return '// ═══════════════════════════════════════════════════════════════\n'
     + '// FICHIER GÉNÉRÉ AUTOMATIQUEMENT — NE PAS MODIFIER À LA MAIN\n'
     + '// Copie des modèles de PDF du dossier modeles/ (node outils/construire.js).\n'
@@ -21,12 +27,36 @@ function fabriquer() {
     + morceaux.join('\n');
 }
 
-const contenu = fabriquer();
-if (process.argv.includes('--verifier')) {
-  const actuel = fs.existsSync(cible) ? fs.readFileSync(cible, 'utf8').replace(/\r\n/g, '\n') : '';
-  if (actuel !== contenu) { console.error('apps-script/Modeles.gs n\'est pas à jour : lancer « node outils/construire.js »'); process.exit(1); }
-  console.log('Modeles.gs à jour');
+// 2. Numéro de version : empreinte de tous les fichiers communs et modèles
+const communs = liste('commun', '.js').concat(liste('commun', '.css'), liste('modeles', '.js'));
+const empreinte = crypto.createHash('sha1').update(communs.map(f => f + '\n' + lire(f)).join('\n')).digest('hex').slice(0, 10);
+const REF = /((?:src|href)=")((?:commun|modeles)\/[^"?]+)(?:\?v=[0-9a-f]+)?"/g;
+function pageVersionnee(contenu) { return contenu.replace(REF, '$1$2?v=' + empreinte + '"'); }
+
+// 3. sw.js
+function swVersionne(contenu) {
+  const entrees = communs.map(f => "'" + f + '?v=' + empreinte + "'").join(', ');
+  return contenu
+    .replace(/const VERSION = 'loue-[^']*';/, "const VERSION = 'loue-" + empreinte + "';")
+    .replace(/\/\*COMMUNS\*\/.*$/m, '/*COMMUNS*/ ' + entrees + ',');
+}
+
+const cibles = [['apps-script/Modeles.gs', () => fabriquerModeles()], ['sw.js', () => swVersionne(lire('sw.js'))]]
+  .concat(fs.readdirSync(racine).filter(f => f.endsWith('.html')).map(f => [f, () => pageVersionnee(lire(f))]));
+
+const verifier = process.argv.includes('--verifier');
+const pasAJour = [];
+cibles.forEach(([fichier, fabriquer]) => {
+  const actuel = fs.existsSync(path.join(racine, fichier)) ? lire(fichier) : '';
+  const attendu = fabriquer();
+  if (actuel !== attendu) {
+    if (verifier) pasAJour.push(fichier);
+    else fs.writeFileSync(path.join(racine, fichier), attendu);
+  }
+});
+if (verifier) {
+  if (pasAJour.length) { console.error('Pas à jour : ' + pasAJour.join(', ') + ' → lancer « node outils/construire.js »'); process.exit(1); }
+  console.log('Livraison à jour (version ' + empreinte + ')');
 } else {
-  fs.writeFileSync(cible, contenu);
-  console.log('apps-script/Modeles.gs fabriqué (' + contenu.split('\n').length + ' lignes)');
+  console.log('Livraison préparée : version ' + empreinte + ' (Modeles.gs, sw.js et les pages mis à jour)');
 }
