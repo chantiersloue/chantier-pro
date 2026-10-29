@@ -110,7 +110,7 @@ Ensuite, partages sur TEST (dans l'éditeur Apps Script du TEST) :
 3. **`retirerPartages`** → ▶. Colonne *État* = « retiré le … ».
 4. Contrôle : copie l'adresse d'un fichier « retiré » et ouvre-la dans une **fenêtre de navigation privée** → « Accès refusé ». Un fichier de *Plans* s'ouvre toujours.
 5. Essai du retour arrière : **`remettrePartages`** → ▶, vérifie que le fichier s'ouvre à nouveau, puis relance **`retirerPartages`** → il redevient « Accès refusé ».
-6. Pour un essai plus dur : dans CHANTIERPRO-TEST, partage **un dossier chantier entier** « tous ceux qui ont le lien », puis refais 1 à 4. Les fichiers de ce dossier doivent finir « Accès refusé », sauf ceux de *Plans*.
+6. **Essai obligatoire avant la production** : dans CHANTIERPRO-TEST, partage **un dossier chantier entier** « tous ceux qui ont le lien », renomme l'onglet « Partages (lot 0) » en « Partages (lot 0) essai 1 », puis refais 1 à 4. Les fichiers de ce dossier doivent finir « Accès refusé », sauf ceux de *Plans*. (C'est le cas réel le plus probable, et le seul qu'on ne peut pas simuler parfaitement : il prouve que les partages hérités d'un dossier sont bien retirés.)
 
 **Ne relance pas `listerPartages` une fois des partages retirés** : la fonction refuse de toute façon, car l'onglet sert au retour arrière. Pour refaire une liste, renomme d'abord l'onglet (exemple : « Partages (lot 0) ancien »).
 
@@ -146,7 +146,7 @@ Le mode test reste mémorisé dans le téléphone, **y compris dans l'appli inst
 **Après tes tests (une fois la production validée)** : la copie TEST reste en ligne et a ses propres plafonds. Tant qu'elle est active, l'ensemble prod + TEST accepte jusqu'à 20 adresses libres par jour au lieu de 10. Pour l'éteindre entre deux lots : éditeur Apps Script du TEST → **Déployer → Gérer les déploiements** → ton déploiement → **Archiver**. Je réactiverai le TEST au lot suivant.
 
 **Retour arrière complet, DANS CET ORDRE** (le nouveau code doit encore être en place pour l'étape 1) :
-1. ▶ `remettrePartages` (si des partages ont été retirés). Si l'onglet « Partages (lot 0) » a été perdu : Fichier → Importer → ton `_prive/partages-avant-lot0.csv` → « Remplacer la feuille actuelle », dans un onglet nommé exactement `Partages (lot 0)`, puis ▶ `remettrePartages` ;
+1. ▶ `remettrePartages` (si des partages ont été retirés). Si l'onglet « Partages (lot 0) » a été perdu : crée un onglet nommé exactement `Partages (lot 0)`, ouvre-le, Fichier → Importer → ton `_prive/partages-avant-lot0.csv` → « Remplacer la feuille actuelle », puis ▶ **`remettreDepuisSauvegarde`** (et non `remettrePartages` : la sauvegarde a été prise avant le retrait, sa colonne État est vide) ;
 2. supprime le déclencheur : icône ⏰ **Déclencheurs** (à gauche) → ligne `renvoyerMailsEnAttente` → ⋮ → **Supprimer** ;
 3. regarde l'onglet « Mails en attente » : les lignes « en attente » ne partiront plus, note-les ;
 4. recolle `_prive/Code-avant-lot0.gs`, puis **Gérer les déploiements → Modifier → Nouvelle version**, et vérifie que l'URL affiche « v4 OK ».

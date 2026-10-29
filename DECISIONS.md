@@ -28,3 +28,6 @@
 | D0-19 | L'« email perso » de l'absence est une adresse libre (texte imposé, compte dans les 10 par jour, Franck en copie) | L'accepter sans contrôle | Sinon, ce champ restait un relais ouvert. |
 | D0-20 | Retrait des partages : dossiers d'abord, puis fichiers ; un fichier déjà privé parce que son dossier ne l'est plus est noté « déjà privé (dossier parent) » | Ordre quelconque | Un partage hérité du dossier parent ne peut pas être retiré sur le fichier lui-même. |
 | D0-21 | `listerPartages` refuse de vider l'onglet si des partages ont déjà été retirés | Le vider à chaque fois | L'onglet est la base du retour arrière (revue indépendante). |
+| D0-22 | Une place du plafond « 10 adresses libres par jour » est consommée même si le mail est reporté pour quota | Rendre la place au report | Cas rare (quota presque épuisé ET adresse libre) ; le mail part quand même plus tard. Simplicité. |
+| D0-23 | Chemins de l'onglet *Partages* séparés par « › » et non « / » | « / » | Certains noms de chantiers contiennent « / » (100-PARTICULIERS/DIVERS) : leurs *Plans* auraient été retirés par erreur (revue, tour 2). |
+| D0-24 | Fonction de secours `remettreDepuisSauvegarde` pour le cas où l'onglet *Partages* est perdu | Retélécharger le CSV après le retrait | La sauvegarde est prise avant le retrait (colonne État vide) : `remettrePartages` n'y trouverait rien. |
