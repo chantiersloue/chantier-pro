@@ -159,9 +159,15 @@
     });
   }
 
-  // Essais espacés : tout de suite, puis 1, 5, 15, 60 min ; au-delà de 12 essais, la fiche passe « à vérifier »
+  // Essais espacés : tout de suite, puis 1, 5, 15, 60 min.
+  // Seules les réponses du SERVEUR comptent : après 12 refus du serveur, la fiche passe « à vérifier ».
+  // Une coupure de réseau ne la fait jamais passer « à vérifier » (elle est retentée sans fin, au plus toutes les 5 min).
   var DELAIS_MIN = [0, 1, 5, 15, 60];
+  var DELAIS_RESEAU_MIN = [0, 1, 5];
   var ESSAIS_MAX = 12;
+  function erreurReseau(err) {
+    return err && (err.name === 'AbortError' || err.name === 'TypeError' || /^Serveur : erreur|fetch|network|load failed/i.test(err.message || ''));
+  }
 
   // ── Vider la file (au démarrage, au retour du réseau, au retour dans l'appli, sur bouton) ──
   var enCours = null, aRelancer = false;
@@ -184,10 +190,13 @@
             return Promise.all(supp).then(function () { return LOUE.stockage.supprimer('file', el.id); })
               .then(function () { LOUE.signaler({ type: 'envoyee', element: el, reponse: rep }); });
           }).catch(function (err) {
-            var definitif = err.definitif || el.essais >= ESSAIS_MAX;
+            var reseau = erreurReseau(err);
+            if (!reseau) el.refusServeur = (el.refusServeur || 0) + 1;
+            var definitif = err.definitif || (el.refusServeur || 0) >= ESSAIS_MAX;
             el.etat = definitif ? 'erreur' : 'en attente';
-            el.message = messageClair(err) + (el.essais >= ESSAIS_MAX && !err.definitif ? ' (après ' + el.essais + ' essais)' : '');
-            el.prochainEssai = Date.now() + DELAIS_MIN[Math.min(el.essais, DELAIS_MIN.length - 1)] * 60000;
+            el.message = messageClair(err) + (!err.definitif && definitif ? ' (après ' + el.refusServeur + ' essais)' : '');
+            var delais = reseau ? DELAIS_RESEAU_MIN : DELAIS_MIN;
+            el.prochainEssai = Date.now() + delais[Math.min(el.essais, delais.length - 1)] * 60000;
             return LOUE.stockage.ecrire('file', el).then(function () { LOUE.signaler({ type: el.etat, element: el }); });
           });
         });
@@ -206,7 +215,7 @@
   LOUE.reessayer = function (id) {
     return LOUE.stockage.lire('file', id).then(function (el) {
       if (!el) return;
-      el.etat = 'en attente'; el.message = ''; el.essais = 0; el.prochainEssai = 0;
+      el.etat = 'en attente'; el.message = ''; el.essais = 0; el.refusServeur = 0; el.prochainEssai = 0;
       return LOUE.stockage.ecrire('file', el);
     }).then(function () { return LOUE.viderFile(true); });
   };

@@ -313,8 +313,11 @@ function alerte_(texte, sorte) {
   props.setProperty(cle, '1');
   try {
     if (MailApp.getRemainingDailyQuota() < 1) return;
-    const sujet = sorte === 'abandon' ? "[Loué App] Mail abandonné — voir l'onglet Mails en attente"
-                                      : "[Loué App] Envoi refusé — voir l'onglet Journal";
+    const sujet = {
+      abandon: "[Loué App] Mail abandonné — voir l'onglet Mails en attente",
+      erreur : "[Loué App] Fiche non traitée — voir l'onglet Envois",
+      photos : "[Loué App] Trop de photos aujourd'hui",
+    }[sorte] || "[Loué App] Envoi refusé — voir l'onglet Journal";
     GmailApp.sendEmail(emailAdmin_(), sujet,
       texte + "\n\nLes cas suivants de la journée sont notés dans l'onglet « Journal » du Sheet, sans autre mail.\n\nLoué App",
       { name: NOM_ENTREPRISE });

@@ -233,7 +233,9 @@ function dateHeure() {
 dateHeure();
 
 // ── Listes (chantiers, contacts) : réseau, sinon dernière liste gardée dans le téléphone ──
+let listesDuTelephone = false;
 const listesPretes = LOUE.chargerListes().then(r => {
+  listesDuTelephone = !!r.depuisLeTelephone;
   LISTES = Object.assign(LISTES, r.donnees || {});
   document.getElementById('liste-chantiers').innerHTML = (LISTES.chantiers || [])
     .map(c => '<option value="' + LOUE.esc(c.nom) + '">' + LOUE.esc(c.reference || '') + '</option>').join('');
@@ -245,14 +247,6 @@ const listesPretes = LOUE.chargerListes().then(r => {
   document.getElementById('listes-info').textContent = 'Listes indisponibles (pas de réseau). Tapez le nom du chantier : la fiche partira quand même.';
 });
 
-// Conducteur du chantier : reçoit une copie (colonne D de l'onglet Chantiers)
-function conducteurDuChantier() {
-  const nom = document.getElementById('meta-chantier').value.trim().toLowerCase();
-  const ch = (LISTES.chantiers || []).find(c => String(c.nom).toLowerCase() === nom);
-  if (!ch || !ch.conducteur) return '';
-  const c = (LISTES.contacts || []).concat(LISTES.contactNotes || []).find(x => String(x.nom).toLowerCase() === String(ch.conducteur).toLowerCase());
-  return c ? c.email : '';
-}
 
 // ── Destinataires ──
 function filtrerDest(val) {
@@ -342,14 +336,13 @@ const BROUILLON = LOUE.brouillon({
 // ── Données de la fiche (mêmes noms de champs qu'avant la refonte) ──
 function donneesFiche(pourApercu) {
   const v = id => document.getElementById(id).value.trim();
-  const copie = conducteurDuChantier();
   return {
     chantier: v('meta-chantier'), precision: v('meta-precision'),
     date: v('meta-date'), heure: v('meta-heure'),
     intervenant: v('meta-intervenant'), description: document.getElementById('meta-description').value,
     solde: soldeVal,
     sigLoue: SIG.loue.versDataUrl(), sigIntervenant: SIG.client.versDataUrl(),
-    destinataires: [...new Set([...(copie ? [copie] : []), ...destinataires])],
+    destinataires: destinataires.slice(),   // le serveur ajoute lui-même le conducteur du chantier (ou Franck)
     // Aperçu : photos lues sur place ; envoi : références aux photos envoyées une par une
     photosBase64: photos.map(p => pourApercu ? { data: p.dataB64 || '', mimeType: 'image/jpeg', label: p.label } : { photoRef: p.id, label: p.label }),
   };
@@ -392,7 +385,10 @@ async function envoyer() {
   if (!nomChantier) { champ('meta-chantier').classList.add('error'); erreurs.push('chantier manquant'); }
   // Liste chargée : le chantier doit en faire partie (une faute de frappe créerait un nouveau dossier dans Drive)
   else if (listeChantiers.length && listeChantiers.indexOf(nomChantier.toLowerCase()) < 0) {
-    champ('meta-chantier').classList.add('error'); erreurs.push('choisissez le chantier dans la liste');
+    // Liste ancienne gardée dans le téléphone : un chantier récent peut manquer → on demande confirmation
+    if (!(listesDuTelephone && confirm('« ' + nomChantier + ' » n’est pas dans la liste gardée dans le téléphone (pas de réseau). Envoyer quand même avec ce nom ?'))) {
+      champ('meta-chantier').classList.add('error'); erreurs.push('choisissez le chantier dans la liste');
+    }
   }
   if (!champ('meta-intervenant').value.trim())  { champ('meta-intervenant').classList.add('error');  erreurs.push('client manquant'); }
   if (!champ('meta-description').value.trim())  { champ('meta-description').classList.add('error');  erreurs.push('description manquante'); }
@@ -408,9 +404,11 @@ async function envoyer() {
   envoiEnCours = true;
   const bouton = document.getElementById('btn-envoyer');
   bouton.disabled = true; bouton.textContent = 'Rangement dans le téléphone…';
+  let enFile = false;
   try {
     const d = donneesFiche(false);
     await LOUE.mettreEnFile('quitus', d, photos.map(p => ({ id: p.id, blob: p.blob })), 'Quitus');
+    enFile = true;
     await BROUILLON.effacer();   // la fiche est à l'abri dans la file d'envoi
     LOUE.message('Quitus rangé dans le téléphone. Envoi en cours… (voir l’indicateur en haut)', 6000);
     viderFiche();
@@ -419,6 +417,10 @@ async function envoyer() {
     bouton.disabled = false; bouton.textContent = 'Envoyer le quitus';
     envoiEnCours = false;
   } catch (err) {
+    if (enFile) {   // la fiche est bien dans la file : surtout pas d'envoi direct (doublon)
+      bouton.disabled = false; bouton.textContent = 'Envoyer le quitus'; envoiEnCours = false;
+      return;
+    }
     // Plan de secours : le téléphone refuse de garder la fiche (navigation privée, mémoire pleine) → envoi direct
     bouton.textContent = 'Envoi direct… ne quittez pas la page';
     try {

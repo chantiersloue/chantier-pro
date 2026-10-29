@@ -29,11 +29,13 @@ self.addEventListener('activate', ev => {
 // La page demande d'activer la nouvelle version (bandeau « Nouvelle version — toucher pour mettre à jour »)
 self.addEventListener('message', ev => { if (ev.data === 'activer') self.skipWaiting(); });
 
-// Réseau d'abord avec un délai maximal, puis le cache (pages et configuration)
+// Réseau d'abord avec un délai maximal (3 s), puis le cache. Utilisé pour TOUS les fichiers de l'appli :
+// avec du réseau, page et scripts sont toujours de la même version (jamais une nouvelle page avec un ancien script).
 function reseauDAbord(requete, delaiMs) {
   return new Promise(resolve => {
     let fini = false;
-    const depuisCache = () => caches.match(requete, { ignoreSearch: true }).then(r => r || caches.match('index.html'));
+    const depuisCache = () => caches.match(requete, { ignoreSearch: true })
+      .then(r => r || (requete.mode === 'navigate' ? caches.match('index.html') : Response.error()));
     const minuteur = setTimeout(() => { if (!fini) { fini = true; resolve(depuisCache()); } }, delaiMs);
     fetch(requete).then(rep => {
       if (rep && rep.ok) caches.open(VERSION).then(c => c.put(requete, rep.clone()));
@@ -48,13 +50,5 @@ self.addEventListener('fetch', ev => {
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return;                // Apps Script, Google… : jamais en cache ici
   if (url.pathname.indexOf('/tests/') > -1 || url.pathname.indexOf('/_prive/') > -1) return;
-  if (req.mode === 'navigate' || url.pathname.endsWith('/commun/config.js')) {
-    ev.respondWith(reseauDAbord(req, 3000));
-    return;
-  }
-  // Autres fichiers de l'appli : le cache d'abord (rapide), sinon le réseau (et on le garde)
-  ev.respondWith(caches.match(req, { ignoreSearch: true }).then(r => r || fetch(req).then(rep => {
-    if (rep && rep.ok) { const copie = rep.clone(); caches.open(VERSION).then(c => c.put(req, copie)); }
-    return rep;
-  })));
+  ev.respondWith(reseauDAbord(req, 3000));
 });

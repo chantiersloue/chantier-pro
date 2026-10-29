@@ -80,7 +80,7 @@
     f.addEventListener('click', function (ev) {
       var c = ev.target;
       if (c.hasAttribute('data-fermer')) f.remove();
-      if (c.hasAttribute('data-envoyer')) { LOUE.message('Envoi en cours…'); LOUE.viderFile(); f.remove(); }
+      if (c.hasAttribute('data-envoyer')) { LOUE.message('Envoi en cours…'); LOUE.viderFile(true); f.remove(); }
       if (c.getAttribute('data-reessayer')) { LOUE.reessayer(c.getAttribute('data-reessayer')); f.remove(); }
       if (c.getAttribute('data-abandonner') && confirm('Abandonner définitivement cette fiche ? Elle ne sera jamais envoyée.')) {
         LOUE.abandonner(c.getAttribute('data-abandonner')); f.remove();

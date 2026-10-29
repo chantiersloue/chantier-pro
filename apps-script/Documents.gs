@@ -220,13 +220,14 @@ function traiterQuitus(data, brut) {
 
   const blob = HtmlService.createHtmlOutput(htmlPDF).getAs('application/pdf').setName(nomPDF);
   const fichier = classerFichierDrive(blob, brut.chantier||'—', 'Quitus', nomPDF);
+  const pdfUnique = () => blob;   // le même PDF sert au classement et aux mails
   const sujet = `[Loué App] Quitus — ${chantierBrut}`;
   // Copie au conducteur du chantier calculée par le serveur (sinon Franck) : toujours au moins un destinataire
   const adresses = (Array.isArray(brut.destinataires) ? brut.destinataires : []).concat([emailConducteurChantier_(brut.chantier) || emailAdmin_()]);
   distribuer_({
     fiche: 'quitus', chantier: brut.chantier, adresses: adresses,
     sujet: sujet, texte: `Quitus — ${chantierBrut}\n\nLoué App`, fichier: fichier, nomPDF: nomPDF,
-    faireBlob: () => HtmlService.createHtmlOutput(htmlPDF).getAs('application/pdf').setName(nomPDF),
+    faireBlob: pdfUnique,
   });
 }
 
@@ -635,7 +636,10 @@ function trouverOuCreerDossierChantier(chantierNom) {
 // Trouve ou crée un sous-dossier
 function trouverOuCreerSousDossier(parent, nom) {
   const existing = parent.getFoldersByName(nom);
-  if (existing.hasNext()) return existing.next();
+  while (existing.hasNext()) {
+    const d = existing.next();
+    if (!d.isTrashed()) return d;   // un dossier à la corbeille ne compte pas
+  }
   return parent.createFolder(nom);
 }
 

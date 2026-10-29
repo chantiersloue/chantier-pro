@@ -3,7 +3,7 @@
 // Garde dans le téléphone TOUT ce qui est saisi : champs, choix, photos, signatures, destinataires.
 // - deux copies : tout sauf les photos dans localStorage (marche partout), tout avec photos dans IndexedDB ;
 // - effacé seulement quand la fiche est rangée dans la file d'envoi (donc à l'abri) ;
-// - tant que la personne n'a pas répondu à « Brouillon retrouvé », l'ancien brouillon est mis de côté, jamais écrasé ;
+// - un brouillon proposé et resté sans réponse est mis de côté (5 au plus, 30 jours), jamais écrasé ;
 // - les anciens brouillons (avant la refonte) sont repris automatiquement.
 // Nécessite commun/api.js (stockage IndexedDB) et commun/ui.js (messages).
 // ═══════════════════════════════════════════════════════════════
@@ -51,9 +51,11 @@
   LOUE.brouillon = function (options) {
     var cle = 'brouillon_' + options.cle;
     var cleLocale = 'loue_brouillon_' + ENV + '_' + options.cle;
+    var cleListe = cle + '_mis_de_cote';               // brouillons mis de côté (jamais restaurés), 5 au plus, 30 jours
+    var cleListeLocale = cleLocale + '_mis_de_cote';
     var anciennes = ENV === 'prod' ? (options.anciennesCles || []) : [];
     var derniere = null, minuteur = null, actif = true, averti = false;
-    var enAttente = null;   // brouillon retrouvé, en attente de la réponse de la personne
+    var enAttente = null;   // { etat, source: 'courant' | 'liste' } : proposé dans la bannière, sans réponse pour l'instant
 
     function etat() {
       return { cle: cle, t: Date.now(), champs: champsDeLaPage(), extra: options.capturer ? options.capturer() : {} };
@@ -65,6 +67,43 @@
     function ecrireLocal(c, e) {
       try { localStorage.setItem(c, JSON.stringify(sansPhotos(e))); return true; } catch (err) { return false; }
     }
+    function lireLocal(c) {
+      try { return JSON.parse(localStorage.getItem(c) || 'null'); } catch (e) { return null; }
+    }
+    function lireBase(k) { return LOUE.stockage.lire('brouillons', k).catch(function () { return null; }); }
+
+    // ── Liste des brouillons mis de côté ──
+    function lireListe() {
+      return lireBase(cleListe).then(function (b) {
+        var liste = (b && b.liste) || lireLocal(cleListeLocale) || [];
+        var limite = Date.now() - 30 * 24 * 3600 * 1000;
+        return liste.filter(function (e) { return e && e.t > limite; });
+      });
+    }
+    function ecrireListe(liste) {
+      liste = liste.slice(0, 5);
+      try { localStorage.setItem(cleListeLocale, JSON.stringify(liste.map(sansPhotos))); } catch (e) {}
+      return LOUE.stockage.ecrire('brouillons', { cle: cleListe, liste: liste }).catch(function () {});
+    }
+    function ajouterALaListe(e) {
+      return lireListe().then(function (liste) {
+        if (liste.some(function (x) { return x.t === e.t; })) return;
+        liste.unshift(Object.assign({}, e, { cle: cle }));
+        return ecrireListe(liste);
+      });
+    }
+    function retirerDeLaListe(t) {
+      return lireListe().then(function (liste) { return ecrireListe(liste.filter(function (x) { return x.t !== t; })); });
+    }
+
+    // La personne tape (ou envoie) sans avoir répondu à la bannière : le brouillon proposé est mis de côté
+    var deCote = false;
+    function mettreDeCote() {
+      if (!enAttente || deCote || enAttente.source !== 'courant') return Promise.resolve();
+      deCote = true;
+      return ajouterALaListe(enAttente.etat);
+    }
+
     function sauver() {
       if (!actif) return Promise.resolve();
       var e = etat();
@@ -82,58 +121,59 @@
           }
         });
     }
-    // La personne tape (ou envoie) sans avoir répondu à la bannière : l'ancien brouillon est mis de côté
-    // sous « _precedent », jamais écrasé
-    var deCote = false;
-    function mettreDeCote() {
-      if (!enAttente || deCote) return Promise.resolve();
-      deCote = true;
-      var ancien = Object.assign({}, enAttente, { cle: cle + '_precedent' });
-      ecrireLocal(cleLocale + '_precedent', ancien);
-      return LOUE.stockage.ecrire('brouillons', ancien).catch(function () {});
-    }
     function differer() { clearTimeout(minuteur); minuteur = setTimeout(sauver, 700); }
 
-    function lireLocal(c) {
-      try { var v = JSON.parse(localStorage.getItem(c) || 'null'); return v && v.champs ? v : null; } catch (e) { return null; }
-    }
     function lireAncien() {
       for (var i = 0; i < anciennes.length; i++) {
-        try {
-          var v = JSON.parse(localStorage.getItem(anciennes[i]) || 'null');
-          if (v && (v.champs || v.t)) return { cle: cle, t: v.t || Date.now(), champs: v.champs || {}, extra: {} };
-        } catch (e) {}
+        var v = lireLocal(anciennes[i]);
+        if (v && (v.champs || v.t)) return { cle: cle, t: v.t || Date.now(), champs: v.champs || {}, extra: {} };
       }
       return null;
     }
-    // garderPrecedent : un ancien brouillon jamais restauré reste disponible à la prochaine ouverture
-    function effacerTout(garderPrecedent) {
-      var locales = [cleLocale].concat(garderPrecedent ? [] : anciennes.concat([cleLocale + '_precedent']));
-      locales.forEach(function (k) { try { localStorage.removeItem(k); } catch (e) {} });
-      var cles = garderPrecedent ? [cle] : [cle, cle + '_precedent'];
-      return Promise.all(cles.map(function (k) { return LOUE.stockage.supprimer('brouillons', k).catch(function () {}); }));
+    // Brouillon courant : la copie la PLUS RÉCENTE ; si c'est celle de localStorage (sans photos),
+    // on y rattache les photos de la copie IndexedDB
+    function lireCourant() {
+      return lireBase(cle).then(function (base) {
+        var local = lireLocal(cleLocale);
+        if (local && local.champs && (!base || (local.t || 0) > (base.t || 0))) {
+          if (base && base.extra && local.extra) {
+            Object.keys(base.extra).forEach(function (k) {
+              if (Array.isArray(base.extra[k]) && base.extra[k].some(function (x) { return x && x.blob instanceof Blob; })) local.extra[k] = base.extra[k];
+            });
+          }
+          return local;
+        }
+        return base || lireAncien();
+      });
+    }
+    function effacerCourant() {
+      anciennes.concat([cleLocale]).forEach(function (k) { try { localStorage.removeItem(k); } catch (e) {} });
+      return LOUE.stockage.supprimer('brouillons', cle).catch(function () {});
     }
 
-    function banniere(sauve) {
-      enAttente = sauve;
+    function banniere(proposition) {
+      enAttente = proposition;
+      var sauve = proposition.etat;
       var bar = document.createElement('div');
       bar.className = 'loue-brouillon no-print';
-      bar.innerHTML = '<span>📝 Brouillon retrouvé (' + quand(sauve.t) + '). Le restaurer ?</span>'
+      bar.innerHTML = '<span>📝 ' + (proposition.source === 'liste' ? 'Brouillon mis de côté' : 'Brouillon retrouvé') + ' (' + quand(sauve.t) + '). Le restaurer ?</span>'
         + '<button type="button" data-oui>Restaurer</button><button type="button" data-non>Repartir à zéro</button>';
       bar.querySelector('[data-oui]').onclick = function () {
         bar.remove();
         enAttente = null;
-        Promise.resolve(options.pret).catch(function () {}).then(function () {
-          remettreChamps(sauve.champs);
-          if (options.restaurer) options.restaurer(sauve.extra || {});
-          if (LOUE.message) LOUE.message('Brouillon restauré');
-          sauver();
-        });
+        (proposition.source === 'liste' ? retirerDeLaListe(sauve.t) : Promise.resolve())
+          .then(function () { return options.pret; }).catch(function () {})
+          .then(function () {
+            remettreChamps(sauve.champs);
+            if (options.restaurer) options.restaurer(sauve.extra || {});
+            if (LOUE.message) LOUE.message('Brouillon restauré');
+            derniere = null; sauver();
+          });
       };
       bar.querySelector('[data-non]').onclick = function () {
         if (!confirm('Effacer ce brouillon ? Ce qui y était saisi (photos et signatures comprises) sera perdu.')) return;
         bar.remove(); enAttente = null;
-        effacerTout().then(function () { derniere = null; sauver(); });
+        (proposition.source === 'liste' ? retirerDeLaListe(sauve.t) : effacerCourant()).then(function () { derniere = null; sauver(); });
       };
       document.body.appendChild(bar);
     }
@@ -147,23 +187,24 @@
       window.addEventListener('pagehide', sauver);
       document.addEventListener('loue-avant-maj', sauver);   // mise à jour de l'appli : on sauve avant de recharger
       document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'hidden') sauver(); });
-      var lireBase = function (k) { return LOUE.stockage.lire('brouillons', k).catch(function () { return null; }); };
-      Promise.all([lireBase(cle), lireBase(cle + '_precedent')]).then(function (r) {
-        var sauve = r[0] || lireLocal(cleLocale) || r[1] || lireLocal(cleLocale + '_precedent') || lireAncien();
-        if (sauve && (Object.keys(sauve.champs || {}).length || Object.keys(sauve.extra || {}).length)) banniere(sauve);
+      Promise.all([lireCourant(), lireListe()]).then(function (r) {
+        var courant = r[0], liste = r[1];
+        var plein = function (e) { return e && (Object.keys(e.champs || {}).length || Object.keys(e.extra || {}).length); };
+        if (plein(courant)) banniere({ etat: courant, source: 'courant' });
+        else if (liste.length) banniere({ etat: liste[0], source: 'liste' });   // le plus récent des brouillons mis de côté
       });
     }, 500);
 
     return {
       sauverMaintenant: sauver,
-      // À appeler quand la fiche est rangée dans la file d'envoi : elle ne peut plus être perdue
+      // À appeler quand la fiche est rangée dans la file d'envoi : elle ne peut plus être perdue.
+      // Un brouillon proposé et jamais restauré est mis de côté : il sera reproposé à la prochaine ouverture.
       effacer: function () {
-        var garder = !!enAttente;   // bannière jamais répondue : l'ancien brouillon reste proposé la prochaine fois
         actif = false; clearTimeout(minuteur);
         var b = document.querySelector('.loue-brouillon'); if (b) b.remove();
-        return mettreDeCote().then(function () { enAttente = null; return effacerTout(garder); });
+        return mettreDeCote().then(function () { enAttente = null; return effacerCourant(); });
       },
-      reprendre: function () { actif = true; derniere = empreinte(etat()); },
+      reprendre: function () { actif = true; deCote = false; derniere = empreinte(etat()); },
     };
   };
 })();

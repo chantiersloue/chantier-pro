@@ -292,29 +292,30 @@ function recevoirPhoto_(corps) {
   const b64 = String(corps.data || '');
   if (!mime || !/^[A-Za-z0-9+\/=]+$/.test(b64)) return { ok: false, code: 'DONNEES_INVALIDES', message: 'Photo illisible' };
   if (b64.length * 0.75 > MAX_PHOTO_OCTETS) return { ok: false, code: 'TROP_GROS', message: 'Photo trop lourde (3 Mo maximum)' };
+  // Sous verrou (court) : création du dossier de la fiche et compteurs ; l'écriture de la photo se fait ensuite
   const verrou = LockService.getScriptLock();
   if (!verrou.tryLock(15000)) return { ok: false, code: 'SERVEUR_OCCUPE', message: 'Serveur occupé, nouvel essai automatique' };
+  const nom = corps.id + '.' + mime.split('/')[1];
+  let dossier;
   try {
-    const dossier = dossierPhotosFiche_(corps.fiche);
-    const nom = corps.id + '.' + mime.split('/')[1];
-    if (!dossier.getFilesByName(nom).hasNext()) {
-      let n = 0;
-      const it = dossier.getFiles();
-      while (it.hasNext()) { it.next(); n++; }
-      if (n >= MAX_PHOTOS_PAR_FICHE) return { ok: false, code: 'LIMITE', message: MAX_PHOTOS_PAR_FICHE + ' photos au maximum par fiche' };
-      const props = PropertiesService.getScriptProperties();
-      const cle = 'PHOTOS_' + jour_();
-      const jour = Number(props.getProperty(cle) || 0);
-      if (jour >= MAX_PHOTOS_PAR_JOUR) {
-        alerte_('Plafond de ' + MAX_PHOTOS_PAR_JOUR + " photos par jour atteint : photos refusées jusqu'à demain.", 'photos');
-        return { ok: false, code: 'SERVEUR_OCCUPE', message: "Trop de photos aujourd'hui, nouvel essai plus tard" };
-      }
-      dossier.createFile(Utilities.newBlob(Utilities.base64Decode(b64), mime, nom));
-      props.setProperty(cle, String(jour + 1));
+    dossier = dossierPhotosFiche_(corps.fiche);
+    if (dossier.getFilesByName(nom).hasNext()) return { ok: true, code: 'PHOTO_RECUE', message: 'Photo reçue', data: { id: corps.id } };
+    let n = 0;
+    const it = dossier.getFiles();
+    while (it.hasNext()) { it.next(); n++; }
+    if (n >= MAX_PHOTOS_PAR_FICHE) return { ok: false, code: 'LIMITE', message: MAX_PHOTOS_PAR_FICHE + ' photos au maximum par fiche' };
+    const props = PropertiesService.getScriptProperties();
+    const cle = 'PHOTOS_' + jour_();
+    const jour = Number(props.getProperty(cle) || 0);
+    if (jour >= MAX_PHOTOS_PAR_JOUR) {
+      alerte_('Plafond de ' + MAX_PHOTOS_PAR_JOUR + " photos par jour atteint : photos refusées jusqu'à demain.", 'photos');
+      return { ok: false, code: 'SERVEUR_OCCUPE', message: "Trop de photos aujourd'hui, nouvel essai plus tard" };
     }
+    props.setProperty(cle, String(jour + 1));
   } finally {
     verrou.releaseLock();
   }
+  dossier.createFile(Utilities.newBlob(Utilities.base64Decode(b64), mime, nom));
   return { ok: true, code: 'PHOTO_RECUE', message: 'Photo reçue', data: { id: corps.id } };
 }
 

@@ -17,6 +17,7 @@
     b.innerHTML = '<span>🔄 Nouvelle version de l’appli disponible.</span><button type="button" data-oui>Mettre à jour</button><button type="button" data-non>Plus tard</button>';
     b.querySelector('[data-oui]').onclick = function () {
       b.remove();
+      demande = true;
       // On sauve le brouillon avant de recharger
       document.dispatchEvent(new Event('loue-avant-maj'));
       setTimeout(function () { reg.waiting && reg.waiting.postMessage('activer'); }, 300);
@@ -25,9 +26,10 @@
     document.body.appendChild(b);
   }
 
-  var recharge = false;
+  // Rechargement SEULEMENT si la personne a touché « Mettre à jour » (pas à la première installation)
+  var recharge = false, demande = false;
   navigator.serviceWorker.addEventListener('controllerchange', function () {
-    if (recharge) return; recharge = true; location.reload();
+    if (recharge || !demande) return; recharge = true; location.reload();
   });
 
   window.addEventListener('load', function () {
