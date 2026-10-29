@@ -91,7 +91,7 @@ test('fabrication : un mail en échec ne fait plus planter la fiche (reporté)',
   const g = environnement();
   poster(g, { type, chantier: 'CHANTIER TEST 1', date: '29/10/2026', heure: '10:00', soussigne: 'Franck', preneur: 'M. X',
     typeDoc: 'Pass GENERAL', nombre: '2', sigLoue: SIG, sigPreneur: SIG, destinataires: [FRANCK], photosBase64: [PHOTO] });
-  assert.deepStrictEqual(destinatairesDe(g), [FRANCK]);
+  assert.deepStrictEqual(destinatairesDe(g), [FRANCK, SEB].sort(), 'destinataire choisi + copie au conducteur du chantier');
   const chantier = g.racine.enfants.find(e => e.nom === 'CHANTIER TEST 1');
   assert.ok(chantier.enfants.find(e => e.nom === 'Bordereaux').enfants.length === 1, 'PDF rangé dans Bordereaux');
   assert.ok(pdfHtml(g).indexOf(SIG) > -1, 'la signature est dans le PDF');

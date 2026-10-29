@@ -125,89 +125,22 @@ function traiterNoteReunion(data, brut) {
 // BORDEREAU (Organigramme ou Matériaux)
 // ═══════════════════════════════════════════════════════════════
 function traiterBordereau(data, brut) {
-  const now = new Date();
-  const chantier = data.chantier||'—';
-  const isOrga   = data.type==='bordereau-orga';
-  const titre    = isOrga ? 'BORDEREAU DE REMISE — ORGANIGRAMME' : 'BORDEREAU DE REMISE — MATÉRIAUX';
+  const isOrga   = brut.type==='bordereau-orga';
   const nomPDF   = nomFichier_(`Bordereau_${isOrga?'Orga':'Mat'}_${brut.chantier||'—'}_${String(brut.date||'').replace(/\//g,'-')}.pdf`);
-
-  const photosB64 = data.photosBase64||[];
-  let photosInline = '';
-  let photosPages  = '';
-  if(photosB64.length===1 && photosB64[0].data){
-    // 1 seule photo : inline sur la page 1, pas de page-break
-    photosInline=`<div style="margin-top:10px;border:1px solid #D8D4CE;border-radius:5px;overflow:hidden">
-      <div style="background:#FAFAF8;padding:5px 10px;border-bottom:1px solid #D8D4CE;font-size:9px;font-weight:700;color:#7A4200">Photo${photosB64[0].label?' — '+photosB64[0].label:''}</div>
-      <div style="padding:8px;text-align:center"><img src="data:${photosB64[0].mimeType||'image/jpeg'};base64,${photosB64[0].data}" style="max-width:100%;max-height:100mm;display:block;margin:0 auto;"></div>
-    </div>`;
-  } else if(photosB64.length>=2){
-    for(let i=0;i<photosB64.length;i+=2){
-      const p1=photosB64[i],p2=photosB64[i+1];
-      if(!p1||!p1.data) continue;
-      photosPages+=`<div style="page-break-before:always;padding:10px">
-        <div style="font-size:9px;font-weight:700;color:#7A4200;margin-bottom:6px;border-bottom:2px solid #C8860A;padding-bottom:3px">Photos ${i+1}${p2?' & '+(i+2):''}</div>
-        <table style="width:100%;border-collapse:collapse"><tr>
-          <td style="width:50%;padding-right:6px;text-align:center"><img src="data:${p1.mimeType||'image/jpeg'};base64,${p1.data}" style="max-width:100%;max-height:110mm;display:block;margin:0 auto;">${p1.label?`<div style="font-size:9px;margin-top:3px;color:#6A6460">${p1.label}</div>`:''}</td>
-          ${p2&&p2.data?`<td style="width:50%;padding-left:6px;text-align:center"><img src="data:${p2.mimeType||'image/jpeg'};base64,${p2.data}" style="max-width:100%;max-height:110mm;display:block;margin:0 auto;">${p2.label?`<div style="font-size:9px;margin-top:3px;color:#6A6460">${p2.label}</div>`:''}</td>`:'<td></td>'}
-        </tr></table></div>`;
-    }
-  }
-
-  const mentionOrga = isOrga ? `
-    <div style="margin-top:12px;padding:10px 12px;background:#FFF0F0;border:1.5px solid #EFC0C0;border-radius:5px;font-size:10px;color:#B32E2E;line-height:1.7">
-      <strong>Le preneur est informé qu'en cas de perte d'un Pass Général, l'ensemble de l'organigramme est à refaire. Les frais étant supportés par le preneur de la clé.</strong><br>
-      En cas de perte d'une clé, un forfait de refabrication de <strong>100 € HT</strong> sera facturé au preneur en plus du prix de la clé ou du cylindre complet.
-    </div>` : '';
-
-  const htmlPDF = `<html><head><style>@page{size:A4;margin:1.5cm}body{font-family:Arial,sans-serif;font-size:10px;margin:0}*{box-sizing:border-box}</style></head><body>
-  <table style="width:100%;border-collapse:collapse;margin-bottom:14px;border-bottom:3px solid #7A4200;padding-bottom:10px">
-    <tr>
-      <td style="vertical-align:middle;width:40%">
-        <div style="font-weight:800;font-size:16px;color:#1A2B4A">Loué Menuiserie</div>
-        <div style="font-size:9px;color:#6A6460">Menuiserie · Charpente · Agencement</div>
-      </td>
-      <td style="vertical-align:middle;text-align:center;width:40%">
-        <div style="font-weight:800;font-size:13px;color:#7A4200">${titre}</div>
-        <div style="font-size:10px;color:#6A6460;margin-top:4px">Chantier : <b>${chantier}</b></div>
-        <div style="font-size:10px;color:#6A6460">Le ${data.date||'—'} à ${data.heure||'—'}</div>
-      </td>
-      <td style="vertical-align:middle;text-align:right;width:20%">
-        <div style="font-size:9px;color:#6A6460">Rédigé par</div>
-        <div style="font-size:10px;font-weight:700">${data.soussigne||'—'}</div>
-      </td>
-    </tr>
-  </table>
-  <div style="padding:10px 12px;background:#FDF0D6;border:1.5px solid #C8860A;border-radius:5px;margin-bottom:10px;font-size:11px;line-height:1.9">
-    Je soussigné(e) <strong>${data.soussigne||'—'}</strong>, Entreprise Loué Menuiserie,<br>
-    déclare par la présente avoir remis en main propre à <strong>${data.preneur||'—'}</strong>${data.fonction?' ('+data.fonction+')':''}${data.entreprise?' — '+data.entreprise:''} :<br>
-    <strong>${data.nombre||'—'} × ${data.typeDoc||'—'}</strong>${data.commentaires?'<br><span style="color:#6A6460;word-break:break-word">'+data.commentaires+'</span>':''}
-  </div>
-  ${photosInline}
-  ${photosPages}
-  <table style="width:100%;border-collapse:collapse;margin-top:14px"><tr>
-    <td style="width:50%;padding-right:8px;vertical-align:top">
-      <div style="font-size:9px;font-weight:700;text-transform:uppercase;color:#6A6460;margin-bottom:4px">Signature Entreprise Loué</div>
-      <div style="border:1px solid #D8D4CE;border-radius:4px;height:80px;background:#FAFAF8;text-align:center;padding:4px">${data.sigLoue?`<img src="${data.sigLoue}" style="max-width:100%;max-height:72px;">`:''}</div>
-    </td>
-    <td style="width:50%;padding-left:8px;vertical-align:top">
-      <div style="font-size:9px;font-weight:700;text-transform:uppercase;color:#6A6460;margin-bottom:4px">Signature Preneur</div>
-      <div style="border:1px solid #D8D4CE;border-radius:4px;height:80px;background:#FAFAF8;text-align:center;padding:4px">${data.sigPreneur?`<img src="${data.sigPreneur}" style="max-width:100%;max-height:72px;">`:''}</div>
-    </td>
-  </tr></table>
-  ${mentionOrga}
-  </body></html>`;
-
+  // Lot 1 : PDF fabriqué par le modèle unique (modeles/bordereau.js, copié dans Modeles.gs), le même que l'aperçu de la page
+  const htmlPDF = modele_bordereau(validerImages_(brut), esc_);
   const blob = HtmlService.createHtmlOutput(htmlPDF).getAs('application/pdf').setName(nomPDF);
   // Lot 0 : les bordereaux ont leur propre dossier (ils allaient par erreur dans « Quitus »)
   const fichier = classerFichierDrive(blob, brut.chantier||'—', 'Bordereaux', nomPDF);
   const sujet = `[Loué App] ${isOrga?'Bordereau Organigramme':'Bordereau Matériaux'} — ${brut.chantier||'—'}`;
+  // Copie au conducteur du chantier calculée par le serveur (sinon Franck) : toujours au moins un destinataire
+  const adresses = (Array.isArray(brut.destinataires) ? brut.destinataires : []).concat([emailConducteurChantier_(brut.chantier) || emailAdmin_()]);
   distribuer_({
-    fiche: data.type, chantier: brut.chantier, adresses: brut.destinataires,
-    sujet: sujet, texte: `Bordereau — ${brut.chantier||'—'}\n\nLoué App`, fichier: fichier, nomPDF: nomPDF,
-    faireBlob: () => HtmlService.createHtmlOutput(htmlPDF).getAs('application/pdf').setName(nomPDF),
+    fiche: brut.type, chantier: brut.chantier, adresses: adresses,
+    sujet: sujet, texte: 'Bordereau — ' + (brut.chantier||'—') + '\n\nLoué App', fichier: fichier, nomPDF: nomPDF,
+    faireBlob: () => blob,
   });
 }
-
 
 // ═══════════════════════════════════════════════════════════════
 // QUITUS

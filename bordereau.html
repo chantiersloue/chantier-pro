@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Loué App — Bordereau de remise</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Loué App">
+<meta name="theme-color" content="#1A2B4A">
+<link rel="stylesheet" href="commun/style.css?v=2a48e62394">
+<link rel="stylesheet" href="commun/fiche.css?v=2a48e62394">
+<style>
+.declaration{background:var(--bg);border-radius:var(--r);padding:10px 12px;border:1px solid var(--border);font-size:15px;color:var(--muted);line-height:1.5;}
+.mention-rouge{background:#FFF0F0;border:1.5px solid #EFC0C0;border-radius:var(--r);padding:12px 14px;margin-bottom:12px;font-size:14px;color:var(--red);line-height:1.5;}
+</style>
+</head>
+<body>
+
+<div class="topbar no-print">
+  <a class="btn btn-secondary btn-petit" href="index.html" aria-label="Retour à l'accueil">‹ Retour</a>
+  <span class="tb-name" id="titre-page">Bordereau</span>
+  <span id="loue-envoi-place"></span>
+  <button class="btn btn-secondary btn-petit" type="button" onclick="ouvrirApercu()">Aperçu</button>
+</div>
+
+<div class="main">
+
+  <div class="val-banner" id="valBanner" role="alert"></div>
+
+  <!-- DESTINATAIRES -->
+  <div class="section">
+    <div class="section-head" style="color:var(--teal)">Destinataires</div>
+    <div class="section-body">
+      <div class="aide">Le conducteur du chantier reçoit automatiquement une copie. Ajoutez ici les autres destinataires (2 adresses hors liste au maximum).</div>
+      <div class="dest-chips" id="dest-chips"></div>
+      <div class="dest-row">
+        <input class="meta-input" id="dest-input" type="email" inputmode="email" placeholder="nom@exemple.fr" autocomplete="off" data-brouillon="non"
+          oninput="filtrerDest(this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();ajouterDest();}">
+        <div class="dest-suggestions" id="dest-sugg"></div>
+        <button class="btn btn-secondary" type="button" onclick="ajouterDest()">+ Ajouter</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- INFORMATIONS -->
+  <div class="section">
+    <div class="section-head" style="color:#7A4200">Informations</div>
+    <div class="section-body">
+      <div class="meta-grid">
+        <div class="meta-field meta-full">
+          <label class="meta-label" for="meta-chantier">Chantier <span class="oblig">*</span></label>
+          <input class="meta-input" id="meta-chantier" list="liste-chantiers" placeholder="Choisir ou taper le chantier" autocomplete="off">
+          <datalist id="liste-chantiers"></datalist>
+          <div class="listes-info" id="listes-info"></div>
+        </div>
+        <div class="meta-field">
+          <label class="meta-label" for="meta-date">Date</label>
+          <input class="meta-input" id="meta-date" readonly>
+        </div>
+        <div class="meta-field">
+          <label class="meta-label" for="meta-heure">Heure</label>
+          <input class="meta-input" id="meta-heure" readonly>
+        </div>
+        <div class="meta-field meta-full">
+          <label class="meta-label" for="meta-soussigne">Je soussigné(e) <span class="oblig">*</span> — Entreprise Loué Menuiserie</label>
+          <input class="meta-input" id="meta-soussigne" placeholder="Nom de la personne qui remet" list="liste-soussignes" autocomplete="off">
+          <datalist id="liste-soussignes"></datalist>
+        </div>
+        <div class="meta-field meta-full declaration">Déclare par la présente avoir remis en main propre à :</div>
+        <div class="meta-field meta-full">
+          <label class="meta-label" for="meta-preneur">Nom et prénom du preneur <span class="oblig">*</span></label>
+          <input class="meta-input" id="meta-preneur" placeholder="Nom Prénom" autocomplete="off">
+        </div>
+        <div class="meta-field">
+          <label class="meta-label" for="meta-fonction">Fonction</label>
+          <input class="meta-input" id="meta-fonction" placeholder="Choisir ou saisir" list="liste-fonctions" autocomplete="off">
+          <datalist id="liste-fonctions"></datalist>
+        </div>
+        <div class="meta-field">
+          <label class="meta-label" for="meta-entreprise">Entreprise ou particulier <span class="oblig">*</span></label>
+          <input class="meta-input" id="meta-entreprise" placeholder="Nom de l'entreprise, ou « Particulier »" autocomplete="off">
+        </div>
+        <div class="meta-field">
+          <label class="meta-label" for="meta-type">Type <span class="oblig">*</span></label>
+          <input class="meta-input" id="meta-type" placeholder="Choisir ou saisir" list="liste-types" autocomplete="off">
+          <datalist id="liste-types"></datalist>
+        </div>
+        <div class="meta-field">
+          <label class="meta-label" for="meta-nombre">Nombre <span class="oblig" id="nombre-oblig">*</span></label>
+          <input class="meta-input" id="meta-nombre" inputmode="numeric" placeholder="Ex. : 2" autocomplete="off">
+        </div>
+        <div class="meta-field meta-full">
+          <label class="meta-label" for="meta-commentaires">Commentaires</label>
+          <textarea class="meta-input" id="meta-commentaires" placeholder="Observations, remarques (le micro du clavier permet de dicter)"></textarea>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PHOTOS -->
+  <div class="section">
+    <div class="section-head" style="color:var(--teal)">Photos <span class="oblig">*</span></div>
+    <div class="section-body">
+      <input type="file" id="photo-cam" accept="image/*" capture="environment" hidden onchange="ajouterPhotos(this.files);this.value=''">
+      <input type="file" id="photo-galerie" accept="image/*" multiple hidden onchange="ajouterPhotos(this.files);this.value=''">
+      <div class="photo-btns">
+        <button class="btn" type="button" onclick="document.getElementById('photo-cam').click()">📷 Prendre une photo</button>
+        <button class="btn" type="button" onclick="document.getElementById('photo-galerie').click()">🖼 Galerie</button>
+      </div>
+      <div class="photos-list" id="photos-list"></div>
+    </div>
+  </div>
+
+  <!-- SIGNATURES -->
+  <div class="section">
+    <div class="section-head" style="color:var(--green)">Signatures</div>
+    <div class="section-body">
+      <div class="sig-row">
+        <div class="sig-box">
+          <div class="sig-label">Entreprise Loué <button class="btn btn-secondary btn-petit" type="button" onclick="SIG.loue.effacer()">Effacer</button></div>
+          <canvas class="sig" id="sig-loue"></canvas>
+        </div>
+        <div class="sig-box">
+          <div class="sig-label">Preneur <button class="btn btn-secondary btn-petit" type="button" onclick="SIG.preneur.effacer()">Effacer</button></div>
+          <canvas class="sig" id="sig-preneur"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MENTION (organigramme seulement) -->
+  <div class="mention-rouge" id="mention-orga" hidden>
+    ⚠️ <strong>Le preneur est informé qu'en cas de perte d'un passe général, l'ensemble de l'organigramme est à refaire. Les frais sont supportés par le preneur de la clé.</strong><br>
+    En cas de perte d'une clé, un forfait de refabrication de <strong>100 € HT</strong> sera facturé au preneur en plus du prix de la clé ou du cylindre complet.
+  </div>
+
+</div>
+
+<div class="bottom-bar no-print">
+  <a class="btn btn-secondary" href="index.html">‹ Retour</a>
+  <button class="btn btn-green" id="btn-envoyer" type="button" onclick="envoyer()" style="flex:1">Envoyer le bordereau</button>
+</div>
+
+<!-- APERÇU (le même modèle que le PDF envoyé par mail) -->
+<div class="apercu" id="apercu" role="dialog" aria-label="Aperçu du PDF">
+  <div class="apercu-inner">
+    <div class="apercu-head">
+      <b>Aperçu du PDF</b>
+      <button class="btn btn-secondary btn-petit" type="button" onclick="imprimer()">🖨 Imprimer</button>
+      <button class="btn btn-secondary btn-petit" type="button" onclick="imprimer(true)">⬇ Enregistrer en PDF</button>
+      <button class="btn btn-secondary btn-petit" type="button" onclick="fermerApercu()">Fermer</button>
+    </div>
+    <iframe id="apercu-cadre" title="Aperçu du bordereau"></iframe>
+    <div class="apercu-aide">« Enregistrer en PDF » : dans la fenêtre qui s'ouvre, choisissez l'imprimante « Enregistrer au format PDF » (ou « Microsoft Print to PDF »).</div>
+  </div>
+</div>
+
+<script src="commun/config.js?v=2a48e62394"></script>
+<script src="commun/api.js?v=2a48e62394"></script>
+<script src="commun/ui.js?v=2a48e62394"></script>
+<script src="commun/photos.js?v=2a48e62394"></script>
+<script src="commun/signature.js?v=2a48e62394"></script>
+<script src="commun/brouillon.js?v=2a48e62394"></script>
+<script src="commun/hors-ligne.js?v=2a48e62394"></script>
+<script src="commun/adresses.js?v=2a48e62394"></script>
+<script src="modeles/bordereau.js?v=2a48e62394"></script>
+<script>
+'use strict';
+// ── Organigramme ou matériaux : choisi par l'adresse (bordereau.html?type=orga ou ?type=materiaux) ──
+const ORGA = new URLSearchParams(location.search).get('type') !== 'materiaux';
+const TYPE_DOC = ORGA ? 'bordereau-orga' : 'bordereau-materiaux';
+const LIBELLE = ORGA ? 'Bordereau organigramme' : 'Bordereau matériaux';
+document.title = 'Loué App — ' + LIBELLE;
+document.getElementById('titre-page').textContent = LIBELLE;
+document.getElementById('mention-orga').hidden = !ORGA;
+document.getElementById('nombre-oblig').hidden = ORGA;   // nombre obligatoire pour les matériaux seulement (comme avant)
+
+// ── État de la fiche ──
+let photos = [];
+let destinataires = [];
+let LISTES = { contacts: [], contactNotes: [], chantiers: [], types: [], materiaux: [], fonctions: [] };
+const SIG = {
+  loue: LOUE.signature(document.getElementById('sig-loue')),
+  preneur: LOUE.signature(document.getElementById('sig-preneur')),
+};
+
+function dateHeure() {
+  const now = new Date(), p = n => String(n).padStart(2, '0');
+  document.getElementById('meta-date').value = p(now.getDate()) + '/' + p(now.getMonth() + 1) + '/' + now.getFullYear();
+  document.getElementById('meta-heure').value = p(now.getHours()) + 'h' + p(now.getMinutes());
+}
+dateHeure();
+
+// ── Listes : réseau, sinon dernière liste gardée dans le téléphone ──
+let listesDuTelephone = false;
+const options = (liste, texte) => (liste || []).map(x => '<option value="' + LOUE.esc(texte ? texte(x) : x) + '">').join('');
+LOUE.chargerListes().then(r => {
+  listesDuTelephone = !!r.depuisLeTelephone;
+  LISTES = Object.assign(LISTES, r.donnees || {});
+  document.getElementById('liste-chantiers').innerHTML = (LISTES.chantiers || [])
+    .map(c => '<option value="' + LOUE.esc(c.nom) + '">' + LOUE.esc(c.reference || '') + '</option>').join('');
+  document.getElementById('liste-soussignes').innerHTML = options(LISTES.contacts, c => c.nom);
+  document.getElementById('liste-fonctions').innerHTML = options(LISTES.fonctions);
+  // Organigramme : modèles de clés et cylindres (onglet Types) ; matériaux : onglet Materiaux
+  document.getElementById('liste-types').innerHTML = options(ORGA ? LISTES.types : LISTES.materiaux);
+  if (r.depuisLeTelephone) {
+    document.getElementById('listes-info').textContent = 'Pas de réseau : listes du ' + new Date(r.date).toLocaleDateString('fr-FR') + ' gardées dans le téléphone.';
+  }
+}).catch(() => {
+  document.getElementById('listes-info').textContent = 'Listes indisponibles (pas de réseau). Tapez le nom du chantier : la fiche partira quand même.';
+});
+
+// ── Destinataires ──
+function filtrerDest(val) {
+  const sugg = document.getElementById('dest-sugg');
+  const v = (val || '').toLowerCase();
+  const liste = (LISTES.contactNotes || []).concat(LISTES.contacts || []).filter(u => u.email);
+  const m = v ? liste.filter(u => String(u.nom).toLowerCase().includes(v) || String(u.email).toLowerCase().includes(v)).slice(0, 8) : [];
+  if (!m.length) { sugg.classList.remove('open'); return; }
+  sugg.innerHTML = m.map(u => '<div class="dest-sugg-item" data-email="' + LOUE.esc(u.email) + '">' + LOUE.esc(u.nom) + ' <small>' + LOUE.esc(u.email) + '</small></div>').join('');
+  sugg.classList.add('open');
+}
+document.getElementById('dest-sugg').addEventListener('click', ev => {
+  const item = ev.target.closest('[data-email]');
+  if (!item) return;
+  document.getElementById('dest-input').value = item.getAttribute('data-email');
+  ajouterDest();
+});
+function ajouterDest() {
+  const input = document.getElementById('dest-input');
+  const val = input.value.trim();
+  document.getElementById('dest-sugg').classList.remove('open');
+  if (!val) return;
+  if (!/^[^\s@]+@[^\s@]+\.[A-Za-z]{2,}$/.test(val)) { LOUE.message('Adresse mail invalide (exemple : nom@exemple.fr)'); input.classList.add('error'); return; }
+  input.classList.remove('error');
+  if (destinataires.includes(val)) { input.value = ''; return; }
+  if (window.LOUE_refuserAdresseLibre && LOUE_refuserAdresseLibre(val, destinataires, (LISTES.contacts || []).concat(LISTES.contactNotes || []))) { input.value = ''; return; }
+  destinataires.push(val); afficherDest(); input.value = '';
+  document.dispatchEvent(new Event('change'));
+}
+function retirerDest(i) { destinataires.splice(i, 1); afficherDest(); document.dispatchEvent(new Event('change')); }
+function afficherDest() {
+  document.getElementById('dest-chips').innerHTML = destinataires.map((d, i) =>
+    '<span class="dest-chip">' + LOUE.esc(d) + '<button type="button" aria-label="Retirer" onclick="retirerDest(' + i + ')">×</button></span>').join('');
+}
+document.addEventListener('click', e => { if (!e.target.closest('.dest-row')) document.getElementById('dest-sugg').classList.remove('open'); });
+
+// ── Photos : compressées dès qu'on les ajoute ──
+async function ajouterPhotos(fichiers) {
+  for (const f of Array.from(fichiers || [])) {
+    if (photos.length >= LOUE.PHOTOS_MAX) { LOUE.message(LOUE.PHOTOS_MAX + ' photos au maximum par fiche'); break; }
+    try {
+      const blob = await LOUE.compresserPhoto(f);
+      photos.push({ id: LOUE.nouvelId('photo'), blob, url: URL.createObjectURL(blob), label: '' });
+    } catch (err) { LOUE.message(err.message, 8000); }
+  }
+  afficherPhotos();
+  document.dispatchEvent(new Event('change'));
+}
+function retirerPhoto(i) { URL.revokeObjectURL(photos[i].url); photos.splice(i, 1); afficherPhotos(); document.dispatchEvent(new Event('change')); }
+function afficherPhotos() {
+  const liste = document.getElementById('photos-list');
+  liste.innerHTML = photos.map((p, i) =>
+    '<div class="photo-item"><div class="photo-item-head"><span class="photo-item-num">Photo ' + (i + 1) + '</span>'
+    + '<input class="photo-item-label" data-i="' + i + '" placeholder="Légende…" data-brouillon="non" value="' + LOUE.esc(p.label) + '">'
+    + '<button class="btn btn-secondary btn-petit" type="button" onclick="retirerPhoto(' + i + ')">Retirer</button></div>'
+    + '<img src="' + p.url + '" alt="Photo ' + (i + 1) + '"></div>').join('');
+  liste.querySelectorAll('.photo-item-label').forEach(el => el.addEventListener('input', () => { photos[+el.dataset.i].label = el.value; }));
+}
+
+// ── Brouillon automatique (un par type de bordereau ; reprend les anciens brouillons d'avant la refonte) ──
+const BROUILLON = LOUE.brouillon({
+  cle: ORGA ? 'bord_orga' : 'bord_mat',
+  anciennesCles: [ORGA ? 'brouillon_bord_orga' : 'brouillon_bord_mat'],
+  capturer: () => ({
+    destinataires: destinataires.slice(),
+    photos: photos.map(p => ({ id: p.id, blob: p.blob, label: p.label })),
+    sigLoue: SIG.loue.lireTraits(), sigPreneur: SIG.preneur.lireTraits(),
+  }),
+  restaurer: x => {
+    destinataires = (x.destinataires || []).slice(); afficherDest();
+    photos = (x.photos || []).filter(p => p.blob).map(p => ({ id: p.id, blob: p.blob, url: URL.createObjectURL(p.blob), label: p.label || '' }));
+    afficherPhotos();
+    if (x.sigLoue) SIG.loue.ecrireTraits(x.sigLoue);
+    if (x.sigPreneur) SIG.preneur.ecrireTraits(x.sigPreneur);
+  },
+});
+
+// ── Données de la fiche (mêmes noms de champs qu'avant la refonte) ──
+function donneesFiche(pourApercu) {
+  const v = id => document.getElementById(id).value.trim();
+  return {
+    type: TYPE_DOC,
+    chantier: v('meta-chantier'), date: v('meta-date'), heure: v('meta-heure'),
+    soussigne: v('meta-soussigne'), preneur: v('meta-preneur'), fonction: v('meta-fonction'),
+    entreprise: v('meta-entreprise'), typeDoc: v('meta-type'), nombre: v('meta-nombre'),
+    commentaires: document.getElementById('meta-commentaires').value,
+    sigLoue: SIG.loue.versDataUrl(), sigPreneur: SIG.preneur.versDataUrl(),
+    destinataires: destinataires.slice(),   // le serveur ajoute lui-même le conducteur du chantier (ou Franck)
+    photosBase64: photos.map(p => pourApercu ? { data: p.dataB64 || '', mimeType: 'image/jpeg', label: p.label } : { photoRef: p.id, label: p.label }),
+  };
+}
+
+// ── Aperçu, impression, enregistrement en PDF ──
+async function ouvrirApercu() {
+  for (const p of photos) if (!p.dataB64) p.dataB64 = (await LOUE.blobEnDataUrl(p.blob)).split(',')[1];
+  document.getElementById('apercu-cadre').srcdoc = modele_bordereau(donneesFiche(true), LOUE.esc);
+  document.getElementById('apercu').classList.add('open');
+}
+function fermerApercu() { document.getElementById('apercu').classList.remove('open'); }
+function imprimer(enPdf) {
+  const cadre = document.getElementById('apercu-cadre');
+  if (enPdf) LOUE.message('Choisissez l’imprimante « Enregistrer au format PDF »', 6000);
+  cadre.contentWindow.focus();
+  cadre.contentWindow.print();
+}
+
+function viderFiche() {
+  ['meta-preneur', 'meta-fonction', 'meta-entreprise', 'meta-type', 'meta-nombre', 'meta-commentaires'].forEach(id => { document.getElementById(id).value = ''; });
+  destinataires = []; afficherDest();
+  photos.forEach(p => URL.revokeObjectURL(p.url)); photos = []; afficherPhotos();
+  SIG.loue.ecrireTraits([]); SIG.preneur.ecrireTraits([]);
+  dateHeure();
+  window.scrollTo(0, 0);
+}
+
+// ── Envoi : la fiche est rangée dans le téléphone, puis part (tout de suite ou au retour du réseau) ──
+let envoiEnCours = false;
+async function envoyer() {
+  if (envoiEnCours) return;
+  const erreurs = [];
+  const champ = id => document.getElementById(id);
+  const obligatoires = [['meta-soussigne', 'nom du soussigné'], ['meta-preneur', 'preneur'], ['meta-entreprise', 'entreprise ou particulier'], ['meta-type', 'type']];
+  if (!ORGA) obligatoires.push(['meta-nombre', 'nombre']);
+  ['meta-chantier'].concat(obligatoires.map(o => o[0])).forEach(id => champ(id).classList.remove('error'));
+  const nomChantier = champ('meta-chantier').value.trim();
+  const listeChantiers = (LISTES.chantiers || []).map(c => String(c.nom).toLowerCase());
+  if (!nomChantier) { champ('meta-chantier').classList.add('error'); erreurs.push('chantier manquant'); }
+  else if (listeChantiers.length && listeChantiers.indexOf(nomChantier.toLowerCase()) < 0) {
+    if (!(listesDuTelephone && confirm('« ' + nomChantier + ' » n’est pas dans la liste gardée dans le téléphone (pas de réseau). Envoyer quand même avec ce nom ?'))) {
+      champ('meta-chantier').classList.add('error'); erreurs.push('choisissez le chantier dans la liste');
+    }
+  }
+  obligatoires.forEach(([id, nom]) => { if (!champ(id).value.trim()) { champ(id).classList.add('error'); erreurs.push(nom + ' manquant'); } });
+  if (!photos.length) erreurs.push('au moins une photo');
+  const bandeau = document.getElementById('valBanner');
+  if (erreurs.length) {
+    bandeau.textContent = 'À compléter : ' + erreurs.join(', ') + '.';
+    bandeau.classList.add('show'); bandeau.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    return;
+  }
+  bandeau.classList.remove('show');
+  envoiEnCours = true;
+  const bouton = document.getElementById('btn-envoyer');
+  bouton.disabled = true; bouton.textContent = 'Rangement dans le téléphone…';
+  let enFile = false;
+  try {
+    await LOUE.mettreEnFile(TYPE_DOC, donneesFiche(false), photos.map(p => ({ id: p.id, blob: p.blob })), LIBELLE);
+    enFile = true;
+    await BROUILLON.effacer();
+    LOUE.message(LIBELLE + ' rangé dans le téléphone. Envoi en cours… (voir l’indicateur en haut)', 6000);
+    viderFiche();
+    LOUE.viderFile();
+    BROUILLON.reprendre();
+  } catch (err) {
+    if (!enFile) {
+      // Plan de secours : le téléphone refuse de garder la fiche → envoi direct
+      bouton.textContent = 'Envoi direct… ne quittez pas la page';
+      try {
+        const rep = await LOUE.envoyerDirect(TYPE_DOC, donneesFiche(false), photos.map(p => ({ id: p.id, blob: p.blob })));
+        await BROUILLON.effacer();
+        LOUE.message('✓ ' + LIBELLE + ' envoyé — ' + (rep.message || ''), 8000);
+        viderFiche(); BROUILLON.reprendre();
+      } catch (err2) {
+        LOUE.message('⚠ Le bordereau n’est pas parti : ' + err2.message + '. Gardez la page ouverte et réessayez quand il y aura du réseau.', 12000);
+      }
+    }
+  }
+  bouton.disabled = false; bouton.textContent = 'Envoyer le bordereau';
+  envoiEnCours = false;
+}
+</script>
+</body>
+</html>
