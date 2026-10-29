@@ -221,8 +221,10 @@ function traiterQuitus(data, brut) {
   const blob = HtmlService.createHtmlOutput(htmlPDF).getAs('application/pdf').setName(nomPDF);
   const fichier = classerFichierDrive(blob, brut.chantier||'—', 'Quitus', nomPDF);
   const sujet = `[Loué App] Quitus — ${chantierBrut}`;
+  // Copie au conducteur du chantier calculée par le serveur (sinon Franck) : toujours au moins un destinataire
+  const adresses = (Array.isArray(brut.destinataires) ? brut.destinataires : []).concat([emailConducteurChantier_(brut.chantier) || emailAdmin_()]);
   distribuer_({
-    fiche: 'quitus', chantier: brut.chantier, adresses: brut.destinataires,
+    fiche: 'quitus', chantier: brut.chantier, adresses: adresses,
     sujet: sujet, texte: `Quitus — ${chantierBrut}\n\nLoué App`, fichier: fichier, nomPDF: nomPDF,
     faireBlob: () => HtmlService.createHtmlOutput(htmlPDF).getAs('application/pdf').setName(nomPDF),
   });

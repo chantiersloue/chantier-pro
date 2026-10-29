@@ -130,9 +130,8 @@ test('adresse libre : mail au contenu imposé, PJ renommée, copie cachée au co
   const g = environnement();
   poster(g, { type: 'quitus', chantier: 'CHANTIER TEST 1', intervenant: 'Client <b>gras</b>',
     description: 'Cliquez sur http://arnaque.test', destinataires: ['client@gmail.test'], photosBase64: [] });
-  assert.strictEqual(g.mails.length, 1);
-  const m = g.mails[0];
-  assert.strictEqual(m.to, 'client@gmail.test');
+  assert.strictEqual(g.mails.length, 2, 'le client + la copie habituelle au conducteur du chantier');
+  const m = g.mails.find(x => x.to === 'client@gmail.test');
   assert.strictEqual(m.sujet, 'Loué Menuiserie — Quitus — CHANTIER TEST 1');
   assert.ok(m.texte.indexOf('arnaque') < 0 && !m.opts.htmlBody, 'aucun texte libre dans le mail');
   assert.strictEqual(m.opts.bcc, SEB, 'conducteur du chantier en copie cachée');
@@ -143,8 +142,9 @@ test('adresse libre : mail au contenu imposé, PJ renommée, copie cachée au co
 test('adresse libre : chantier inventé → absent du sujet, copie à Franck', () => {
   const g = environnement();
   poster(g, { type: 'quitus', chantier: 'Gagnez un iPhone !', destinataires: ['x@y.test'], photosBase64: [] });
-  assert.strictEqual(g.mails[0].sujet, 'Loué Menuiserie — Quitus');
-  assert.strictEqual(g.mails[0].opts.bcc, FRANCK);
+  const libre = g.mails.find(x => x.to === 'x@y.test');
+  assert.strictEqual(libre.sujet, 'Loué Menuiserie — Quitus');
+  assert.strictEqual(libre.opts.bcc, FRANCK);
 });
 
 test('adresse libre : 3e adresse sur une fiche refusée, une seule alerte par jour', () => {
@@ -171,7 +171,16 @@ test('adresse libre : plafond de 10 par jour pour toute l\'appli', () => {
 test('adresse mal formée : refusée sans envoi', () => {
   const g = environnement();
   poster(g, { type: 'quitus', chantier: 'CHANTIER TEST 1', destinataires: ['pas une adresse', 'a@b'] });
-  assert.strictEqual(g.mails.filter(m => m.to !== FRANCK).length, 0);
+  assert.strictEqual(g.mails.filter(m => m.to !== FRANCK && m.to !== SEB).length, 0);
+});
+
+test('quitus sans destinataire : copie au conducteur du chantier calculée par le serveur', () => {
+  const g = environnement();
+  poster(g, { type: 'quitus', chantier: 'CHANTIER TEST 1', destinataires: [] });
+  assert.deepStrictEqual(destinatairesDe(g), [SEB]);
+  const h = environnement();
+  poster(h, { type: 'quitus', chantier: 'Chantier inconnu', destinataires: [] });
+  assert.deepStrictEqual(destinatairesDe(h), [FRANCK], 'chantier sans conducteur : Franck');
 });
 
 console.log('Lot 0 — quota de mails');

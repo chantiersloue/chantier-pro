@@ -55,11 +55,20 @@ function renvoyerMailsEnAttente() {
         } catch (e) {}
       });
     }
+    // Photos de fiches jamais terminées : à la corbeille au bout de 7 jours
+    try {
+      const enCours = dossierPhotosEnCours_(false);
+      if (enCours) {
+        const limite = Date.now() - 7 * 24 * 3600 * 1000;
+        const it = enCours.getFolders();
+        while (it.hasNext()) { const d = it.next(); if (d.getDateCreated().getTime() < limite) d.setTrashed(true); }
+      }
+    } catch (e) { console.error('nettoyage photos :', e.message); }
     // Nettoyage des compteurs des jours passés
     const props = PropertiesService.getScriptProperties();
     const aujourdhui = jour_();
     props.getKeys().forEach(k => {
-      if (/^(LIBRES|ALERTE_[A-Z]+)_\d{4}-\d{2}-\d{2}$/.test(k) && k.slice(-10) < aujourdhui) props.deleteProperty(k);
+      if (/^(LIBRES|PHOTOS|ALERTE_[A-Z]+)_\d{4}-\d{2}-\d{2}$/.test(k) && k.slice(-10) < aujourdhui) props.deleteProperty(k);
     });
   } finally {
     verrou.releaseLock();

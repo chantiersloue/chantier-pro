@@ -54,3 +54,13 @@
 | D1-7 | Champ « Client » du quitus : plus de suggestions | Proposer les contacts | Les suggestions étaient… les salariés de Loué (audit). |
 | D1-8 | Polices système à la place de Google Fonts | Garder Google Fonts | Écran blanc en 3G ; une dépendance en moins. |
 | D1-9 | Le service worker n'a pas pu être essayé dans le navigateur de test (il refuse les service workers) ; il sera vérifié sur les téléphones pendant le test du lot 1 | — | Limite de l'outil de test, pas du code ; `outils/sw-secours.js` est prêt en cas de souci. |
+| D1-10 | Une base de stockage par mode (`loue` en production, `loue_test`, `loue_local`) : une fiche ou un brouillon d'essai ne part jamais en production, et l'inverse | Noter le mode dans chaque fiche | Plus simple et sans risque d'oubli (revue, B1). |
+| D1-11 | Si le téléphone refuse de garder la fiche (navigation privée, mémoire pleine) : envoi direct, page ouverte, 3 essais | Bloquer l'envoi | L'ancienne page envoyait toujours : pas de régression (revue, B2). |
+| D1-12 | Brouillon en double : tout sauf les photos dans localStorage, tout dans IndexedDB ; avertissement si rien ne peut être gardé | IndexedDB seul | Le texte est gardé même quand les photos ne peuvent pas l'être (revue, B2). |
+| D1-13 | Copie au conducteur du chantier ajoutée par le serveur (sinon Franck), et plus par la page | Calcul dans la page | Toujours au moins un destinataire, même chantier tapé à la main ou listes absentes (revue, B3). |
+| D1-14 | Bannière de brouillon sans réponse : l'ancien brouillon est mis de côté (« _precedent ») et reproposé à l'ouverture suivante ; « Repartir à zéro » demande confirmation | Écraser | Photos et signatures ne se refont pas (revue, I1). |
+| D1-15 | Erreur du serveur = passagère : nouvel essai après 1, 5, 15, 60 min, « à vérifier » après 12 essais ; alerte à Franck à chaque erreur serveur (une par jour) | Refus définitif immédiat ; essai chaque minute | Les erreurs Drive / conversion sont souvent passagères ; économie de batterie et de forfait (revue, I3). |
+| D1-16 | Chantier : obligatoirement dans la liste quand elle est chargée ; saisie libre seulement sans liste | Toujours libre | Une faute de frappe créait un nouveau dossier Drive (revue, I4). |
+| D1-17 | Signatures du quitus **facultatives**, comme avant la refonte | Obligatoires | Commande : rien ne change pour les fiches (revue, I5). |
+| D1-18 | Photos : 15 par fiche, 400 par jour pour toute l'appli ; photos de fiches jamais terminées mises à la corbeille après 7 jours | Sans limite | Protège les 15 Go contre un abus ou un bug (revue, I6). |
+| D1-19 | Le PDF n'est fabriqué qu'une fois par fiche, puis copié pour chaque destinataire | Une conversion par destinataire | Lenteur, risque de dépasser 6 min (revue). |

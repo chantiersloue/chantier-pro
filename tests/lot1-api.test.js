@@ -51,10 +51,11 @@ test('fiche : réponse « ENREGISTRE » avec le bilan des mails', () => {
 test('même fiche renvoyée (réponse perdue) : « DEJA_RECU », aucun second mail', () => {
   const g = environnement();
   poster(g, { action: 'fiche', id: 'fiche-0002-abcd', donnees: quitus() });
+  const apres1 = g.mails.length;
   const r = poster(g, { action: 'fiche', id: 'fiche-0002-abcd', donnees: quitus() });
   assert.strictEqual(r.code, 'DEJA_RECU');
   assert.ok(r.ok, 'la page doit considérer la fiche comme envoyée');
-  assert.strictEqual(g.mails.length, 1);
+  assert.strictEqual(g.mails.length, apres1, 'aucun mail de plus');
   assert.strictEqual(g.feuilles['Envois'].lignes.length, 2, 'une seule ligne dans Envois');
 });
 
@@ -136,7 +137,32 @@ test('l\'ancien format (pages pas encore refondues) marche toujours', () => {
   const g = environnement();
   const r = poster(g, quitus());
   assert.strictEqual(r.status, 'ok');
-  assert.strictEqual(g.mails.length, 1);
+  assert.deepStrictEqual(g.mails.map(m => m.to).sort(), [FRANCK, SEB].sort());
+});
+
+test('erreur du serveur : code ERREUR (réessayé par le téléphone) et alerte à Franck', () => {
+  const g = environnement();
+  g.contexte.HtmlService.createHtmlOutput = () => { throw new Error('Service error: Drive'); };
+  const r = poster(g, { action: 'fiche', id: 'fiche-0040-abcd', donnees: quitus() });
+  assert.strictEqual(r.code, 'ERREUR');
+  assert.ok(/nouvel essai/.test(r.message));
+  assert.ok(g.mails.some(m => m.to === FRANCK), 'alerte envoyée à Franck');
+});
+
+test('photos : 15 au maximum par fiche', () => {
+  const g = environnement();
+  for (let i = 0; i < 15; i++) poster(g, { action: 'photo', id: 'photo-01' + String(i).padStart(2, '0') + '-abcd', fiche: 'fiche-0050-abcd', mime: 'image/jpeg', data: PHOTO_B64 });
+  const r = poster(g, { action: 'photo', id: 'photo-0199-abcd', fiche: 'fiche-0050-abcd', mime: 'image/jpeg', data: PHOTO_B64 });
+  assert.strictEqual(r.code, 'LIMITE');
+});
+
+test('photos de fiches abandonnées : corbeille après 7 jours', () => {
+  const g = environnement();
+  poster(g, { action: 'photo', id: 'photo-0300-abcd', fiche: 'fiche-0300-abcd', mime: 'image/jpeg', data: PHOTO_B64 });
+  const enCours = g.racine.enfants.find(e => e.nom === '_PHOTOS EN COURS');
+  enCours.enfants[0].cree = Date.now() - 8 * 24 * 3600 * 1000;
+  g.ctx.renvoyerMailsEnAttente();
+  assert.ok(enCours.enfants[0].corbeille);
 });
 
 console.log('\n' + reussis + ' test(s) réussi(s)' + (process.exitCode ? ' — DES TESTS ÉCHOUENT' : ''));

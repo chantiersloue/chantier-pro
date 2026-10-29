@@ -112,7 +112,7 @@ body.loue-test .apercu{padding-top:52px;}
       <div class="meta-grid">
         <div class="meta-field meta-full">
           <label class="meta-label" for="meta-chantier">Chantier <span class="oblig">*</span></label>
-          <input class="meta-input" id="meta-chantier" list="liste-chantiers" placeholder="Choisir ou taper le chantier" autocomplete="off" onchange="surChantier(this.value)">
+          <input class="meta-input" id="meta-chantier" list="liste-chantiers" placeholder="Choisir ou taper le chantier" autocomplete="off">
           <datalist id="liste-chantiers"></datalist>
           <div class="listes-info" id="listes-info"></div>
         </div>
@@ -224,12 +224,13 @@ const SIG = {
   client: LOUE.signature(document.getElementById('sig-intervenant')),
 };
 
-// ── Date et heure du jour ──
-(function () {
+// ── Date et heure du jour (remises à jour après chaque envoi) ──
+function dateHeure() {
   const now = new Date(), p = n => String(n).padStart(2, '0');
   document.getElementById('meta-date').value = p(now.getDate()) + '/' + p(now.getMonth() + 1) + '/' + now.getFullYear();
   document.getElementById('meta-heure').value = p(now.getHours()) + 'h' + p(now.getMinutes());
-})();
+}
+dateHeure();
 
 // ── Listes (chantiers, contacts) : réseau, sinon dernière liste gardée dans le téléphone ──
 const listesPretes = LOUE.chargerListes().then(r => {
@@ -252,7 +253,6 @@ function conducteurDuChantier() {
   const c = (LISTES.contacts || []).concat(LISTES.contactNotes || []).find(x => String(x.nom).toLowerCase() === String(ch.conducteur).toLowerCase());
   return c ? c.email : '';
 }
-function surChantier() { /* le conducteur est recalculé à l'envoi */ }
 
 // ── Destinataires ──
 function filtrerDest(val) {
@@ -324,7 +324,6 @@ function afficherPhotos() {
 const BROUILLON = LOUE.brouillon({
   cle: 'quitus',
   anciennesCles: ['brouillon_quitus'],
-  pret: listesPretes,
   capturer: () => ({
     destinataires: destinataires.slice(), solde: soldeVal,
     photos: photos.map(p => ({ id: p.id, blob: p.blob, label: p.label })),
@@ -377,6 +376,7 @@ function viderFiche() {
   soldeVal = ''; document.getElementById('solde-oui').classList.remove('active'); document.getElementById('solde-non').classList.remove('active');
   photos.forEach(p => URL.revokeObjectURL(p.url)); photos = []; afficherPhotos();
   SIG.loue.ecrireTraits([]); SIG.client.ecrireTraits([]);
+  dateHeure();
   window.scrollTo(0, 0);
 }
 
@@ -387,13 +387,17 @@ async function envoyer() {
   const erreurs = [];
   const champ = id => document.getElementById(id);
   ['meta-chantier', 'meta-intervenant', 'meta-description'].forEach(id => champ(id).classList.remove('error'));
-  if (!champ('meta-chantier').value.trim())     { champ('meta-chantier').classList.add('error');     erreurs.push('chantier manquant'); }
+  const nomChantier = champ('meta-chantier').value.trim();
+  const listeChantiers = (LISTES.chantiers || []).map(c => String(c.nom).toLowerCase());
+  if (!nomChantier) { champ('meta-chantier').classList.add('error'); erreurs.push('chantier manquant'); }
+  // Liste chargée : le chantier doit en faire partie (une faute de frappe créerait un nouveau dossier dans Drive)
+  else if (listeChantiers.length && listeChantiers.indexOf(nomChantier.toLowerCase()) < 0) {
+    champ('meta-chantier').classList.add('error'); erreurs.push('choisissez le chantier dans la liste');
+  }
   if (!champ('meta-intervenant').value.trim())  { champ('meta-intervenant').classList.add('error');  erreurs.push('client manquant'); }
   if (!champ('meta-description').value.trim())  { champ('meta-description').classList.add('error');  erreurs.push('description manquante'); }
   if (!soldeVal)              erreurs.push('indiquez si c’est soldé : OUI ou NON');
   if (!photos.length)         erreurs.push('au moins une photo');
-  if (SIG.loue.estVide())     erreurs.push('signature de l’entreprise');
-  if (SIG.client.estVide())   erreurs.push('signature du client');
   const bandeau = document.getElementById('valBanner');
   if (erreurs.length) {
     bandeau.textContent = 'À compléter : ' + erreurs.join(', ') + '.';
@@ -415,7 +419,16 @@ async function envoyer() {
     bouton.disabled = false; bouton.textContent = 'Envoyer le quitus';
     envoiEnCours = false;
   } catch (err) {
-    LOUE.message('⚠ Impossible de ranger la fiche dans le téléphone : ' + err.message + '. Ne fermez pas la page et réessayez.', 10000);
+    // Plan de secours : le téléphone refuse de garder la fiche (navigation privée, mémoire pleine) → envoi direct
+    bouton.textContent = 'Envoi direct… ne quittez pas la page';
+    try {
+      const rep = await LOUE.envoyerDirect('quitus', donneesFiche(false), photos.map(p => ({ id: p.id, blob: p.blob })));
+      await BROUILLON.effacer();
+      LOUE.message('✓ Quitus envoyé — ' + (rep.message || ''), 8000);
+      viderFiche(); BROUILLON.reprendre();
+    } catch (err2) {
+      LOUE.message('⚠ Le quitus n’est pas parti : ' + err2.message + '. Gardez la page ouverte et réessayez quand il y aura du réseau.', 12000);
+    }
     bouton.disabled = false; bouton.textContent = 'Envoyer le quitus';
     envoiEnCours = false;
   }

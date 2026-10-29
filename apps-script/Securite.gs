@@ -236,8 +236,9 @@ function envoyer_(o, email, m, mode) {
     return;
   }
   try {
-    const blob = o.faireBlob();
-    if (m.nomPJ) blob.setName(m.nomPJ);
+    // Le PDF n'est fabriqué qu'une fois pour tous les destinataires (la conversion est lente)
+    if (!o._blob) o._blob = o.faireBlob();
+    const blob = o._blob.copyBlob().setName(m.nomPJ || o._blob.getName());
     const opts = { attachments: [blob], name: NOM_ENTREPRISE };
     if (m.html) opts.htmlBody = m.html;
     if (m.bcc)  opts.bcc = m.bcc;

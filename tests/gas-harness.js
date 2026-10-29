@@ -63,6 +63,7 @@ function creerGoogle(options = {}) {
       getId: () => id, getName: () => el.nom, getUrl: () => 'https://drive.google.com/' + id,
       getMimeType: () => (extra && extra.mime) || 'application/pdf',
       getLastUpdated: () => new Date(2026, 9, 29),
+      getDateCreated: () => new Date(el.cree || Date.now()),
       getParents: () => it(el.parents),
       setSharing: (a, p) => {
         // Option « heritage » : comme Drive, on ne peut pas retirer un partage hérité du dossier parent

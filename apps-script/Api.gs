@@ -270,9 +270,20 @@ function idValide_(id) {
 
 // ── Photos : une par requête, gardées dans « _PHOTOS EN COURS/<id de la fiche> » jusqu'à l'envoi de la fiche ──
 const MAX_PHOTO_OCTETS = 3 * 1024 * 1024;   // 3 Mo par photo (une photo compressée fait 200 à 400 Ko)
+const MAX_PHOTOS_PAR_FICHE = 15;
+const MAX_PHOTOS_PAR_JOUR = 400;            // ≈ 120 Mo par jour au pire : protège les 15 Go
+// Dossier « _PHOTOS EN COURS » : créé une seule fois (sous verrou), son identifiant est gardé
+function dossierPhotosEnCours_(creer) {
+  const props = PropertiesService.getScriptProperties();
+  const id = props.getProperty('DOSSIER_PHOTOS_EN_COURS');
+  if (id) { try { const d = DriveApp.getFolderById(id); if (!d.isTrashed()) return d; } catch (e) {} }
+  if (!creer) return null;
+  const d = trouverOuCreerSousDossier(DriveApp.getFolderById(driveRootId_()), '_PHOTOS EN COURS');
+  props.setProperty('DOSSIER_PHOTOS_EN_COURS', d.getId());
+  return d;
+}
 function dossierPhotosFiche_(idFiche) {
-  const racine = DriveApp.getFolderById(driveRootId_());
-  return trouverOuCreerSousDossier(trouverOuCreerSousDossier(racine, '_PHOTOS EN COURS'), idFiche);
+  return trouverOuCreerSousDossier(dossierPhotosEnCours_(true), idFiche);
 }
 
 function recevoirPhoto_(corps) {
@@ -281,10 +292,28 @@ function recevoirPhoto_(corps) {
   const b64 = String(corps.data || '');
   if (!mime || !/^[A-Za-z0-9+\/=]+$/.test(b64)) return { ok: false, code: 'DONNEES_INVALIDES', message: 'Photo illisible' };
   if (b64.length * 0.75 > MAX_PHOTO_OCTETS) return { ok: false, code: 'TROP_GROS', message: 'Photo trop lourde (3 Mo maximum)' };
-  const dossier = dossierPhotosFiche_(corps.fiche);
-  const nom = corps.id + '.' + mime.split('/')[1];
-  if (!dossier.getFilesByName(nom).hasNext()) {
-    dossier.createFile(Utilities.newBlob(Utilities.base64Decode(b64), mime, nom));
+  const verrou = LockService.getScriptLock();
+  if (!verrou.tryLock(15000)) return { ok: false, code: 'SERVEUR_OCCUPE', message: 'Serveur occupé, nouvel essai automatique' };
+  try {
+    const dossier = dossierPhotosFiche_(corps.fiche);
+    const nom = corps.id + '.' + mime.split('/')[1];
+    if (!dossier.getFilesByName(nom).hasNext()) {
+      let n = 0;
+      const it = dossier.getFiles();
+      while (it.hasNext()) { it.next(); n++; }
+      if (n >= MAX_PHOTOS_PAR_FICHE) return { ok: false, code: 'LIMITE', message: MAX_PHOTOS_PAR_FICHE + ' photos au maximum par fiche' };
+      const props = PropertiesService.getScriptProperties();
+      const cle = 'PHOTOS_' + jour_();
+      const jour = Number(props.getProperty(cle) || 0);
+      if (jour >= MAX_PHOTOS_PAR_JOUR) {
+        alerte_('Plafond de ' + MAX_PHOTOS_PAR_JOUR + " photos par jour atteint : photos refusées jusqu'à demain.", 'photos');
+        return { ok: false, code: 'SERVEUR_OCCUPE', message: "Trop de photos aujourd'hui, nouvel essai plus tard" };
+      }
+      dossier.createFile(Utilities.newBlob(Utilities.base64Decode(b64), mime, nom));
+      props.setProperty(cle, String(jour + 1));
+    }
+  } finally {
+    verrou.releaseLock();
   }
   return { ok: true, code: 'PHOTO_RECUE', message: 'Photo reçue', data: { id: corps.id } };
 }
@@ -344,9 +373,9 @@ function recevoirFiche_(corps) {
   const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_ENVOIS);
   let dossierPhotos = null;
   try {
-    const racine = DriveApp.getFolderById(driveRootId_());
-    const enCours = racine.getFoldersByName('_PHOTOS EN COURS');
-    if (enCours.hasNext()) { const d = enCours.next().getFoldersByName(corps.id); if (d.hasNext()) dossierPhotos = d.next(); }
+    const enCours = dossierPhotosEnCours_(false);
+    const d = enCours ? enCours.getFoldersByName(corps.id) : null;
+    if (d && d.hasNext()) dossierPhotos = d.next();
   } catch (e) {}
   const manquantes = [];
   const brut = joindrePhotos_(donnees, dossierPhotos, manquantes);
@@ -362,7 +391,9 @@ function recevoirFiche_(corps) {
   } catch (err) {
     sh.getRange(ligne, 5, 1, 2).setValues([['erreur', String(err.message).slice(0, 300)]]);
     RAPPORT_ = null;
-    return { ok: false, code: 'ERREUR', message: 'La fiche n\'a pas pu être traitée : ' + err.message };
+    // Souvent passager (Drive, conversion PDF) : le téléphone réessaiera plus tard ; Franck est prévenu
+    alerte_('Une fiche « ' + (donnees.type || '?') + " » n'a pas pu être traitée (" + err.message + "). Le téléphone réessaiera ; voir l'onglet Envois.", 'erreur');
+    return { ok: false, code: 'ERREUR', message: "Le serveur n'a pas pu traiter la fiche, nouvel essai automatique" };
   }
   const rapport = RAPPORT_;
   RAPPORT_ = null;
