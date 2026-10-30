@@ -219,4 +219,17 @@ test('textes des blocs échappés, croquis envoyé à part puis remis dans le PD
   assert.ok(html.indexOf('Croquis') > -1);
 });
 
+console.log('Règle 3 — appels Apps Script anonymes');
+test('aucune page n\'appelle Apps Script en JSONP seul (fetch sans cookies d\'abord)', () => {
+  const fs = require('fs'), path = require('path');
+  const racine = path.join(__dirname, '..');
+  const fautives = fs.readdirSync(racine).filter(f => f.endsWith('.html')).filter(f => {
+    const s = fs.readFileSync(path.join(racine, f), 'utf8');
+    const jsonp = /createElement\(\s*['"]script['"]\s*\)/.test(s);
+    const anonyme = /credentials\s*:\s*['"]omit['"]/.test(s);
+    return jsonp && !anonyme;
+  });
+  assert.deepStrictEqual(fautives, [], 'pages en JSONP seul : ' + fautives.join(', '));
+});
+
 console.log('\n' + reussis + ' test(s) réussi(s)' + (process.exitCode ? ' — DES TESTS ÉCHOUENT' : ''));
