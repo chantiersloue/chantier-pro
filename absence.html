@@ -283,6 +283,21 @@ canvas.sig{display:block;width:100%;height:150px;touch-action:none;cursor:crossh
 <script>
 // Adresse Apps Script : écrite UNE seule fois, dans commun/config.js
 const APPS_SCRIPT_URL = (window.LOUE_CONFIG || {}).url || 'https://config-introuvable.invalid/';
+// Décode la réponse Google (JSON pur ou JSONP). Ajouté pour le chargement anonyme.
+function _parseRep(txt){ txt=(txt||'').trim(); if(txt.charAt(0)==='{'||txt.charAt(0)==='[') return JSON.parse(txt); const a=txt.indexOf('('),b=txt.lastIndexOf(')'); if(a>-1&&b>a) return JSON.parse(txt.slice(a+1,b)); throw new Error('format inattendu'); }
+// Méthode ANONYME d'abord (sans cookies Google) ; repli sur JSONP si échec (même méthode que cotes.html)
+function _appelAnonyme(requete, cb, idScript){
+  const url=APPS_SCRIPT_URL+'?'+requete+'&callback='+cb+'&t='+Date.now();
+  fetch(url, {credentials:'omit', redirect:'follow'})
+    .then(r=>{ if(!r.ok) throw 0; return r.text(); })
+    // Réponse traitée hors de la chaîne : une erreur dans le traitement ne relance pas un 2e appel JSONP
+    .then(t=>{ const d=_parseRep(t); setTimeout(()=>{ if(window[cb]) window[cb](d); },0); })
+    .catch(()=>{
+      if(!window[cb]) return; // déjà traité ou délai dépassé
+      const sc=document.createElement('script'); sc.id=idScript; sc.src=url;
+      document.head.appendChild(sc);
+    });
+}
 
 // ── MOTIFS — liste éditable ──
 const MOTIFS_DEFAULT = ['Personnel','Médical','Sépulture','Mariage','Naissance','Déménagement'];
@@ -403,9 +418,7 @@ function loadContacts() {
     const s=document.getElementById('_jsonp_abs'); if(s) s.remove();
   };
   window._absenceTO = setTimeout(()=>{if(window._absenceCB){delete window._absenceCB;}},15000);
-  const sc=document.createElement('script'); sc.id='_jsonp_abs';
-  sc.src=APPS_SCRIPT_URL+'?action=getContacts&callback=_absenceCB&t='+Date.now();
-  document.head.appendChild(sc);
+  _appelAnonyme('action=getContacts', '_absenceCB', '_jsonp_abs');
 }
 
 // ── SIGNATURE ──

@@ -437,6 +437,21 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 <script>
 // Adresse Apps Script : écrite UNE seule fois, dans commun/config.js
 const APPS_SCRIPT_URL = (window.LOUE_CONFIG || {}).url || 'https://config-introuvable.invalid/';
+// Décode la réponse Google (JSON pur ou JSONP). Ajouté pour le chargement anonyme.
+function _parseRep(txt){ txt=(txt||'').trim(); if(txt.charAt(0)==='{'||txt.charAt(0)==='[') return JSON.parse(txt); const a=txt.indexOf('('),b=txt.lastIndexOf(')'); if(a>-1&&b>a) return JSON.parse(txt.slice(a+1,b)); throw new Error('format inattendu'); }
+// Méthode ANONYME d'abord (sans cookies Google) ; repli sur JSONP si échec (même méthode que cotes.html)
+function _appelAnonyme(requete, cb, idScript){
+  const url=APPS_SCRIPT_URL+'?'+requete+'&callback='+cb+'&t='+Date.now();
+  fetch(url, {credentials:'omit', redirect:'follow'})
+    .then(r=>{ if(!r.ok) throw 0; return r.text(); })
+    // Réponse traitée hors de la chaîne : une erreur dans le traitement ne relance pas un 2e appel JSONP
+    .then(t=>{ const d=_parseRep(t); setTimeout(()=>{ if(window[cb]) window[cb](d); },0); })
+    .catch(()=>{
+      if(!window[cb]) return; // déjà traité ou délai dépassé
+      const sc=document.createElement('script'); sc.id=idScript; sc.src=url;
+      document.head.appendChild(sc);
+    });
+}
 let ALL_CHANTIERS = [];
 let currentChantier = null;
 let currentSousOnglet = 'plans';
@@ -465,10 +480,8 @@ function loadChantiers() {
     delete window._homeCB; delete window._homeTO;
     const s=document.getElementById('_jsonp_home'); if(s) s.remove();
   };
-  window._homeTO = setTimeout(()=>{ if(window._homeCB){delete window._homeCB; renderChantiersFallback();} },10000);
-  const sc=document.createElement('script'); sc.id='_jsonp_home';
-  sc.src=APPS_SCRIPT_URL+'?action=getContacts&callback=_homeCB&t='+Date.now();
-  document.head.appendChild(sc);
+  window._homeTO = setTimeout(()=>{ if(window._homeCB){delete window._homeCB; renderChantiersFallback();} },15000);
+  _appelAnonyme('action=getContacts', '_homeCB', '_jsonp_home');
 }
 
 function renderChantiers() {
@@ -502,10 +515,8 @@ function loadPlanning() {
     delete window._planningCB; delete window._planningTO;
     const s=document.getElementById('_jsonp_planning'); if(s) s.remove();
   };
-  window._planningTO = setTimeout(()=>{ if(window._planningCB){delete window._planningCB; renderPlanningVide();} },10000);
-  const sc=document.createElement('script'); sc.id='_jsonp_planning';
-  sc.src=APPS_SCRIPT_URL+'?action=getDossiers&chantier=__PLANNING__&callback=_planningCB&t='+Date.now();
-  document.head.appendChild(sc);
+  window._planningTO = setTimeout(()=>{ if(window._planningCB){delete window._planningCB; renderPlanningVide();} },15000);
+  _appelAnonyme('action=getDossiers&chantier=__PLANNING__', '_planningCB', '_jsonp_planning');
 }
 
 function renderPlanningDocs(docs) {
@@ -552,10 +563,8 @@ function chargerDossiers(nom) {
     if(window._dossCB){ delete window._dossCB; currentChantier.dossiers={};
       document.getElementById('docs-container').innerHTML='<div class="docs-empty">Impossible de charger.<br><span style="font-size:11px">Vérifiez la connexion.</span></div>';
     }
-  },12000);
-  const sc=document.createElement('script'); sc.id='_jsonp_doss';
-  sc.src=APPS_SCRIPT_URL+'?action=getDossiers&chantier='+encodeURIComponent(nom)+'&callback=_dossCB&t='+Date.now();
-  document.head.appendChild(sc);
+  },15000);
+  _appelAnonyme('action=getDossiers&chantier='+encodeURIComponent(nom), '_dossCB', '_jsonp_doss');
 }
 
 function showSousOnglet(onglet, btn) {
