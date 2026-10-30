@@ -444,7 +444,8 @@ function _appelAnonyme(requete, cb, idScript){
   const url=APPS_SCRIPT_URL+'?'+requete+'&callback='+cb+'&t='+Date.now();
   fetch(url, {credentials:'omit', redirect:'follow'})
     .then(r=>{ if(!r.ok) throw 0; return r.text(); })
-    .then(t=>{ if(window[cb]) window[cb](_parseRep(t)); })
+    // Réponse traitée hors de la chaîne : une erreur dans le traitement ne relance pas un 2e appel JSONP
+    .then(t=>{ const d=_parseRep(t); setTimeout(()=>{ if(window[cb]) window[cb](d); },0); })
     .catch(()=>{
       if(!window[cb]) return; // déjà traité ou délai dépassé
       const sc=document.createElement('script'); sc.id=idScript; sc.src=url;
@@ -479,7 +480,7 @@ function loadChantiers() {
     delete window._homeCB; delete window._homeTO;
     const s=document.getElementById('_jsonp_home'); if(s) s.remove();
   };
-  window._homeTO = setTimeout(()=>{ if(window._homeCB){delete window._homeCB; renderChantiersFallback();} },10000);
+  window._homeTO = setTimeout(()=>{ if(window._homeCB){delete window._homeCB; renderChantiersFallback();} },15000);
   _appelAnonyme('action=getContacts', '_homeCB', '_jsonp_home');
 }
 
@@ -514,7 +515,7 @@ function loadPlanning() {
     delete window._planningCB; delete window._planningTO;
     const s=document.getElementById('_jsonp_planning'); if(s) s.remove();
   };
-  window._planningTO = setTimeout(()=>{ if(window._planningCB){delete window._planningCB; renderPlanningVide();} },10000);
+  window._planningTO = setTimeout(()=>{ if(window._planningCB){delete window._planningCB; renderPlanningVide();} },15000);
   _appelAnonyme('action=getDossiers&chantier=__PLANNING__', '_planningCB', '_jsonp_planning');
 }
 
@@ -562,7 +563,7 @@ function chargerDossiers(nom) {
     if(window._dossCB){ delete window._dossCB; currentChantier.dossiers={};
       document.getElementById('docs-container').innerHTML='<div class="docs-empty">Impossible de charger.<br><span style="font-size:11px">Vérifiez la connexion.</span></div>';
     }
-  },12000);
+  },15000);
   _appelAnonyme('action=getDossiers&chantier='+encodeURIComponent(nom), '_dossCB', '_jsonp_doss');
 }
 

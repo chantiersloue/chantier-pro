@@ -293,7 +293,8 @@ function _appelAnonyme(requete, cb, idScript){
   const url=APPS_SCRIPT_URL+'?'+requete+'&callback='+cb+'&t='+Date.now();
   fetch(url, {credentials:'omit', redirect:'follow'})
     .then(r=>{ if(!r.ok) throw 0; return r.text(); })
-    .then(t=>{ if(window[cb]) window[cb](_parseRep(t)); })
+    // Réponse traitée hors de la chaîne : une erreur dans le traitement ne relance pas un 2e appel JSONP
+    .then(t=>{ const d=_parseRep(t); setTimeout(()=>{ if(window[cb]) window[cb](d); },0); })
     .catch(()=>{
       if(!window[cb]) return; // déjà traité ou délai dépassé
       const sc=document.createElement('script'); sc.id=idScript; sc.src=url;
