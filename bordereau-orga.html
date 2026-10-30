@@ -281,8 +281,11 @@ canvas.sig{display:block;width:100%;height:150px;touch-action:none;cursor:crossh
 
 <div class="toast" id="toast"></div>
 
+<script src="commun/config.js"></script>
+<script src="commun/adresses.js"></script>
 <script>
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw5M3sh6EFb0t_oXiZ7qUeQI60ePGredIz9UjjQAWSXUGoWx_M3p8QE0O7B5KqyBV8/exec';
+// Adresse Apps Script : écrite UNE seule fois, dans commun/config.js
+const APPS_SCRIPT_URL = (window.LOUE_CONFIG || {}).url || 'https://config-introuvable.invalid/';
 
 // ═══════════════════════════════════════════════════════════════
 // BROUILLON AUTOMATIQUE — sauvegarde locale anti-perte (générique)
@@ -455,6 +458,8 @@ function addDest(){
   const val=input.value.trim(); if(!val) return;
   if(!val.includes('@')||!val.includes('.')){ input.style.borderColor='var(--red)'; setTimeout(()=>input.style.borderColor='',2000); return; }
   if(destinataires.includes(val)){ input.value=''; return; }
+  // Lot 0 : 2 adresses hors liste au maximum par fiche
+  if(window.LOUE_refuserAdresseLibre && LOUE_refuserAdresseLibre(val, destinataires, [...(window._allContacts||[]), ...(ALL_DEST||[])])){input.value='';return;}
   destinataires.push(val); renderDest(); input.value='';
   document.getElementById('dest-sugg').classList.remove('open');
 }
