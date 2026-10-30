@@ -55,7 +55,8 @@
     var cleListe = cle + '_mis_de_cote';               // brouillons mis de côté (jamais restaurés), 5 au plus, 30 jours
     var cleListeLocale = cleLocale + '_mis_de_cote';
     var anciennes = ENV === 'prod' ? (options.anciennesCles || []) : [];
-    var derniere = null, minuteur = null, actif = true, averti = false;
+    var derniere = null, minuteur = null, actif = true;
+    var enEchec = '';       // '' : brouillon bien gardé ; 'photos' : texte seul ; 'tout' : rien n'est gardé
     var enAttente = null;   // { etat, source: 'courant' | 'liste' } : proposé dans la bannière, sans réponse pour l'instant
 
     function etat() {
@@ -109,6 +110,40 @@
       return ajouterALaListe(enAttente.etat);
     }
 
+    // Bandeau rouge qui reste affiché tant que le brouillon n'est pas gardé (en haut : il ne cache pas les boutons du bas)
+    var TEXTES_ECHEC = {
+      photos: '⚠ Photos non gardées dans le brouillon (mémoire du téléphone pleine ?). Le texte est gardé. Envoyez la fiche avant de fermer la page.',
+      tout: '⚠ Brouillon NON enregistré (mémoire du téléphone pleine ?). Envoyez la fiche avant de fermer la page, sinon la saisie sera perdue.',
+    };
+    function signalerEchec(niveau) {
+      if (niveau === enEchec) return;
+      var ancien = enEchec;
+      enEchec = niveau;
+      var bar = document.getElementById('loue-brouillon-alerte');
+      if (!niveau) {
+        if (bar) bar.remove();
+        if (ancien && LOUE.message) LOUE.message('✓ Brouillon de nouveau enregistré dans le téléphone');
+        return;
+      }
+      if (!bar) {
+        bar = document.createElement('div');
+        bar.id = 'loue-brouillon-alerte'; bar.className = 'loue-brouillon-alerte no-print'; bar.setAttribute('role', 'alert');
+        bar.innerHTML = '<span></span><button type="button">Compris</button>';
+        bar.querySelector('button').onclick = function () { bar.hidden = true; };
+        document.body.appendChild(bar);
+      }
+      bar.hidden = false;
+      bar.querySelector('span').textContent = TEXTES_ECHEC[niveau];
+    }
+    var persistanceDemandee = false;
+    function demanderPersistance(e) {
+      // Demande au navigateur de ne pas effacer seul les données de l'appli quand le téléphone manque de place
+      if (persistanceDemandee || !navigator.storage || !navigator.storage.persist) return;
+      if (empreinte(e).indexOf('"blob:') < 0) return;            // seulement quand le brouillon contient des photos
+      persistanceDemandee = true;
+      navigator.storage.persisted().then(function (oui) { return oui || navigator.storage.persist(); }).catch(function () {});
+    }
+
     function sauver() {
       if (!actif) return Promise.resolve();
       var e = etat();
@@ -119,11 +154,10 @@
       return mettreDeCote().then(function () { return LOUE.stockage.ecrire('brouillons', e); })
         .then(function () { return true; }, function () { return false; })
         .then(function (okBase) {
-          if ((!okLocal || !okBase) && !averti && LOUE.message) {
-            averti = true;
-            LOUE.message(okLocal ? '⚠ Le téléphone ne peut pas garder les photos du brouillon (mémoire pleine ou navigation privée). Le texte est gardé.'
-                                 : '⚠ Le téléphone ne peut pas garder le brouillon. Envoyez la fiche sans quitter la page.', 10000);
-          }
+          // La copie complète (IndexedDB) suffit ; la copie texte (localStorage) n'est qu'une sécurité de plus
+          if (okBase) { signalerEchec(''); demanderPersistance(e); return; }
+          derniere = null;                                       // échec : on réessaiera au prochain passage (4 s)
+          signalerEchec(okLocal ? 'photos' : 'tout');
         });
     }
     function differer() { clearTimeout(minuteur); minuteur = setTimeout(sauver, 700); }

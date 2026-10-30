@@ -56,6 +56,15 @@ body.loue-test .loue-envoi:not(.compact) { top: 48px; }
 .loue-brouillon button { min-height: 44px; padding: 8px 16px; border-radius: 8px; font: 700 15px system-ui, sans-serif; cursor: pointer; }
 .loue-brouillon [data-oui] { background: #0D7A6B; color: #fff; border: 0; }
 .loue-brouillon [data-non] { background: transparent; color: #fff; border: 1px solid rgba(255,255,255,.6); }
+.loue-brouillon-alerte {
+  position: fixed; left: 0; right: 0; top: 0; z-index: 700; display: flex; flex-wrap: wrap; align-items: center; gap: 10px;
+  padding: calc(10px + env(safe-area-inset-top, 0px)) 16px 10px; background: #A11B1B; color: #fff;
+  box-shadow: 0 2px 12px rgba(0,0,0,.3); font: 700 14px/1.3 system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+.loue-brouillon-alerte[hidden] { display: none; }
+body.loue-test .loue-brouillon-alerte { top: 40px; padding-top: 10px; }   /* sous le bandeau du mode test */
+.loue-brouillon-alerte span { flex: 1; min-width: 200px; }
+.loue-brouillon-alerte button { min-height: 44px; padding: 8px 16px; border-radius: 8px; border: 1px solid #fff; background: transparent; color: #fff; font: 700 15px system-ui, sans-serif; cursor: pointer; }
 
 /* Impression (PC) : seul le document s'imprime, sans les boutons ni l'indicateur */
 @media print {
