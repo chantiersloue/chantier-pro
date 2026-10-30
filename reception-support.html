@@ -286,6 +286,20 @@ canvas.sig{display:block;width:100%;height:150px;touch-action:none;cursor:crossh
 <script>
 // Adresse Apps Script : écrite UNE seule fois, dans commun/config.js
 const APPS_SCRIPT_URL = (window.LOUE_CONFIG || {}).url || 'https://config-introuvable.invalid/';
+// Décode la réponse Google (JSON pur ou JSONP). Ajouté pour le chargement anonyme.
+function _parseRep(txt){ txt=(txt||'').trim(); if(txt.charAt(0)==='{'||txt.charAt(0)==='[') return JSON.parse(txt); const a=txt.indexOf('('),b=txt.lastIndexOf(')'); if(a>-1&&b>a) return JSON.parse(txt.slice(a+1,b)); throw new Error('format inattendu'); }
+// Méthode ANONYME d'abord (sans cookies Google) ; repli sur JSONP si échec (même méthode que cotes.html)
+function _appelAnonyme(requete, cb, idScript){
+  const url=APPS_SCRIPT_URL+'?'+requete+'&callback='+cb+'&t='+Date.now();
+  fetch(url, {credentials:'omit', redirect:'follow'})
+    .then(r=>{ if(!r.ok) throw 0; return r.text(); })
+    .then(t=>{ if(window[cb]) window[cb](_parseRep(t)); })
+    .catch(()=>{
+      if(!window[cb]) return; // déjà traité ou délai dépassé
+      const sc=document.createElement('script'); sc.id=idScript; sc.src=url;
+      document.head.appendChild(sc);
+    });
+}
 
 // ── POINTS PAR LOT ──
 const POINTS_LOT = {
@@ -449,9 +463,7 @@ function loadContacts() {
     const s=document.getElementById('_jsonp_rec'); if(s) s.remove();
   };
   window._recepTO = setTimeout(()=>{if(window._recepCB){delete window._recepCB;}},15000);
-  const sc=document.createElement('script'); sc.id='_jsonp_rec';
-  sc.src=APPS_SCRIPT_URL+'?action=getContacts&callback=_recepCB&t='+Date.now();
-  document.head.appendChild(sc);
+  _appelAnonyme('action=getContacts', '_recepCB', '_jsonp_rec');
 }
 
 function onChantierChange(val) {

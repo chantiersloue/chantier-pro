@@ -2,6 +2,14 @@
 
 Chaque lot : **quoi**, **pourquoi**, **comment déployer**. Procédures détaillées dans `docs/lotN-procedure.md`.
 
+## Lot 0 — Correctif : listes vides sur 4 pages
+
+**Quoi** : `attestation.html`, `reception-support.html`, `absence.html` et `index.html` (Chantiers, Planning, documents d'un chantier) chargent maintenant leurs listes comme les 6 autres pages : d'abord un appel **anonyme** (sans les cookies Google), puis l'ancienne méthode (JSONP) seulement si le premier échoue. Aucun autre changement.
+
+**Pourquoi** : à l'étape C, sur la copie TEST, ces 4 pages restaient vides (essais 7, 8, 9 et 12). Elles n'utilisaient que le JSONP, qui envoie les cookies du compte Google connecté et se comporte différemment selon ce compte (règle 3 du CLAUDE.md).
+
+**Comment déployer** : fusionner la demande de fusion `livraison/lot-0-correctif` sur GitHub, attendre 2 à 3 minutes, puis refaire les essais 7, 8, 9 et 12 de l'étape C. Rien à changer dans Apps Script.
+
 ## Lot 0 — Sécurité urgente (Apps Script v4.1) — en test
 
 **Quoi**
