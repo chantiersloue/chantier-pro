@@ -165,4 +165,58 @@ test('photos de fiches abandonnées : corbeille après 7 jours', () => {
   assert.ok(enCours.enfants[0].corbeille);
 });
 
+console.log('Lot 1.3 / lot 6 — fiche de fabrication');
+const pdfDe = g => (g.mails.find(m => m.opts && m.opts.attachments) || { opts: { attachments: [{ contenu: '' }] } }).opts.attachments[0].contenu;
+const fabrication = extra => Object.assign({ type: 'fabrication', chantier: 'CHANTIER TEST 1', auteur: 'Franck', conducteur: 'Franck PAVAGEAU',
+  date: '30/10/2026', delai: 'Semaine S46', delaiPrecision: 'impératif avant la pose', blocs: [] }, extra || {});
+
+test('délai : précision libre dans le PDF, le mail et la colonne 13 du Sheet', () => {
+  const g = environnement();
+  const r = poster(g, { action: 'fiche', id: 'fiche-0600-abcd', donnees: fabrication() });
+  assert.strictEqual(r.code, 'ENREGISTRE', JSON.stringify(r));
+  assert.ok(pdfDe(g).indexOf('impératif avant la pose') > -1, 'précision dans le PDF');
+  assert.ok(g.mails.some(m => (m.opts.htmlBody || '').indexOf('impératif avant la pose') > -1), 'précision dans le mail');
+  const f = g.feuilles['Fabrication'].lignes;
+  assert.strictEqual(f[0][12], 'Précision délai');
+  assert.strictEqual(f[1][12], 'impératif avant la pose');
+  assert.strictEqual(f[1][6], 'Semaine S46', 'le délai reste en colonne G');
+});
+
+test('onglet Fabrication déjà rempli : la colonne « Précision délai » est ajoutée sans rien décaler', () => {
+  const ancien = ['N° Série', 'Chantier', 'Auteur', 'Chef Atelier', 'Conducteur', 'Date', 'Délai', 'Zone', 'Réf. chantier', 'Nb Blocs', 'Commentaires', 'Horodatage'];
+  const g = environnement({ feuilles: {
+    'Contacts': [['Nom', 'Role', 'Email', 'ChefEquipe', 'Destinataire', 'ConducteurDefaut', 'ChefAtelier', 'absenceNotif'],
+      ['Franck PAVAGEAU', 'Conducteur de travaux', FRANCK, 'O', 'N', 'O', 'O', 'O']],
+    'Chantiers': [['Nom', 'Référence', 'Statut', 'Conducteur'], ['CHANTIER TEST 1', '', 'En cours', 'Franck PAVAGEAU']],
+    'Fabrication': [ancien, ['', 'ANCIEN', 'X', '', '', '01/01/2026', 'Pour le 12/01', '', '', 1, '', 'h']],
+  } });
+  poster(g, { action: 'fiche', id: 'fiche-0601-abcd', donnees: fabrication() });
+  const f = g.feuilles['Fabrication'].lignes;
+  assert.strictEqual(f[0][11], 'Horodatage');
+  assert.strictEqual(f[0][12], 'Précision délai');
+  assert.strictEqual(f[1][1], 'ANCIEN', 'ancienne ligne intacte');
+  assert.strictEqual(f[2][12], 'impératif avant la pose');
+});
+
+test('huisserie seule : hauteur, largeur du vantail et talon dans le PDF (oubliés avant)', () => {
+  const g = environnement();
+  poster(g, { action: 'fiche', id: 'fiche-0602-abcd', donnees: fabrication({ blocs: [
+    { id: 1, type: 'porte', porteType: 'huisserie', rows: [{ repere: 'P12', qt: '2', hautVantail: '2040', largVantail: '830', talon: '3', support: 'Cloison' }] }] }) });
+  const html = pdfDe(g);
+  ['Haut. vantail', '2040', '830', 'Cloison', 'Huisserie seule'].forEach(t => assert.ok(html.indexOf(t) > -1, t));
+});
+
+test('textes des blocs échappés, croquis envoyé à part puis remis dans le PDF', () => {
+  const g = environnement();
+  poster(g, { action: 'photo', id: 'photo-0602-abcd', fiche: 'fiche-0603-abcd', mime: 'image/png', data: PHOTO_B64 });
+  const r = poster(g, { action: 'fiche', id: 'fiche-0603-abcd', donnees: fabrication({
+    blocs: [{ id: 1, type: 'divers', rows: [{ repere: '<img src=x onerror=alert(1)>', qte: '1' }] }, { id: 2, type: 'photo', rows: [] }],
+    photosBase64: [{ photoRef: 'photo-0602-abcd', label: 'Croquis' }] }) });
+  assert.strictEqual(r.code, 'ENREGISTRE', JSON.stringify(r));
+  const html = pdfDe(g);
+  assert.ok(html.indexOf('<img src=x') < 0 && html.indexOf('&lt;img src=x') > -1, 'repère échappé');
+  assert.ok(html.indexOf('data:image/png;base64,' + PHOTO_B64) > -1, 'croquis dans le PDF');
+  assert.ok(html.indexOf('Croquis') > -1);
+});
+
 console.log('\n' + reussis + ' test(s) réussi(s)' + (process.exitCode ? ' — DES TESTS ÉCHOUENT' : ''));

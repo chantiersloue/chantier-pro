@@ -219,24 +219,32 @@ function envoyerEmailCotes(data, horodatage, brut) {
 // FICHE FABRICATION
 // ═══════════════════════════════════════════════════════════════
 function traiterFicheFabrication(data, brut) {
-  const ss  = SpreadsheetApp.getActiveSpreadsheet();
   const now = new Date();
 
-  let sheet = ss.getSheetByName(SHEET_FABRICATION);
-  if (!sheet) {
-    sheet = ss.insertSheet(SHEET_FABRICATION);
-    const h = ['N° Série','Chantier','Auteur','Chef Atelier','Conducteur','Date','Délai','Zone','Réf. chantier','Nb Blocs','Commentaires','Horodatage'];
-    sheet.appendRow(h);
-    sheet.getRange(1,1,1,h.length).setBackground('#1A2B4A').setFontColor('white').setFontWeight('bold');
-  }
-  sheet.appendRow([brut.serie||'',brut.chantier,brut.auteur,brut.chefAtelier||'',brut.conducteur||'',
-    brut.date,brut.delai||'',brut.zone||'',brut.refChantier||'',(brut.blocs||[]).length,brut.commentaires||'',now].map(cellule_));
+  // Enregistrement Sheet — protégé contre les erreurs (données brutes, formules neutralisées)
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    let sheet = ss.getSheetByName(SHEET_FABRICATION);
+    if (!sheet) {
+      sheet = ss.insertSheet(SHEET_FABRICATION);
+      const h = ['N° Série','Chantier','Auteur','Chef Atelier','Conducteur','Date','Délai','Zone','Réf. chantier','Nb Blocs','Commentaires','Horodatage'];
+      sheet.appendRow(h);
+      sheet.getRange(1,1,1,h.length).setBackground('#1A2B4A').setFontColor('white').setFontWeight('bold');
+    }
+    // Lot 6 : précision libre du délai, ajoutée EN FIN de ligne (les colonnes existantes ne bougent pas)
+    if (!sheet.getRange(1,13).getValue()) {
+      sheet.getRange(1,13).setValue('Précision délai').setBackground('#1A2B4A').setFontColor('white').setFontWeight('bold');
+    }
+    sheet.appendRow([brut.serie||'',brut.chantier||'',brut.auteur||'',brut.chefAtelier||'',brut.conducteur||'',
+      brut.date||'',brut.delai||'',brut.zone||'',brut.refChantier||'',(brut.blocs||[]).length,brut.commentaires||'',now,
+      brut.delaiPrecision||''].map(cellule_));
+  } catch(err) { console.error('Sheet fabrication:', err.message); }
 
   // Photos uniquement dans le PDF — pas de stockage Drive séparé
-  envoyerEmailFabrication(data, [], now, brut);
+  envoyerEmailFabrication(data, now, brut);
 }
 
-function envoyerEmailFabrication(data, liensDrive, horodatage, brut) {
+function envoyerEmailFabrication(data, horodatage, brut) {
   // Destinataires calculés par le serveur : chef d'atelier (colonne G = O) + conducteur choisi
   const contacts = getContactsRaw();
   const chefRow  = contacts.find(r=>String(r[6]).toUpperCase()==='O');
@@ -245,217 +253,40 @@ function envoyerEmailFabrication(data, liensDrive, horodatage, brut) {
   const destinataires = [...new Set([emailChef,emailCond].filter(Boolean))];
   if (!destinataires.length) destinataires.push(emailAdmin_());
 
-  const serie    = data.serie||'';
-  const chantier = data.chantier||'—';
-  const sujet    = `[Loué App] Fiche fabrication — ${brut.serie?'Série '+brut.serie+' — ':''}${brut.chantier||'—'}`;
-
-  // ── En-tête PDF ──
-  const serieCell = serie
-    ? `<div style="font-size:13px;font-weight:800;color:#1A2B4A">${serie}</div>`
-    : `<div style="width:90px;height:22px;border:1.5px solid #1A2B4A;border-radius:3px;margin-top:2px"></div>`;
-
-  const leftRows = `
-    <tr><td style="padding:5px 8px;border-bottom:1px solid #E1DCD6;border-right:1px solid #E1DCD6;width:50%">
-      <div style="font-size:7.5px;font-weight:700;text-transform:uppercase;color:#6A6460;margin-bottom:2px">N° Série</div>${serieCell}
-    </td><td style="padding:5px 8px;border-bottom:1px solid #E1DCD6;width:50%">
-      <div style="font-size:7.5px;font-weight:700;text-transform:uppercase;color:#6A6460;margin-bottom:2px">Date</div>
-      <div style="font-size:11px;font-weight:600">${data.date||'—'}</div>
-    </td></tr>
-    <tr><td colspan="2" style="padding:5px 8px;border-bottom:1px solid #E1DCD6">
-      <div style="font-size:7.5px;font-weight:700;text-transform:uppercase;color:#6A6460;margin-bottom:2px">Chantier</div>
-      <div style="font-size:12px;font-weight:800;color:#1A2B4A">${chantier}${data.refChantier?' / '+data.refChantier:''}</div>
-    </td></tr>
-    <tr><td style="padding:5px 8px;border-right:1px solid #E1DCD6;width:50%">
-      <div style="font-size:7.5px;font-weight:700;text-transform:uppercase;color:#6A6460;margin-bottom:2px">Responsable</div>
-      <div style="font-size:11px;font-weight:600">${data.auteur||'—'}</div>
-    </td><td style="padding:5px 8px;width:50%">
-      <div style="font-size:7.5px;font-weight:700;text-transform:uppercase;color:#6A6460;margin-bottom:2px">Délai</div>
-      <div style="font-size:11px;font-weight:700;color:#9A5600">${data.delai||'—'}</div>
-    </td></tr>
-    ${data.zone?`<tr><td colspan="2" style="padding:5px 8px">
-      <div style="font-size:7.5px;font-weight:700;text-transform:uppercase;color:#6A6460;margin-bottom:2px">Zone</div>
-      <div style="font-size:10px">${data.zone}</div>
-    </td></tr>`:''}`;
-
-  const tempsRows = Array(6).fill(null).map(()=>`<tr>
-    <td style="padding:5px;border:1px solid #E1DCD6;min-width:65px;height:20px"></td>
-    <td style="padding:5px;border:1px solid #E1DCD6;width:52px;height:20px"></td>
-    <td style="padding:5px;border:1px solid #E1DCD6;width:52px;height:20px"></td>
-  </tr>`).join('');
-
-  const enTete = `
-  <table style="width:100%;border-collapse:collapse;margin-bottom:10px;border-bottom:3px solid #1A2B4A;padding-bottom:8px">
-    <tr>
-      <td style="width:340px;vertical-align:top;padding-right:12px">
-        <table style="width:100%;border-collapse:collapse;border:1.5px solid #D8D4CE">${leftRows}</table>
-      </td>
-      <td style="vertical-align:top;padding:0 12px">
-        <div style="font-weight:800;font-size:15px;color:#1A2B4A">Loué Menuiserie</div>
-        <div style="font-size:9px;color:#6A6460;margin-bottom:6px">Menuiserie · Charpente · Agencement</div>
-        <div style="font-weight:800;font-size:13px;color:#1A2B4A">FICHE DE FABRICATION</div>
-        <div style="margin-top:6px;font-size:10px;color:#6A6460">
-          Chef d'atelier : <b style="color:#141210">${data.chefAtelier||'—'}</b>
-          &nbsp;·&nbsp; Conducteur : <b style="color:#141210">${data.conducteur||'—'}</b>
-        </div>
-      </td>
-      <td style="width:185px;vertical-align:top">
-        <div style="font-size:8px;font-weight:700;text-transform:uppercase;color:#6A6460;margin-bottom:3px">Opérateurs / Temps</div>
-        <table style="width:100%;border-collapse:collapse;border:1.5px solid #D8D4CE;font-size:9px">
-          <tr>
-            <th style="padding:4px 5px;background:#1A2B4A;color:white;text-align:left;font-size:8px">Opérateur</th>
-            <th style="padding:4px 5px;background:#1A2B4A;color:white;font-size:8px">Objectif</th>
-            <th style="padding:4px 5px;background:#1A2B4A;color:white;font-size:8px">Réalisé</th>
-          </tr>${tempsRows}
-        </table>
-      </td>
-    </tr>
-  </table>`;
-
-  // ── Blocs ──
-  const blocsHtml = (data.blocs||[]).map(b => {
-    const label   = b.type==='porte'
-      ? ({complet:'Bloc porte complet',vantail:'Vantail seul',huisserie:'Huisserie seule'}[b.porteType]||'Bloc porte')
-      : (b.type==='photo'?'Photo / Croquis':'Divers');
-    const clr   = b.type==='divers'?'#1A2B4A':b.type==='photo'?'#6B3FA0':'#7A4200';
-    const clrBg = b.type==='divers'?'#EBF1FA':b.type==='photo'?'#EDE8F8':'#FDF0D6';
-    let inner = '';
-
-    if (b.type==='divers' && (b.rows||[]).length) {
-      const trs = b.rows.map((r,i)=>`<tr style="background:${i%2===0?'#F7F5F1':'white'}">
-        <td style="padding:4px 6px;border:1px solid #E1DCD6;font-weight:700;font-size:10px">${r.repere||'—'}</td>
-        <td style="padding:4px 6px;border:1px solid #E1DCD6;text-align:center;font-weight:700;font-size:10px">${r.qte||'—'}</td>
-        <td style="padding:4px 6px;border:1px solid #E1DCD6;text-align:center;font-size:10px">${r.long||'—'}</td>
-        <td style="padding:4px 6px;border:1px solid #E1DCD6;text-align:center;font-size:10px">${r.larg||'—'}</td>
-        <td style="padding:4px 6px;border:1px solid #E1DCD6;text-align:center;font-size:10px">${r.haut||'—'}</td>
-        <td style="padding:4px 6px;border:1px solid #E1DCD6;text-align:center;font-size:10px">${r.section||'—'}</td>
-        <td style="padding:4px 6px;border:1px solid #E1DCD6;font-size:10px">${r.materiau||'—'}</td>
-        <td style="padding:4px 6px;border:1px solid #E1DCD6;font-size:10px">${r.finition||'—'}</td>
-        <td style="padding:4px 6px;border:1px solid #E1DCD6;font-size:10px">${r.quincaillerie||'—'}</td>
-        <td style="padding:4px 6px;border:1px solid #E1DCD6;font-size:9px">${r.observations||''}</td>
-      </tr>`).join('');
-      inner = `<table style="width:100%;border-collapse:collapse"><thead>
-        <tr>
-          <th rowspan="2" style="padding:5px 6px;background:#1A2B4A;color:white;font-size:9px;text-align:left">Rep.</th>
-          <th rowspan="2" style="padding:5px 6px;background:#1A2B4A;color:white;font-size:9px">Qté</th>
-          <th colspan="3" style="padding:5px 6px;background:#203A6D;color:white;font-size:9px">DIMENSIONS (mm)</th>
-          <th rowspan="2" style="padding:5px 6px;background:#203A6D;color:white;font-size:9px">Section</th>
-          <th rowspan="2" style="padding:5px 6px;background:#2A5A3A;color:white;font-size:9px">Matériau</th>
-          <th rowspan="2" style="padding:5px 6px;background:#6B3FA0;color:white;font-size:9px">Finition</th>
-          <th rowspan="2" style="padding:5px 6px;background:#6B3FA0;color:white;font-size:9px">Quincaillerie</th>
-          <th rowspan="2" style="padding:5px 6px;background:#1A2B4A;color:white;font-size:9px">Observations</th>
-        </tr>
-        <tr>
-          <th style="padding:4px 6px;background:#2A4A8A;color:white;font-size:9px">Long.</th>
-          <th style="padding:4px 6px;background:#2A4A8A;color:white;font-size:9px">Larg.</th>
-          <th style="padding:4px 6px;background:#2A4A8A;color:white;font-size:9px">Ep.</th>
-        </tr>
-      </thead><tbody>${trs}</tbody></table>`;
-    }
-
-    if (b.type==='porte' && (b.rows||[]).length) {
-      const isV = b.porteType==='vantail'||b.porteType==='complet';
-      const isH = b.porteType==='huisserie'||b.porteType==='complet';
-      // Ferrage + Serrure : 1 seule colonne commune pour tous les types
-      const nbColsV = isV ? 4 : 0; // haut larg sens nature
-      const nbColsH = isH ? 5 : 0; // support ep sens feuillure rainure
-      const thV = isV?`<th colspan="${nbColsV}" style="padding:5px;background:#203A6D;color:white;font-size:9px">VANTAIL</th>`:'';
-      const thH = isH?`<th colspan="${nbColsH}" style="padding:5px;background:#2A5A3A;color:white;font-size:9px">HUISSERIE</th>`:'';
-      const thC = `<th colspan="3" style="padding:5px;background:#4A2A7A;color:white;font-size:9px">FERRAGE / SERRURE</th>`;
-      const sv='padding:4px 5px;background:#2A4A8A;color:white;font-size:8.5px';
-      const sh='padding:4px 5px;background:#3A7A4A;color:white;font-size:8.5px';
-      const sc='padding:4px 5px;background:#4A2A7A;color:white;font-size:8.5px';
-      const th2V=isV?`<th style="${sv}">Haut.</th><th style="${sv}">Larg.</th><th style="${sv}">Sens</th><th style="${sv}">Nature</th>`:'';
-      const th2H=isH?`<th style="${sh}">Support</th><th style="${sh}">Ép.</th><th style="${sh}">Sens</th><th style="${sh}">Feuillure</th><th style="${sh}">Rainure</th>`:'';
-      const th2C=`<th style="${sc}">Ferrage</th><th style="${sc}">QT</th><th style="${sc}">Serrure</th>`;
-      const c='padding:4px 5px;border:1px solid #E1DCD6;font-size:9.5px';
-      const trs = b.rows.map((r,i)=>{
-        const tdV=isV?`<td style="${c};text-align:center">${r.haut||'—'}</td><td style="${c};text-align:center">${r.larg||'—'}</td><td style="${c}">${r.sens||'—'}</td><td style="${c}">${r.nature||'—'}</td>`:'';
-        const tdH=isH?`<td style="${c}">${r.support||'—'}</td><td style="${c};text-align:center">${r.epSupport||'—'}</td><td style="${c}">${r.sensH||r.sens||'—'}</td><td style="${c}">${r.feuillure||'—'}</td><td style="${c};text-align:center">${r.rainure||'—'}</td>`:'';
-        const tdC=`<td style="${c}">${r.ferrageType||'—'}</td><td style="${c};text-align:center">${r.ferrageQt||'—'}</td><td style="${c}">${r.serrure||'—'}</td>`;
-        return `<tr style="background:${i%2===0?'#F7F5F1':'white'}">
-          <td style="${c};font-weight:700">${r.repere||'—'}</td>
-          <td style="${c};text-align:center;font-weight:700">${r.qt||'—'}</td>
-          ${tdV}${tdH}${tdC}</tr>`;
-      }).join('');
-      inner = `<table style="width:100%;border-collapse:collapse"><thead>
-        <tr><th rowspan="2" style="padding:5px;background:#7A4200;color:white;font-size:9px;text-align:left">Rep.</th>
-        <th rowspan="2" style="padding:5px;background:#7A4200;color:white;font-size:9px">QT</th>
-        ${thV}${thH}${thC}</tr><tr>${th2V}${th2H}${th2C}</tr>
-      </thead><tbody>${trs}</tbody></table>`;
-    }
-
-    if (b.type==='photo') {
-      return ''; // Les photos sont affichées dans photosSection directement
-    }
-
-    return `<div style="margin-bottom:12px;border:1.5px solid ${clr};border-radius:5px;overflow:hidden;page-break-inside:avoid">
-      <div style="background:${clrBg};padding:6px 10px;border-bottom:1px solid ${clr}">
-        <span style="font-weight:700;font-size:10px;color:${clr};text-transform:uppercase;letter-spacing:.4px">${label} — Bloc ${b.id}</span>
-      </div>
-      <div>${inner||'<div style="padding:8px;color:#999;font-size:10px;font-style:italic">Bloc vide</div>'}</div>
-    </div>`;
-  }).join('');
-
-  // ── Photos dans le PDF — après les blocs, 1 photo sur page 1, 2+ sur pages séparées ──
-  const photosB64 = data.photosBase64 || [];
-  const photosSection = photosB64.map((p,i) => {
-    const mime = p.mimeType||'image/jpeg', b64 = p.data||'', label = p.label||`Photo ${i+1}`;
-    if(!b64) return '';
-    const seule = photosB64.length === 1;
-    const style = seule ? 'margin-top:8px;page-break-inside:avoid;' : 'page-break-before:always;padding:10px;';
-    const mh = seule ? '95mm' : '135mm';   // 1 photo : laisse la place aux blocs au-dessus → tient sur 1 page
-    return `<div style="${style}text-align:center;">
-      <div style="width:100%;max-height:${mh};overflow:hidden;display:flex;align-items:center;justify-content:center;">
-        <img src="data:${mime};base64,${b64}"
-          style="max-width:100%;max-height:${mh};width:auto;height:auto;object-fit:contain;border:1px solid #ddd;display:block;">
-      </div>
-      ${label && label!==`Photo ${i+1}` ? `<div style="font-size:9px;color:#666;margin-top:3px">${label}</div>` : ''}
-    </div>`;
-  }).join('');
-
-  const commentaireSection = data.commentaires
-    ? `<div style="margin-top:10px;padding:8px 10px;background:#F7F5F1;border:1px solid #D8D4CE;border-radius:4px">
-        <div style="font-size:8.5px;font-weight:700;text-transform:uppercase;color:#6A6460;margin-bottom:3px">Commentaires</div>
-        <div style="font-size:10px;line-height:1.5">${data.commentaires.replace(/\n/g,'<br>')}</div>
-      </div>` : '';
-
-  const htmlPDF = `<html><head><style>
-    @page{size:landscape;margin:1cm}body{font-family:Arial,sans-serif;font-size:10px;margin:0}*{box-sizing:border-box}
-  </style></head><body>
-    ${enTete}${blocsHtml}${commentaireSection}${photosSection}
-  </body></html>`;
-
+  // Lot 1 : PDF fabriqué par le modèle unique (modeles/fabrication.js, copié dans Modeles.gs), le même que l'aperçu de la page
+  const htmlPDF = modele_fabrication(validerImages_(brut), esc_);
   const nomPDF = nomFichier_(`Fab_${brut.chantier||'—'}${brut.serie?'_S'+brut.serie:''}_${brut.date||''}.pdf`);
-  const blob   = HtmlService.createHtmlOutput(htmlPDF).getAs('application/pdf').setName(nomPDF);
+  const blobPdf = HtmlService.createHtmlOutput(htmlPDF).getAs('application/pdf').setName(nomPDF);
 
   // Classement automatique dans Drive/[chantier]/Fiches
-  const fichier = classerFichierDrive(blob, brut.chantier||'—', 'Fiches', nomPDF);
+  let fichier = null;
+  try {
+    fichier = classerFichierDrive(blobPdf, brut.chantier||'—', 'Fiches', nomPDF);
+  } catch(err) { console.error('Drive fabrication:', err.message); }
 
-  // Corps email
-  const liensDriveHtml = liensDrive.length
-    ? `<p><strong>📷 Photos (${liensDrive.length}) :</strong></p><ul>${liensDrive.map(l=>`<li><a href="${l.url}">${l.nom}</a></li>`).join('')}</ul>`
-    : '';
-
+  const chantier = data.chantier||'—';
+  const ligne = (titre, valeur) => `<tr><td style="color:#6A6460;padding:3px 14px 3px 0">${titre}</td><td>${valeur}</td></tr>`;
+  const delaiHtml = `<strong style="color:#9A5600">${data.delai||'—'}</strong>` + (data.delaiPrecision ? ` — ${data.delaiPrecision}` : '');
   const corps = `<div style="font-family:Arial,sans-serif;font-size:13px">
     <p>Bonjour,</p>
     <p>Veuillez trouver <strong>en pièce jointe</strong> la fiche de fabrication PDF.</p>
     <table style="font-size:12px;border-collapse:collapse;margin:12px 0">
-      <tr><td style="color:#6A6460;padding:3px 14px 3px 0">Chantier</td><td><strong>${chantier}</strong></td></tr>
-      ${serie?`<tr><td style="color:#6A6460;padding:3px 14px 3px 0">N° Série</td><td><strong>${serie}</strong></td></tr>`:''}
-      <tr><td style="color:#6A6460;padding:3px 14px 3px 0">Rédigé par</td><td>${data.auteur||'—'}</td></tr>
-      <tr><td style="color:#6A6460;padding:3px 14px 3px 0">Date</td><td>${data.date||'—'}</td></tr>
-      <tr><td style="color:#6A6460;padding:3px 14px 3px 0">Délai</td><td><strong style="color:#9A5600">${data.delai||'—'}</strong></td></tr>
+      ${ligne('Chantier', '<strong>' + chantier + '</strong>')}
+      ${data.serie ? ligne('N° Série', '<strong>' + data.serie + '</strong>') : ''}
+      ${ligne('Rédigé par', data.auteur||'—')}
+      ${ligne('Date', data.date||'—')}
+      ${ligne('Délai', delaiHtml)}
     </table>
-    ${liensDriveHtml}
     <p style="color:#6A6460;font-size:11px;margin-top:16px">Loué App · ${Utilities.formatDate(horodatage,'Europe/Paris','dd/MM/yyyy HH:mm')}</p>
   </div>`;
 
   // Lot 0 : chaque envoi est protégé (un échec de mail ne fait plus échouer toute la fiche)
   distribuer_({
     fiche: 'fabrication', chantier: brut.chantier, adresses: destinataires,
-    sujet: sujet, html: corps, fichier: fichier, nomPDF: nomPDF,
+    sujet: `[Loué App] Fiche fabrication — ${brut.serie?'Série '+brut.serie+' — ':''}${brut.chantier||'—'}`,
+    html: corps, fichier: fichier, nomPDF: nomPDF,
     texte: `Bonjour,\n\nFiche de fabrication en pièce jointe — ${brut.chantier||'—'}${brut.serie?' — Série '+brut.serie:''}.\n\nLoué App`,
-    faireBlob: () => HtmlService.createHtmlOutput(htmlPDF).getAs('application/pdf').setName(nomPDF),
+    faireBlob: () => blobPdf,
   });
 }
 
