@@ -8,114 +8,40 @@
 // ═══════════════════════════════════════════════════════════════
 function traiterNoteReunion(data, brut) {
   const now = new Date();
+  // Lot 1 : PDF fabriqué par le modèle unique (modeles/note.js, copié dans Modeles.gs), le même que l'aperçu de la page
+  const d = validerImages_(brut);
+  if (!d.date) d.date = Utilities.formatDate(now, 'Europe/Paris', 'dd/MM/yyyy');
+  const htmlPDF = modele_note(d, esc_);
+  const nomPDF = nomFichier_(`Note_${brut.chantier||'—'}_${String(d.date).replace(/\//g,'-')}.pdf`);
+  const blob   = HtmlService.createHtmlOutput(htmlPDF).getAs('application/pdf').setName(nomPDF);   // fabriqué une seule fois
 
-  const chantier = data.chantier || '—';
-  const auteur   = data.auteur   || '—';
-  const date     = data.date     || Utilities.formatDate(now,'Europe/Paris','dd/MM/yyyy');
-  const objet    = data.objet    || '';
-  const comment  = data.commentaires || '';
+  // Classement Drive (lot 1.5 : dossier « note » de dossiers.json, 05 - CHANTIER/COMPTE RENDU par défaut)
+  const fichier = classerDocument_('note', blob, brut.chantier, d.date);
 
-  // ── Photos : 1 seule → inline page 1 / 2+ → 2 par page
-  const photosB64 = data.photosBase64 || [];
-  let photosInline = '';
-  let photosPages  = '';
-
-  if(photosB64.length === 1) {
-    const p=photosB64[0]; if(p.data){
-      photosInline=`<div style="margin-top:10px;border:1.5px solid #0D7A6B;border-radius:5px;overflow:hidden">
-        <div style="background:#E0F5F2;padding:5px 10px;border-bottom:1px solid #0D7A6B">
-          <span style="font-size:9px;font-weight:700;color:#0D7A6B;text-transform:uppercase">Photo / Croquis${p.label?' — '+p.label:''}</span>
-        </div>
-        <div style="padding:8px;text-align:center">
-          <img src="data:${p.mimeType||'image/jpeg'};base64,${p.data}" style="max-width:100%;max-height:130mm;width:auto;height:auto;display:block;margin:0 auto;">
-        </div>
-      </div>`;
-    }
-  } else if(photosB64.length >= 2) {
-    for(let i=0; i<photosB64.length; i+=2) {
-      const p1=photosB64[i], p2=photosB64[i+1];
-      if(!p1||!p1.data) continue;
-      photosPages+=`<div style="page-break-before:always;padding:12px 10px;">
-        <div style="font-size:9px;font-weight:700;color:#0D7A6B;margin-bottom:8px;border-bottom:2px solid #0D7A6B;padding-bottom:4px;text-transform:uppercase">
-          Photos ${i+1}${p2?' &amp; '+(i+2):''}
-        </div>
-        <table style="width:100%;border-collapse:collapse"><tr>
-          <td style="width:50%;padding-right:8px;text-align:center;vertical-align:top">
-            <img src="data:${p1.mimeType||'image/jpeg'};base64,${p1.data}" style="max-width:100%;max-height:120mm;display:block;margin:0 auto;border:1px solid #ddd;">
-            ${p1.label?`<div style="margin-top:4px;font-size:10px;color:#6A6460">${p1.label}</div>`:''}
-          </td>
-          ${p2&&p2.data?`<td style="width:50%;padding-left:8px;text-align:center;vertical-align:top">
-            <img src="data:${p2.mimeType||'image/jpeg'};base64,${p2.data}" style="max-width:100%;max-height:120mm;display:block;margin:0 auto;border:1px solid #ddd;">
-            ${p2.label?`<div style="margin-top:4px;font-size:10px;color:#6A6460">${p2.label}</div>`:''}
-          </td>`:'<td></td>'}
-        </tr></table>
-      </div>`;
-    }
-  }
-
-  const htmlPDF = `<html><head><style>
-    @page{size:A4;margin:1.5cm}
-    body{font-family:Arial,sans-serif;font-size:10px;margin:0}*{box-sizing:border-box}
-  </style></head><body>
-  <table style="width:100%;border-collapse:collapse;margin-bottom:12px;border-bottom:3px solid #0D7A6B;padding-bottom:10px">
-    <tr>
-      <td style="width:175px;vertical-align:top">
-        <table style="width:100%;border-collapse:collapse;border:1.5px solid #D8D4CE">
-          <tr><td style="padding:5px 8px;border-bottom:1px solid #E1DCD6">
-            <div style="font-size:7.5px;font-weight:700;text-transform:uppercase;color:#6A6460;margin-bottom:2px">Date</div>
-            <div style="font-size:12px;font-weight:700">${date}</div>
-          </td></tr>
-          <tr><td style="padding:5px 8px;border-bottom:1px solid #E1DCD6">
-            <div style="font-size:7.5px;font-weight:700;text-transform:uppercase;color:#6A6460;margin-bottom:2px">Chantier</div>
-            <div style="font-size:12px;font-weight:800;color:#1A2B4A">${chantier}</div>
-          </td></tr>
-          <tr><td style="padding:5px 8px">
-            <div style="font-size:7.5px;font-weight:700;text-transform:uppercase;color:#6A6460;margin-bottom:2px">Rédigé par</div>
-            <div style="font-size:11px;font-weight:600">${auteur}</div>
-          </td></tr>
-        </table>
-      </td>
-      <td style="vertical-align:middle;padding:0 16px;text-align:center">
-        <div style="font-weight:800;font-size:15px;color:#1A2B4A">Loué Menuiserie</div>
-        <div style="font-size:9px;color:#6A6460;margin-bottom:8px">Menuiserie · Charpente · Agencement</div>
-        <div style="font-weight:800;font-size:14px;color:#0D7A6B">NOTE DE RÉUNION</div>
-        ${objet?`<div style="margin-top:5px;font-size:11px;font-weight:600;color:#141210">${objet}</div>`:''}
-      </td>
-    </tr>
-  </table>
-  ${comment?`<div style="padding:10px 12px;background:#F0F5F4;border:1.5px solid #0D7A6B;border-radius:5px;margin-bottom:10px">
-    <div style="font-size:8px;font-weight:700;text-transform:uppercase;color:#0D7A6B;margin-bottom:6px;letter-spacing:.5px">Notes &amp; commentaires</div>
-    <div style="font-size:11px;line-height:1.7;white-space:pre-wrap">${comment}</div>
-  </div>`:''}
-  ${photosInline}
-  ${photosPages}
-  </body></html>`;
-
-  const nomPDF = nomFichier_(`Note_${brut.chantier||'—'}_${String(brut.date||date).replace(/\//g,'-')}.pdf`);
-  const blob   = HtmlService.createHtmlOutput(htmlPDF).getAs('application/pdf').setName(nomPDF);
-
-  // Classement Drive
-  const fichier = classerFichierDrive(blob, brut.chantier||'—', 'Note/Réunion/Réunion', nomPDF);
-
-  // Email — blob recréé pour chaque destinataire (évite le bug copyBlob)
+  // Mail : textes échappés (data), le PDF en pièce jointe
+  const chantier = data.chantier || '—', auteur = data.auteur || '—';
+  const ligneObjet = data.objet ? '<tr><td style="color:#6A6460;padding:3px 14px 3px 0">Objet</td><td>' + data.objet + '</td></tr>' : '';
   const sujet = `[Loué App] Note de réunion — ${brut.chantier||'—'}${brut.objet?' — '+brut.objet:''}`;
   const corps = `<div style="font-family:Arial,sans-serif;font-size:13px">
     <p>Bonjour,</p>
     <p>Veuillez trouver <strong>en pièce jointe</strong> la note de réunion.</p>
     <table style="font-size:12px;border-collapse:collapse;margin:12px 0">
       <tr><td style="color:#6A6460;padding:3px 14px 3px 0">Chantier</td><td><strong>${chantier}</strong></td></tr>
-      <tr><td style="color:#6A6460;padding:3px 14px 3px 0">Date</td><td>${date}</td></tr>
-      ${objet?`<tr><td style="color:#6A6460;padding:3px 14px 3px 0">Objet</td><td>${objet}</td></tr>`:''}
+      <tr><td style="color:#6A6460;padding:3px 14px 3px 0">Date</td><td>${esc_(d.date)}</td></tr>
+      ${ligneObjet}
       <tr><td style="color:#6A6460;padding:3px 14px 3px 0">Rédigé par</td><td>${auteur}</td></tr>
     </table>
     <p style="color:#6A6460;font-size:11px;margin-top:16px">Loué App · ${Utilities.formatDate(now,'Europe/Paris','dd/MM/yyyy HH:mm')}</p>
   </div>`;
 
+  // Destinataires choisis dans la page + copie au conducteur du chantier calculée par le serveur (sinon Franck) :
+  // toujours au moins un destinataire, même chantier tapé à la main (comme le quitus, D1-13) — contrôlés par distribuer_
+  const adresses = (Array.isArray(brut.destinataires) ? brut.destinataires : []).concat([emailConducteurChantier_(brut.chantier) || emailAdmin_()]);
   distribuer_({
-    fiche: 'note', chantier: brut.chantier, adresses: brut.destinataires,
+    fiche: 'note', chantier: brut.chantier, adresses: adresses,
     sujet: sujet, html: corps, fichier: fichier, nomPDF: nomPDF,
-    texte: `Bonjour,\n\nVeuillez trouver en pièce jointe la note de réunion — ${brut.chantier||'—'}.\n\nLoué App`,
-    faireBlob: () => HtmlService.createHtmlOutput(htmlPDF).getAs('application/pdf').setName(nomPDF),
+    texte: 'Bonjour,\n\nVeuillez trouver en pièce jointe la note de réunion — ' + (brut.chantier || '—') + '.\n\nLoué App',
+    faireBlob: () => blob,
   });
 }
 
@@ -294,59 +220,6 @@ function envoyerEmailFabrication(data, horodatage, brut) {
 // ═══════════════════════════════════════════════════════════════
 // UTILITAIRES DRIVE
 // ═══════════════════════════════════════════════════════════════
-
-// Classer un fichier dans Drive/[chantier]/[sousDossier]
-function classerFichierDrive(blob, chantierNom, sousDossierNom, nomFichier) {
-  try {
-    const chantierDir   = trouverOuCreerDossierChantier(chantierNom);
-    const sousDossier   = trouverOuCreerSousDossier(chantierDir, sousDossierNom);
-    // Lot 0 : plus de partage public des PDF produits (les mails les envoient en pièce jointe)
-    return sousDossier.createFile(blob.copyBlob().setName(nomFichier));
-  } catch(err) {
-    console.error('classerFichierDrive:', err.message);
-    return null;
-  }
-}
-
-// Trouve ou crée le dossier chantier + ses 8 sous-dossiers automatiquement
-function trouverOuCreerDossierChantier(chantierNom) {
-  const root     = DriveApp.getFolderById(driveRootId_());
-  const nomClean = String(chantierNom||'—').trim();
-
-  // 1. Cherche correspondance exacte
-  let chantierFolder = null;
-  const exact = root.getFoldersByName(nomClean);
-  if (exact.hasNext()) {
-    chantierFolder = exact.next();
-  } else {
-    // 2. Correspondance souple (ignore casse, cherche inclusion)
-    const all = root.getFolders();
-    while (all.hasNext()) {
-      const f = all.next();
-      const fNom = f.getName().toLowerCase().trim();
-      if (fNom === 'dossier base') continue;
-      if (fNom.includes(nomClean.toLowerCase()) || nomClean.toLowerCase().includes(fNom)) {
-        chantierFolder = f;
-        break;
-      }
-    }
-  }
-
-  // 3. Pas trouvé → créer le dossier
-  if (!chantierFolder) {
-    chantierFolder = root.createFolder(nomClean);
-  }
-
-  // 4. Dans tous les cas, s'assurer que les 8 sous-dossiers existent
-  Object.values(SOUS_DOSSIERS).forEach(nom => {
-    const existing = chantierFolder.getFoldersByName(nom);
-    if (!existing.hasNext()) {
-      chantierFolder.createFolder(nom);
-    }
-  });
-
-  return chantierFolder;
-}
 
 // Trouve ou crée un sous-dossier
 function trouverOuCreerSousDossier(parent, nom) {

@@ -44,12 +44,12 @@ function test(nom, fn) {
 
 console.log('Lot 0 — envois normaux (adresses du Sheet), comme avant');
 
-test('note de réunion : destinataires du Sheet servis normalement', () => {
+test('note de réunion : destinataires du Sheet servis normalement + copie au conducteur du chantier (lot 1)', () => {
   const g = environnement();
   const r = poster(g, { type: 'note', chantier: 'CHANTIER TEST 1', auteur: 'Franck', date: '29/10/2026', objet: 'Réunion',
     commentaires: 'RAS', destinataires: [FRANCK, ARCHI], photosBase64: [PHOTO] });
   assert.strictEqual(r.status, 'ok');
-  assert.deepStrictEqual(destinatairesDe(g), [ARCHI, FRANCK].sort());
+  assert.deepStrictEqual(destinatairesDe(g), [ARCHI, FRANCK, SEB].sort());
   assert.ok(g.mails.every(m => m.sujet.indexOf('Note de réunion') > -1 && !m.opts.bcc));
   assert.strictEqual(journal(g).length, 0);
 });
@@ -152,7 +152,7 @@ test('adresse libre : chantier inventé → absent du sujet, copie à Franck', (
 test('adresse libre : 3e adresse sur une fiche refusée, une seule alerte par jour', () => {
   const g = environnement();
   poster(g, { type: 'note', chantier: 'CHANTIER TEST 1', destinataires: ['a@x.test', 'b@x.test', 'c@x.test', 'd@x.test'] });
-  const libres = g.mails.filter(m => m.to !== FRANCK);
+  const libres = g.mails.filter(m => m.to !== FRANCK && m.to !== SEB);   // SEB : copie au conducteur du chantier
   assert.strictEqual(libres.length, 2);
   const alertes = g.mails.filter(m => m.to === FRANCK && m.sujet.indexOf('Envoi refusé') > -1);
   assert.strictEqual(alertes.length, 1, 'une seule alerte');
@@ -192,11 +192,11 @@ test('quota bas : mails reportés, ceux de Franck partent ; renvoi automatique e
   poster(g, { type: 'note', chantier: 'CHANTIER TEST 1', destinataires: [FRANCK, ARCHI] });
   assert.deepStrictEqual(destinatairesDe(g), [FRANCK], 'seul Franck reçoit');
   const attente = g.feuilles['Mails en attente'].lignes;
-  assert.strictEqual(attente.length, 2);
+  assert.strictEqual(attente.length, 3, 'archi et conducteur du chantier reportés');
   assert.strictEqual(attente[1][3], ARCHI);
   g.etat.quota = 100;
   g.ctx.renvoyerMailsEnAttente();
-  assert.deepStrictEqual(destinatairesDe(g), [ARCHI, FRANCK].sort());
+  assert.deepStrictEqual(destinatairesDe(g), [ARCHI, FRANCK, SEB].sort());
   assert.strictEqual(g.feuilles['Mails en attente'].lignes[1][10], 'envoyé');
 });
 
@@ -379,7 +379,7 @@ test('partage hérité : dossiers traités d\'abord, fichiers marqués « déjà
 test('destinataires : une chaîne au lieu d\'un tableau est ignorée, 20 adresses au plus', () => {
   const g = environnement();
   poster(g, { type: 'note', chantier: 'CHANTIER TEST 1', destinataires: 'a@x.test' });
-  assert.strictEqual(g.mails.length, 0);
+  assert.deepStrictEqual(destinatairesDe(g), [SEB], 'seule la copie au conducteur du chantier part');
   const beaucoup = Array.from({ length: 500 }, (_, i) => 'pirate' + i + '@x.test');
   poster(g, { type: 'note', chantier: 'CHANTIER TEST 1', destinataires: beaucoup });
   assert.ok(journal(g).length <= 21, 'journal borné (20 lignes + 1 ligne de résumé) : ' + journal(g).length);
@@ -404,7 +404,7 @@ test('plus de 20 destinataires du Sheet : tous servis', () => {
   const g = environnement();
   g.feuilles['Contacts notes'].lignes = lignes;
   poster(g, { type: 'note', chantier: 'CHANTIER TEST 1', destinataires: lignes.slice(1).map(l => l[1]) });
-  assert.strictEqual(g.mails.length, 25);
+  assert.strictEqual(g.mails.length, 26, '25 + la copie au conducteur du chantier');
 });
 test('retour arrière depuis la sauvegarde CSV (colonne État vide)', () => {
   const g = environnement();

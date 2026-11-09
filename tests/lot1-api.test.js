@@ -337,4 +337,76 @@ test('photos de chaque point envoyées à part : toutes remises dans le PDF, sou
   [1, 2, 3].forEach(i => assert.ok(html.indexOf(b64(i)) > -1, 'photo ' + i));
 });
 
+console.log('Lot 1.3 — note de réunion');
+const note = extra => Object.assign({ type: 'note', chantier: 'CHANTIER TEST 1', auteur: 'Franck PAVAGEAU', date: '09/11/2026',
+  objet: 'Réunion de chantier n° 12', commentaires: 'Pose des châssis R+1\nlundi prochain', destinataires: [], photosBase64: [] }, extra || {});
+const dossierNotes = g => {
+  const ch = g.racine.enfants.find(e => e.nom === 'CHANTIER TEST 1');
+  const cr = ch && ch.enfants.find(e => e.nom === '05 - CHANTIER');
+  return cr && cr.enfants.find(e => e.nom === 'COMPTE RENDU');
+};
+
+test('fiche enregistrée : PDF complet, mail aux destinataires + conducteur du chantier, rangée dans COMPTE RENDU', () => {
+  const g = environnement();
+  const r = poster(g, { action: 'fiche', id: 'fiche-0900-abcd', donnees: note({ destinataires: [FRANCK] }) });
+  assert.strictEqual(r.code, 'ENREGISTRE', JSON.stringify(r));
+  const html = pdfDe(g);
+  ['NOTE DE RÉUNION', '09/11/2026', 'CHANTIER TEST 1', 'Franck PAVAGEAU', 'Réunion de chantier n° 12', 'Pose des châssis R+1\nlundi prochain']
+    .forEach(t => assert.ok(html.indexOf(t) > -1, t));
+  assert.deepStrictEqual(g.mails.map(m => m.to).sort(), [FRANCK, SEB].sort(), 'conducteur du chantier ajouté par le serveur');
+  assert.ok(g.mails.every(m => /Note de réunion — CHANTIER TEST 1 — Réunion de chantier n° 12/.test(m.sujet)));
+  const dossier = dossierNotes(g);
+  assert.ok(dossier && dossier.enfants.length === 1, 'PDF rangé dans 05 - CHANTIER/COMPTE RENDU (lot 1.5)');
+  assert.strictEqual(dossier.enfants[0].nom, 'COMPTE RENDU CHANTIER TEST 1 2026-11-09.pdf');
+  assert.ok(!g.racine.enfants.find(e => e.nom === 'CHANTIER TEST 1').enfants.some(e => e.nom === 'Note/Réunion/Réunion'), 'plus d’ancien dossier');
+  // Deuxième note le même jour : rien n'est écrasé
+  poster(g, { action: 'fiche', id: 'fiche-0901-abcd', donnees: note() });
+  assert.deepStrictEqual(dossierNotes(g).enfants.map(e => e.nom).sort(),
+    ['COMPTE RENDU CHANTIER TEST 1 2026-11-09.pdf', 'COMPTE RENDU CHANTIER TEST 1 2026-11-09_V2.pdf']);
+});
+
+test('chantier tapé à la main (hors Sheet) : copie à Franck ; date absente : date du jour', () => {
+  const g = environnement();
+  const r = poster(g, { action: 'fiche', id: 'fiche-0902-abcd', donnees: note({ chantier: 'CHANTIER INCONNU', date: '' }) });
+  assert.strictEqual(r.code, 'ENREGISTRE', JSON.stringify(r));
+  assert.deepStrictEqual(g.mails.map(m => m.to), [FRANCK]);
+  assert.ok(/\d{2}\/\d{2}\/\d{4}/.test(pdfDe(g)), 'date du jour dans le PDF');
+});
+
+test('textes piégés échappés dans le PDF et dans le mail', () => {
+  const g = environnement();
+  poster(g, { action: 'fiche', id: 'fiche-0903-abcd', donnees: note({ objet: '<script>alert(1)</script>', auteur: 'Vis 4" <90 cm',
+    commentaires: '<img src=x onerror=alert(1)>', destinataires: [FRANCK] }) });
+  const html = pdfDe(g);
+  assert.ok(html.indexOf('<script>alert') < 0 && html.indexOf('&lt;script&gt;alert(1)&lt;/script&gt;') > -1, 'objet échappé');
+  assert.ok(html.indexOf('<img src=x') < 0 && html.indexOf('&lt;img src=x') > -1, 'commentaires échappés');
+  assert.ok(html.indexOf('Vis 4&quot; &lt;90 cm') > -1, 'rédacteur échappé');
+  const corps = g.mails.map(m => m.opts.htmlBody || '').join('');
+  assert.ok(corps.indexOf('<script>alert') < 0 && corps.indexOf('&lt;script&gt;') > -1, 'mail échappé');
+});
+
+test('photos envoyées à part : toutes remises dans le PDF avec leur légende (une seule : sous les notes)', () => {
+  const g = environnement();
+  const b64 = n => Buffer.from('photo-note-' + n).toString('base64');
+  for (let i = 1; i <= 3; i++) poster(g, { action: 'photo', id: 'photo-091' + i + '-abcd', fiche: 'fiche-0910-abcd', mime: 'image/jpeg', data: b64(i) });
+  const r = poster(g, { action: 'fiche', id: 'fiche-0910-abcd', donnees: note({ photosBase64: [1, 2, 3].map(i =>
+    ({ photoRef: 'photo-091' + i + '-abcd', label: i === 2 ? 'Appui <fenêtre>' : 'Légende ' + i })) }) });
+  assert.strictEqual(r.code, 'ENREGISTRE', JSON.stringify(r));
+  const html = pdfDe(g);
+  [1, 2, 3].forEach(i => assert.ok(html.indexOf(b64(i)) > -1, 'photo ' + i));
+  ['Légende 1', 'Appui &lt;fenêtre&gt;', 'Légende 3', 'Photos / Croquis 1 &amp; 2', 'Photos / Croquis 3'].forEach(t => assert.ok(html.indexOf(t) > -1, t));
+  const g2 = environnement();
+  poster(g2, { action: 'photo', id: 'photo-0920-abcd', fiche: 'fiche-0920-abcd', mime: 'image/jpeg', data: b64(9) });
+  poster(g2, { action: 'fiche', id: 'fiche-0920-abcd', donnees: note({ photosBase64: [{ photoRef: 'photo-0920-abcd', label: 'Seule' }] }) });
+  const h2 = pdfDe(g2);
+  assert.ok(h2.indexOf(b64(9)) > -1 && h2.indexOf('Seule') > -1 && h2.indexOf('page-break-before') < 0, 'une seule photo : sous les notes, page 1');
+});
+
+test('note : l’ancien format (photos en base64 dans la fiche) marche toujours', () => {
+  const g = environnement();
+  const r = poster(g, note({ photosBase64: [{ data: PHOTO_B64, mimeType: 'image/jpeg', label: 'Porte' }], destinataires: [FRANCK] }));
+  assert.strictEqual(r.status, 'ok');
+  assert.ok(pdfDe(g).indexOf(PHOTO_B64) > -1);
+});
+
 console.log('\n' + reussis + ' test(s) réussi(s)' + (process.exitCode ? ' — DES TESTS ÉCHOUENT' : ''));
