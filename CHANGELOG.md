@@ -2,6 +2,24 @@
 
 Chaque lot : **quoi**, **pourquoi**, **comment déployer**. Procédures détaillées dans `docs/lotN-procedure.md`.
 
+## Lot 2 — Comptes, rôles, accueil (avec 9a) — en préparation (rien en production)
+
+**Quoi**
+- **Comptes** : identifiant + mot de passe (connexion une fois tous les 90 jours). Onglet *Utilisateurs* : rôle, case « Réinitialiser » (mot de passe provisoire de 48 h, déblocage, déconnexion), case « Déconnecter ses téléphones », case « Tous les chantiers ». Empreintes des mots de passe dans les Propriétés du script, jamais dans le Sheet. 5 erreurs = 15 min de blocage ; alerte à Franck au-delà de 50 échecs par heure.
+- **Droits vérifiés par le serveur** : un poseur ne lit que **ses** chantiers (onglet *Accès chantiers*) et leurs plans ; conducteurs et admin voient tout. Une fiche reste possible pour n'importe quel chantier (auteur noté dans *Envois*).
+- **Accueil** : Connexion → Mes chantiers (recherche, derniers ouverts) → fiches du chantier **pré-remplies** + Plans ; Planning, Absence, « Fiche sans chantier choisi » ; « Remplir une fiche sans être connecté » toujours proposé ; À propos : compte, se déconnecter, changer de mot de passe.
+- **File d'envoi** : une fiche sans compte ou avec une session terminée attend la connexion (jamais « à vérifier ») et repart dès la connexion. Une panne du serveur ne déconnecte personne.
+- **Brouillon** : un chantier pré-rempli ne crée pas de faux brouillon ; le bandeau « Brouillon retrouvé » affiche le chantier du brouillon.
+- **Période de transition** de 15 jours, lancée par Franck (`demarrerTransition`) : l'appli marche encore sans compte (onglet *Sans compte*), puis plus rien n'est lisible sans compte. Mail 3 jours avant la fin.
+- **9a** : colonnes E à K de *Chantiers* (N°, nom court, adresse, client, architecte, date « Terminé », chemin MEGA) ; nom court dans le nom des PDF ; onglet *Intervenants* créé.
+- **Chantier inconnu** : plus de dossier Drive créé par une faute de frappe : le PDF va dans `_À CLASSER` et Franck est prévenu.
+
+**Pourquoi** : chaque gars voit ses chantiers et rien d'autre, et la liste des contacts n'est plus lisible par quiconque connaît l'adresse du serveur.
+
+**Comment déployer** : `docs/lot2-procedure.md` (après la mise en production du lot 1).
+
+**Tests** : `node tests/lot2-comptes.test.js` (36 tests) + tests des lots 0 et 1 ; pages essayées dans le navigateur avec le faux serveur (comptes d'essai), en 375 px.
+
 ## Lot 1 — Fondations (serveur v5, appli 5.0) — en préparation
 
 **Quoi**

@@ -8,6 +8,22 @@
 - **Android** : menu ⋮ de Chrome → **Installer l'application** (ou « Ajouter à l'écran d'accueil »).
 - Une fiche commencée dans Safari ne se retrouve pas dans l'appli installée : envoie-la avant d'installer.
 
+## Se connecter (une fois tous les 90 jours)
+
+- Le bureau te donne un **identifiant** et un **mot de passe provisoire** (il ne sert qu'une fois, pendant 48 h).
+- Ouvre l'appli → **Connexion** → identifiant + provisoire → choisis **ton** mot de passe (8 caractères au moins), tape-le deux fois. Bouton **Afficher** pour voir ce que tu tapes.
+- Ensuite, l'appli reste connectée. Elle redemande le mot de passe au bout de 90 jours sans l'ouvrir, ou si le bureau te déconnecte (téléphone perdu…). Sur iPhone, si l'appli n'est pas installée sur l'écran d'accueil, l'iPhone peut tout effacer au bout de 7 jours sans visite : installe-la.
+- **Mot de passe oublié ou « identifiant bloqué »** (5 erreurs) : demande au bureau un nouveau provisoire.
+- **Pas de réseau, ou pas encore de compte ?** Touche **« Remplir une fiche sans être connecté »** : la fiche est gardée dans le téléphone et part après la connexion. Elle n'est jamais perdue.
+- **Se déconnecter** (téléphone prêté…) : Accueil → **À propos** → **Se déconnecter**. Les fiches pas encore parties restent dans le téléphone.
+
+## Mes chantiers
+
+- L'accueil montre **tes chantiers** (ceux que le bureau t'a donnés), les derniers ouverts en premier. Une recherche apparaît s'il y en a beaucoup.
+- Touche un chantier : ses **fiches** (le chantier est **déjà rempli**) et ses **Plans**.
+- Un chantier manque ? Demande au bureau de te le cocher. En attendant : **« Fiche sans chantier choisi »** (tu tapes le chantier ; l'appli te demande de confirmer s'il n'est pas dans tes chantiers).
+- Conducteurs : bouton **« Voir tous les chantiers »**.
+
 ## Envoyer une fiche
 
 Remplis la fiche, signe, touche **Envoyer**.
@@ -22,7 +38,7 @@ Remplis la fiche, signe, touche **Envoyer**.
 ## Ne rien perdre : le brouillon
 
 - Tout ce que tu tapes est **gardé automatiquement** dans le téléphone, photos et signatures comprises.
-- Si tu fermes la page sans envoyer, à la prochaine ouverture : **« Brouillon retrouvé — Le restaurer ? »**. Touche **Restaurer** pour reprendre, ou **Repartir à zéro**.
+- Si tu fermes la page sans envoyer, à la prochaine ouverture : **« Brouillon retrouvé — chantier X — Le restaurer ? »**. Touche **Restaurer** pour reprendre, ou **Repartir à zéro**. **Regarde le chantier écrit dans le bandeau** : si tu as ouvert la fiche depuis un autre chantier, il le dit.
 - **Bandeau rouge « Brouillon NON enregistré »** ou « Photos non gardées » : le téléphone manque de place (ou tu es en navigation privée). **Envoie la fiche avant de fermer la page.**
 
 ## Destinataires
@@ -33,7 +49,7 @@ Remplis la fiche, signe, touche **Envoyer**.
 
 ## Consulter les documents d'un chantier
 
-Accueil → **Chantiers** → touche ton chantier → onglet **Plans** → touche un plan pour l'ouvrir. La liste des chantiers s'affiche aussi sans réseau (pour ouvrir un plan, il faut du réseau).
+Accueil → touche ton chantier → **Plans** → touche un plan pour l'ouvrir. La liste de tes chantiers s'affiche aussi sans réseau (pour ouvrir un plan, il faut du réseau).
 
 *Seul l'onglet Plans est affiché. Les autres documents (PPSPS, tableaux…) reviendront dans le futur « carnet de chantier ».*
 
