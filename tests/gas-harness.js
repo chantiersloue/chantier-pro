@@ -181,12 +181,13 @@ function creerGoogle(options = {}) {
 }
 
 // Charge tous les fichiers .gs du dossier apps-script dans un contexte simulé
-function chargerScript(google) {
+// fichierUnique (facultatif) : charger seulement ce fichier (ex. le Code.gs à coller de la livraison)
+function chargerScript(google, fichierUnique) {
   const dossier = path.join(__dirname, '..', 'apps-script');
   const ctx = vm.createContext(google.contexte);
-  fs.readdirSync(dossier).filter(f => f.endsWith('.gs')).sort().forEach(f => {
-    vm.runInContext(fs.readFileSync(path.join(dossier, f), 'utf8'), ctx, { filename: f });
-  });
+  const fichiers = fichierUnique ? [fichierUnique]
+    : fs.readdirSync(dossier).filter(f => f.endsWith('.gs')).sort().map(f => path.join(dossier, f));
+  fichiers.forEach(f => vm.runInContext(fs.readFileSync(f, 'utf8'), ctx, { filename: path.basename(f) }));
   return ctx;
 }
 

@@ -189,4 +189,17 @@ test('executerMigration sans plan, ou verrou occupé : ne fait rien', () => {
   assert.strictEqual(g.elements[ids.cotes].parents[0].nom, 'Fiches');
 });
 
+console.log('Livraison — Code.gs unique à coller');
+test('A-COLLER-DANS-APPS-SCRIPT/Code.gs chargé SEUL : le serveur répond et range une fiche', () => {
+  const google = creerGoogle({ proprietes: { DRIVE_ROOT_ID: 'RACINE', DRIVE_PLANNING_ID: 'PLANNING', EMAIL_ADMIN: 'franck@loue.test' },
+    feuilles: { 'Contacts': [['Nom', 'Role', 'Email']], 'Contacts notes': [['Nom', 'Email']], 'Chantiers': [['Nom'], ['CHANTIER TEST 1']] } });
+  google.racine = google.creerElement('dossier', 'Loué Menuiserie - Chantiers', null, { id: 'RACINE' });
+  google.creerElement('dossier', 'Planning', google.racine, { id: 'PLANNING' });
+  const ctx = chargerScript(google, require('path').join(__dirname, '..', 'A-COLLER-DANS-APPS-SCRIPT', 'Code.gs'));
+  const ping = JSON.parse(ctx.doPost({ postData: { contents: JSON.stringify({ action: 'ping' }) } }).contenu);
+  assert.strictEqual(ping.ok, true);
+  assert.ok(ctx.classerDocument_('quitus', ctx.Utilities.newBlob(Buffer.from('%PDF'), 'application/pdf', 'x.pdf'), 'CHANTIER TEST 1', '09/11/2026'));
+  ['planMigration', 'executerMigration', 'verifierConfig', 'modele_quitus', 'traiterQuitus'].forEach(f => assert.strictEqual(typeof ctx[f], 'function', f));
+});
+
 console.log('\n' + reussis + ' test(s) réussi(s)' + (process.exitCode ? ' — DES TESTS ÉCHOUENT' : ''));

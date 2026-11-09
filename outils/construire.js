@@ -6,7 +6,9 @@
 //     de la page viennent ainsi du MÊME modèle) ;
 //  2. numéro de version « ?v=… » ajouté à chaque fichier commun dans les pages (une page charge toujours
 //     les scripts de SA version, même hors réseau) ;
-//  3. sw.js : VERSION et liste des fichiers à garder dans le téléphone.
+//  3. sw.js : VERSION et liste des fichiers à garder dans le téléphone ;
+//  4. A-COLLER-DANS-APPS-SCRIPT/Code.gs : TOUT le serveur en un seul fichier, à coller tel quel dans
+//     l'éditeur Apps Script (un seul collage pour Franck, comme au lot 0).
 'use strict';
 const fs = require('fs');
 const path = require('path');
@@ -41,7 +43,26 @@ function swVersionne(contenu) {
     .replace(/\/\*COMMUNS\*\/.*$/m, '/*COMMUNS*/ ' + entrees + ',');
 }
 
-const cibles = [['apps-script/Modeles.gs', () => fabriquerModeles()], ['sw.js', () => swVersionne(lire('sw.js'))]]
+// 4. Code.gs unique : ordre fixe (réglages d'abord) ; Modeles.gs est pris dans sa version à jour
+const ORDRE_GS = ['Config.gs', 'Securite.gs', 'Api.gs', 'Documents.gs', 'Dossiers.gs', 'Admin.gs', 'Modeles.gs'];
+function codeUnique() {
+  const presents = fs.readdirSync(path.join(racine, 'apps-script')).filter(f => f.endsWith('.gs')).sort();
+  const oublies = presents.filter(f => ORDRE_GS.indexOf(f) < 0);
+  if (oublies.length) throw new Error('Fichier(s) Apps Script absent(s) de ORDRE_GS dans outils/construire.js : ' + oublies.join(', '));
+  const trait = '// ═══════════════════════════════════════════════════════════════\n';
+  const entete = trait
+    + '// LOUÉ APP — SERVEUR COMPLET, À COLLER DANS APPS SCRIPT (fichier « Code.gs », tout remplacer)\n'
+    + '// FICHIER GÉNÉRÉ AUTOMATIQUEMENT par « node outils/construire.js » — NE PAS MODIFIER À LA MAIN :\n'
+    + '// les sources sont dans le dossier apps-script/ du dépôt. Version ' + empreinte + '\n'
+    + trait + '\n';
+  return entete + ORDRE_GS.filter(f => presents.indexOf(f) > -1).map(f => {
+    const contenu = f === 'Modeles.gs' ? fabriquerModeles() : lire('apps-script/' + f);
+    return '// ████ ' + f + ' ████\n' + contenu.trim() + '\n';
+  }).join('\n');
+}
+
+const cibles = [['apps-script/Modeles.gs', () => fabriquerModeles()], ['sw.js', () => swVersionne(lire('sw.js'))],
+  ['A-COLLER-DANS-APPS-SCRIPT/Code.gs', () => codeUnique()]]
   .concat(fs.readdirSync(racine).filter(f => f.endsWith('.html')).map(f => [f, () => pageVersionnee(lire(f))]));
 
 const verifier = process.argv.includes('--verifier');
@@ -51,12 +72,12 @@ cibles.forEach(([fichier, fabriquer]) => {
   const attendu = fabriquer();
   if (actuel !== attendu) {
     if (verifier) pasAJour.push(fichier);
-    else fs.writeFileSync(path.join(racine, fichier), attendu);
+    else { fs.mkdirSync(path.dirname(path.join(racine, fichier)), { recursive: true }); fs.writeFileSync(path.join(racine, fichier), attendu); }
   }
 });
 if (verifier) {
   if (pasAJour.length) { console.error('Pas à jour : ' + pasAJour.join(', ') + ' → lancer « node outils/construire.js »'); process.exit(1); }
   console.log('Livraison à jour (version ' + empreinte + ')');
 } else {
-  console.log('Livraison préparée : version ' + empreinte + ' (Modeles.gs, sw.js et les pages mis à jour)');
+  console.log('Livraison préparée : version ' + empreinte + ' (Modeles.gs, sw.js, les pages et A-COLLER-DANS-APPS-SCRIPT/Code.gs mis à jour)');
 }
