@@ -12,15 +12,30 @@ function doGet(e) {
   // Le nom de la fonction de rappel JSONP est contrôlé : lettres, chiffres, _ et $ seulement
   const cb = /^[A-Za-z_$][A-Za-z0-9_$]{0,60}$/.test(e.parameter.callback || '') ? e.parameter.callback : '';
 
-  if (action === 'getContacts')  return getContacts(cb);
-  if (action === 'getDossiers')  return getDossiers(e.parameter.chantier, cb);
+  // Lot 2 : ces lectures sans compte ne marchent que pendant la période de transition (puis POST avec un jeton)
+  if (action === 'getContacts' || action === 'getDossiers') {
+    let ouverte = true;
+    try { ouverte = transitionOuverte_(); } catch (err) {}
+    if (!ouverte) return sortieJson_({ erreur: 'CONNEXION_REQUISE', message: MSG_CONNEXION }, cb);
+    if (action === 'getContacts') { noterSansCompte_('listes'); return getContacts(cb); }
+    noterSansCompte_(e.parameter.chantier === '__PLANNING__' ? 'planning' : 'dossiers');
+    return getDossiers(e.parameter.chantier, cb);
+  }
 
   // Ouvrir l'URL dans un navigateur affiche ce texte : sert à vérifier la version déployée
   return ContentService.createTextOutput('Loué App API ' + VERSION_API + ' OK').setMimeType(ContentService.MimeType.TEXT);
 }
 
+function sortieJson_(objet, callback) {
+  const json = JSON.stringify(objet);
+  return callback
+    ? ContentService.createTextOutput(callback+'('+json+')').setMimeType(ContentService.MimeType.JAVASCRIPT)
+    : ContentService.createTextOutput(json).setMimeType(ContentService.MimeType.JSON);
+}
+
 // ── Contacts + chantiers + listes ──
-function getContacts(callback) {
+function getContacts(callback) { return sortieJson_(donneesListes_(), callback); }
+function donneesListes_() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
 
   const sc = ss.getSheetByName(SHEET_CONTACTS);
@@ -47,22 +62,23 @@ function getContacts(callback) {
 
   function getList(n){ const s=ss.getSheetByName(n); return s?s.getDataRange().getValues().slice(1).map(r=>String(r[0]||'')).filter(v=>v):[]; }
 
-  const json = JSON.stringify({
+  return {
     contacts, chantiers, contactNotes,
     materiaux  : getList(SHEET_MATERIAUX),
     finitions  : getList(SHEET_FINITIONS),
     quincaille : getList(SHEET_QUINCAILLE),
     fonctions  : getList(SHEET_FONCTIONS),
     types      : getList(SHEET_TYPES),
-  });
-
-  return callback
-    ? ContentService.createTextOutput(callback+'('+json+')').setMimeType(ContentService.MimeType.JAVASCRIPT)
-    : ContentService.createTextOutput(json).setMimeType(ContentService.MimeType.JSON);
+  };
 }
 
 // ── Lecture automatique des dossiers Drive pour un chantier ──
 function getDossiers(chantierNom, callback) {
+  const r = lireDossiers_(chantierNom);
+  return sortieJson_(r && r.__erreur ? { erreur: r.__erreur, dossiers: {} } : { dossiers: r }, callback);
+}
+// Documents lisibles d'un chantier (Plans), ou le planning (__PLANNING__) ; { __erreur } si le dossier n'existe pas
+function lireDossiers_(chantierNom) {
   const result = {};
 
   try {
@@ -87,21 +103,13 @@ function getDossiers(chantierNom, callback) {
         docs.sort(parDateDecroissante_);
         result.planning = docs;
       } catch(err){ console.error('Planning:', err.message); result.planning=[]; }
-      const json = JSON.stringify({ dossiers: result });
-      return callback
-        ? ContentService.createTextOutput(callback+'('+json+')').setMimeType(ContentService.MimeType.JAVASCRIPT)
-        : ContentService.createTextOutput(json).setMimeType(ContentService.MimeType.JSON);
+      return result;
     }
 
     // Chercher le dossier du chantier
     // Lot 1.5 : même recherche que pour le classement (onglet « Dossiers chantiers », nom exact, ressemblance unique)
     const chantierFolder = dossierChantier_(chantierNom, false);
-    if (!chantierFolder) {
-      const json = JSON.stringify({ erreur: 'Dossier chantier non trouvé', dossiers: {} });
-      return callback
-        ? ContentService.createTextOutput(callback+'('+json+')').setMimeType(ContentService.MimeType.JAVASCRIPT)
-        : ContentService.createTextOutput(json).setMimeType(ContentService.MimeType.JSON);
-    }
+    if (!chantierFolder) return { __erreur: 'Dossier chantier non trouvé' };
 
     // Lot 0 : seuls les sous-dossiers encore partagés par lien sont listés
     // (les autres ne s'ouvriraient plus chez les poseurs, et leurs noms de fichiers ne doivent pas fuiter)
@@ -112,11 +120,7 @@ function getDossiers(chantierNom, callback) {
   } catch(err) {
     console.error('getDossiers:', err.message);
   }
-
-  const json = JSON.stringify({ dossiers: result });
-  return callback
-    ? ContentService.createTextOutput(callback+'('+json+')').setMimeType(ContentService.MimeType.JAVASCRIPT)
-    : ContentService.createTextOutput(json).setMimeType(ContentService.MimeType.JSON);
+  return result;
 }
 
 // Lit tous les fichiers d'un sous-dossier (nomSousDossier vide = lire le dossier parent lui-même).
@@ -202,8 +206,10 @@ function doPost(e) {
     return repondre_({ ok: false, code: 'DONNEES_INVALIDES', message: 'Données illisibles' });
   }
   if (corps && corps.action) return repondre_(routerV5_(corps));
-  // Ancien format
+  // Ancien format (pages d'avant le lot 1) : accepté seulement pendant la transition du lot 2
   try {
+    if (!transitionOuverte_()) return repondre_({ status: 'error', message: MSG_CONNEXION });
+    noterSansCompte_('fiche', corps);
     traiterFiche_(corps);
     return repondre_({ status: 'ok' });
   } catch (err) {
@@ -223,12 +229,32 @@ function traiterFiche_(brut) {
   globalThis[nom](preparerDonnees_(brut), brut);
 }
 
+// Lot 2 : chaque action (sauf ping, connexion, motDePasse) passe par identifier_ : jeton valable, ou transition ouverte
 function routerV5_(corps) {
   try {
-    if (corps.action === 'ping')  return { ok: true, code: 'OK', message: 'Loué App API ' + VERSION_API, data: { version: VERSION_API } };
-    if (corps.action === 'photo') return recevoirPhoto_(corps);
-    if (corps.action === 'fiche') return recevoirFiche_(corps);
-    return { ok: false, code: 'ACTION_INCONNUE', message: 'Action inconnue' };
+    UTILISATEURS_ = null;   // l'onglet Utilisateurs est relu à chaque requête (un changement agit tout de suite)
+    if (corps.action === 'ping') {
+      let fin = null;
+      try { fin = finTransition_(); } catch (e) {}
+      return { ok: true, code: 'OK', message: 'Loué App API ' + VERSION_API, data: { version: VERSION_API, comptes: true,
+        transitionJusquau: fin, transitionOuverte: !fin || maintenant_() < fin } };
+    }
+    if (corps.action === 'connexion')  return connexion_(corps);
+    if (corps.action === 'motDePasse') return motDePasse_(corps);
+    if (['photo', 'fiche', 'moi', 'listes', 'dossiers'].indexOf(corps.action) < 0) return { ok: false, code: 'ACTION_INCONNUE', message: 'Action inconnue' };
+    const qui = identifier_(corps);
+    if (qui.refus) return qui.refus;
+    const marquer = rep => { if (qui.jetonInvalide) rep.jetonInvalide = true; return rep; };   // la page efface son jeton
+    if (corps.action === 'photo') { if (qui.sans) noterSansCompte_('photo'); return marquer(avecJeton_(recevoirPhoto_(corps), qui.compte)); }
+    if (corps.action === 'fiche') {
+      if (qui.sans) noterSansCompte_('fiche', corps.donnees);
+      return marquer(avecJeton_(recevoirFiche_(corps, qui.compte), qui.compte));
+    }
+    // Lectures : réservées aux comptes (sans compte, les anciennes lectures GET servent pendant la transition)
+    if (qui.sans) return marquer({ ok: false, code: 'CONNEXION_REQUISE', message: 'Connectez-vous pour voir vos chantiers.' });
+    if (corps.action === 'moi')      return moi_(qui.compte);
+    if (corps.action === 'listes')   return listes_(qui.compte);
+    if (corps.action === 'dossiers') return dossiersCompte_(qui.compte, String(corps.chantier || ''));
   } catch (err) {
     console.error('routerV5_:', err.message);
     return { ok: false, code: 'ERREUR', message: 'Erreur du serveur : ' + err.message };
@@ -323,11 +349,15 @@ function joindrePhotos_(valeur, dossier, manquantes) {
 }
 
 // ── Fiche : enregistrée UNE seule fois même si le téléphone la renvoie (numéro unique) ──
-function recevoirFiche_(corps) {
+function recevoirFiche_(corps, compte) {
   if (!idValide_(corps.id)) return { ok: false, code: 'DONNEES_INVALIDES', message: 'Numéro de fiche invalide' };
   const donnees = corps.donnees || {};
   if (!Object.prototype.hasOwnProperty.call(TRAITEMENTS, donnees.type)) return { ok: false, code: 'TYPE_INCONNU', message: 'Type de fiche inconnu' };
 
+  // Auteur : le compte qui envoie (et celui qui était connecté quand la fiche a été rangée, s'il est différent)
+  const saisiPar = normaliserId_(corps.saisiPar);
+  const auteur = compte ? compte.id + (saisiPar && saisiPar !== compte.id && idCompteValide_(saisiPar) ? ' (rangée par ' + saisiPar + ')' : '')
+                        : 'sans compte';
   // 1. Réserver le numéro (sous verrou, court)
   const verrou = LockService.getScriptLock();
   if (!verrou.tryLock(15000)) return { ok: false, code: 'SERVEUR_OCCUPE', message: 'Serveur occupé, nouvel essai automatique' };
@@ -343,9 +373,9 @@ function recevoirFiche_(corps) {
         return { ok: false, code: 'EN_COURS', message: 'Fiche en cours de traitement, nouvel essai automatique' };
       }
       ligne = trouve;
-      sh.getRange(ligne, 2, 1, 5).setValues([[new Date(), donnees.type, donnees.chantier || '', 'en cours', '']].map(r => r.map(cellule_)));
+      sh.getRange(ligne, 2, 1, 6).setValues([[new Date(), donnees.type, donnees.chantier || '', 'en cours', '', auteur]].map(r => r.map(cellule_)));
     } else {
-      sh.appendRow([corps.id, new Date(), donnees.type, donnees.chantier || '', 'en cours', ''].map(cellule_));
+      sh.appendRow([corps.id, new Date(), donnees.type, donnees.chantier || '', 'en cours', '', auteur].map(cellule_));
       ligne = sh.getLastRow();
     }
   } finally {

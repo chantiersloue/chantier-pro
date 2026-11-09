@@ -10,6 +10,7 @@
 const SHEET_DOSSIERS = 'Dossiers chantiers';
 const SHEET_MIGRATION = 'Migration (lot 1)';
 const NOM_FICHIER_DOSSIERS = 'dossiers.json';
+const DOSSIER_A_CLASSER = '_À CLASSER';   // lot 2 : documents d'un chantier inconnu (commence par « _ » : jamais pris pour un chantier)
 
 const DOSSIERS_DEFAUT = {
   version: 1,
@@ -171,7 +172,10 @@ function dateIso_(texte) {
 }
 function nomDocument_(type, chantier, complement, dateTexte) {
   const intitule = dossiers_().intitules[type] || String(type).toUpperCase();
-  const morceaux = [intitule, String(chantier || '').trim(), String(complement || '').trim(), dateIso_(dateTexte)].filter(Boolean);
+  // Lot 2 (9a) : le « nom court » de l'onglet Chantiers (colonne F) s'il est rempli, sinon le nom du chantier
+  const ligne = chantier ? ligneChantier_(chantier) : null;
+  const court = ligne && ligne.length > 5 ? String(ligne[5] || '').trim() : '';
+  const morceaux = [intitule, court || String(chantier || '').trim(), String(complement || '').trim(), dateIso_(dateTexte)].filter(Boolean);
   return nomFichier_(morceaux.join(' ').replace(/[\\\/:*?"<>|]+/g, '-').replace(/\s+/g, ' '));
 }
 // Ne jamais écraser : « _V2 », « _V3 »… si le nom existe déjà dans le dossier
@@ -190,6 +194,13 @@ function classerDocument_(type, blob, chantier, dateTexte, complement) {
     let dossier;
     if (conf.hors_chantier[type]) {
       dossier = dossierParChemin_(DriveApp.getFolderById(driveRootId_()), conf.hors_chantier[type], true);
+    } else if (String(chantier || '').trim() && !ligneChantier_(chantier) && !dossierChantier_(chantier, false)) {
+      // Lot 2 : nom absent de l'onglet Chantiers et sans dossier existant (faute de frappe, chantier pas encore saisi) :
+      // aucun dossier de chantier n'est créé ; le PDF attend dans « _À CLASSER » et Franck est prévenu
+      dossier = dossierParChemin_(DriveApp.getFolderById(driveRootId_()), DOSSIER_A_CLASSER, true);
+      alerte_('Un document « ' + type + ' » a été fait pour le chantier « ' + String(chantier).slice(0, 80) + ' », absent de l’onglet Chantiers. '
+        + 'Il est rangé dans le dossier « ' + DOSSIER_A_CLASSER + ' » du Drive : déplacez-le (et ajoutez le chantier à l’onglet s’il est nouveau). '
+        + 'Les mails sont partis normalement.', 'aclasser');
     } else {
       dossier = dossierParChemin_(dossierChantier_(chantier, true), conf.documents[type] || 'Divers', true);
     }

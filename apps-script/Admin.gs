@@ -75,13 +75,20 @@ function renvoyerMailsEnAttente() {
   }
 }
 
-// À lancer UNE fois après le déploiement : programme renvoyerMailsEnAttente toutes les 2 h
+// À lancer après le déploiement (le relancer ne crée pas de doublon : chaque déclencheur est supprimé puis recréé)
+//  - renvoyerMailsEnAttente toutes les 2 h (lot 0)
+//  - traiterComptes toutes les 10 min, et surModificationSheet à chaque modification du Sheet (lot 2 : cases
+//    « Réinitialiser » et « Déconnecter », onglet « Accès chantiers »)
+const DECLENCHEURS = ['renvoyerMailsEnAttente', 'traiterComptes', 'surModificationSheet'];
 function installerDeclencheurs() {
   ScriptApp.getProjectTriggers()
-    .filter(t => t.getHandlerFunction() === 'renvoyerMailsEnAttente')
+    .filter(t => DECLENCHEURS.indexOf(t.getHandlerFunction()) > -1)
     .forEach(t => ScriptApp.deleteTrigger(t));
   ScriptApp.newTrigger('renvoyerMailsEnAttente').timeBased().everyHours(2).create();
-  Logger.log('Déclencheur installé : renvoyerMailsEnAttente toutes les 2 heures.');
+  ScriptApp.newTrigger('traiterComptes').timeBased().everyMinutes(10).create();
+  ScriptApp.newTrigger('surModificationSheet').forSpreadsheet(SpreadsheetApp.getActiveSpreadsheet()).onEdit().create();
+  const m = 'Déclencheurs installés : renvoyerMailsEnAttente (2 h), traiterComptes (10 min), surModificationSheet (à chaque modification).';
+  Logger.log(m); return m;
 }
 
 // À lancer après chaque modification des Propriétés du script : vérifie que tout est en place
@@ -96,8 +103,9 @@ function verifierConfig() {
   ok(estEmail_(emailAdmin_()), 'Adresse de Franck (alertes, copies) : ' + emailAdmin_());
   [SHEET_CONTACTS, SHEET_CONTACT_NOTES, SHEET_CHANTIERS].forEach(n => ok(!!ss.getSheetByName(n), 'Onglet « ' + n + ' »'));
   lignes.push(verifierDossiers_());   // lot 1.5 : fichier des noms de dossiers
-  ok(ScriptApp.getProjectTriggers().some(t => t.getHandlerFunction() === 'renvoyerMailsEnAttente'),
-     'Déclencheur des mails reportés (sinon lancer installerDeclencheurs)');
+  const presents = ScriptApp.getProjectTriggers().map(t => t.getHandlerFunction());
+  DECLENCHEURS.forEach(d => ok(presents.indexOf(d) > -1, 'Déclencheur ' + d + ' (sinon lancer installerDeclencheurs)'));
+  lignes.push(verifierComptes_());    // lot 2 : comptes, clé, partage du Sheet, transition
   lignes.push("Mails encore possibles aujourd'hui : " + MailApp.getRemainingDailyQuota());
   Logger.log(lignes.join('\n'));
   return lignes.join('\n');

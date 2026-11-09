@@ -374,7 +374,7 @@ test('chantier tapé à la main (hors Sheet) : copie à Franck ; date absente : 
   const g = environnement();
   const r = poster(g, { action: 'fiche', id: 'fiche-0902-abcd', donnees: note({ chantier: 'CHANTIER INCONNU', date: '' }) });
   assert.strictEqual(r.code, 'ENREGISTRE', JSON.stringify(r));
-  assert.deepStrictEqual(g.mails.map(m => m.to), [FRANCK]);
+  assert.deepStrictEqual(g.mails.filter(m => !/^\[Loué App\] Document à classer/.test(m.sujet)).map(m => m.to), [FRANCK]);   // + l'alerte « à classer » (lot 2)
   assert.ok(/\d{2}\/\d{2}\/\d{4}/.test(pdfDe(g)), 'date du jour dans le PDF');
 });
 

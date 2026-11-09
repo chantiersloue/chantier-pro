@@ -44,7 +44,7 @@ function swVersionne(contenu) {
 }
 
 // 4. Code.gs unique : ordre fixe (réglages d'abord) ; Modeles.gs est pris dans sa version à jour
-const ORDRE_GS = ['Config.gs', 'Securite.gs', 'Api.gs', 'Documents.gs', 'Dossiers.gs', 'Admin.gs', 'Modeles.gs'];
+const ORDRE_GS = ['Config.gs', 'Securite.gs', 'Comptes.gs', 'Api.gs', 'Documents.gs', 'Dossiers.gs', 'Admin.gs', 'Modeles.gs'];
 function codeUnique() {
   const presents = fs.readdirSync(path.join(racine, 'apps-script')).filter(f => f.endsWith('.gs')).sort();
   const oublies = presents.filter(f => ORDRE_GS.indexOf(f) < 0);

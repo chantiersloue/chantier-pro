@@ -25,6 +25,11 @@ function creerGoogle(options = {}) {
         setValue: v => { ecrire(r, c, v); return p; },
         clearContent: () => { for (let i = 0; i < nr; i++) for (let j = 0; j < nc; j++) ecrire(r + i, c + j, ''); return p; },
         setFontWeight: () => p, setBackground: () => p, setFontColor: () => p,
+        // Lot 2 : cases à cocher et listes de choix (la validation est gardée pour les tests)
+        insertCheckboxes: () => { for (let i = 0; i < nr; i++) for (let j = 0; j < nc; j++) { const v = cellule(r + i, c + j); if (v === undefined || v === '') ecrire(r + i, c + j, false); } f.cases = (f.cases || 0) + nr * nc; return p; },
+        setDataValidation: v => { f.validations = (f.validations || []).concat([{ r, c, nr, nc, v }]); return p; },
+        setNote: () => p, setWrap: () => p, setNumberFormat: () => p,
+        getRow: () => r, getColumn: () => c, getNumRows: () => nr, getNumColumns: () => nc,
       };
       return p;
     };
@@ -38,13 +43,16 @@ function creerGoogle(options = {}) {
         return 0;
       },
       setFrozenRows: () => {},
+      getLastColumn: () => Math.max(0, ...f.lignes.map(l => { for (let j = l.length; j > 0; j--) if (l[j - 1] !== '' && l[j - 1] !== undefined) return j; return 0; })),
+      setColumnWidth: () => {},
     };
     return f;
   }
   const feuilles = {};
   Object.entries(options.feuilles || {}).forEach(([n, l]) => { feuilles[n] = creerFeuille(n, l); });
   const ss = {
-    getName: () => 'ChantierPro',
+    getName: () => options.nomSheet || 'ChantierPro',
+    getEditors: () => (options.editeurs || ['franck@loue.test']).map(e => ({ getEmail: () => e })),
     getSheetByName: n => (feuilles[n] ? feuilles[n].api : null),
     insertSheet: n => { feuilles[n] = creerFeuille(n, []); return feuilles[n].api; },
   };
@@ -154,6 +162,15 @@ function creerGoogle(options = {}) {
     base64Decode: s => Array.from(Buffer.from(s, 'base64')),
     base64Encode: octets => Buffer.from(octets).toString('base64'),
     newBlob: (octets, mime, nom) => blob(Buffer.from(octets), nom, mime),
+    // Lot 2 : signature HMAC, identifiants aléatoires, base64 « sûr pour les adresses », pause
+    computeHmacSha256Signature: (valeur, cle) => {
+      const enOctets = x => Array.isArray(x) ? Buffer.from(x.map(o => o & 0xFF)) : Buffer.from(String(x), 'utf8');
+      return Array.from(require('crypto').createHmac('sha256', enOctets(cle)).update(enOctets(valeur)).digest()).map(o => o > 127 ? o - 256 : o);
+    },
+    getUuid: () => require('crypto').randomUUID(),
+    base64EncodeWebSafe: o => (typeof o === 'string' ? Buffer.from(o, 'utf8') : Buffer.from(o.map(x => x & 0xFF))).toString('base64').replace(/\+/g, '-').replace(/\//g, '_'),
+    base64DecodeWebSafe: t => Array.from(Buffer.from(String(t).replace(/-/g, '+').replace(/_/g, '/'), 'base64')).map(o => o > 127 ? o - 256 : o),
+    sleep: ms => { etat.pauses = (etat.pauses || 0) + ms; },
     formatDate: (d, tz, f) => f.replace('yyyy', d.getFullYear()).replace('MM', deux(d.getMonth() + 1))
       .replace('dd', deux(d.getDate())).replace('HH', deux(d.getHours())).replace('mm', deux(d.getMinutes())),
   };
@@ -162,10 +179,16 @@ function creerGoogle(options = {}) {
   const ScriptApp = {
     getProjectTriggers: () => declencheurs.map(t => ({ getHandlerFunction: () => t })),
     deleteTrigger: () => { declencheurs.length = 0; },
-    newTrigger: fn => ({ timeBased: () => ({ everyHours: () => ({ create: () => declencheurs.push(fn) }) }) }),
+    newTrigger: fn => ({
+      timeBased: () => ({ everyHours: () => ({ create: () => declencheurs.push(fn) }), everyMinutes: () => ({ create: () => declencheurs.push(fn) }) }),
+      forSpreadsheet: () => ({ onEdit: () => ({ create: () => declencheurs.push(fn) }) }),
+    }),
   };
   const contexte = {
-    SpreadsheetApp: { getActiveSpreadsheet: () => ss },
+    SpreadsheetApp: { getActiveSpreadsheet: () => ss,
+      newDataValidation: () => { const v = { liste: null, invalide: true,
+        requireValueInList: l => { v.liste = l; return v; }, requireValueInRange: () => v, requireCheckbox: () => { v.liste = [true, false]; return v; },
+        setAllowInvalid: b => { v.invalide = b; return v; }, setHelpText: () => v, build: () => v }; return v; } },
     DriveApp, HtmlService, GmailApp, MailApp, PropertiesService, Utilities, ScriptApp,
     LockService: { getScriptLock: () => ({ tryLock: () => !options.verrouOccupe, releaseLock: () => {} }) },
     CacheService: { getScriptCache: () => ({
