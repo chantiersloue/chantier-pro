@@ -181,6 +181,21 @@ test('executerMigration : déplace (même identifiant), respecte IGNORER, ne sup
   assert.ok(/ignoré/.test(g2.feuilles['Migration (lot 1)'].lignes.find(l => l[3] === ids2.note)[7]));
 });
 
+test('annulerMigration : chaque document revient dans son ancien dossier (même identifiant), relance sans effet', () => {
+  const { g, ch, ids } = avecAnciens();
+  g.ctx.planMigration();
+  g.ctx.executerMigration();
+  assert.strictEqual(g.elements[ids.note].parents[0].nom, 'COMPTE RENDU');
+  const bilan = g.ctx.annulerMigration();
+  assert.ok(/6 document\(s\) remis/.test(bilan), bilan);
+  assert.strictEqual(g.elements[ids.note].parents[0], enfant(ch, 'Note/Réunion/Réunion'), 'nom avec « / » : pas un chemin');
+  assert.strictEqual(g.elements[ids.cotes].parents[0], enfant(ch, 'Fiches'));
+  assert.strictEqual(g.elements[ids.bord].parents[0], enfant(ch, 'Quitus'));
+  assert.strictEqual(g.elements[ids.att].parents[0], enfant(ch, 'Attestations'));
+  assert.ok(/0 document\(s\) remis/.test(g.ctx.annulerMigration()));
+  assert.strictEqual(g.feuilles['Migration (lot 1)'].lignes.find(l => l[3] === ids.cotes)[7], 'remis en place');
+});
+
 test('executerMigration sans plan, ou verrou occupé : ne fait rien', () => {
   const { g, ids } = avecAnciens();
   assert.strictEqual(g.ctx.executerMigration(), 'pas de plan');
