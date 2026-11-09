@@ -409,4 +409,70 @@ test('note : l’ancien format (photos en base64 dans la fiche) marche toujours'
   assert.ok(pdfDe(g).indexOf(PHOTO_B64) > -1);
 });
 
+console.log('Lot 1.3 — demande d’absence');
+const absence = extra => Object.assign({ type: 'absence', nom: 'Killian MARTIN', emailPerso: '', dateDepot: '09/11/2026',
+  dateAbsence: 'Du 01/12/2026 au 05/12/2026', duree: 'Journée entière', imputation: 'Repos compensateur, Congés payés',
+  motif: 'Mariage', precisions: 'Mariage de ma sœur\nà Nantes', signature: SIG_PNG }, extra || {});
+const dossierAbsences = g => {
+  const adm = g.racine.enfants.find(e => e.nom === 'ADMINISTRATIF');
+  return adm && adm.enfants.find(e => e.nom === 'ABSENCES');
+};
+
+test('demande enregistrée : PDF complet, mails « absenceNotif » + e-mail perso, Sheet (mêmes colonnes), rangée dans ADMINISTRATIF/ABSENCES', () => {
+  const g = environnement();
+  const r = poster(g, { action: 'fiche', id: 'fiche-1000-abcd', donnees: absence({ emailPerso: SEB }) });
+  assert.strictEqual(r.code, 'ENREGISTRE', JSON.stringify(r));
+  const html = pdfDe(g);
+  ['DEMANDE D’ABSENCE', 'Déposée le 09/11/2026', 'Killian MARTIN', 'Du 01/12/2026 au 05/12/2026', 'Journée entière',
+    'Repos compensateur, Congés payés', 'Mariage de ma sœur\nà Nantes', 'Fait le 09/11/2026 à St Mathurin', 'COUPON RÉPONSE DE LA DIRECTION',
+    'Demande acceptée', 'Demande refusée', SIG_PNG].forEach(t => assert.ok(html.indexOf(t) > -1, t));
+  assert.deepStrictEqual(g.mails.map(m => m.to).sort(), [FRANCK, SEB].sort());
+  assert.ok(g.mails.every(m => m.sujet === "[Loué App] Demande d'absence — Killian MARTIN — Du 01/12/2026 au 05/12/2026"));
+  const f = g.feuilles['Absences'].lignes;
+  assert.deepStrictEqual(Array.from(f[0]), ['Horodatage', 'Demandeur', 'Date dépôt', 'Date absence', 'Durée', 'Imputation', 'Motif', 'Précisions', 'Email perso']);
+  assert.deepStrictEqual(Array.from(f[1]).slice(1), ['Killian MARTIN', '09/11/2026', 'Du 01/12/2026 au 05/12/2026', 'Journée entière',
+    'Repos compensateur, Congés payés', 'Mariage', 'Mariage de ma sœur\nà Nantes', SEB]);
+  const dossier = dossierAbsences(g);
+  assert.ok(dossier && dossier.enfants.length === 1, 'PDF rangé dans ADMINISTRATIF/ABSENCES (lot 1.5, avant : pas gardé)');
+  assert.strictEqual(dossier.enfants[0].nom, 'ABSENCE Killian MARTIN 2026-11-09.pdf');
+});
+
+test('destinataires calculés par le serveur seul : la liste envoyée par la page est ignorée ; aucun contact « absenceNotif » → Franck', () => {
+  const g = environnement();
+  poster(g, { action: 'fiche', id: 'fiche-1001-abcd', donnees: absence({ destinataires: ['pirate@ext.test', SEB] }) });
+  assert.deepStrictEqual(g.mails.map(m => m.to), [FRANCK]);
+  const g2 = environnement();
+  g2.feuilles['Contacts'].lignes.forEach((l, i) => { if (i) l[7] = 'N'; });
+  poster(g2, { action: 'fiche', id: 'fiche-1002-abcd', donnees: absence() });
+  assert.deepStrictEqual(g2.mails.map(m => m.to), [FRANCK], 'jamais sans destinataire');
+});
+
+test('e-mail perso hors Sheet : adresse libre (texte imposé, Franck en copie cachée)', () => {
+  const g = environnement();
+  poster(g, { action: 'fiche', id: 'fiche-1003-abcd', donnees: absence({ emailPerso: 'killian.perso@ext.test' }) });
+  const m = g.mails.find(x => x.to === 'killian.perso@ext.test');
+  assert.ok(m, 'copie envoyée');
+  assert.strictEqual(m.opts.bcc, FRANCK);
+  assert.ok(/^Loué Menuiserie — Demande d'absence$/.test(m.sujet), m.sujet);
+});
+
+test('textes piégés échappés ; formule neutralisée dans le Sheet ; signature extérieure supprimée', () => {
+  const g = environnement();
+  poster(g, { action: 'fiche', id: 'fiche-1004-abcd', donnees: absence({ nom: '<script>alert(1)</script>', motif: 'Vis 4" <90 cm',
+    precisions: '=HYPERLINK("x")', signature: 'https://evil.test/x.png' }) });
+  const html = pdfDe(g);
+  assert.ok(html.indexOf('<script>alert') < 0 && html.indexOf('&lt;script&gt;alert(1)&lt;/script&gt;') > -1, 'nom échappé');
+  assert.ok(html.indexOf('Vis 4&quot; &lt;90 cm') > -1, 'motif échappé');
+  assert.ok(html.indexOf('evil.test') < 0, 'signature extérieure supprimée');
+  assert.strictEqual(g.feuilles['Absences'].lignes[1][7], '\'=HYPERLINK("x")');
+});
+
+test('absence : l’ancien format (sans numéro de fiche) marche toujours', () => {
+  const g = environnement();
+  const r = poster(g, absence({ dateAbsence: '2026-11-30', destinataires: [FRANCK] }));
+  assert.strictEqual(r.status, 'ok');
+  assert.ok(pdfDe(g).indexOf('Killian MARTIN') > -1);
+  assert.deepStrictEqual(g.mails.map(m => m.to), [FRANCK]);
+});
+
 console.log('\n' + reussis + ' test(s) réussi(s)' + (process.exitCode ? ' — DES TESTS ÉCHOUENT' : ''));

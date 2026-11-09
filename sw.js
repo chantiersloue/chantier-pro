@@ -4,14 +4,14 @@
 // ne pas les modifier à la main. En cas de gros problème : remplacer ce fichier par outils/sw-secours.js.
 // Les échanges avec Apps Script ne passent JAMAIS par ce cache (fiches, listes : gérés par commun/api.js).
 // ═══════════════════════════════════════════════════════════════
-const VERSION = 'loue-628b6b88c2';
+const VERSION = 'loue-4b228386af';
 const A_GARDER = [
   './', 'index.html', 'quitus.html', 'bordereau.html',
   'cotes.html', 'fiche-fabrication.html', 'note-reunion.html', 'bordereau-orga.html', 'bordereau-materiaux.html',
   'attestation.html', 'reception-support.html', 'absence.html',
   'manifest.json', 'logo.png', 'apple-touch-icon.png',
   // Fichiers communs et modèles, avec leur numéro de version (liste fabriquée par outils/construire.js)
-  /*COMMUNS*/ 'commun/adresses.js?v=628b6b88c2', 'commun/api.js?v=628b6b88c2', 'commun/brouillon.js?v=628b6b88c2', 'commun/config.js?v=628b6b88c2', 'commun/destinataires.js?v=628b6b88c2', 'commun/hors-ligne.js?v=628b6b88c2', 'commun/photos.js?v=628b6b88c2', 'commun/signature.js?v=628b6b88c2', 'commun/ui.js?v=628b6b88c2', 'commun/fiche.css?v=628b6b88c2', 'commun/style.css?v=628b6b88c2', 'modeles/attestation.js?v=628b6b88c2', 'modeles/bordereau.js?v=628b6b88c2', 'modeles/cotes.js?v=628b6b88c2', 'modeles/fabrication.js?v=628b6b88c2', 'modeles/note.js?v=628b6b88c2', 'modeles/quitus.js?v=628b6b88c2', 'modeles/reception.js?v=628b6b88c2',
+  /*COMMUNS*/ 'commun/adresses.js?v=4b228386af', 'commun/api.js?v=4b228386af', 'commun/brouillon.js?v=4b228386af', 'commun/config.js?v=4b228386af', 'commun/destinataires.js?v=4b228386af', 'commun/hors-ligne.js?v=4b228386af', 'commun/photos.js?v=4b228386af', 'commun/signature.js?v=4b228386af', 'commun/ui.js?v=4b228386af', 'commun/fiche.css?v=4b228386af', 'commun/style.css?v=4b228386af', 'modeles/absence.js?v=4b228386af', 'modeles/attestation.js?v=4b228386af', 'modeles/bordereau.js?v=4b228386af', 'modeles/cotes.js?v=4b228386af', 'modeles/fabrication.js?v=4b228386af', 'modeles/note.js?v=4b228386af', 'modeles/quitus.js?v=4b228386af', 'modeles/reception.js?v=4b228386af',
 ];
 
 self.addEventListener('install', ev => {

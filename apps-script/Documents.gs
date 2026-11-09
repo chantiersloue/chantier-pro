@@ -240,100 +240,34 @@ function getContactsRaw() {
 // DEMANDE D'ABSENCE
 // ══════════════════════════════════════════════════════════
 function traiterAbsence(data, brut) {
-  const ss          = SpreadsheetApp.getActiveSpreadsheet();
-  const horodatage  = new Date();
+  // 1. Sheet « Absences » — mêmes colonnes qu'avant ; protégé contre les erreurs (données brutes, formules neutralisées)
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    let sheet = ss.getSheetByName(SHEET_ABSENCES);
+    if(!sheet) {
+      sheet = ss.insertSheet(SHEET_ABSENCES);
+      sheet.appendRow(['Horodatage','Demandeur','Date dépôt','Date absence','Durée','Imputation','Motif','Précisions','Email perso']);
+      sheet.getRange(1,1,1,9).setFontWeight('bold').setBackground('#1A2B4A').setFontColor('white');
+    }
+    sheet.appendRow([new Date(), brut.nom||'', brut.dateDepot||'', brut.dateAbsence||'', brut.duree||'',
+      brut.imputation||'', brut.motif||'', brut.precisions||'', brut.emailPerso||''].map(cellule_));
+  } catch(err) { console.error('Sheet absences:', err.message); }
 
-  // 1. Enregistrer dans le sheet Absences (créer si besoin)
-  let sheet = ss.getSheetByName(SHEET_ABSENCES);
-  if(!sheet) {
-    sheet = ss.insertSheet(SHEET_ABSENCES);
-    sheet.appendRow(['Horodatage','Demandeur','Date dépôt','Date absence','Durée','Imputation','Motif','Précisions','Email perso']);
-    sheet.getRange(1,1,1,9).setFontWeight('bold').setBackground('#1A2B4A').setFontColor('white');
-  }
-  sheet.appendRow([
-    horodatage,
-    brut.nom||'',
-    brut.dateDepot||'',
-    brut.dateAbsence||'',
-    brut.duree||'',
-    brut.imputation||'',
-    brut.motif||'',
-    brut.precisions||'',
-    brut.emailPerso||'',
-  ].map(cellule_));
+  // 2. PDF — Lot 1 : modèle unique (modeles/absence.js, copié dans Modeles.gs), le même que l'aperçu de la page
+  const htmlPDF = modele_absence(validerImages_(brut), esc_);
+  const nomFichier = nomFichier_('Absence_' + String(brut.nom||'').replace(/ /g,'_') + '_' + String(brut.dateAbsence||'').replace(/\//g,'-') + '.pdf');
+  const blob = HtmlService.createHtmlOutput(htmlPDF).getAs('application/pdf').setName(nomFichier);   // fabriqué une seule fois
 
-  // 2. Construire le PDF
-  const sig = data.signature||'';
-  const sigImg = sig ? `<img src="${sig}" style="max-width:100%;max-height:72px;">` : '';
-  const today  = data.dateDepot||'';
+  // 3. Drive (lot 1.5) : ADMINISTRATIF/ABSENCES à la racine (hors chantier), nommé avec la date de la demande et le salarié.
+  //    Un mail reporté reprend ce PDF ; il n'est jamais mis à la corbeille (il n'est pas dans _MAILS EN ATTENTE).
+  //    Si le rangement échoue (fichier null), on retombe sur l'ancien comportement (PDF temporaire dans _MAILS EN ATTENTE).
+  const fichier = classerDocument_('absence', blob, '', brut.dateDepot, brut.nom);
 
-  const htmlPDF = `<html><head><style>
-    @page{size:A4;margin:1.5cm}
-    body{font-family:Arial,sans-serif;font-size:10px;margin:0}
-    *{box-sizing:border-box}
-    table{border-collapse:collapse;width:100%}
-    td,th{padding:7px 10px;border:1px solid #D8D4CE;}
-    .lbl{font-weight:700;background:#FAFAF8;font-size:9px;color:#6A6460;text-transform:uppercase;width:38%}
-  </style></head><body>
-  <table style="margin-bottom:16px;border:none">
-    <tr>
-      <td style="border:none;vertical-align:middle;width:50%">
-        <div style="font-weight:800;font-size:16px;color:#1A2B4A">Loué Menuiserie</div>
-        <div style="font-size:9px;color:#6A6460">Menuiserie · Charpente · Agencement</div>
-      </td>
-      <td style="border:none;text-align:center;vertical-align:middle">
-        <div style="font-weight:800;font-size:14px;color:#B87A00">DEMANDE D'ABSENCE</div>
-        <div style="font-size:10px;color:#6A6460;margin-top:3px">Déposée le ${today}</div>
-      </td>
-    </tr>
-  </table>
-  <table style="margin-bottom:12px">
-    <tr><td class="lbl">Demandeur</td><td style="font-weight:700">${data.nom||'—'}</td></tr>
-    <tr><td class="lbl">Date d'absence</td><td>${data.dateAbsence||'—'}</td></tr>
-    <tr><td class="lbl">Durée</td><td>${data.duree||'—'}</td></tr>
-    <tr><td class="lbl">Imputation</td><td>${data.imputation||'—'}</td></tr>
-    <tr><td class="lbl">Motif</td><td>${data.motif||'—'}</td></tr>
-    ${data.precisions?`<tr><td class="lbl">Précisions</td><td>${data.precisions}</td></tr>`:''}
-  </table>
-  <div style="padding:8px 12px;background:#FFF3CC;border:1px solid #B87A00;border-radius:4px;font-size:10px;color:#B87A00;margin-bottom:14px">
-    Les absences seront prises sur votre compteur selon l'imputation choisie.<br>
-    Acceptation selon l'accord de la Direction (voir coupon réponse ci-dessous).
-  </div>
-  <table style="margin-bottom:16px;border:none">
-    <tr>
-      <td style="border:none;width:50%;padding-right:8px;vertical-align:top">
-        <div style="font-size:9px;font-weight:700;text-transform:uppercase;color:#6A6460;margin-bottom:4px">Signature du demandeur</div>
-        <div style="border:1px solid #D8D4CE;border-radius:4px;height:80px;background:#FAFAF8;text-align:center;padding:4px">${sigImg}</div>
-        <div style="font-size:9px;color:#6A6460;margin-top:3px">Fait le ${today} à St Mathurin</div>
-      </td>
-      <td style="border:none;width:50%"></td>
-    </tr>
-  </table>
-  <div style="border-top:2px dashed #D8D4CE;margin-bottom:14px"></div>
-  <div style="text-align:center;font-weight:800;font-size:13px;color:#1A2B4A;margin-bottom:14px;letter-spacing:.5px">COUPON RÉPONSE DE LA DIRECTION</div>
-  <div style="display:flex;gap:20px;margin-bottom:10px;font-size:12px">
-    <span>☐ Demande acceptée</span><span>☐ Demande refusée</span>
-  </div>
-  <div style="font-size:12px;margin-bottom:16px">Motif refus : ______________________________________________________</div>
-  <table style="border:none">
-    <tr>
-      <td style="border:none;width:50%;padding-right:8px;vertical-align:top">
-        <div style="font-size:9px;font-weight:700;text-transform:uppercase;color:#6A6460;margin-bottom:4px">Signature Direction</div>
-        <div style="border:1px solid #D8D4CE;border-radius:4px;height:70px;background:#FAFAF8"></div>
-        <div style="font-size:9px;color:#6A6460;margin-top:3px">Fait le ________________ à St Mathurin</div>
-      </td>
-      <td style="border:none;width:50%"></td>
-    </tr>
-  </table>
-  </body></html>`;
-
-  const nomFichier = nomFichier_(`Absence_${String(brut.nom||'').replace(/ /g,'_')}_${String(brut.dateAbsence||'').replace(/\//g,'-')}.pdf`);
-  const blob = HtmlService.createHtmlOutput(htmlPDF).getAs('application/pdf').setName(nomFichier);
-
-  // 3. Destinataires calculés par le serveur : contacts colonne H = O, plus l'email perso
-  //    (une adresse inconnue du Sheet est traitée comme « adresse libre » : contenu imposé, plafonds, journal)
+  // 4. Destinataires calculés par le serveur seul : contacts colonne H = O, plus l'email perso
+  //    (une adresse inconnue du Sheet est traitée comme « adresse libre » : contenu imposé, plafonds, journal).
+  //    La liste « destinataires » envoyée par les anciennes pages (la même, calculée dans la page) est ignorée.
   const notifies = getContactsRaw().filter(r=>String(r[7]).toUpperCase()==='O').map(r=>r[2]);
-  const destinataires = [...notifies, ...(Array.isArray(brut.destinataires) ? brut.destinataires : []), brut.emailPerso].filter(Boolean);
+  const destinataires = [...notifies, brut.emailPerso].filter(Boolean);
   if(!destinataires.length) destinataires.push(emailAdmin_());
 
   const sujet = `[Loué App] Demande d'absence — ${brut.nom||'?'} — ${brut.dateAbsence||'?'}`;
@@ -341,8 +275,8 @@ function traiterAbsence(data, brut) {
 
   distribuer_({
     fiche: 'absence', chantier: '', adresses: destinataires,
-    sujet: sujet, texte: corps, fichier: null, nomPDF: nomFichier,
-    faireBlob: () => HtmlService.createHtmlOutput(htmlPDF).getAs('application/pdf').setName(nomFichier),
+    sujet: sujet, texte: corps, fichier: fichier, nomPDF: nomFichier,
+    faireBlob: () => blob,
   });
 }
 

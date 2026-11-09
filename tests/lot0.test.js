@@ -200,9 +200,24 @@ test('quota bas : mails reportés, ceux de Franck partent ; renvoi automatique e
   assert.strictEqual(g.feuilles['Mails en attente'].lignes[1][10], 'envoyé');
 });
 
-test('absence reportée : PDF gardé dans _MAILS EN ATTENTE puis mis à la corbeille après envoi', () => {
+test('absence reportée (lot 1.5) : le PDF rangé dans ADMINISTRATIF/ABSENCES sert au renvoi et n’est jamais mis à la corbeille', () => {
   const g = environnement({ quota: 5 });
-  poster(g, { type: 'absence', nom: 'Killian', dateAbsence: '30/10/2026', emailPerso: '', destinataires: [SEB] });
+  poster(g, { type: 'absence', nom: 'Killian', dateDepot: '09/11/2026', dateAbsence: '30/11/2026', emailPerso: SEB });
+  const abs = g.racine.enfants.find(e => e.nom === 'ADMINISTRATIF').enfants.find(e => e.nom === 'ABSENCES');
+  assert.ok(abs && abs.enfants.length === 1, 'PDF rangé dans ADMINISTRATIF/ABSENCES');
+  assert.ok(!g.racine.enfants.some(e => e.nom === '_MAILS EN ATTENTE'), 'plus de PDF temporaire');
+  const attente = g.feuilles['Mails en attente'].lignes;
+  assert.strictEqual(attente[1][8], abs.enfants[0].id, 'le mail reporté reprend le PDF rangé');
+  g.etat.quota = 100;
+  g.ctx.renvoyerMailsEnAttente();
+  assert.ok(g.mails.some(m => m.to === SEB), 'mail reporté envoyé');
+  assert.ok(!abs.enfants[0].corbeille, 'le PDF rangé reste en place');
+});
+
+test('absence reportée, rangement Drive en échec : PDF temporaire dans _MAILS EN ATTENTE puis corbeille (comme avant)', () => {
+  const g = environnement({ quota: 5 });
+  g.ctx.classerDocument_ = () => null;
+  poster(g, { type: 'absence', nom: 'Killian', dateAbsence: '30/10/2026', emailPerso: SEB });
   const dossier = g.racine.enfants.find(e => e.nom === '_MAILS EN ATTENTE');
   assert.ok(dossier && dossier.enfants.length === 1);
   g.etat.quota = 100;
