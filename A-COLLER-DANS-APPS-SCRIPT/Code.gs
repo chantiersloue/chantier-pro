@@ -957,7 +957,7 @@ function traiterBordereau(data, brut) {
   const htmlPDF = modele_bordereau(validerImages_(brut), esc_);
   const blob = HtmlService.createHtmlOutput(htmlPDF).getAs('application/pdf').setName(nomPDF);
   // Lot 0 : les bordereaux ont leur propre dossier (ils allaient par erreur dans « Quitus »)
-  const fichier = classerFichierDrive(blob, brut.chantier||'—', 'Bordereaux', nomPDF);
+  const fichier = classerDocument_(brut.type === 'bordereau-orga' ? 'bordereau-orga' : 'bordereau-materiaux', blob, brut.chantier, brut.date);
   const sujet = `[Loué App] ${isOrga?'Bordereau Organigramme':'Bordereau Matériaux'} — ${brut.chantier||'—'}`;
   // Copie au conducteur du chantier calculée par le serveur (sinon Franck) : toujours au moins un destinataire
   const adresses = (Array.isArray(brut.destinataires) ? brut.destinataires : []).concat([emailConducteurChantier_(brut.chantier) || emailAdmin_()]);
@@ -978,7 +978,7 @@ function traiterQuitus(data, brut) {
   const htmlPDF = modele_quitus(validerImages_(brut), esc_);
 
   const blob = HtmlService.createHtmlOutput(htmlPDF).getAs('application/pdf').setName(nomPDF);
-  const fichier = classerFichierDrive(blob, brut.chantier||'—', 'Quitus', nomPDF);
+  const fichier = classerDocument_('quitus', blob, brut.chantier, brut.date, brut.precision);
   const pdfUnique = () => blob;   // le même PDF sert au classement et aux mails
   const sujet = `[Loué App] Quitus — ${chantierBrut}`;
   // Copie au conducteur du chantier calculée par le serveur (sinon Franck) : toujours au moins un destinataire
@@ -1029,7 +1029,7 @@ function envoyerEmailCotes(data, horodatage, brut) {
   let fichier = null;
   const blobPdf = HtmlService.createHtmlOutput(htmlPDF).getAs('application/pdf').setName(nomPDF);
   try {
-    fichier = classerFichierDrive(blobPdf, brut.chantier||'—', 'Fiches', nomPDF);
+    fichier = classerDocument_('cotes', blobPdf, brut.chantier, brut.date);
   } catch(err) { console.error('Drive cotes:', err.message); }
 
   distribuer_({
@@ -1084,10 +1084,10 @@ function envoyerEmailFabrication(data, horodatage, brut) {
   const nomPDF = nomFichier_(`Fab_${brut.chantier||'—'}${brut.serie?'_S'+brut.serie:''}_${brut.date||''}.pdf`);
   const blobPdf = HtmlService.createHtmlOutput(htmlPDF).getAs('application/pdf').setName(nomPDF);
 
-  // Classement automatique dans Drive/[chantier]/Fiches
+  // Classement automatique (lot 1.5 : dossier « fabrication » de dossiers.json, 07 - ATELIER par défaut)
   let fichier = null;
   try {
-    fichier = classerFichierDrive(blobPdf, brut.chantier||'—', 'Fiches', nomPDF);
+    fichier = classerDocument_('fabrication', blobPdf, brut.chantier, brut.date, brut.serie ? 'S' + brut.serie : '');
   } catch(err) { console.error('Drive fabrication:', err.message); }
 
   const chantier = data.chantier||'—';
@@ -1328,7 +1328,7 @@ function traiterReceptionSupport(data, brut) {
   const blobPDF = HtmlService.createHtmlOutput(htmlPDF).getAs('application/pdf').setName(nomFichier);   // fabriqué une seule fois
 
   // 3. Drive (sous-dossier « Réceptions Support » du chantier)
-  const fichier = classerFichierDrive(blobPDF, brut.chantier||'DIVERS', 'Réceptions Support', nomFichier);
+  const fichier = classerDocument_('reception-support', blobPDF, brut.chantier, brut.date, brut.lotLabel);
 
   // 4. Destinataires choisis dans la page (+ « destinataire supplémentaire » des pages d'avant la refonte)
   //    et copie au conducteur du chantier calculée par le serveur (sinon Franck) — contrôlés par distribuer_
@@ -1373,7 +1373,7 @@ function traiterAttestation(data, brut) {
   const htmlPDF = modele_attestation(d, esc_);
   const nomFichier = nomFichier_(`Attestation_${String(brut.typeLabel||'').replace(/ /g,'_')}_${String(brut.chantier||'').replace(/ /g,'_')}.pdf`);
   const blob = HtmlService.createHtmlOutput(htmlPDF).getAs('application/pdf').setName(nomFichier);   // fabriqué une seule fois
-  const fichier = classerFichierDrive(blob, brut.chantier||'DIVERS', 'Attestations', nomFichier);
+  const fichier = classerDocument_('attestation', blob, brut.chantier, brut.date, brut.typeLabel);
 
   // 3. Mail au conducteur du chantier, calculé par le serveur (sinon Franck) — contrôlé par distribuer_
   const destinataires = [emailConducteurChantier_(brut.chantier) || emailAdmin_()];

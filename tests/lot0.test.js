@@ -87,13 +87,15 @@ test('fabrication : un mail en échec ne fait plus planter la fiche (reporté)',
   assert.strictEqual(g.feuilles['Mails en attente'].lignes.length, 3, '2 mails reportés');
 });
 
-['bordereau-orga', 'bordereau-materiaux'].forEach(type => test(type + ' : envoi et dossier « Bordereaux »', () => {
+['bordereau-orga', 'bordereau-materiaux'].forEach(type => test(type + ' : envoi et dossier du bordereau (lot 1.5)', () => {
   const g = environnement();
   poster(g, { type, chantier: 'CHANTIER TEST 1', date: '29/10/2026', heure: '10:00', soussigne: 'Franck', preneur: 'M. X',
     typeDoc: 'Pass GENERAL', nombre: '2', sigLoue: SIG, sigPreneur: SIG, destinataires: [FRANCK], photosBase64: [PHOTO] });
   assert.deepStrictEqual(destinatairesDe(g), [FRANCK, SEB].sort(), 'destinataire choisi + copie au conducteur du chantier');
   const chantier = g.racine.enfants.find(e => e.nom === 'CHANTIER TEST 1');
-  assert.ok(chantier.enfants.find(e => e.nom === 'Bordereaux').enfants.length === 1, 'PDF rangé dans Bordereaux');
+  const sous = chantier.enfants.find(e => e.nom === '05 - CHANTIER').enfants.find(e => e.nom === (type === 'bordereau-orga' ? 'ORGANIGRAMME' : 'BORDEREAUX MATERIAUX'));
+  assert.ok(sous.enfants.length === 1, 'PDF rangé dans le dossier du bordereau');
+  assert.ok(!chantier.enfants.some(e => e.nom === 'Quitus'), 'plus jamais dans « Quitus »');
   assert.ok(pdfHtml(g).indexOf(SIG) > -1, 'la signature est dans le PDF');
 }));
 
@@ -272,7 +274,7 @@ test('getDossiers : seul « Plans » est listé (et partagé) ; Accès n\'est pl
 test('PDF produits : plus jamais partagés publiquement', () => {
   const g = environnement();
   poster(g, { type: 'quitus', chantier: 'CHANTIER TEST 1', destinataires: [FRANCK] });
-  const quitus = g.racine.enfants.find(e => e.nom === 'CHANTIER TEST 1').enfants.find(e => e.nom === 'Quitus');
+  const quitus = g.racine.enfants.find(e => e.nom === 'CHANTIER TEST 1').enfants.find(e => e.nom === '05 - CHANTIER').enfants.find(e => e.nom === 'OPR - RESERVES - QUITUS');
   assert.strictEqual(quitus.enfants[0].acces, 'PRIVATE');
 });
 

@@ -249,8 +249,9 @@ test('mise en œuvre : fiche enregistrée, PDF complet, mail au conducteur du ch
   const f = g.feuilles['Attestations'].lignes;
   assert.deepStrictEqual(Array.from(f[0]), ['Horodatage', 'Type', 'Chantier', 'Précision', 'Signataire', 'Date', 'Référence', 'Objet/DAS N°']);
   assert.deepStrictEqual(Array.from(f[1]).slice(1), ['Mise en œuvre', 'CHANTIER TEST 1', 'Bât. A', 'Franck PAVAGEAU', '09/11/2026', 'PV-OPR-014', 'Pose des menuiseries conforme au DTU']);
-  const dossier = g.racine.enfants.find(e => e.nom === 'CHANTIER TEST 1').enfants.find(e => e.nom === 'Attestations');
-  assert.strictEqual(dossier.enfants.length, 1, 'PDF rangé dans Attestations');
+  const dossier = g.racine.enfants.find(e => e.nom === 'CHANTIER TEST 1').enfants.find(e => e.nom === '05 - CHANTIER').enfants.find(e => e.nom === 'OPR - RESERVES - QUITUS');
+  assert.strictEqual(dossier.enfants.length, 1, 'PDF rangé dans OPR - RESERVES - QUITUS (lot 1.5)');
+  assert.ok(/^ATTESTATION CHANTIER TEST 1 .*2026-11-09\.pdf$/.test(dossier.enfants[0].nom), dossier.enfants[0].nom);
 });
 
 test('textes piégés échappés ; la fonction du signataire vient du Sheet, pas de la page ; adresse de la page ignorée', () => {
@@ -308,8 +309,8 @@ test('fiche enregistrée : PDF complet, Sheet (mêmes colonnes), Drive, conducte
   const f = g.feuilles['Réceptions Support'].lignes;
   assert.deepStrictEqual(Array.from(f[0]), ['Horodatage', 'Chantier', 'Précision', 'Signataire', 'Date', 'Lot', 'Nb OK', 'Nb NOK', 'Nb SO', 'Observations']);
   assert.deepStrictEqual(Array.from(f[1]).slice(1), ['CHANTIER TEST 1', 'Bât. B', 'Franck PAVAGEAU', '09/11/2026', 'Menuiserie Intérieure', 1, 1, 1, 'Reprise des bandes\nau R+1']);
-  const dossier = g.racine.enfants.find(e => e.nom === 'CHANTIER TEST 1').enfants.find(e => e.nom === 'Réceptions Support');
-  assert.strictEqual(dossier.enfants.length, 1, 'PDF rangé dans Réceptions Support');
+  const dossier = g.racine.enfants.find(e => e.nom === 'CHANTIER TEST 1').enfants.find(e => e.nom === '05 - CHANTIER').enfants.find(e => e.nom === 'OPR - RESERVES - QUITUS');
+  assert.strictEqual(dossier.enfants.length, 1, 'PDF rangé dans OPR - RESERVES - QUITUS (lot 1.5)');
 });
 
 test('textes piégés échappés (point ajouté, commentaire, observations) ; formule neutralisée dans le Sheet', () => {
