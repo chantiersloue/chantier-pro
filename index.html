@@ -6,7 +6,7 @@
 <title>Loué App</title>
 <link rel="icon" type="image/png" href="apple-touch-icon.png">
 <link rel="manifest" href="manifest.json">
-<link rel="stylesheet" href="commun/style.css?v=5ec8f9000f">
+<link rel="stylesheet" href="commun/style.css?v=02d10fbf7e">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -141,6 +141,35 @@ body.loue-test .installer{padding-top:calc(56px + env(safe-area-inset-top,0px));
 .apropos-ligne{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:12px 14px;margin-bottom:10px;font-size:15px;line-height:1.4;}
 .apropos-titre{font-size:13px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.03em;margin-bottom:3px;}
 .btn-apropos{display:block;margin-top:8px;min-height:44px;padding:8px 16px;border-radius:10px;border:0;background:#1A2B4A;color:#fff;font:700 15px system-ui,sans-serif;}
+
+/* Lot 2 : connexion, mes chantiers */
+[hidden]{display:none !important;}
+.cnx{max-width:460px;margin:0 auto;width:100%;padding:26px 18px 40px;}
+.cnx h1{font:800 24px/1.2 system-ui,-apple-system,sans-serif;margin-bottom:8px;}
+.cnx .aide-cnx{font-size:15px;color:var(--muted);line-height:1.45;margin-bottom:18px;}
+.cnx label{display:block;font-weight:700;font-size:15px;margin:14px 0 6px;}
+.cnx input{width:100%;min-height:52px;border:1.5px solid var(--border2);border-radius:10px;padding:10px 14px;font-size:18px;background:#fff;color:var(--text);}
+.cnx input:focus{outline:3px solid #9CC0F0;border-color:var(--blue);}
+.mdp-ligne{display:flex;gap:8px;}
+.mdp-ligne input{flex:1;min-width:0;}
+.btn-afficher{min-width:96px;min-height:52px;border-radius:10px;border:1.5px solid var(--border2);background:#fff;font:700 15px system-ui,sans-serif;color:var(--text);}
+.btn-principal{display:block;width:100%;min-height:56px;margin-top:20px;border:0;border-radius:12px;background:var(--orange);color:#fff;font:800 18px system-ui,sans-serif;}
+.btn-principal:disabled{opacity:.6;}
+.btn-secondaire{display:block;width:100%;min-height:56px;margin-top:14px;border:1.5px solid var(--border2);border-radius:12px;background:#fff;color:var(--text);font:700 16px/1.3 system-ui,sans-serif;padding:8px 12px;}
+.btn-secondaire span{font-weight:500;font-size:14px;color:var(--muted);}
+.cnx-erreur{margin-top:14px;padding:12px 14px;border-radius:10px;background:#FAE3E3;color:#7A1C1C;font-weight:600;font-size:15px;line-height:1.4;}
+.cnx-info{margin-top:14px;padding:12px 14px;border-radius:10px;background:var(--blue-l);color:var(--blue-d);font-size:15px;line-height:1.4;}
+.regles{font-size:14px;color:var(--muted);line-height:1.5;margin-top:8px;}
+.bonjour{font:800 20px/1.25 system-ui,-apple-system,sans-serif;margin-bottom:14px;}
+.bandeau-sans-compte{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:#FFF4D6;color:#5A3D00;border-radius:12px;padding:12px 14px;margin-bottom:16px;font-weight:600;font-size:15px;}
+.bandeau-sans-compte[hidden]{display:none;}
+.bandeau-sans-compte button{min-height:44px;padding:6px 14px;border-radius:10px;border:0;background:#1A2B4A;color:#fff;font:700 15px system-ui,sans-serif;}
+.recherche{width:100%;min-height:48px;border:1.5px solid var(--border2);border-radius:10px;padding:8px 14px;font-size:16px;margin-bottom:12px;background:#fff;}
+.btn-tous{display:block;width:100%;min-height:48px;margin-top:12px;border:1.5px dashed var(--border2);border-radius:12px;background:transparent;color:var(--blue-d);font:700 15px system-ui,sans-serif;}
+.ch-entete{font-size:15px;color:var(--muted);line-height:1.45;margin-bottom:14px;}
+.tuile-plans{width:100%;text-align:left;font:inherit;color:inherit;margin-bottom:18px;}
+.label-section{margin:18px 0 12px;}
+.page-title{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;}
 </style>
 </head>
 <body data-accueil>
@@ -153,40 +182,72 @@ body.loue-test .installer{padding-top:calc(56px + env(safe-area-inset-top,0px));
   <span id="loue-envoi-place"></span>
 </div>
 
-<!-- ═══ ACCUEIL ═══ -->
-<div class="page active" id="page-home">
+<!-- ═══ CONNEXION (lot 2) ═══ -->
+<div class="page" id="page-connexion">
+  <div class="cnx">
+    <h1>Connexion</h1>
+    <p class="aide-cnx">À faire une fois tous les 90 jours, avec l’identifiant et le mot de passe donnés par le bureau.</p>
+    <form id="form-connexion" autocomplete="on" novalidate>
+      <label for="cnx-id">Identifiant</label>
+      <input id="cnx-id" name="username" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" enterkeyhint="next">
+      <label for="cnx-mdp">Mot de passe</label>
+      <div class="mdp-ligne">
+        <input id="cnx-mdp" type="password" name="password" autocomplete="current-password" autocapitalize="none" autocorrect="off" spellcheck="false" enterkeyhint="go">
+        <button type="button" class="btn-afficher" data-pour="cnx-mdp">Afficher</button>
+      </div>
+      <p class="cnx-erreur" id="cnx-erreur" role="alert" hidden></p>
+      <button type="submit" class="btn-principal" id="cnx-ok">Se connecter</button>
+    </form>
+    <button type="button" class="btn-secondaire" onclick="ouvrirFiches(null)">📝 Remplir une fiche sans être connecté<br><span>elle est gardée dans le téléphone et partira après la connexion</span></button>
+    <button type="button" class="btn-secondaire" id="cnx-sans-compte" hidden onclick="continuerSansCompte()">Continuer sans compte<br><span id="cnx-jusqua">chantiers et plans comme avant</span></button>
+    <button type="button" class="lien-apropos" onclick="showPage('apropos')">ℹ️ À propos de l’appli (version, installation)</button>
+  </div>
+</div>
+
+<!-- ═══ CHOIX DU MOT DE PASSE (lot 2) ═══ -->
+<div class="page" id="page-mdp">
+  <div class="cnx">
+    <h1 id="mdp-titre">Choisissez votre mot de passe</h1>
+    <p class="aide-cnx" id="mdp-aide">Le mot de passe provisoire ne sert qu’une fois. Choisissez le vôtre : vous le taperez une fois tous les 90 jours.</p>
+    <form id="form-mdp" autocomplete="on" novalidate>
+      <input type="text" name="username" id="mdp-id" autocomplete="username" hidden>
+      <div id="mdp-ancien-bloc" hidden>
+        <label for="mdp-ancien">Mot de passe actuel</label>
+        <div class="mdp-ligne">
+          <input id="mdp-ancien" type="password" autocomplete="current-password" autocapitalize="none" autocorrect="off" spellcheck="false">
+          <button type="button" class="btn-afficher" data-pour="mdp-ancien">Afficher</button>
+        </div>
+      </div>
+      <label for="mdp-nouveau">Nouveau mot de passe</label>
+      <div class="mdp-ligne">
+        <input id="mdp-nouveau" type="password" autocomplete="new-password" autocapitalize="none" autocorrect="off" spellcheck="false">
+        <button type="button" class="btn-afficher" data-pour="mdp-nouveau">Afficher</button>
+      </div>
+      <label for="mdp-confirme">Le même, une deuxième fois</label>
+      <div class="mdp-ligne">
+        <input id="mdp-confirme" type="password" autocomplete="new-password" autocapitalize="none" autocorrect="off" spellcheck="false">
+        <button type="button" class="btn-afficher" data-pour="mdp-confirme">Afficher</button>
+      </div>
+      <p class="regles">8 caractères au moins (lettres, chiffres…). Pas votre identifiant, pas « 12345678 ». Notez-le dans un endroit sûr.</p>
+      <p class="cnx-erreur" id="mdp-erreur" role="alert" hidden></p>
+      <button type="submit" class="btn-principal" id="mdp-ok">Enregistrer et continuer</button>
+    </form>
+    <button type="button" class="btn-secondaire" onclick="annulerMdp()">Annuler</button>
+  </div>
+</div>
+
+<!-- ═══ ACCUEIL : MES CHANTIERS (lot 2) ═══ -->
+<div class="page" id="page-home">
   <div class="home-content">
-    <div class="home-label">Menu principal</div>
+    <div class="bonjour" id="bonjour"></div>
+    <div class="bandeau-sans-compte" id="bandeau-sans-compte" hidden><span>Vous n’êtes pas connecté.</span><button type="button" onclick="allerConnexion()">Se connecter</button></div>
+    <div class="home-label" id="label-chantiers">Mes chantiers</div>
+    <input type="search" id="recherche" class="recherche" placeholder="🔍 Rechercher un chantier" autocomplete="off" hidden>
+    <div id="chantiers-container"><div class="loading"><div class="spinner"></div>Chargement…</div></div>
+    <button type="button" class="btn-tous" id="btn-tous" hidden onclick="basculerTous()">Voir tous les chantiers</button>
+
+    <div class="home-label label-section">Hors chantier</div>
     <div class="home-tiles">
-
-      <div class="home-tile" style="border-color:#B8D0F0" onclick="showPage('chantier-fiches')">
-        <div class="tile-icon" style="background:var(--blue-l)">
-          <svg viewBox="0 0 24 24" fill="none" stroke="var(--blue)" stroke-width="1.8">
-            <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>
-            <polyline points="9 22 9 12 15 12 15 22"/>
-          </svg>
-        </div>
-        <div class="tile-body">
-          <div class="tile-title">Fiches</div>
-          <div class="tile-sub">Cotes · Fab · Bordereau · Quitus</div>
-        </div>
-        <div class="tile-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg></div>
-      </div>
-
-      <div class="home-tile" style="border-color:#B8DFC8" onclick="showPage('chantiers')">
-        <div class="tile-icon" style="background:var(--green-l)">
-          <svg viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="1.8">
-            <rect x="2" y="3" width="20" height="14" rx="2"/>
-            <polyline points="8 21 12 17 16 21"/>
-            <line x1="12" y1="17" x2="12" y2="21"/>
-          </svg>
-        </div>
-        <div class="tile-body">
-          <div class="tile-title">Chantiers</div>
-          <div class="tile-sub">Dossiers · Plans · Documents</div>
-        </div>
-        <div class="tile-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg></div>
-      </div>
 
       <div class="home-tile" style="border-color:#F0D8B0" onclick="showPage('planning')">
         <div class="tile-icon" style="background:var(--amber-l)">
@@ -209,22 +270,7 @@ body.loue-test .installer{padding-top:calc(56px + env(safe-area-inset-top,0px));
         <div class="tile-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg></div>
       </div>
 
-      <div class="home-tile" style="border-color:#C8B8F0" onclick="showPage('conducteur-fiches')">
-        <div class="tile-icon" style="background:var(--purple-l)">
-          <svg viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="1.8">
-            <circle cx="12" cy="8" r="4"/>
-            <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
-            <polyline points="14 14 16 16 20 12"/>
-          </svg>
-        </div>
-        <div class="tile-body">
-          <div class="tile-title">Conducteur de travaux</div>
-          <div class="tile-sub">Note de réunion · Attestations</div>
-        </div>
-        <div class="tile-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg></div>
-      </div>
-
-      <div class="home-tile" style="border-color:#F0C8A0" onclick="showPage('salarie-fiches')">
+      <div class="home-tile" style="border-color:#F0C8A0" onclick="location.href='absence.html'">
         <div class="tile-icon" style="background:var(--amber-l)">
           <svg viewBox="0 0 24 24" fill="none" stroke="var(--amber)" stroke-width="1.8">
             <circle cx="12" cy="8" r="4"/>
@@ -232,14 +278,25 @@ body.loue-test .installer{padding-top:calc(56px + env(safe-area-inset-top,0px));
           </svg>
         </div>
         <div class="tile-body">
-          <div class="tile-title">Salarié</div>
-          <div class="tile-sub">Demande d'absence</div>
+          <div class="tile-title">Demande d’absence</div>
+          <div class="tile-sub">Congés, absence : dépôt et signature</div>
+        </div>
+        <div class="tile-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg></div>
+      </div>
+
+      <div class="home-tile" style="border-color:#B8D0F0" onclick="ouvrirFiches(null)">
+        <div class="tile-icon" style="background:var(--blue-l)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="var(--blue)" stroke-width="1.8"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="13" y2="17"/></svg>
+        </div>
+        <div class="tile-body">
+          <div class="tile-title">Fiche sans chantier choisi</div>
+          <div class="tile-sub">Toutes les fiches, chantier à taper</div>
         </div>
         <div class="tile-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg></div>
       </div>
 
     </div>
-    <button type="button" class="lien-apropos" onclick="showPage('apropos')">ℹ️ À propos de l’appli (version, installation, place utilisée)</button>
+    <button type="button" class="lien-apropos" onclick="showPage('apropos')">ℹ️ À propos de l’appli (compte, version, installation, place utilisée)</button>
   </div>
 </div>
 
@@ -273,16 +330,28 @@ body.loue-test .installer{padding-top:calc(56px + env(safe-area-inset-top,0px));
   <button type="button" onclick="continuerSansInstaller()">Continuer sans installer (déconseillé)</button>
 </div>
 
-<!-- ═══ CHANTIER — FICHES ═══ -->
+<!-- ═══ UN CHANTIER : SES FICHES ET SES PLANS (lot 2) ═══ -->
 <div class="page" id="page-chantier-fiches">
   <div class="page-header">
     <button class="page-back" onclick="showPage('home')" aria-label="Retour"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg></button>
-    <span class="page-title">Chantier</span>
+    <span class="page-title" id="titre-chantier">Chantier</span>
   </div>
   <div class="page-body">
+    <div class="ch-entete" id="ch-entete"></div>
+    <button type="button" class="home-tile tuile-plans" id="tuile-plans" style="border-color:#B8DFC8" onclick="ouvrirPlans()">
+      <div class="tile-icon" style="background:var(--green-l)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="1.8"><rect x="2" y="3" width="20" height="14" rx="2"/><polyline points="8 21 12 17 16 21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+      </div>
+      <div class="tile-body">
+        <div class="tile-title">Plans</div>
+        <div class="tile-sub">Documents du dossier Plans du chantier</div>
+      </div>
+      <div class="tile-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg></div>
+    </button>
+    <div class="home-label">Fiches</div>
     <div class="fiches-grid">
 
-      <a class="fiche-card" href="cotes.html" style="border-color:#B8D0F0">
+      <a class="fiche-card" href="cotes.html" data-base="cotes.html" style="border-color:#B8D0F0">
         <div class="fiche-icon" style="background:var(--blue-l)">
           <svg viewBox="0 0 24 24" fill="none" stroke="var(--blue)" stroke-width="1.8">
             <rect x="2" y="7" width="20" height="10" rx="2.5"/>
@@ -296,7 +365,7 @@ body.loue-test .installer{padding-top:calc(56px + env(safe-area-inset-top,0px));
         <div class="fiche-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg></div>
       </a>
 
-      <a class="fiche-card" href="fiche-fabrication.html" style="border-color:#C8B8F0">
+      <a class="fiche-card" href="fiche-fabrication.html" data-base="fiche-fabrication.html" style="border-color:#C8B8F0">
         <div class="fiche-icon" style="background:var(--purple-l)">
           <svg viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="1.8">
             <rect x="2" y="16" width="20" height="4" rx="1.5"/>
@@ -308,7 +377,7 @@ body.loue-test .installer{padding-top:calc(56px + env(safe-area-inset-top,0px));
         <div class="fiche-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg></div>
       </a>
 
-      <a class="fiche-card" href="bordereau.html?type=orga" style="border-color:#F0C8A0">
+      <a class="fiche-card" href="bordereau.html?type=orga" data-base="bordereau.html?type=orga" style="border-color:#F0C8A0">
         <div class="fiche-icon" style="background:#FDF0D6">
           <svg viewBox="0 0 24 24" fill="none" stroke="#7A4200" stroke-width="1.8">
             <circle cx="7.5" cy="15.5" r="4.5"/>
@@ -321,7 +390,7 @@ body.loue-test .installer{padding-top:calc(56px + env(safe-area-inset-top,0px));
         <div class="fiche-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg></div>
       </a>
 
-      <a class="fiche-card" href="bordereau.html?type=materiaux" style="border-color:#D0C8F0">
+      <a class="fiche-card" href="bordereau.html?type=materiaux" data-base="bordereau.html?type=materiaux" style="border-color:#D0C8F0">
         <div class="fiche-icon" style="background:#EDE8F8">
           <svg viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="1.8">
             <path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/>
@@ -334,7 +403,7 @@ body.loue-test .installer{padding-top:calc(56px + env(safe-area-inset-top,0px));
         <div class="fiche-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg></div>
       </a>
 
-      <a class="fiche-card" href="quitus.html" style="border-color:#B0D8B0">
+      <a class="fiche-card" href="quitus.html" data-base="quitus.html" style="border-color:#B0D8B0">
         <div class="fiche-icon" style="background:var(--green-l)">
           <svg viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="1.8">
             <path d="M22 11.08V12a10 10 0 11-5.93-9.14"/>
@@ -346,7 +415,7 @@ body.loue-test .installer{padding-top:calc(56px + env(safe-area-inset-top,0px));
         <div class="fiche-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg></div>
       </a>
 
-      <a class="fiche-card" href="reception-support.html" style="border-color:#A8D8D0">
+      <a class="fiche-card" href="reception-support.html" data-base="reception-support.html" style="border-color:#A8D8D0">
         <div class="fiche-icon" style="background:var(--teal-l)">
           <svg viewBox="0 0 24 24" fill="none" stroke="var(--teal)" stroke-width="1.8">
             <polyline points="9 11 12 14 22 4"/>
@@ -359,19 +428,10 @@ body.loue-test .installer{padding-top:calc(56px + env(safe-area-inset-top,0px));
       </a>
 
     </div>
-  </div>
-</div>
-
-<!-- ═══ CONDUCTEUR — FICHES ═══ -->
-<div class="page" id="page-conducteur-fiches">
-  <div class="page-header">
-    <button class="page-back" onclick="showPage('home')" aria-label="Retour"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg></button>
-    <span class="page-title">Conducteur de travaux</span>
-  </div>
-  <div class="page-body">
+    <div class="home-label label-section">Conducteur de travaux</div>
     <div class="fiches-grid">
 
-      <a class="fiche-card" href="note-reunion.html" style="border-color:#B0D8CC">
+      <a class="fiche-card" href="note-reunion.html" data-base="note-reunion.html" style="border-color:#B0D8CC">
         <div class="fiche-icon" style="background:var(--teal-l)">
           <svg viewBox="0 0 24 24" fill="none" stroke="#0D7A6B" stroke-width="1.8">
             <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
@@ -385,7 +445,7 @@ body.loue-test .installer{padding-top:calc(56px + env(safe-area-inset-top,0px));
         <div class="fiche-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg></div>
       </a>
 
-      <a class="fiche-card" href="attestation.html" style="border-color:#C8B8F0">
+      <a class="fiche-card" href="attestation.html" data-base="attestation.html" style="border-color:#C8B8F0">
         <div class="fiche-icon" style="background:var(--purple-l)">
           <svg viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="1.8">
             <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
@@ -399,45 +459,6 @@ body.loue-test .installer{padding-top:calc(56px + env(safe-area-inset-top,0px));
       </a>
 
     </div>
-  </div>
-</div>
-
-<!-- ═══ SALARIÉ — FICHES ═══ -->
-<div class="page" id="page-salarie-fiches">
-  <div class="page-header">
-    <button class="page-back" onclick="showPage('home')" aria-label="Retour"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg></button>
-    <span class="page-title">Salarié</span>
-  </div>
-  <div class="page-body">
-    <div class="fiches-grid">
-
-      <a class="fiche-card" href="absence.html" style="border-color:#F0D8A0">
-        <div class="fiche-icon" style="background:var(--amber-l)">
-          <svg viewBox="0 0 24 24" fill="none" stroke="#B87A00" stroke-width="1.8">
-            <rect x="3" y="4" width="18" height="18" rx="2"/>
-            <line x1="16" y1="2" x2="16" y2="6"/>
-            <line x1="8" y1="2" x2="8" y2="6"/>
-            <line x1="3" y1="10" x2="21" y2="10"/>
-            <line x1="9" y1="16" x2="15" y2="16"/>
-          </svg>
-        </div>
-        <div class="fiche-title">Demande d'absence</div>
-        <div class="fiche-sub">Dépôt & signature</div>
-        <div class="fiche-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg></div>
-      </a>
-
-    </div>
-  </div>
-</div>
-
-<!-- ═══ CHANTIERS ═══ -->
-<div class="page" id="page-chantiers">
-  <div class="page-header">
-    <button class="page-back" onclick="showPage('home')" aria-label="Retour"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg></button>
-    <span class="page-title">Chantiers</span>
-  </div>
-  <div class="page-body">
-    <div id="chantiers-container"><div class="loading"><div class="spinner"></div>Chargement…</div></div>
   </div>
 </div>
 
@@ -477,126 +498,295 @@ body.loue-test .installer{padding-top:calc(56px + env(safe-area-inset-top,0px));
   </div>
 </div>
 
-
-<script src="commun/config.js?v=5ec8f9000f"></script>
-<script src="commun/api.js?v=5ec8f9000f"></script>
-<script src="commun/ui.js?v=5ec8f9000f"></script>
-<script src="commun/hors-ligne.js?v=5ec8f9000f"></script>
+<script src="commun/config.js?v=02d10fbf7e"></script>
+<script src="commun/api.js?v=02d10fbf7e"></script>
+<script src="commun/ui.js?v=02d10fbf7e"></script>
+<script src="commun/hors-ligne.js?v=02d10fbf7e"></script>
 <script>
-// ── Accueil (lot 1.3 / 1.4) : listes par les briques communes, écran d'installation iPhone, « À propos » ──
+// ── Accueil (lot 2) : connexion, « Mes chantiers », fiches du chantier avec le chantier pré-rempli ──
+// Rien ici n'empêche de remplir une fiche : « Remplir une fiche sans être connecté » est toujours proposé,
+// avec ou sans réseau. Les fiches rangées sans compte attendent la connexion (ou partent pendant la transition).
 const esc = LOUE.esc;
-let ALL_CHANTIERS = [];
-let currentChantier = null;
+let MODE = null;               // 'compte' (connecté) ou 'sans' (sans compte, pendant la transition)
+let CHANTIERS = [];            // chantiers affichés : { nom, reference, statut, conducteur, adresse, mien }
+let voirTous = false;
+let currentChantier = null;    // chantier ouvert (null : fiches sans chantier choisi)
 let currentSousOnglet = 'plans';
+let mdpEnCours = null;         // { id, ancien } pendant le choix du mot de passe
 const FLECHE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>';
+const CLE_TRANSITION = 'loue_transition_' + LOUE.env;
+const $ = id => document.getElementById(id);
 
 // ── Navigation ──
 function showPage(p) {
   document.querySelectorAll('.page').forEach(x => x.classList.remove('active'));
-  document.getElementById('page-' + p).classList.add('active');
+  $('page-' + p).classList.add('active');
   window.scrollTo(0, 0);
-  if (p === 'chantiers') loadChantiers();
   if (p === 'planning') loadPlanning();
   if (p === 'apropos') afficherAPropos();
 }
-
 function vide(titre, texte, icone) {
   return '<div class="empty">' + (icone || '') + '<div class="empty-t">' + titre + '</div><div class="empty-s">' + texte + '</div></div>';
 }
 const ICONE_MAISON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>';
 const ICONE_CALENDRIER = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="16" y1="2" x2="16" y2="6"/></svg>';
 const CHARGEMENT = '<div class="loading"><div class="spinner"></div>Chargement…</div>';
+function lireLocal(cle) { try { return JSON.parse(localStorage.getItem(cle) || 'null'); } catch (e) { return null; } }
+function ecrireLocal(cle, v) { try { localStorage.setItem(cle, JSON.stringify(v)); } catch (e) {} }
+function sansCompteChoisi() { try { return sessionStorage.getItem('loue_sans_compte_' + LOUE.env) === '1'; } catch (e) { return false; } }
+function choisirSansCompte(oui) { try { if (oui) sessionStorage.setItem('loue_sans_compte_' + LOUE.env, '1'); else sessionStorage.removeItem('loue_sans_compte_' + LOUE.env); } catch (e) {} }
 
-// ── Chantiers : même liste que les fiches (gardée dans le téléphone : s'affiche aussi sans réseau) ──
-function loadChantiers() {
-  const el = document.getElementById('chantiers-container');
-  if (ALL_CHANTIERS.length) { renderChantiers(); return; }
-  el.innerHTML = CHARGEMENT;
+// ── Démarrage ──
+function demarrer() {
+  if (LOUE.compte()) { MODE = 'compte'; afficherAccueil(); rafraichirCompte(); }
+  else if (sansCompteChoisi()) { MODE = 'sans'; afficherAccueil(); }
+  else allerConnexion();
+}
+
+// ── Connexion ──
+function allerConnexion(message) {
+  MODE = null; choisirSansCompte(false);
+  showPage('connexion');
+  if (!$('cnx-id').value) $('cnx-id').value = LOUE.dernierIdentifiant();
+  $('cnx-mdp').value = '';
+  montrerErreur('cnx-erreur', message || '');
+  if (message) $('cnx-erreur').className = 'cnx-info';
+  afficherSansCompte(lireLocal(CLE_TRANSITION));
+  // Le serveur dit si l'appli marche encore sans compte (période de transition)
+  LOUE.ping().then(rep => {
+    const d = (rep && rep.data) || {};
+    const etat = { ouverte: !d.comptes || !!d.transitionOuverte, fin: d.transitionJusquau || null, date: Date.now() };
+    ecrireLocal(CLE_TRANSITION, etat);
+    afficherSansCompte(etat);
+  }).catch(() => {});
+}
+function afficherSansCompte(etat) {
+  const b = $('cnx-sans-compte');
+  b.hidden = !(etat && etat.ouverte);
+  if (etat && etat.fin) $('cnx-jusqua').textContent = 'chantiers et plans comme avant, possible jusqu’au ' + new Date(etat.fin).toLocaleDateString('fr-FR');
+}
+function continuerSansCompte() { choisirSansCompte(true); MODE = 'sans'; afficherAccueil(); }
+function montrerErreur(id, texte) { const p = $(id); p.className = 'cnx-erreur'; p.textContent = texte; p.hidden = !texte; }
+
+// Boutons « Afficher » des mots de passe
+document.addEventListener('click', e => {
+  const b = e.target.closest('.btn-afficher');
+  if (!b) return;
+  const champ = $(b.getAttribute('data-pour'));
+  const visible = champ.type === 'text';
+  champ.type = visible ? 'password' : 'text';
+  b.textContent = visible ? 'Afficher' : 'Cacher';
+});
+
+$('form-connexion').addEventListener('submit', e => {
+  e.preventDefault();
+  const id = $('cnx-id').value.trim().toLowerCase(), mdp = $('cnx-mdp').value;
+  if (!id || !mdp) { montrerErreur('cnx-erreur', 'Tapez votre identifiant et votre mot de passe.'); return; }
+  const btn = $('cnx-ok');
+  btn.disabled = true; btn.textContent = 'Connexion…';
+  montrerErreur('cnx-erreur', '');
+  LOUE.connexion(id, mdp).then(rep => {
+    if (rep.ok) { MODE = 'compte'; voirTous = false; afficherAccueil(); rafraichirCompte(); return; }
+    if (rep.code === 'NOUVEAU_MDP') { ouvrirChoixMdp(id, mdp, false); return; }
+    if (rep.code === 'ACTION_INCONNUE') { montrerErreur('cnx-erreur', 'Le serveur n’a pas encore les comptes : touchez « Continuer sans compte ».'); $('cnx-sans-compte').hidden = false; return; }
+    montrerErreur('cnx-erreur', rep.message || 'Connexion refusée.');
+  }).catch(() => {
+    montrerErreur('cnx-erreur', 'Pas de réseau : la connexion en a besoin. En attendant, vous pouvez remplir une fiche (bouton ci-dessous) : elle partira après la connexion.');
+  }).finally(() => { btn.disabled = false; btn.textContent = 'Se connecter'; });
+});
+
+// ── Choix du mot de passe (après un provisoire, ou changement volontaire depuis « À propos ») ──
+function ouvrirChoixMdp(id, ancien, volontaire) {
+  mdpEnCours = { id: id, ancien: ancien, volontaire: volontaire };
+  $('mdp-id').value = id;
+  $('mdp-ancien-bloc').hidden = !volontaire;
+  $('mdp-titre').textContent = volontaire ? 'Changer mon mot de passe' : 'Choisissez votre mot de passe';
+  $('mdp-aide').textContent = volontaire ? 'Vos autres téléphones devront se reconnecter.'
+    : 'Le mot de passe provisoire ne sert qu’une fois. Choisissez le vôtre : vous le taperez une fois tous les 90 jours.';
+  ['mdp-ancien', 'mdp-nouveau', 'mdp-confirme'].forEach(x => { $(x).value = ''; });
+  montrerErreur('mdp-erreur', '');
+  showPage('mdp');
+}
+function annulerMdp() { const v = mdpEnCours && mdpEnCours.volontaire; mdpEnCours = null; if (v) showPage('apropos'); else allerConnexion(); }
+$('form-mdp').addEventListener('submit', e => {
+  e.preventDefault();
+  if (!mdpEnCours) { allerConnexion(); return; }
+  const ancien = mdpEnCours.volontaire ? $('mdp-ancien').value : mdpEnCours.ancien;
+  const nouveau = $('mdp-nouveau').value;
+  if (nouveau.length < 8) { montrerErreur('mdp-erreur', 'Le mot de passe doit faire au moins 8 caractères.'); return; }
+  if (nouveau !== $('mdp-confirme').value) { montrerErreur('mdp-erreur', 'Les deux mots de passe ne sont pas pareils.'); return; }
+  const btn = $('mdp-ok');
+  btn.disabled = true; btn.textContent = 'Enregistrement…';
+  LOUE.changerMotDePasse(mdpEnCours.id, ancien, nouveau).then(rep => {
+    if (!rep.ok) { montrerErreur('mdp-erreur', rep.message || 'Mot de passe refusé.'); return; }
+    mdpEnCours = null; MODE = 'compte'; voirTous = false;
+    LOUE.message('✓ Mot de passe enregistré', 5000);
+    afficherAccueil(); rafraichirCompte();
+  }).catch(() => montrerErreur('mdp-erreur', 'Pas de réseau : réessayez quand le téléphone capte.'))
+    .finally(() => { btn.disabled = false; btn.textContent = 'Enregistrer et continuer'; });
+});
+
+// Session terminée (révoquée par le bureau, expirée) pendant l'utilisation : retour à la connexion, rien n'est perdu
+LOUE.surEvenement(ev => {
+  if (ev.type === 'compte' && ev.etat === 'deconnecte' && MODE === 'compte') {
+    allerConnexion('Session terminée : reconnectez-vous. Vos fiches en attente sont gardées dans le téléphone.');
+  }
+});
+
+// ── Accueil : mes chantiers ──
+function afficherAccueil() {
+  showPage('home');
+  const c = LOUE.compte();
+  $('bandeau-sans-compte').hidden = MODE !== 'sans';
+  $('bonjour').textContent = c ? 'Bonjour ' + (String(c.profil.nom || '').split(/\s+/)[0] || c.profil.id) : '';
+  $('bonjour').hidden = !c;
+  if (c && c.chantiers) { CHANTIERS = c.chantiers; renderChantiers(); }
+  else if (c) $('chantiers-container').innerHTML = CHARGEMENT;
+  if (MODE === 'sans') chargerChantiersSansCompte();
+}
+// Profil et chantiers à jour (jeton prolongé) ; hors réseau, la dernière liste gardée suffit
+function rafraichirCompte() {
+  LOUE.moi().then(rep => {
+    if (rep.ok) { CHANTIERS = rep.data.chantiers || []; renderChantiers(); return; }
+    if (rep.code === 'JETON_INVALIDE') return;            // l'évènement « compte déconnecté » ramène à la connexion
+    if (rep.code === 'ACTION_INCONNUE') { MODE = 'sans'; chargerChantiersSansCompte(); return; }   // serveur du lot 1
+    LOUE.message(rep.message || 'Liste des chantiers indisponible', 8000);
+    if (!CHANTIERS.length) $('chantiers-container').innerHTML = vide('Liste indisponible', esc(rep.message || ''), ICONE_MAISON);
+  }).catch(() => {
+    if (!LOUE.compte().chantiers) $('chantiers-container').innerHTML = vide('Pas de réseau', 'La liste de vos chantiers s’affichera au premier passage avec du réseau. Les fiches marchent sans réseau.', ICONE_MAISON);
+    else LOUE.message('Pas de réseau : liste gardée dans le téléphone', 5000);
+  });
+}
+function chargerChantiersSansCompte() {
+  $('chantiers-container').innerHTML = CHARGEMENT;
   LOUE.chargerListes().then(r => {
-    ALL_CHANTIERS = ((r.donnees && r.donnees.chantiers) || []).map((c, i) => ({ id: i + 1, nom: c.nom, reference: c.reference || '', statut: c.statut || '' }));
+    CHANTIERS = ((r.donnees && r.donnees.chantiers) || []).map(c => Object.assign({}, c, { mien: true }));
     renderChantiers();
     if (r.depuisLeTelephone) LOUE.message('Pas de réseau : liste gardée dans le téléphone', 5000);
   }).catch(() => {
-    el.innerHTML = vide('Impossible de charger', 'Pas de réseau et aucune liste gardée dans le téléphone. Réessayez avec du réseau.', ICONE_MAISON);
+    $('chantiers-container').innerHTML = vide('Impossible de charger', 'Pas de réseau et aucune liste gardée dans le téléphone. Réessayez avec du réseau.', ICONE_MAISON);
   });
 }
 
+// Derniers chantiers ouverts en premier (mémorisés dans le téléphone, par personne)
+function cleRecents() { const c = LOUE.compte(); return 'loue_recents_' + LOUE.env + '_' + (c ? c.profil.id : 'sans'); }
+function noterRecent(nom) {
+  const l = (lireLocal(cleRecents()) || []).filter(n => n !== nom);
+  l.unshift(nom); ecrireLocal(cleRecents(), l.slice(0, 20));
+}
 function renderChantiers() {
-  const el = document.getElementById('chantiers-container');
-  if (!ALL_CHANTIERS.length) { el.innerHTML = vide('Aucun chantier', 'Ajoutez des chantiers dans l’onglet Chantiers du Sheet', ICONE_MAISON); return; }
-  el.innerHTML = '<div class="list-wrap">' + ALL_CHANTIERS.map((c, i) => {
-    const ref = c.reference ? '<div class="ch-ref">Réf. ' + esc(c.reference) + '</div>' : '';
-    const statut = c.statut ? '<span class="ch-statut ' + (c.statut === 'En cours' ? 's-cours' : 's-fin') + '">' + esc(c.statut) + '</span>' : '';
-    return '<button type="button" class="chantier-card" data-id="' + c.id + '">'
+  const el = $('chantiers-container');
+  const c = LOUE.compte();
+  const peutTout = MODE === 'compte' && c && c.profil.tous;
+  const autres = CHANTIERS.filter(x => !x.mien).length;
+  const liste = CHANTIERS.filter(x => voirTous || x.mien);
+  $('label-chantiers').textContent = MODE === 'sans' ? 'Chantiers' : (voirTous ? 'Tous les chantiers' : 'Mes chantiers');
+  $('btn-tous').hidden = !(peutTout && autres);
+  $('btn-tous').textContent = voirTous ? 'Revenir à mes chantiers' : 'Voir tous les chantiers (' + CHANTIERS.length + ')';
+  const rech = $('recherche');
+  rech.hidden = liste.length <= 6;
+  const filtre = rech.hidden ? '' : rech.value.trim().toLowerCase();
+  const recents = lireLocal(cleRecents()) || [];
+  const rang = n => { const i = recents.indexOf(n); return i < 0 ? 999 : i; };
+  const affiches = liste.filter(x => !filtre || (x.nom + ' ' + (x.reference || '') + ' ' + (x.adresse || '')).toLowerCase().indexOf(filtre) > -1)
+    .map((x, i) => ({ x, i })).sort((a, b) => (rang(a.x.nom) - rang(b.x.nom)) || (a.i - b.i)).map(o => o.x);
+  if (!liste.length) {
+    el.innerHTML = MODE === 'compte' && !peutTout
+      ? vide('Aucun chantier pour l’instant', 'Le bureau doit cocher vos chantiers dans le Sheet. En attendant, toutes les fiches sont dans « Fiche sans chantier choisi », plus bas.', ICONE_MAISON)
+      : vide('Aucun chantier', 'Ajoutez des chantiers dans l’onglet Chantiers du Sheet.', ICONE_MAISON);
+    return;
+  }
+  if (!affiches.length) { el.innerHTML = vide('Aucun résultat', 'Aucun chantier ne correspond à « ' + esc(filtre) + ' ».', ICONE_MAISON); return; }
+  el.innerHTML = '<div class="list-wrap">' + affiches.map((x, i) => {
+    const sous = [x.reference ? 'Réf. ' + esc(x.reference) : '', x.adresse ? esc(x.adresse) : ''].filter(Boolean).join(' · ');
+    const statut = x.statut ? '<span class="ch-statut ' + (x.statut === 'En cours' ? 's-cours' : 's-fin') + '">' + esc(x.statut) + '</span>' : '';
+    return '<button type="button" class="chantier-card" data-nom="' + esc(x.nom) + '">'
       + '<div class="ch-num">' + String(i + 1).padStart(2, '0') + '</div>'
-      + '<div style="flex:1;min-width:0"><div class="ch-name">' + esc(c.nom) + '</div>' + ref + '</div>'
+      + '<div style="flex:1;min-width:0"><div class="ch-name">' + esc(x.nom) + '</div>' + (sous ? '<div class="ch-ref">' + sous + '</div>' : '') + '</div>'
       + statut + '<div class="ch-arrow">' + FLECHE + '</div></button>';
   }).join('') + '</div>';
 }
-document.getElementById('chantiers-container').addEventListener('click', e => {
-  const c = e.target.closest('[data-id]');
-  if (c) openChantier(Number(c.getAttribute('data-id')));
+$('recherche').addEventListener('input', renderChantiers);
+function basculerTous() { voirTous = !voirTous; renderChantiers(); }
+$('chantiers-container').addEventListener('click', e => {
+  const b = e.target.closest('[data-nom]');
+  if (!b) return;
+  const ch = CHANTIERS.find(x => x.nom === b.getAttribute('data-nom'));
+  if (ch) ouvrirFiches(ch);
 });
 
-// ── Planning ──
-let planningCharge = false;
-function loadPlanning() {
-  if (planningCharge) return;
-  const el = document.getElementById('planning-container');
-  el.innerHTML = CHARGEMENT;
-  LOUE.lire('action=getDossiers&chantier=__PLANNING__').then(data => {
-    planningCharge = true;
-    const docs = (data && data.dossiers && data.dossiers.planning) || [];
-    el.innerHTML = docs.length ? '<div class="list-wrap">' + docs.map(docHTML).join('') + '</div>'
-      : vide('Aucun planning', 'Déposez les PDF dans le dossier<br><strong>Planning</strong> à la racine de votre Drive Loué Menuiserie.', ICONE_CALENDRIER);
-  }).catch(() => {
-    el.innerHTML = vide('Impossible de charger', 'Vérifiez le réseau, puis rouvrez le planning.', ICONE_CALENDRIER);
+// ── Un chantier : ses fiches (chantier passé dans l'adresse) et ses plans ; ou toutes les fiches sans chantier ──
+function ouvrirFiches(ch) {
+  currentChantier = ch;
+  if (ch) noterRecent(ch.nom);
+  $('titre-chantier').textContent = ch ? ch.nom : 'Fiches (chantier à taper)';
+  $('ch-entete').innerHTML = ch
+    ? [ch.reference ? 'Réf. ' + esc(ch.reference) : '', ch.adresse ? esc(ch.adresse) : '', ch.conducteur ? 'Conducteur : ' + esc(ch.conducteur) : ''].filter(Boolean).join('<br>')
+    : 'Le chantier se tape dans la fiche. Une fiche remplie sans être connecté est gardée dans le téléphone et part après la connexion.';
+  $('tuile-plans').hidden = !ch || MODE === null;
+  document.querySelectorAll('#page-chantier-fiches a.fiche-card[data-base]').forEach(a => {
+    const base = a.getAttribute('data-base');
+    a.setAttribute('href', ch ? base + (base.indexOf('?') > -1 ? '&' : '?') + 'chantier=' + encodeURIComponent(ch.nom) : base);
   });
+  showPage('chantier-fiches');
 }
 
-// ── Fenêtre d'un chantier ──
-function openChantier(id) {
-  currentChantier = ALL_CHANTIERS.find(c => c.id === id); if (!currentChantier) return;
-  document.getElementById('modal-chantier-name').textContent = currentChantier.nom;
-  document.getElementById('modal-chantier-ref').textContent = currentChantier.reference ? 'Réf. ' + currentChantier.reference : '';
+// ── Plans du chantier (fenêtre) ──
+function ouvrirPlans() {
+  if (!currentChantier) return;
+  $('modal-chantier-name').textContent = currentChantier.nom;
+  $('modal-chantier-ref').textContent = currentChantier.reference ? 'Réf. ' + currentChantier.reference : '';
   currentSousOnglet = 'plans';
   document.querySelectorAll('.sOnglet').forEach((el, i) => el.classList.toggle('active', i === 0));
-  document.getElementById('docs-container').innerHTML = CHARGEMENT;
-  document.getElementById('chantierModal').classList.add('open');
+  $('docs-container').innerHTML = CHARGEMENT;
+  $('chantierModal').classList.add('open');
   document.body.style.overflow = 'hidden';
   chargerDossiers(currentChantier);
 }
 function closeModal() {
-  document.getElementById('chantierModal').classList.remove('open');
+  $('chantierModal').classList.remove('open');
   document.body.style.overflow = '';
 }
-document.getElementById('chantierModal').addEventListener('click', e => { if (e.target === document.getElementById('chantierModal')) closeModal(); });
-
-// Chaque chantier garde SA réponse : ouvrir B pendant que A charge n'affiche plus les documents de A dans B
+$('chantierModal').addEventListener('click', e => { if (e.target === $('chantierModal')) closeModal(); });
+// Chaque chantier garde SA réponse : ouvrir B pendant que A charge n'affiche pas les documents de A dans B
 function chargerDossiers(chantier) {
   if (chantier.dossiers) { renderDocs(currentSousOnglet); return; }
-  LOUE.lire('action=getDossiers&chantier=' + encodeURIComponent(chantier.nom)).then(data => {
-    chantier.dossiers = (data && data.dossiers) ? data.dossiers : {};
+  LOUE.lireDossiers(chantier.nom).then(d => {
+    chantier.dossiers = d || {};
     if (chantier === currentChantier) renderDocs(currentSousOnglet);
-  }).catch(() => {
+  }).catch(err => {
     if (chantier !== currentChantier) return;
-    document.getElementById('docs-container').innerHTML = '<div class="docs-empty">Impossible de charger.<br><span style="font-size:13px">Vérifiez le réseau, puis rouvrez le chantier.</span></div>';
+    $('docs-container').innerHTML = '<div class="docs-empty">Impossible de charger.<br><span style="font-size:13px">' + esc(err && err.message && !/fetch|network|réseau|délai/i.test(err.message) ? err.message : 'Vérifiez le réseau, puis rouvrez les plans.') + '</span></div>';
   });
 }
-
 function showSousOnglet(onglet, btn) {
   currentSousOnglet = onglet;
   document.querySelectorAll('.sOnglet').forEach(el => el.classList.remove('active'));
   btn.classList.add('active');
   renderDocs(onglet);
 }
-
 function renderDocs(onglet) {
-  const el = document.getElementById('docs-container');
+  const el = $('docs-container');
   if (!currentChantier.dossiers) { el.innerHTML = CHARGEMENT; return; }
   const docs = currentChantier.dossiers[onglet] || [];
   if (!docs.length) { el.innerHTML = '<div class="docs-empty">Aucun document dans ce dossier.<br><span style="font-size:13px">Déposez des fichiers dans le dossier Drive correspondant.</span></div>'; return; }
   el.innerHTML = docs.map(docHTML).join('');
+}
+
+// ── Planning ──
+let planningCharge = false;
+function loadPlanning() {
+  if (planningCharge) return;
+  const el = $('planning-container');
+  el.innerHTML = CHARGEMENT;
+  LOUE.lireDossiers('__PLANNING__').then(d => {
+    planningCharge = true;
+    const docs = (d && d.planning) || [];
+    el.innerHTML = docs.length ? '<div class="list-wrap">' + docs.map(docHTML).join('') + '</div>'
+      : vide('Aucun planning', 'Déposez les PDF dans le dossier<br><strong>Planning</strong> à la racine de votre Drive Loué Menuiserie.', ICONE_CALENDRIER);
+  }).catch(err => {
+    el.innerHTML = vide('Impossible de charger', esc(err && /Connectez-vous/.test(err.message || '') ? err.message : 'Vérifiez le réseau, puis rouvrez le planning.'), ICONE_CALENDRIER);
+  });
 }
 
 // ── Une ligne de document ──
@@ -626,11 +816,11 @@ function docHTML(d) {
 function verifierInstallation() {
   if (!LOUE.estIPhone() || LOUE.estInstalle()) return;
   try { if (sessionStorage.getItem('loue_sans_installer')) return; } catch (e) {}
-  document.getElementById('installer-iphone').hidden = false;
+  $('installer-iphone').hidden = false;
   // Fiches encore dans la mémoire de Safari : elles ne passeront pas dans l'appli installée
   LOUE.stockage.tout('file').then(liste => {
     const n = liste.filter(e => !e.env || e.env === LOUE.env).length;
-    const p = document.getElementById('install-file');
+    const p = $('install-file');
     if (!n) return;
     p.textContent = '⚠ ' + n + (n > 1 ? ' fiches ne sont pas encore envoyées' : ' fiche n’est pas encore envoyée') +
       ' depuis Safari. Attendez « ✓ Tout est envoyé » (avec du réseau) AVANT d’installer : sinon ' + (n > 1 ? 'elles seront perdues.' : 'elle sera perdue.');
@@ -638,19 +828,25 @@ function verifierInstallation() {
   }).catch(() => {});
 }
 function continuerSansInstaller() {
-  document.getElementById('installer-iphone').hidden = true;
+  $('installer-iphone').hidden = true;
   try { sessionStorage.setItem('loue_sans_installer', '1'); } catch (e) {}
 }
-document.addEventListener('loue-installable', () => { if (document.getElementById('page-apropos').classList.contains('active')) afficherAPropos(); });
+document.addEventListener('loue-installable', () => { if ($('page-apropos').classList.contains('active')) afficherAPropos(); });
 function installer() {
-  if (LOUE.estIPhone()) { document.getElementById('installer-iphone').hidden = false; return; }
+  if (LOUE.estIPhone()) { $('installer-iphone').hidden = false; return; }
   LOUE.proposerInstallation().then(ok => { if (ok) LOUE.message('Appli installée : ouvrez-la depuis l’écran d’accueil'); afficherAPropos(); });
 }
 
-// ── À propos : version, installation, place dans le téléphone, fiches en attente ──
+// ── À propos : compte, version, installation, place dans le téléphone, fiches en attente ──
 function enMo(o) { return o >= 1e9 ? (o / 1e9).toFixed(1).replace('.', ',') + ' Go' : Math.round(o / 1e6) + ' Mo'; }
 async function afficherAPropos() {
   const lignes = [];
+  const c = LOUE.compte();
+  lignes.push(['Compte', c
+    ? 'Connecté : ' + esc(c.profil.nom || c.profil.id) + ' (' + esc(c.profil.role) + ', identifiant ' + esc(c.profil.id) + ')'
+      + ' <button type="button" class="btn-apropos" onclick="changerMonMdp()">Changer mon mot de passe</button>'
+      + ' <button type="button" class="btn-apropos" onclick="seDeconnecter()">Se déconnecter</button>'
+    : 'Pas connecté <button type="button" class="btn-apropos" onclick="allerConnexion()">Se connecter</button>']);
   const v = (document.querySelector('script[src*="commun/config.js"]').getAttribute('src').split('v=')[1] || '—');
   const mode = { prod: 'normal', test: 'TEST (copie d’essai)', local: 'développement' }[LOUE.env] || LOUE.env;
   lignes.push(['Version', 'Loué App ' + esc((window.LOUE_CONFIG || {}).version || '') + ' — ' + esc(v)]);
@@ -665,20 +861,34 @@ async function afficherAPropos() {
   const file = await LOUE.stockage.tout('file').catch(() => null);
   const mien = (file || []).filter(e => !e.env || e.env === LOUE.env);
   const aVerifier = mien.filter(e => e.etat === 'erreur').length, enAttente = mien.length - aVerifier;
+  const attendConnexion = mien.filter(e => e.attendConnexion).length;
   lignes.push(['Fiches en attente', file === null ? 'mémoire du téléphone indisponible'
     : (!mien.length ? '✓ aucune, tout est envoyé'
-      : (enAttente ? enAttente + ' — elles partiront dès qu’il y aura du réseau' : '')
+      : (enAttente ? enAttente + ' — elles partiront dès qu’il y aura du réseau' + (attendConnexion ? ' (' + attendConnexion + ' attendent la connexion)' : '') : '')
         + (aVerifier ? (enAttente ? ' ; ' : '') + aVerifier + ' à vérifier (touchez l’indicateur en haut, puis « Réessayer »)' : ''))]);
-  document.getElementById('apropos-contenu').innerHTML = lignes.map(l => '<div class="apropos-ligne"><div class="apropos-titre">' + l[0] + '</div><div>' + l[1] + '</div></div>').join('');
+  $('apropos-contenu').innerHTML = lignes.map(l => '<div class="apropos-ligne"><div class="apropos-titre">' + l[0] + '</div><div>' + l[1] + '</div></div>').join('');
+}
+function changerMonMdp() { const c = LOUE.compte(); if (c) ouvrirChoixMdp(c.profil.id, '', true); }
+async function seDeconnecter() {
+  const file = await LOUE.stockage.tout('file').catch(() => []);
+  const n = (file || []).filter(e => !e.env || e.env === LOUE.env).length;
+  const texte = (n ? n + (n > 1 ? ' fiches attendent' : ' fiche attend') + ' encore d’être envoyée(s) : elle(s) reste(nt) dans le téléphone et partira(ont) après la prochaine connexion.\n\n' : '')
+    + 'Se déconnecter de ce téléphone ?';
+  if (!confirm(texte)) return;
+  MODE = null;
+  LOUE.deconnecter();
+  CHANTIERS = []; voirTous = false;
+  allerConnexion();
 }
 function verifierMiseAJour() {
   if (!navigator.serviceWorker) { location.reload(); return; }
   navigator.serviceWorker.getRegistration().then(reg => {
     if (!reg) { location.reload(); return; }
-    return reg.update().then(() => LOUE.message(reg.waiting || reg.installing ? 'Nouvelle version trouvée : touchez « Mettre à jour » en bas' : '✓ L’appli est à jour', 6000));
+    return reg.update().then(() => LOUE.message(reg.waiting || reg.installing ? 'Nouvelle version trouvée : touchez « Mettre à jour » en haut' : '✓ L’appli est à jour', 6000));
   }).catch(() => LOUE.message('Pas de réseau : vérification impossible'));
 }
 
+demarrer();
 verifierInstallation();
 </script>
 </body>

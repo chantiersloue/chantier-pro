@@ -6,6 +6,9 @@
 //   lent   : chaque réponse attend 6 s       panne : erreur 500
 //   perdue : la fiche est traitée mais la réponse n'arrive pas (le téléphone renverra : doublon ignoré)
 //   quota  : plus que 5 mails possibles aujourd'hui
+// Lot 2 — comptes d'essai (mot de passe « Essai-2026 ») : poseur1 (CHANTIER TEST 1 coché), conducteur1 (Sébastien TEST), admin1 ;
+//   « nouveau1 » n'a qu'un mot de passe provisoire (affiché au démarrage).
+//   GET /reglage?mode=transition-finie (fin de la période sans compte) | transition-ouverte | deconnecter&id=poseur1 | jeton-ancien
 'use strict';
 const http = require('http');
 const { creerGoogle, chargerScript } = require('./gas-harness');
@@ -33,19 +36,44 @@ google.creerElement('dossier', 'Loué Menuiserie - Chantiers', null, { id: 'RACI
 google.creerElement('dossier', 'Planning', null, { id: 'PLANNING' });
 const ctx = chargerScript(google);
 let mode = 'normal';
+// Lot 2 : comptes d'essai
+ctx.genererCle();
+ctx.preparerOngletsLot2();
+const U = google.feuilles['Utilisateurs'];
+[['poseur1', 'Thomas TEST', 'Poseur'], ['conducteur1', 'Sébastien TEST', 'Conducteur'], ['admin1', 'Franck TEST', 'Admin'], ['nouveau1', 'Thomas TEST', 'Poseur']]
+  .forEach(([id, nom, role], i) => { U.lignes[i + 1] = [id, nom, role, true, true, '', '', false, false, '']; });   // en haut, comme Franck
+ctx.traiterComptes();
+U.lignes.slice(1).filter(l => l[0]).forEach(l => {
+  if (l[0] === 'nouveau1') { console.log('Compte « nouveau1 » : mot de passe provisoire ' + l[5]); return; }
+  const r = ctx.motDePasse_({ identifiant: l[0], ancien: l[5], nouveau: 'Essai-2026' });
+  if (!r.ok) console.log('Compte ' + l[0] + ' : ' + r.message);
+});
+ctx.traiterComptes();
+const A = google.feuilles['Accès chantiers'];
+const colP = A.lignes[0].indexOf('poseur1');
+A.lignes.forEach(l => { if (l[0] === 'CHANTIER TEST 1') l[colP] = true; });
 
 http.createServer((req, res) => {
   const entetes = { 'Access-Control-Allow-Origin': '*', 'Content-Type': 'application/json; charset=utf-8' };
   const url = new URL(req.url, 'http://x');
   if (url.pathname === '/reglage') {
-    mode = url.searchParams.get('mode') || 'normal';
+    const m = url.searchParams.get('mode') || 'normal';
+    if (m === 'transition-finie') { google.proprietes.FIN_TRANSITION = String(Date.now() - 1000); res.writeHead(200, entetes); return res.end('{"transition":"finie"}'); }
+    if (m === 'transition-ouverte') { delete google.proprietes.FIN_TRANSITION; res.writeHead(200, entetes); return res.end('{"transition":"ouverte"}'); }
+    if (m === 'deconnecter') {
+      const l = U.lignes.find(x => x[0] === url.searchParams.get('id'));
+      if (l) { l[7] = true; ctx.traiterComptes(); }
+      res.writeHead(200, entetes); return res.end('{"deconnecte":' + !!l + '}');
+    }
+    mode = m;
     if (mode === 'quota') google.etat.quota = 5; else google.etat.quota = 100;
     res.writeHead(200, entetes); return res.end(JSON.stringify({ mode }));
   }
   if (url.pathname === '/etat') {
     res.writeHead(200, entetes);
     return res.end(JSON.stringify({ mode, mails: google.mails.map(m => ({ to: m.to, sujet: m.sujet, bcc: m.opts.bcc || '' })),
-      envois: (google.feuilles['Envois'] || { lignes: [] }).lignes, quota: google.etat.quota }));
+      envois: (google.feuilles['Envois'] || { lignes: [] }).lignes, quota: google.etat.quota,
+      sansCompte: (google.feuilles['Sans compte'] || { lignes: [] }).lignes, utilisateurs: U.lignes.map(l => [l[0], l[2], l[5], l[9]]) }));
   }
   let corps = '';
   req.on('data', c => { corps += c; });
