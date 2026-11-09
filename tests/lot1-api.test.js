@@ -289,4 +289,51 @@ test('attestation : l’ancien format (photos en base64 dans la fiche) marche to
   assert.ok(pdfDe(g).indexOf(PHOTO_B64) > -1);
 });
 
+console.log('Lot 1.3 — réception support');
+const reception = extra => Object.assign({ type: 'reception-support', chantier: 'CHANTIER TEST 1', precision: 'Bât. B',
+  signataire: 'Franck PAVAGEAU', date: '09/11/2026', lot: 'men-int', lotLabel: 'Menuiserie Intérieure',
+  observations: 'Reprise des bandes\nau R+1', signature: SIG_PNG, destinataires: [],
+  points: [{ label: 'Aplomb', state: 'ok', comment: '', photos: [] }, { label: 'Planéité', state: 'nok', comment: 'Bosse de 5 mm', photos: [] },
+    { label: 'Sol posé', state: 'so', comment: '', photos: [] }, { label: 'Peinture mur', state: '', comment: '', photos: [] }] }, extra || {});
+
+test('fiche enregistrée : PDF complet, Sheet (mêmes colonnes), Drive, conducteur + destinataires choisis', () => {
+  const g = environnement();
+  const r = poster(g, { action: 'fiche', id: 'fiche-0800-abcd', donnees: reception({ destinataires: [FRANCK] }) });
+  assert.strictEqual(r.code, 'ENREGISTRE', JSON.stringify(r));
+  const html = pdfDe(g);
+  ['RÉCEPTION SUPPORT', 'Menuiserie Intérieure', 'CHANTIER TEST 1', 'Bât. B', 'Franck PAVAGEAU', '09/11/2026', 'Bosse de 5 mm',
+    '✓ Conforme', '✗ Non conforme', '— Sans objet', 'Non évalué', '1 conforme(s) · 1 non conforme(s) · 1 sans objet',
+    'Reprise des bandes\nau R+1', SIG_PNG].forEach(t => assert.ok(html.indexOf(t) > -1, t));
+  assert.deepStrictEqual(g.mails.map(m => m.to).sort(), [FRANCK, SEB].sort());
+  const f = g.feuilles['Réceptions Support'].lignes;
+  assert.deepStrictEqual(Array.from(f[0]), ['Horodatage', 'Chantier', 'Précision', 'Signataire', 'Date', 'Lot', 'Nb OK', 'Nb NOK', 'Nb SO', 'Observations']);
+  assert.deepStrictEqual(Array.from(f[1]).slice(1), ['CHANTIER TEST 1', 'Bât. B', 'Franck PAVAGEAU', '09/11/2026', 'Menuiserie Intérieure', 1, 1, 1, 'Reprise des bandes\nau R+1']);
+  const dossier = g.racine.enfants.find(e => e.nom === 'CHANTIER TEST 1').enfants.find(e => e.nom === 'Réceptions Support');
+  assert.strictEqual(dossier.enfants.length, 1, 'PDF rangé dans Réceptions Support');
+});
+
+test('textes piégés échappés (point ajouté, commentaire, observations) ; formule neutralisée dans le Sheet', () => {
+  const g = environnement();
+  poster(g, { action: 'fiche', id: 'fiche-0801-abcd', donnees: reception({ observations: '=HYPERLINK("x")',
+    points: [{ label: 'Vis 4" <90 cm', state: 'nok', comment: '<script>alert(1)</script>', photos: [] }] }) });
+  const html = pdfDe(g);
+  assert.ok(html.indexOf('<script>alert') < 0 && html.indexOf('&lt;script&gt;') > -1, 'commentaire échappé');
+  assert.ok(html.indexOf('Vis 4&quot; &lt;90 cm') > -1, 'point échappé');
+  assert.strictEqual(g.feuilles['Réceptions Support'].lignes[1][9], '\'=HYPERLINK("x")');
+});
+
+test('photos de chaque point envoyées à part : toutes remises dans le PDF, sous leur point', () => {
+  const g = environnement();
+  const b64 = n => Buffer.from('photo-point-' + n).toString('base64');
+  for (let i = 1; i <= 3; i++) poster(g, { action: 'photo', id: 'photo-081' + i + '-abcd', fiche: 'fiche-0810-abcd', mime: 'image/jpeg', data: b64(i) });
+  const r = poster(g, { action: 'fiche', id: 'fiche-0810-abcd', donnees: reception({ points: [
+    { label: 'Planéité', state: 'nok', comment: 'Bosse', photos: [{ photoRef: 'photo-0811-abcd' }, { photoRef: 'photo-0812-abcd' }, { photoRef: 'photo-0813-abcd' }] },
+    { label: 'Aplomb', state: 'ok', comment: '', photos: [] }] }) });
+  assert.strictEqual(r.code, 'ENREGISTRE', JSON.stringify(r));
+  const html = pdfDe(g);
+  assert.ok(html.indexOf('Photos — Planéité') > -1);
+  assert.ok(html.indexOf('Photos — Aplomb') < 0, 'pas de page photo pour un point sans photo');
+  [1, 2, 3].forEach(i => assert.ok(html.indexOf(b64(i)) > -1, 'photo ' + i));
+});
+
 console.log('\n' + reussis + ' test(s) réussi(s)' + (process.exitCode ? ' — DES TESTS ÉCHOUENT' : ''));

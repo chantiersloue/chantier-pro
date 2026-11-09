@@ -477,109 +477,38 @@ function traiterAbsence(data, brut) {
 // RÉCEPTION SUPPORT
 // ══════════════════════════════════════════════════════════
 function traiterReceptionSupport(data, brut) {
-  const ss         = SpreadsheetApp.getActiveSpreadsheet();
-  const horodatage = new Date();
-  const SHEET_REC  = 'Réceptions Support';
-
-  // 1. Enregistrer dans le sheet
-  let sheet = ss.getSheetByName(SHEET_REC);
-  if(!sheet) {
-    sheet = ss.insertSheet(SHEET_REC);
-    sheet.appendRow(['Horodatage','Chantier','Précision','Signataire','Date','Lot','Nb OK','Nb NOK','Nb SO','Observations']);
-    sheet.getRange(1,1,1,10).setFontWeight('bold').setBackground('#0D7A6B').setFontColor('white');
-  }
-  const pts   = data.points||[];
+  const pts   = Array.isArray(brut.points) ? brut.points.filter(p => p) : [];
   const nbOk  = pts.filter(p=>p.state==='ok').length;
   const nbNok = pts.filter(p=>p.state==='nok').length;
   const nbSo  = pts.filter(p=>p.state==='so').length;
-  sheet.appendRow([horodatage, brut.chantier||'', brut.precision||'', brut.signataire||'',
-    brut.date||'', brut.lotLabel||'', nbOk, nbNok, nbSo, brut.observations||''].map(cellule_));
 
-  // 2. Construire le HTML du PDF
-  const sig = data.signature||'';
-  const lignes = pts.map((p,i)=>{
-    const sc = p.state==='ok'?'#196B3B':p.state==='nok'?'#B32E2E':p.state==='so'?'#888':'#999';
-    const sl = p.state==='ok'?'✓ Conforme':p.state==='nok'?'✗ Non conforme':p.state==='so'?'— Sans objet':'Non évalué';
-    return `<tr style="background:${i%2===0?'white':'#FAFAF8'}">
-      <td style="padding:6px 8px;border:1px solid #D8D4CE;font-size:11px">${p.label}</td>
-      <td style="padding:6px 8px;border:1px solid #D8D4CE;font-size:10px;font-weight:700;color:${sc};text-align:center">${sl}</td>
-      <td style="padding:6px 8px;border:1px solid #D8D4CE;font-size:10px;color:#6A6460">${p.comment||''}</td>
-    </tr>`;
-  }).join('');
+  // 1. Sheet — mêmes colonnes qu'avant ; protégé contre les erreurs (données brutes, formules neutralisées)
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const SHEET_REC = 'Réceptions Support';
+    let sheet = ss.getSheetByName(SHEET_REC);
+    if(!sheet) {
+      sheet = ss.insertSheet(SHEET_REC);
+      sheet.appendRow(['Horodatage','Chantier','Précision','Signataire','Date','Lot','Nb OK','Nb NOK','Nb SO','Observations']);
+      sheet.getRange(1,1,1,10).setFontWeight('bold').setBackground('#0D7A6B').setFontColor('white');
+    }
+    sheet.appendRow([new Date(), brut.chantier||'', brut.precision||'', brut.signataire||'',
+      brut.date||'', brut.lotLabel||'', nbOk, nbNok, nbSo, brut.observations||''].map(cellule_));
+  } catch(err) { console.error('Sheet réception support:', err.message); }
 
-  const confColor = nbNok>0?'#B32E2E':'#196B3B';
-  const htmlPDF = `<html><head><style>
-    @page{size:A4;margin:1.5cm}body{font-family:Arial,sans-serif;font-size:10px;margin:0}*{box-sizing:border-box}
-    table{border-collapse:collapse;width:100%}
-  </style></head><body>
-  <table style="margin-bottom:14px;border:none;border-bottom:3px solid #0D7A6B;padding-bottom:10px">
-    <tr>
-      <td style="border:none;vertical-align:middle;width:40%">
-        <div style="font-weight:800;font-size:16px;color:#1A2B4A">Loué Menuiserie</div>
-        <div style="font-size:9px;color:#6A6460">Menuiserie · Charpente · Agencement</div>
-      </td>
-      <td style="border:none;text-align:center;vertical-align:middle">
-        <div style="font-weight:800;font-size:14px;color:#0D7A6B">RÉCEPTION SUPPORT</div>
-        <div style="font-size:10px;color:#6A6460;margin-top:2px">${data.lotLabel||''}</div>
-      </td>
-      <td style="border:none;text-align:right;vertical-align:middle;font-size:10px;color:#6A6460">
-        <div>${data.date||'—'}</div>
-        <div style="font-weight:700">${data.signataire||'—'}</div>
-      </td>
-    </tr>
-  </table>
-  <table style="margin-bottom:10px">
-    <tr><td style="padding:6px 8px;border:1px solid #D8D4CE;background:#FAFAF8;font-size:9px;color:#6A6460;font-weight:700;text-transform:uppercase;width:35%">Chantier</td>
-        <td style="padding:6px 8px;border:1px solid #D8D4CE;font-weight:700">${data.chantier||'—'}${data.precision?' — <span style="font-weight:400;color:#6A6460">'+data.precision+'</span>':''}</td></tr>
-    <tr><td style="padding:6px 8px;border:1px solid #D8D4CE;background:#FAFAF8;font-size:9px;color:#6A6460;font-weight:700;text-transform:uppercase">Lot contrôlé</td>
-        <td style="padding:6px 8px;border:1px solid #D8D4CE">${data.lotLabel||'—'}</td></tr>
-  </table>
-  <table style="margin-bottom:10px">
-    <thead><tr>
-      <th style="padding:6px 8px;background:#1A2B4A;color:white;font-size:9px;text-align:left;width:38%">Point de contrôle</th>
-      <th style="padding:6px 8px;background:#1A2B4A;color:white;font-size:9px;text-align:center;width:22%">Résultat</th>
-      <th style="padding:6px 8px;background:#1A2B4A;color:white;font-size:9px;text-align:left">Commentaire</th>
-    </tr></thead>
-    <tbody>${lignes}</tbody>
-  </table>
-  <div style="padding:7px 10px;background:${nbNok>0?'#FAE8E8':'#E1F2E9'};border:1px solid ${confColor};border-radius:4px;font-size:10px;color:${confColor};font-weight:700;margin-bottom:10px">
-    Bilan : ${nbOk} conforme(s) · ${nbNok} non conforme(s) · ${nbSo} sans objet
-  </div>
-  ${data.observations?`<div style="padding:7px 10px;background:#F7F5F1;border:1px solid #D8D4CE;border-radius:4px;font-size:10px;margin-bottom:10px"><strong>Observations :</strong> ${data.observations}</div>`:''}
-  <table style="border:none">
-    <tr>
-      <td style="border:none;width:50%;padding-right:8px;vertical-align:top">
-        <div style="font-size:9px;font-weight:700;text-transform:uppercase;color:#6A6460;margin-bottom:4px">Signature</div>
-        <div style="border:1px solid #D8D4CE;border-radius:4px;height:75px;background:#FAFAF8;text-align:center;padding:3px">
-          ${sig?`<img src="${sig}" style="max-width:100%;max-height:68px;">`:''}
-        </div>
-        <div style="font-size:9px;color:#6A6460;margin-top:3px">${data.signataire||''} — ${data.date||''}</div>
-      </td>
-      <td style="border:none;width:50%"></td>
-    </tr>
-  </table>
-  ${pts.filter(p=>p.photos&&p.photos.length).map(p=>`
-    <div style="page-break-before:always;padding-top:10px">
-      <div style="font-weight:700;font-size:11px;color:#0D7A6B;border-bottom:2px solid #0D7A6B;padding-bottom:4px;margin-bottom:8px">
-        Photos — ${p.label}
-      </div>
-      <table style="width:100%;border-collapse:separate;border-spacing:8px"><tr>
-        ${p.photos.map(ph=>`<td style="text-align:center;vertical-align:top;width:50%">
-          <img src="data:${ph.mime};base64,${ph.data}" style="max-width:100%;max-height:100mm;border:1px solid #ddd;">
-        </td>`).join('')}
-      </tr></table>
-    </div>`).join('')}
-  </body></html>`;
-
+  // 2. PDF — Lot 1 : modèle unique (modeles/reception.js, copié dans Modeles.gs), le même que l'aperçu de la page
+  const htmlPDF = modele_reception(validerImages_(brut), esc_);
   const nomFichier = nomFichier_(`Reception_${String(brut.chantier||'').replace(/ /g,'_')}_${String(brut.lotLabel||'').replace(/ /g,'_')}.pdf`);
-  const blobPDF = HtmlService.createHtmlOutput(htmlPDF).getAs('application/pdf').setName(nomFichier);
+  const blobPDF = HtmlService.createHtmlOutput(htmlPDF).getAs('application/pdf').setName(nomFichier);   // fabriqué une seule fois
 
-  // 3. Sauvegarder dans Drive (sous-dossier "Réceptions Support" du chantier)
+  // 3. Drive (sous-dossier « Réceptions Support » du chantier)
   const fichier = classerFichierDrive(blobPDF, brut.chantier||'DIVERS', 'Réceptions Support', nomFichier);
 
-  // 4. Destinataires : conducteur + destinataire supplémentaire (contrôlés par distribuer_)
-  const destinataires = [brut.conducteurEmail, brut.destSupp].filter(Boolean);
-  if(!destinataires.length) destinataires.push(emailConducteurChantier_(brut.chantier) || emailAdmin_());
+  // 4. Destinataires choisis dans la page (+ « destinataire supplémentaire » des pages d'avant la refonte)
+  //    et copie au conducteur du chantier calculée par le serveur (sinon Franck) — contrôlés par distribuer_
+  const destinataires = (Array.isArray(brut.destinataires) ? brut.destinataires : [])
+    .concat(brut.destSupp ? [brut.destSupp] : [])
+    .concat([emailConducteurChantier_(brut.chantier) || emailAdmin_()]);
 
   const sujet = `[Loué App] Réception Support — ${brut.chantier||'?'} — ${brut.lotLabel||'?'}`;
   const corps = `Bonjour,\n\nVeuillez trouver ci-joint la fiche de réception support.\n\nChantier : ${brut.chantier||'?'}\nLot : ${brut.lotLabel||'?'}\nBilan : ${nbOk} conforme(s) / ${nbNok} non conforme(s)\n\nLoué App`;
@@ -587,7 +516,7 @@ function traiterReceptionSupport(data, brut) {
   distribuer_({
     fiche: 'reception-support', chantier: brut.chantier, adresses: destinataires,
     sujet: sujet, texte: corps, fichier: fichier, nomPDF: nomFichier,
-    faireBlob: () => HtmlService.createHtmlOutput(htmlPDF).getAs('application/pdf').setName(nomFichier),
+    faireBlob: () => blobPDF,
   });
 }
 
