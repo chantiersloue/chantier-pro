@@ -43,6 +43,13 @@
     b.querySelector('button').onclick = function () { b.remove(); try { sessionStorage.setItem('loue_avert_install', '1'); } catch (e) {} };
     document.body.insertBefore(b, document.body.firstChild);
   });
+  // Place utilisée / disponible (pour l'écran « À propos » et avant les gros téléchargements du carnet)
+  LOUE.placeTelephone = function () {
+    if (!navigator.storage || !navigator.storage.estimate) return Promise.resolve(null);
+    return navigator.storage.estimate().then(function (e) { return { utilise: e.usage || 0, quota: e.quota || 0 }; });
+  };
+
+  // ── Service worker (pas sur l'ordinateur de développement, sauf ?sw=1) ──
   if (!('serviceWorker' in navigator) || /^(localhost|127\.0\.0\.1)$/.test(location.hostname) && !/[?&]sw=1/.test(location.search)) return;
 
   function proposer(reg) {
@@ -83,9 +90,4 @@
     if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(function () {});
   });
 
-  // Place utilisée / disponible (pour l'écran « À propos » et avant les gros téléchargements du carnet)
-  LOUE.placeTelephone = function () {
-    if (!navigator.storage || !navigator.storage.estimate) return Promise.resolve(null);
-    return navigator.storage.estimate().then(function (e) { return { utilise: e.usage || 0, quota: e.quota || 0 }; });
-  };
 })();
