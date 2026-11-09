@@ -79,7 +79,17 @@ function creerGoogle(options = {}) {
       getFoldersByName: n => it(el.enfants.filter(e => e.type === 'dossier' && e.nom === n)),
       getFilesByName: n => it(el.enfants.filter(e => e.type === 'fichier' && e.nom === n && !e.corbeille)),
       createFolder: n => creerElement('dossier', n, el).api,
-      createFile: b => creerElement('fichier', b.getName(), el, { contenu: b.contenu, mime: b.mime }).api,
+      createFile: (b, contenu, mime) => typeof b === 'string'
+        ? creerElement('fichier', b, el, { contenu: contenu, mime: mime }).api
+        : creerElement('fichier', b.getName(), el, { contenu: b.contenu, mime: b.mime }).api,
+      // Déplacement : même identifiant, nouveau dossier parent (comme Drive)
+      moveTo: dest => {
+        const cible = elements[dest.getId()];
+        el.parents.forEach(p => { p.enfants = p.enfants.filter(e => e !== el); });
+        el.parents = [cible]; cible.enfants.push(el);
+        return el.api;
+      },
+      setContent: c => { el.contenu = c; return el.api; },
     };
     return el;
   }
@@ -110,6 +120,7 @@ function creerGoogle(options = {}) {
   function blob(contenu, nom, mime) {
     const b = { contenu, nom, mime,
       setName: n => { b.nom = n; return b; }, getName: () => b.nom,
+      getDataAsString: () => Buffer.isBuffer(contenu) ? contenu.toString('utf8') : String(contenu),
       getBytes: () => Array.from(Buffer.from(typeof contenu === 'string' ? contenu : contenu, typeof contenu === 'string' ? 'utf8' : undefined)),
       copyBlob: () => blob(contenu, b.nom, mime) };
     return b;
@@ -147,6 +158,7 @@ function creerGoogle(options = {}) {
       .replace('dd', deux(d.getDate())).replace('HH', deux(d.getHours())).replace('mm', deux(d.getMinutes())),
   };
   const declencheurs = [];
+  const cache = {};
   const ScriptApp = {
     getProjectTriggers: () => declencheurs.map(t => ({ getHandlerFunction: () => t })),
     deleteTrigger: () => { declencheurs.length = 0; },
@@ -156,6 +168,8 @@ function creerGoogle(options = {}) {
     SpreadsheetApp: { getActiveSpreadsheet: () => ss },
     DriveApp, HtmlService, GmailApp, MailApp, PropertiesService, Utilities, ScriptApp,
     LockService: { getScriptLock: () => ({ tryLock: () => !options.verrouOccupe, releaseLock: () => {} }) },
+    CacheService: { getScriptCache: () => ({
+      get: k => (cache[k] === undefined ? null : cache[k]), put: (k, v) => { cache[k] = String(v); }, remove: k => { delete cache[k]; } }) },
     Session: { getEffectiveUser: () => ({ getEmail: () => 'franck@loue.test' }),
                getActiveUser: () => ({ getEmail: () => '' }) },
     ContentService: { MimeType: { TEXT: 'text', JSON: 'json', JAVASCRIPT: 'js' },
@@ -163,16 +177,17 @@ function creerGoogle(options = {}) {
     Logger: { log: () => {} },
     console: { log: () => {}, error: () => {} },
   };
-  return { contexte, feuilles, elements, mails, etat, proprietes, creerElement, declencheurs };
+  return { contexte, feuilles, elements, mails, etat, proprietes, creerElement, declencheurs, cache };
 }
 
 // Charge tous les fichiers .gs du dossier apps-script dans un contexte simulé
-function chargerScript(google) {
+// fichierUnique (facultatif) : charger seulement ce fichier (ex. le Code.gs à coller de la livraison)
+function chargerScript(google, fichierUnique) {
   const dossier = path.join(__dirname, '..', 'apps-script');
   const ctx = vm.createContext(google.contexte);
-  fs.readdirSync(dossier).filter(f => f.endsWith('.gs')).sort().forEach(f => {
-    vm.runInContext(fs.readFileSync(path.join(dossier, f), 'utf8'), ctx, { filename: f });
-  });
+  const fichiers = fichierUnique ? [fichierUnique]
+    : fs.readdirSync(dossier).filter(f => f.endsWith('.gs')).sort().map(f => path.join(dossier, f));
+  fichiers.forEach(f => vm.runInContext(fs.readFileSync(f, 'utf8'), ctx, { filename: path.basename(f) }));
   return ctx;
 }
 

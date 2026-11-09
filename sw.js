@@ -4,14 +4,14 @@
 // ne pas les modifier à la main. En cas de gros problème : remplacer ce fichier par outils/sw-secours.js.
 // Les échanges avec Apps Script ne passent JAMAIS par ce cache (fiches, listes : gérés par commun/api.js).
 // ═══════════════════════════════════════════════════════════════
-const VERSION = 'loue-abca249c1d';
+const VERSION = 'loue-57bfea5e05';
 const A_GARDER = [
   './', 'index.html', 'quitus.html', 'bordereau.html',
   'cotes.html', 'fiche-fabrication.html', 'note-reunion.html', 'bordereau-orga.html', 'bordereau-materiaux.html',
   'attestation.html', 'reception-support.html', 'absence.html',
   'manifest.json', 'logo.png', 'apple-touch-icon.png',
   // Fichiers communs et modèles, avec leur numéro de version (liste fabriquée par outils/construire.js)
-  /*COMMUNS*/ 'commun/adresses.js?v=abca249c1d', 'commun/api.js?v=abca249c1d', 'commun/brouillon.js?v=abca249c1d', 'commun/config.js?v=abca249c1d', 'commun/destinataires.js?v=abca249c1d', 'commun/hors-ligne.js?v=abca249c1d', 'commun/photos.js?v=abca249c1d', 'commun/signature.js?v=abca249c1d', 'commun/ui.js?v=abca249c1d', 'commun/fiche.css?v=abca249c1d', 'commun/style.css?v=abca249c1d', 'modeles/attestation.js?v=abca249c1d', 'modeles/bordereau.js?v=abca249c1d', 'modeles/cotes.js?v=abca249c1d', 'modeles/fabrication.js?v=abca249c1d', 'modeles/quitus.js?v=abca249c1d', 'modeles/reception.js?v=abca249c1d',
+  /*COMMUNS*/ 'commun/adresses.js?v=57bfea5e05', 'commun/api.js?v=57bfea5e05', 'commun/brouillon.js?v=57bfea5e05', 'commun/config.js?v=57bfea5e05', 'commun/destinataires.js?v=57bfea5e05', 'commun/hors-ligne.js?v=57bfea5e05', 'commun/photos.js?v=57bfea5e05', 'commun/signature.js?v=57bfea5e05', 'commun/ui.js?v=57bfea5e05', 'commun/fiche.css?v=57bfea5e05', 'commun/style.css?v=57bfea5e05', 'modeles/attestation.js?v=57bfea5e05', 'modeles/bordereau.js?v=57bfea5e05', 'modeles/cotes.js?v=57bfea5e05', 'modeles/fabrication.js?v=57bfea5e05', 'modeles/quitus.js?v=57bfea5e05', 'modeles/reception.js?v=57bfea5e05',
 ];
 
 self.addEventListener('install', ev => {

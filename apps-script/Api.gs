@@ -66,8 +66,6 @@ function getDossiers(chantierNom, callback) {
   const result = {};
 
   try {
-    const root = DriveApp.getFolderById(driveRootId_());
-
     // Cas spécial : planning global — lecture directe par ID
     if (chantierNom === '__PLANNING__') {
       try {
@@ -96,7 +94,8 @@ function getDossiers(chantierNom, callback) {
     }
 
     // Chercher le dossier du chantier
-    const chantierFolder = trouverDossierChantier(root, chantierNom);
+    // Lot 1.5 : même recherche que pour le classement (onglet « Dossiers chantiers », nom exact, ressemblance unique)
+    const chantierFolder = dossierChantier_(chantierNom, false);
     if (!chantierFolder) {
       const json = JSON.stringify({ erreur: 'Dossier chantier non trouvé', dossiers: {} });
       return callback
@@ -118,26 +117,6 @@ function getDossiers(chantierNom, callback) {
   return callback
     ? ContentService.createTextOutput(callback+'('+json+')').setMimeType(ContentService.MimeType.JAVASCRIPT)
     : ContentService.createTextOutput(json).setMimeType(ContentService.MimeType.JSON);
-}
-
-// Trouve le dossier chantier même si le nom est légèrement différent
-function trouverDossierChantier(root, nomChantier) {
-  if (!nomChantier) return null;
-  const nomClean = nomChantier.toLowerCase().trim();
-
-  // 1. Chercher dans DOSSIER BASE (modèle) — non
-  // 2. Chercher directement sous root
-  const folders = root.getFolders();
-  while (folders.hasNext()) {
-    const f = folders.next();
-    const fNom = f.getName().toLowerCase().trim();
-    // Correspondance exacte ou partielle
-    if (fNom === nomClean || fNom.includes(nomClean) || nomClean.includes(fNom)) {
-      // Éviter le dossier modèle
-      if (fNom !== 'dossier base') return f;
-    }
-  }
-  return null;
 }
 
 // Lit directement un sous-dossier par nom dans un dossier parent
