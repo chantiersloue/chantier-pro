@@ -348,8 +348,33 @@ test('compte désactivé (transition finie) : ses fiches sont quand même accept
   avecTransitionFinie(g);
   ligneU(g, 'thomas27')[COL.actif] = false;
   assert.strictEqual(poster(g, { action: 'listes', jeton }).code, 'COMPTE_REFUSE');
-  assert.strictEqual(poster(g, { action: 'fiche', id: 'fiche-inactif-01', jeton, donnees: quitus() }).code, 'ENREGISTRE');
-  assert.ok(/désactivé/.test(g.feuilles['Envois'].lignes.find(x => x[0] === 'fiche-inactif-01')[6]));
+  assert.strictEqual(poster(g, { action: 'fiche', id: 'fiche-inactif-01', jeton, saisiPar: 'thomas27', donnees: quitus() }).code, 'ENREGISTRE');
+  assert.strictEqual(g.feuilles['Envois'].lignes.find(x => x[0] === 'fiche-inactif-01')[6], 'thomas27 (compte désactivé)');
+  // 7 jours plus tard (date de désactivation notée par traiterComptes) : refusé, la fiche attend dans le téléphone
+  g.ctx.traiterComptes();
+  g.t += 8 * JOUR;
+  g.proprietes.FIN_TRANSITION = String(g.t - 1000);
+  assert.strictEqual(poster(g, { action: 'fiche', id: 'fiche-inactif-02', jeton, donnees: quitus() }).code, 'COMPTE_REFUSE');
+  // réactivé : tout remarche
+  ligneU(g, 'thomas27')[COL.actif] = true; g.ctx.traiterComptes();
+  assert.strictEqual(poster(g, { action: 'fiche', id: 'fiche-inactif-03', jeton, donnees: quitus() }).code, 'ENREGISTRE');
+});
+
+test('État : « Actif » qui n’est pas une case signalé ; message d’identifiant en double effacé une fois corrigé', () => {
+  const g = environnement();
+  ligneU(g, 'thomas27')[COL.actif] = 'OUI';
+  g.ctx.traiterComptes();
+  assert.ok(/n’est pas une case à cocher/.test(ligneU(g, 'thomas27')[COL.etat]));
+  ligneU(g, 'thomas27')[COL.actif] = true;
+  g.feuilles['Utilisateurs'].lignes.push(['thomas27', 'Autre', 'Poseur', true, false, '', '', false, false, '']);
+  g.ctx.traiterComptes();
+  assert.ok(/double/.test(ligneU(g, 'thomas27')[COL.etat]));
+  g.feuilles['Utilisateurs'].lignes.pop();
+  g.ctx.traiterComptes();
+  assert.ok(!/double|case/.test(ligneU(g, 'thomas27')[COL.etat]), ligneU(g, 'thomas27')[COL.etat]);
+  assert.ok(/❌ Colonne/.test(g.ctx.preparerOngletsLot2()) === false, 'cases en place : rien à signaler');
+  ligneU(g, 'seb')[COL.actif] = 'x';
+  assert.ok(g.ctx.preparerOngletsLot2().indexOf('❌ Colonne(s) D ') > -1);
 });
 
 test('compteurs « Sans compte » : le total ne baisse pas et une seule ligne par jour et par sorte', () => {

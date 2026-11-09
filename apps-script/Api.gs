@@ -245,7 +245,7 @@ function routerV5_(corps) {
     let qui = identifier_(corps);
     const envoi = corps.action === 'photo' || corps.action === 'fiche';
     // Fiche ou photo d'un compte désactivé : acceptée, notée « (compte désactivé) »
-    if (qui.refus && qui.desactive && envoi) qui = { compte: { id: qui.desactive + ' (compte désactivé)' } };
+    if (qui.refus && qui.desactive && envoi) qui = { compte: { id: qui.desactive, etiquette: qui.desactive + ' (compte désactivé)' } };
     // Comptes illisibles (panne) pendant la transition : la fiche passe « sans compte »
     if (qui.refus && qui.sansPossible && envoi) qui = { sans: true };
     if (qui.refus) return qui.refus;
@@ -362,7 +362,7 @@ function recevoirFiche_(corps, compte) {
   // Auteur : le compte qui envoie (et celui qui était connecté quand la fiche a été rangée, s'il est différent)
   const saisiPar = normaliserId_(corps.saisiPar);
   // « rangée par » est déclaré par le téléphone (information, pas une preuve) ; le compte qui envoie est vérifié par le jeton
-  const auteur = compte ? compte.id + (saisiPar && saisiPar !== compte.id && idCompteValide_(saisiPar) ? ' (rangée par ' + saisiPar + ', selon le téléphone)' : '')
+  const auteur = compte ? (compte.etiquette || compte.id) + (saisiPar && saisiPar !== compte.id && idCompteValide_(saisiPar) ? ' (rangée par ' + saisiPar + ', selon le téléphone)' : '')
                         : 'sans compte';
   // 1. Réserver le numéro (sous verrou, court)
   const verrou = LockService.getScriptLock();

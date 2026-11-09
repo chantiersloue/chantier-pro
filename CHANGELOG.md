@@ -18,7 +18,7 @@ Chaque lot : **quoi**, **pourquoi**, **comment déployer**. Procédures détaill
 
 **Comment déployer** : `docs/lot2-procedure.md` (après la mise en production du lot 1).
 
-**Tests** : `node tests/lot2-comptes.test.js` (36 tests) + tests des lots 0 et 1 ; pages essayées dans le navigateur avec le faux serveur (comptes d'essai), en 375 px.
+**Tests** : `node tests/lot2-comptes.test.js` (44 tests) + tests des lots 0 et 1 ; pages essayées dans le navigateur avec le faux serveur (comptes d'essai), en 375 px.
 
 ## Lot 1 — Fondations (serveur v5, appli 5.0) — en préparation
 
