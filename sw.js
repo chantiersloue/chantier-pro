@@ -4,19 +4,22 @@
 // ne pas les modifier à la main. En cas de gros problème : remplacer ce fichier par outils/sw-secours.js.
 // Les échanges avec Apps Script ne passent JAMAIS par ce cache (fiches, listes : gérés par commun/api.js).
 // ═══════════════════════════════════════════════════════════════
-const VERSION = 'loue-eaaae09b19';
+const VERSION = 'loue-2020942610';
 const A_GARDER = [
   './', 'index.html', 'quitus.html', 'bordereau.html',
   'cotes.html', 'fiche-fabrication.html', 'note-reunion.html', 'bordereau-orga.html', 'bordereau-materiaux.html',
   'attestation.html', 'reception-support.html', 'absence.html',
   'manifest.json', 'logo.png', 'apple-touch-icon.png',
   // Fichiers communs et modèles, avec leur numéro de version (liste fabriquée par outils/construire.js)
-  /*COMMUNS*/ 'commun/adresses.js?v=eaaae09b19', 'commun/api.js?v=eaaae09b19', 'commun/brouillon.js?v=eaaae09b19', 'commun/config.js?v=eaaae09b19', 'commun/hors-ligne.js?v=eaaae09b19', 'commun/photos.js?v=eaaae09b19', 'commun/signature.js?v=eaaae09b19', 'commun/ui.js?v=eaaae09b19', 'commun/fiche.css?v=eaaae09b19', 'commun/style.css?v=eaaae09b19', 'modeles/bordereau.js?v=eaaae09b19', 'modeles/cotes.js?v=eaaae09b19', 'modeles/fabrication.js?v=eaaae09b19', 'modeles/quitus.js?v=eaaae09b19',
+  /*COMMUNS*/ 'commun/adresses.js?v=2020942610', 'commun/api.js?v=2020942610', 'commun/brouillon.js?v=2020942610', 'commun/config.js?v=2020942610', 'commun/destinataires.js?v=2020942610', 'commun/hors-ligne.js?v=2020942610', 'commun/photos.js?v=2020942610', 'commun/signature.js?v=2020942610', 'commun/ui.js?v=2020942610', 'commun/fiche.css?v=2020942610', 'commun/style.css?v=2020942610', 'modeles/bordereau.js?v=2020942610', 'modeles/cotes.js?v=2020942610', 'modeles/fabrication.js?v=2020942610', 'modeles/quitus.js?v=2020942610',
 ];
 
 self.addEventListener('install', ev => {
-  // Chaque fichier est mis en cache séparément : un fichier manquant ne bloque pas l'installation
-  ev.waitUntil(caches.open(VERSION).then(c => Promise.all(A_GARDER.map(u => c.add(u).catch(() => null)))));
+  // Chaque fichier est mis en cache séparément : un fichier manquant ne bloque pas l'installation.
+  // « reload » : on va chercher le fichier sur GitHub, pas la copie que le navigateur garde 10 minutes
+  // (sinon la nouvelle version pourrait enregistrer une ANCIENNE page)
+  ev.waitUntil(caches.open(VERSION).then(c => Promise.all(A_GARDER.map(u =>
+    fetch(new Request(u, { cache: 'reload' })).then(rep => rep.ok ? c.put(u, rep) : null).catch(() => null)))));
 });
 
 self.addEventListener('activate', ev => {
@@ -29,13 +32,15 @@ self.addEventListener('activate', ev => {
 self.addEventListener('message', ev => { if (ev.data === 'activer') self.skipWaiting(); });
 
 function garder(requete, rep) {
-  if (rep && rep.ok) { const copie = rep.clone(); caches.open(VERSION).then(c => c.put(requete, copie)); }
+  if (rep && rep.ok && !rep.redirected) { const copie = rep.clone(); caches.open(VERSION).then(c => c.put(requete, copie)); }
   return rep;
 }
 
 // Pages : réseau d'abord ; au bout de 3 s, la copie du téléphone SI elle existe, sinon on continue d'attendre le réseau
 function pageReseauDAbord(requete) {
-  const reseau = fetch(requete).then(rep => garder(requete, rep));
+  // « no-cache » : le navigateur redemande à GitHub si la page a changé (réponse très courte si elle n'a pas changé).
+  // Sans cela, une page publiée pouvait rester à l'ancienne version jusqu'à 10 minutes après une fusion.
+  const reseau = fetch(new Request(requete, { cache: 'no-cache' })).then(rep => garder(requete, rep));
   const copie = () => caches.match(requete, { ignoreSearch: true }).then(r => r || caches.match('index.html'));
   return new Promise(resolve => {
     let fini = false;

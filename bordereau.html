@@ -9,8 +9,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Loué App">
 <meta name="theme-color" content="#1A2B4A">
-<link rel="stylesheet" href="commun/style.css?v=eaaae09b19">
-<link rel="stylesheet" href="commun/fiche.css?v=eaaae09b19">
+<link rel="stylesheet" href="commun/style.css?v=2020942610">
+<link rel="stylesheet" href="commun/fiche.css?v=2020942610">
 <style>
 .declaration{background:var(--bg);border-radius:var(--r);padding:10px 12px;border:1px solid var(--border);font-size:15px;color:var(--muted);line-height:1.5;}
 .mention-rouge{background:#FFF0F0;border:1.5px solid #EFC0C0;border-radius:var(--r);padding:12px 14px;margin-bottom:12px;font-size:14px;color:var(--red);line-height:1.5;}
@@ -36,10 +36,9 @@
       <div class="aide">Le conducteur du chantier reçoit automatiquement une copie. Ajoutez ici les autres destinataires (2 adresses hors liste au maximum).</div>
       <div class="dest-chips" id="dest-chips"></div>
       <div class="dest-row">
-        <input class="meta-input" id="dest-input" type="email" inputmode="email" placeholder="nom@exemple.fr" autocomplete="off" data-brouillon="non"
-          oninput="filtrerDest(this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();ajouterDest();}">
+        <input class="meta-input" id="dest-input" type="email" inputmode="email" placeholder="nom@exemple.fr" autocomplete="off" data-brouillon="non">
         <div class="dest-suggestions" id="dest-sugg"></div>
-        <button class="btn btn-secondary" type="button" onclick="ajouterDest()">+ Ajouter</button>
+        <button class="btn btn-secondary" type="button" id="dest-ajouter">+ Ajouter</button>
       </div>
     </div>
   </div>
@@ -157,15 +156,16 @@
   </div>
 </div>
 
-<script src="commun/config.js?v=eaaae09b19"></script>
-<script src="commun/api.js?v=eaaae09b19"></script>
-<script src="commun/ui.js?v=eaaae09b19"></script>
-<script src="commun/photos.js?v=eaaae09b19"></script>
-<script src="commun/signature.js?v=eaaae09b19"></script>
-<script src="commun/brouillon.js?v=eaaae09b19"></script>
-<script src="commun/hors-ligne.js?v=eaaae09b19"></script>
-<script src="commun/adresses.js?v=eaaae09b19"></script>
-<script src="modeles/bordereau.js?v=eaaae09b19"></script>
+<script src="commun/config.js?v=2020942610"></script>
+<script src="commun/api.js?v=2020942610"></script>
+<script src="commun/ui.js?v=2020942610"></script>
+<script src="commun/photos.js?v=2020942610"></script>
+<script src="commun/signature.js?v=2020942610"></script>
+<script src="commun/brouillon.js?v=2020942610"></script>
+<script src="commun/hors-ligne.js?v=2020942610"></script>
+<script src="commun/adresses.js?v=2020942610"></script>
+<script src="commun/destinataires.js?v=2020942610"></script>
+<script src="modeles/bordereau.js?v=2020942610"></script>
 <script>
 'use strict';
 // ── Organigramme ou matériaux : choisi par l'adresse (bordereau.html?type=orga ou ?type=materiaux) ──
@@ -179,7 +179,6 @@ document.getElementById('nombre-oblig').hidden = ORGA;   // nombre obligatoire p
 
 // ── État de la fiche ──
 let photos = [];
-let destinataires = [];
 let LISTES = { contacts: [], contactNotes: [], chantiers: [], types: [], materiaux: [], fonctions: [] };
 const SIG = {
   loue: LOUE.signature(document.getElementById('sig-loue')),
@@ -212,40 +211,8 @@ LOUE.chargerListes().then(r => {
   document.getElementById('listes-info').textContent = 'Listes indisponibles (pas de réseau). Tapez le nom du chantier : la fiche partira quand même.';
 });
 
-// ── Destinataires ──
-function filtrerDest(val) {
-  const sugg = document.getElementById('dest-sugg');
-  const v = (val || '').toLowerCase();
-  const liste = (LISTES.contactNotes || []).concat(LISTES.contacts || []).filter(u => u.email);
-  const m = v ? liste.filter(u => String(u.nom).toLowerCase().includes(v) || String(u.email).toLowerCase().includes(v)).slice(0, 8) : [];
-  if (!m.length) { sugg.classList.remove('open'); return; }
-  sugg.innerHTML = m.map(u => '<div class="dest-sugg-item" data-email="' + LOUE.esc(u.email) + '">' + LOUE.esc(u.nom) + ' <small>' + LOUE.esc(u.email) + '</small></div>').join('');
-  sugg.classList.add('open');
-}
-document.getElementById('dest-sugg').addEventListener('click', ev => {
-  const item = ev.target.closest('[data-email]');
-  if (!item) return;
-  document.getElementById('dest-input').value = item.getAttribute('data-email');
-  ajouterDest();
-});
-function ajouterDest() {
-  const input = document.getElementById('dest-input');
-  const val = input.value.trim();
-  document.getElementById('dest-sugg').classList.remove('open');
-  if (!val) return;
-  if (!/^[^\s@]+@[^\s@]+\.[A-Za-z]{2,}$/.test(val)) { LOUE.message('Adresse mail invalide (exemple : nom@exemple.fr)'); input.classList.add('error'); return; }
-  input.classList.remove('error');
-  if (destinataires.includes(val)) { input.value = ''; return; }
-  if (window.LOUE_refuserAdresseLibre && LOUE_refuserAdresseLibre(val, destinataires, (LISTES.contacts || []).concat(LISTES.contactNotes || []))) { input.value = ''; return; }
-  destinataires.push(val); afficherDest(); input.value = '';
-  document.dispatchEvent(new Event('change'));
-}
-function retirerDest(i) { destinataires.splice(i, 1); afficherDest(); document.dispatchEvent(new Event('change')); }
-function afficherDest() {
-  document.getElementById('dest-chips').innerHTML = destinataires.map((d, i) =>
-    '<span class="dest-chip">' + LOUE.esc(d) + '<button type="button" aria-label="Retirer" onclick="retirerDest(' + i + ')">×</button></span>').join('');
-}
-document.addEventListener('click', e => { if (!e.target.closest('.dest-row')) document.getElementById('dest-sugg').classList.remove('open'); });
+// ── Destinataires (brique commune : une adresse tapée sans « + Ajouter » n'est plus perdue) ──
+const DEST = LOUE.destinataires({ contacts: () => (LISTES.contactNotes || []).concat(LISTES.contacts || []) });
 
 // ── Photos : compressées dès qu'on les ajoute ──
 async function ajouterPhotos(fichiers) {
@@ -275,12 +242,12 @@ const BROUILLON = LOUE.brouillon({
   cle: ORGA ? 'bord_orga' : 'bord_mat',
   anciennesCles: [ORGA ? 'brouillon_bord_orga' : 'brouillon_bord_mat'],
   capturer: () => ({
-    destinataires: destinataires.slice(),
+    destinataires: DEST.liste(),
     photos: photos.map(p => ({ id: p.id, blob: p.blob, label: p.label })),
     sigLoue: SIG.loue.lireTraits(), sigPreneur: SIG.preneur.lireTraits(),
   }),
   restaurer: x => {
-    destinataires = (x.destinataires || []).slice(); afficherDest();
+    DEST.remettre(x.destinataires);
     photos = (x.photos || []).filter(p => p.blob).map(p => ({ id: p.id, blob: p.blob, url: URL.createObjectURL(p.blob), label: p.label || '' }));
     afficherPhotos();
     if (x.sigLoue) SIG.loue.ecrireTraits(x.sigLoue);
@@ -298,7 +265,7 @@ function donneesFiche(pourApercu) {
     entreprise: v('meta-entreprise'), typeDoc: v('meta-type'), nombre: v('meta-nombre'),
     commentaires: document.getElementById('meta-commentaires').value,
     sigLoue: SIG.loue.versDataUrl(), sigPreneur: SIG.preneur.versDataUrl(),
-    destinataires: destinataires.slice(),   // le serveur ajoute lui-même le conducteur du chantier (ou Franck)
+    destinataires: DEST.liste(),   // le serveur ajoute lui-même le conducteur du chantier (ou Franck)
     photosBase64: photos.map(p => pourApercu ? { data: p.dataB64 || '', mimeType: 'image/jpeg', label: p.label } : { photoRef: p.id, label: p.label }),
   };
 }
@@ -319,7 +286,7 @@ function imprimer(enPdf) {
 
 function viderFiche() {
   ['meta-preneur', 'meta-fonction', 'meta-entreprise', 'meta-type', 'meta-nombre', 'meta-commentaires'].forEach(id => { document.getElementById(id).value = ''; });
-  destinataires = []; afficherDest();
+  DEST.vider();
   photos.forEach(p => URL.revokeObjectURL(p.url)); photos = []; afficherPhotos();
   SIG.loue.ecrireTraits([]); SIG.preneur.ecrireTraits([]);
   dateHeure();
@@ -330,6 +297,7 @@ function viderFiche() {
 let envoiEnCours = false;
 async function envoyer() {
   if (envoiEnCours) return;
+  if (!DEST.verifierAvantEnvoi()) return;   // adresse tapée mais pas encore validée
   const erreurs = [];
   const champ = id => document.getElementById(id);
   const obligatoires = [['meta-soussigne', 'nom du soussigné'], ['meta-preneur', 'preneur'], ['meta-entreprise', 'entreprise ou particulier'], ['meta-type', 'type']];

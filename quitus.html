@@ -9,8 +9,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Loué App">
 <meta name="theme-color" content="#1A2B4A">
-<link rel="stylesheet" href="commun/style.css?v=eaaae09b19">
-<link rel="stylesheet" href="commun/fiche.css?v=eaaae09b19">
+<link rel="stylesheet" href="commun/style.css?v=2020942610">
+<link rel="stylesheet" href="commun/fiche.css?v=2020942610">
 </head>
 <body>
 
@@ -32,10 +32,9 @@
       <div class="aide">Le conducteur du chantier reçoit automatiquement une copie. Ajoutez ici les autres destinataires (2 adresses hors liste au maximum).</div>
       <div class="dest-chips" id="dest-chips"></div>
       <div class="dest-row">
-        <input class="meta-input" id="dest-input" type="email" inputmode="email" placeholder="nom@exemple.fr" autocomplete="off" data-brouillon="non"
-          oninput="filtrerDest(this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();ajouterDest();}">
+        <input class="meta-input" id="dest-input" type="email" inputmode="email" placeholder="nom@exemple.fr" autocomplete="off" data-brouillon="non">
         <div class="dest-suggestions" id="dest-sugg"></div>
-        <button class="btn btn-secondary" type="button" onclick="ajouterDest()">+ Ajouter</button>
+        <button class="btn btn-secondary" type="button" id="dest-ajouter">+ Ajouter</button>
       </div>
     </div>
   </div>
@@ -138,20 +137,20 @@
   </div>
 </div>
 
-<script src="commun/config.js?v=eaaae09b19"></script>
-<script src="commun/api.js?v=eaaae09b19"></script>
-<script src="commun/ui.js?v=eaaae09b19"></script>
-<script src="commun/photos.js?v=eaaae09b19"></script>
-<script src="commun/signature.js?v=eaaae09b19"></script>
-<script src="commun/brouillon.js?v=eaaae09b19"></script>
-<script src="commun/hors-ligne.js?v=eaaae09b19"></script>
-<script src="commun/adresses.js?v=eaaae09b19"></script>
-<script src="modeles/quitus.js?v=eaaae09b19"></script>
+<script src="commun/config.js?v=2020942610"></script>
+<script src="commun/api.js?v=2020942610"></script>
+<script src="commun/ui.js?v=2020942610"></script>
+<script src="commun/photos.js?v=2020942610"></script>
+<script src="commun/signature.js?v=2020942610"></script>
+<script src="commun/brouillon.js?v=2020942610"></script>
+<script src="commun/hors-ligne.js?v=2020942610"></script>
+<script src="commun/adresses.js?v=2020942610"></script>
+<script src="commun/destinataires.js?v=2020942610"></script>
+<script src="modeles/quitus.js?v=2020942610"></script>
 <script>
 'use strict';
 // ── État de la fiche ──
 let photos = [];          // [{ id, blob, url, label }]
-let destinataires = [];   // adresses ajoutées à la main ou choisies dans la liste
 let soldeVal = '';
 let LISTES = { contacts: [], contactNotes: [], chantiers: [] };
 const SIG = {
@@ -183,40 +182,8 @@ const listesPretes = LOUE.chargerListes().then(r => {
 });
 
 
-// ── Destinataires ──
-function filtrerDest(val) {
-  const sugg = document.getElementById('dest-sugg');
-  const v = (val || '').toLowerCase();
-  const liste = (LISTES.contactNotes || []).concat(LISTES.contacts || []).filter(u => u.email);
-  const m = v ? liste.filter(u => String(u.nom).toLowerCase().includes(v) || String(u.email).toLowerCase().includes(v)).slice(0, 8) : [];
-  if (!m.length) { sugg.classList.remove('open'); return; }
-  sugg.innerHTML = m.map(u => '<div class="dest-sugg-item" data-email="' + LOUE.esc(u.email) + '">' + LOUE.esc(u.nom) + ' <small>' + LOUE.esc(u.email) + '</small></div>').join('');
-  sugg.classList.add('open');
-}
-document.getElementById('dest-sugg').addEventListener('click', ev => {
-  const item = ev.target.closest('[data-email]');
-  if (!item) return;
-  document.getElementById('dest-input').value = item.getAttribute('data-email');
-  ajouterDest();
-});
-function ajouterDest() {
-  const input = document.getElementById('dest-input');
-  const val = input.value.trim();
-  document.getElementById('dest-sugg').classList.remove('open');
-  if (!val) return;
-  if (!/^[^\s@]+@[^\s@]+\.[A-Za-z]{2,}$/.test(val)) { LOUE.message('Adresse mail invalide (exemple : nom@exemple.fr)'); input.classList.add('error'); return; }
-  input.classList.remove('error');
-  if (destinataires.includes(val)) { input.value = ''; return; }
-  if (window.LOUE_refuserAdresseLibre && LOUE_refuserAdresseLibre(val, destinataires, (LISTES.contacts || []).concat(LISTES.contactNotes || []))) { input.value = ''; return; }
-  destinataires.push(val); afficherDest(); input.value = '';
-  document.dispatchEvent(new Event('change'));   // brouillon
-}
-function retirerDest(i) { destinataires.splice(i, 1); afficherDest(); document.dispatchEvent(new Event('change')); }
-function afficherDest() {
-  document.getElementById('dest-chips').innerHTML = destinataires.map((d, i) =>
-    '<span class="dest-chip">' + LOUE.esc(d) + '<button type="button" aria-label="Retirer" onclick="retirerDest(' + i + ')">×</button></span>').join('');
-}
-document.addEventListener('click', e => { if (!e.target.closest('.dest-row')) document.getElementById('dest-sugg').classList.remove('open'); });
+// ── Destinataires (brique commune : une adresse tapée sans « + Ajouter » n'est plus perdue) ──
+const DEST = LOUE.destinataires({ contacts: () => (LISTES.contactNotes || []).concat(LISTES.contacts || []) });
 
 // ── Soldé ──
 function choisirSolde(v) {
@@ -254,12 +221,12 @@ const BROUILLON = LOUE.brouillon({
   cle: 'quitus',
   anciennesCles: ['brouillon_quitus'],
   capturer: () => ({
-    destinataires: destinataires.slice(), solde: soldeVal,
+    destinataires: DEST.liste(), solde: soldeVal,
     photos: photos.map(p => ({ id: p.id, blob: p.blob, label: p.label })),
     sigLoue: SIG.loue.lireTraits(), sigClient: SIG.client.lireTraits(),
   }),
   restaurer: x => {
-    destinataires = (x.destinataires || []).slice(); afficherDest();
+    DEST.remettre(x.destinataires);
     if (x.solde) choisirSolde(x.solde);
     photos = (x.photos || []).filter(p => p.blob).map(p => ({ id: p.id, blob: p.blob, url: URL.createObjectURL(p.blob), label: p.label || '' }));
     afficherPhotos();
@@ -277,7 +244,7 @@ function donneesFiche(pourApercu) {
     intervenant: v('meta-intervenant'), description: document.getElementById('meta-description').value,
     solde: soldeVal,
     sigLoue: SIG.loue.versDataUrl(), sigIntervenant: SIG.client.versDataUrl(),
-    destinataires: destinataires.slice(),   // le serveur ajoute lui-même le conducteur du chantier (ou Franck)
+    destinataires: DEST.liste(),   // le serveur ajoute lui-même le conducteur du chantier (ou Franck)
     // Aperçu : photos lues sur place ; envoi : références aux photos envoyées une par une
     photosBase64: photos.map(p => pourApercu ? { data: p.dataB64 || '', mimeType: 'image/jpeg', label: p.label } : { photoRef: p.id, label: p.label }),
   };
@@ -300,7 +267,7 @@ function imprimer(enPdf) {
 // Remet la fiche à blanc (après rangement dans la file) pour éviter un double envoi
 function viderFiche() {
   ['meta-precision', 'meta-intervenant', 'meta-description'].forEach(id => { document.getElementById(id).value = ''; });
-  destinataires = []; afficherDest();
+  DEST.vider();
   soldeVal = ''; document.getElementById('solde-oui').classList.remove('active'); document.getElementById('solde-non').classList.remove('active');
   photos.forEach(p => URL.revokeObjectURL(p.url)); photos = []; afficherPhotos();
   SIG.loue.ecrireTraits([]); SIG.client.ecrireTraits([]);
@@ -312,6 +279,7 @@ function viderFiche() {
 let envoiEnCours = false;
 async function envoyer() {
   if (envoiEnCours) return;
+  if (!DEST.verifierAvantEnvoi()) return;   // adresse tapée mais pas encore validée
   const erreurs = [];
   const champ = id => document.getElementById(id);
   ['meta-chantier', 'meta-intervenant', 'meta-description'].forEach(id => champ(id).classList.remove('error'));
