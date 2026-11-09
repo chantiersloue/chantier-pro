@@ -241,8 +241,9 @@
         // Déjà tapé quelque chose avant de répondre : on le garde de côté au lieu de l'écraser,
         // et le brouillon restauré sort de la liste (sinon il serait reproposé après l'envoi : double envoi)
         var maintenant = etat();
-        var avant = (deCote && contientQuelqueChose(maintenant)) ? ajouterALaListe(maintenant) : Promise.resolve();
-        if (deCote && LOUE.message && contientQuelqueChose(maintenant)) LOUE.message('Ce que vous veniez de taper est mis de côté (proposé à la prochaine ouverture)', 6000);
+        var garder = (deCote || proposition.source === 'liste') && contientQuelqueChose(maintenant);
+        var avant = garder ? ajouterALaListe(maintenant) : Promise.resolve();
+        if (garder && LOUE.message) LOUE.message('Ce que vous veniez de taper est mis de côté (proposé à la prochaine ouverture)', 6000);
         avant.then(function () { return (proposition.source === 'liste' || deCote) ? retirerDeLaListe(sauve.t) : null; })
           .then(function () { return options.pret; }).catch(function () {})
           .then(function () {
@@ -288,7 +289,7 @@
       // Un brouillon proposé et jamais restauré est mis de côté : il sera reproposé à la prochaine ouverture.
       effacer: function () {
         actif = false; clearTimeout(minuteur);
-        var b = document.querySelector('.loue-brouillon'); if (b) b.remove();
+        var b = document.querySelector('.loue-brouillon:not(.loue-maj)'); if (b) b.remove();   // pas le bandeau « Nouvelle version »
         return mettreDeCote().then(function () { enAttente = null; return effacerCourant(); });
       },
       reprendre: function () { actif = true; deCote = false; derniere = empreinte(etat()); },

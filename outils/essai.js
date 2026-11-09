@@ -18,7 +18,7 @@ A_COPIER.forEach(f => fs.cpSync(path.join(racine, f), path.join(cible, f), { rec
 
 // Mode TEST forcé : l'adresse de production est retirée de la copie
 const config = path.join(cible, 'commun', 'config.js');
-let c = fs.readFileSync(config, 'utf8');
+let c = fs.readFileSync(config, 'utf8').replace(/\r\n/g, '\n');   // fins de ligne Windows (CRLF) : comme construire.js
 const avant = c;
 c = c.replace(/var URL_PRODUCTION = '[^']*';/, "var URL_PRODUCTION = ''; // copie d'essai : jamais la production")
      .replace(/var enTest = [^;]*;/, "var enTest = true; // copie d'essai : toujours en mode TEST")

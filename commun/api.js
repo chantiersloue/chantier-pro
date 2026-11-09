@@ -215,7 +215,14 @@
       });
       return chaine;
     }); };
-    enCours = (navigator.locks && navigator.locks.request ? navigator.locks.request('loue-file-' + CONFIG.env, vider) : vider()).catch(function (err) {
+    // Verrou partagé entre onglets, avec un délai maximal : un onglet Safari suspendu en arrière-plan ne bloque pas les autres
+    var avecVerrou = function () {
+      var ctrl = window.AbortController ? new AbortController() : null;
+      var minuteur = setTimeout(function () { if (ctrl) ctrl.abort(); }, 30000);
+      return navigator.locks.request('loue-file-' + CONFIG.env, ctrl ? { signal: ctrl.signal } : {}, function () { clearTimeout(minuteur); return vider(); })
+        .catch(function (err) { clearTimeout(minuteur); if (err && err.name === 'AbortError') return; throw err; });   // réessayé au prochain passage
+    };
+    enCours = (navigator.locks && navigator.locks.request ? avecVerrou() : vider()).catch(function (err) {
       LOUE.signaler({ type: 'stockage', message: err && err.message });
     }).finally(function () {
       enCours = null; annoncer();
