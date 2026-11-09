@@ -1,7 +1,9 @@
 // ═══════════════════════════════════════════════════════════════
 // Loué App — configuration
 // C'EST LE SEUL ENDROIT où l'adresse (URL) Apps Script est écrite.
-// Après un NOUVEAU déploiement Apps Script, remplacer l'URL ci-dessous, puis uploader ce fichier sur GitHub.
+// Après un NOUVEAU déploiement Apps Script : remplacer l'URL ci-dessous (c'est Claude qui le fait, avec
+// « node outils/construire.js », puis une demande de fusion). Les téléphones redemandent toujours ce fichier
+// au réseau d'abord : la nouvelle adresse leur arrive à l'ouverture suivante.
 // ═══════════════════════════════════════════════════════════════
 (function () {
   var URL_PRODUCTION = 'https://script.google.com/macros/s/AKfycbw5M3sh6EFb0t_oXiZ7qUeQI60ePGredIz9UjjQAWSXUGoWx_M3p8QE0O7B5KqyBV8/exec';

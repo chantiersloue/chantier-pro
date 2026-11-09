@@ -55,7 +55,7 @@
   function proposer(reg) {
     if (!reg.waiting || document.getElementById('loue-maj')) return;
     var b = document.createElement('div');
-    b.id = 'loue-maj'; b.className = 'loue-brouillon no-print';
+    b.id = 'loue-maj'; b.className = 'loue-brouillon loue-maj no-print';
     b.innerHTML = '<span>🔄 Nouvelle version de l’appli disponible.</span><button type="button" data-oui>Mettre à jour</button><button type="button" data-non>Plus tard</button>';
     b.querySelector('[data-oui]').onclick = function () {
       b.remove();
@@ -87,7 +87,10 @@
       // Vérifier les mises à jour au retour dans l'appli
       document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') reg.update().catch(function () {}); });
     }).catch(function () {});
-    if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(function () {});
+    // Protection des données demandée une seule fois par téléphone (Firefox ouvre une fenêtre à chaque demande)
+    var dejaDemande = false;
+    try { dejaDemande = !!localStorage.getItem('loue_persist_demande'); localStorage.setItem('loue_persist_demande', '1'); } catch (e) {}
+    if (!dejaDemande && navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(function () {});
   });
 
 })();

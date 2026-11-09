@@ -185,15 +185,43 @@
       return lireBase(cle).then(function (base) {
         var local = lireLocal(cleLocale);
         if (local && local.champs && (!base || (local.t || 0) > (base.t || 0))) {
-          if (base && base.extra && local.extra) {
-            Object.keys(base.extra).forEach(function (k) {
-              if (Array.isArray(base.extra[k]) && base.extra[k].some(function (x) { return x && x.blob instanceof Blob; })) local.extra[k] = base.extra[k];
-            });
-          }
+          if (base && base.extra && local.extra) rattacherPhotos(local.extra, photosParId(base.extra, {}));
           return local;
         }
         return base || lireAncien();
       });
+    }
+    // Toutes les photos (Blob) d'un brouillon, rangées par identifiant, où qu'elles soient (listes, blocs…)
+    function photosParId(v, carte) {
+      if (Array.isArray(v)) v.forEach(function (x) { photosParId(x, carte); });
+      else if (v && typeof v === 'object' && !(v instanceof Blob)) {
+        if (v.id && v.blob instanceof Blob) carte[v.id] = v.blob;
+        Object.keys(v).forEach(function (k) { photosParId(v[k], carte); });
+      }
+      return carte;
+    }
+    // Remet dans la copie texte (sans photos) chaque photo retrouvée par son identifiant dans la copie complète
+    function rattacherPhotos(v, carte) {
+      if (Array.isArray(v)) v.forEach(function (x) { rattacherPhotos(x, carte); });
+      else if (v && typeof v === 'object') {
+        if (v.id && !(v.blob instanceof Blob) && carte[v.id]) v.blob = carte[v.id];
+        Object.keys(v).forEach(function (k) { if (k !== 'blob') rattacherPhotos(v[k], carte); });
+      }
+    }
+    // Un brouillon ne vaut la peine d'être proposé que s'il contient autre chose que la page vierge
+    var vierge = null;
+    function contientQuelqueChose(e) {
+      if (!e) return false;
+      var v = vierge || { champs: {}, extra: {} };
+      var champs = e.champs || {};
+      var saisi = Object.keys(champs).some(function (id) {
+        var o = champs[id] || {}, ref = v.champs[id] || {};
+        if (o.c !== undefined) return o.c !== (ref.c === undefined ? false : ref.c);
+        if (o.h !== undefined) return String(o.h).replace(/<[^>]*>|&nbsp;|\s/g, '') !== '' && o.h !== ref.h;
+        return String(o.v || '').trim() !== '' && o.v !== ref.v;
+      });
+      var texte = function (x) { return JSON.stringify(x || {}, function (k, y) { return y instanceof Blob ? 'blob' : y; }); };
+      return saisi || texte(e.extra) !== texte(v.extra);
     }
     function effacerCourant() {
       anciennes.concat([cleLocale]).forEach(function (k) { try { localStorage.removeItem(k); } catch (e) {} });
@@ -210,7 +238,12 @@
       bar.querySelector('[data-oui]').onclick = function () {
         bar.remove();
         enAttente = null;
-        (proposition.source === 'liste' ? retirerDeLaListe(sauve.t) : Promise.resolve())
+        // Déjà tapé quelque chose avant de répondre : on le garde de côté au lieu de l'écraser,
+        // et le brouillon restauré sort de la liste (sinon il serait reproposé après l'envoi : double envoi)
+        var maintenant = etat();
+        var avant = (deCote && contientQuelqueChose(maintenant)) ? ajouterALaListe(maintenant) : Promise.resolve();
+        if (deCote && LOUE.message && contientQuelqueChose(maintenant)) LOUE.message('Ce que vous veniez de taper est mis de côté (proposé à la prochaine ouverture)', 6000);
+        avant.then(function () { return (proposition.source === 'liste' || deCote) ? retirerDeLaListe(sauve.t) : null; })
           .then(function () { return options.pret; }).catch(function () {})
           .then(function () {
             remettreChamps(sauve.champs);
@@ -222,14 +255,19 @@
       bar.querySelector('[data-non]').onclick = function () {
         if (!confirm('Effacer ce brouillon ? Ce qui y était saisi (photos et signatures comprises) sera perdu.')) return;
         bar.remove(); enAttente = null;
-        (proposition.source === 'liste' ? retirerDeLaListe(sauve.t) : effacerCourant()).then(function () { derniere = null; sauver(); });
+        // Brouillon proposé déjà mis de côté (on avait commencé à taper) : il sort de la liste ; ce qui est à l'écran reste
+        if (proposition.source === 'liste' || deCote) { retirerDeLaListe(sauve.t).then(function () { derniere = null; sauver(); }); return; }
+        // Sinon la page est vierge : on efface, et l'état vierge devient la référence (rien n'est réenregistré,
+        // la bannière ne reviendra pas à la prochaine ouverture)
+        effacerCourant().then(function () { derniere = empreinte(etat()); });
       };
       document.body.appendChild(bar);
     }
 
     // Démarrage : attendre les pré-remplissages (date…), puis prendre l'état de référence
     setTimeout(function () {
-      derniere = empreinte(etat());
+      vierge = etat();
+      derniere = empreinte(vierge);
       document.addEventListener('input', differer, true);
       document.addEventListener('change', differer, true);
       setInterval(sauver, 4000);
@@ -238,9 +276,9 @@
       document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'hidden') sauver(); });
       Promise.all([lireCourant(), lireListe()]).then(function (r) {
         var courant = r[0], liste = r[1];
-        var plein = function (e) { return e && (Object.keys(e.champs || {}).length || Object.keys(e.extra || {}).length); };
-        if (plein(courant)) banniere({ etat: courant, source: 'courant' });
-        else if (liste.length) banniere({ etat: liste[0], source: 'liste' });   // le plus récent des brouillons mis de côté
+        var utiles = liste.filter(contientQuelqueChose);
+        if (contientQuelqueChose(courant)) banniere({ etat: courant, source: 'courant' });
+        else if (utiles.length) banniere({ etat: utiles[0], source: 'liste' });   // le plus récent des brouillons mis de côté
       });
     }, 500);
 

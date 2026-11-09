@@ -69,7 +69,7 @@
       var d = new Date(e.cree);
       var heure = ('0' + d.getDate()).slice(-2) + '/' + ('0' + (d.getMonth() + 1)).slice(-2) + ' ' + ('0' + d.getHours()).slice(-2) + 'h' + ('0' + d.getMinutes()).slice(-2);
       return '<li class="' + (e.etat === 'erreur' ? 'erreur' : '') + '"><b>' + LOUE.esc(e.libelle) + '</b> — ' + LOUE.esc(e.donnees.chantier || '') +
-        '<br><small>' + heure + ' · ' + LOUE.esc(e.etat === 'erreur' ? 'Refusée : ' + e.message : (e.message || 'en attente de réseau')) + '</small>' +
+        '<br><small>' + heure + ' · ' + LOUE.esc(e.etat === 'erreur' ? 'À vérifier : ' + e.message : (e.message || 'en attente de réseau')) + '</small>' +
         (e.etat === 'erreur' ? '<br><button type="button" data-reessayer="' + LOUE.esc(e.id) + '">Réessayer</button> '
           + '<button type="button" data-abandonner="' + LOUE.esc(e.id) + '">Abandonner</button>' : '') + '</li>';
     }).join('');
@@ -80,7 +80,11 @@
     f.addEventListener('click', function (ev) {
       var c = ev.target;
       if (c.hasAttribute('data-fermer')) f.remove();
-      if (c.hasAttribute('data-envoyer')) { LOUE.message('Envoi en cours…'); LOUE.viderFile(true); f.remove(); }
+      if (c.hasAttribute('data-envoyer')) {
+        var aEnvoyer = derniereListe.filter(function (e) { return e.etat !== 'erreur'; }).length;
+        LOUE.message(aEnvoyer ? 'Envoi en cours…' : 'Les fiches « à vérifier » ne partent qu’avec « Réessayer »', 6000);
+        LOUE.viderFile(true); f.remove();
+      }
       if (c.getAttribute('data-reessayer')) { LOUE.reessayer(c.getAttribute('data-reessayer')); f.remove(); }
       if (c.getAttribute('data-abandonner') && confirm('Abandonner définitivement cette fiche ? Elle ne sera jamais envoyée.')) {
         LOUE.abandonner(c.getAttribute('data-abandonner')); f.remove();

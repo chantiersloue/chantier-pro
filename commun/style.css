@@ -76,3 +76,7 @@ body.loue-test .loue-brouillon-alerte { top: 40px; padding-top: 10px; }   /* sou
   border-bottom: 1px solid #E0B030; font: 600 14px/1.35 system-ui, -apple-system, sans-serif; }
 .loue-avert-install span { flex: 1; }
 .loue-avert-install button { min-height: 44px; min-width: 56px; border-radius: 8px; border: 1px solid #5A3D00; background: transparent; color: #5A3D00; font: 700 15px system-ui, sans-serif; }
+
+/* Bandeau « Nouvelle version » en haut (la bannière du brouillon et la barre d'envoi restent visibles en bas) */
+.loue-brouillon.loue-maj { top: 0; bottom: auto; padding: calc(10px + env(safe-area-inset-top, 0px)) 16px 10px; }
+body.loue-test .loue-brouillon.loue-maj { top: 40px; padding-top: 10px; }

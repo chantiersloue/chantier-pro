@@ -25,6 +25,7 @@
     if (!err) return 'Erreur inconnue, nouvel essai automatique';
     if (err.name === 'AbortError') return 'Réseau trop lent, nouvel essai automatique';
     if (err.name === 'TypeError' || /fetch|network|load failed|réseau/i.test(err.message || '')) return 'Pas de réseau, nouvel essai automatique';
+    if (err.statut && err.statut < 500 && err.statut !== 408 && err.statut !== 429) return 'Adresse du serveur introuvable (erreur ' + err.statut + ') : prévenez le bureau';
     if (/^Serveur/.test(err.message || '')) return 'Serveur indisponible, nouvel essai automatique';
     return err.message;
   }
@@ -39,7 +40,7 @@
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify(corps), signal: ctrl ? ctrl.signal : undefined,
     }).then(function (rep) {
-      if (!rep.ok) throw new Error('Serveur : erreur ' + rep.status);
+      if (!rep.ok) throw Object.assign(new Error('Serveur : erreur ' + rep.status), { statut: rep.status });
       return rep.json().catch(function () { throw new Error('Serveur : réponse illisible'); });
     }).finally(function () { clearTimeout(minuteur); });
   };
@@ -52,7 +53,7 @@
     basePromesse = new Promise(function (ok, ko) {
       if (!window.indexedDB) return ko(new Error('Stockage du téléphone indisponible'));
       var fini = false;
-      var minuteur = setTimeout(function () { if (!fini) { fini = true; ko(new Error('Stockage du téléphone bloqué (fermez les autres onglets de l’appli)')); } }, 5000);
+      var minuteur = setTimeout(function () { if (!fini) { fini = true; ko(new Error('Mémoire du téléphone bloquée : fermez l’appli (et ses autres onglets), puis rouvrez-la')); } }, 5000);
       var req;
       try { req = indexedDB.open(NOM_BASE, 2); } catch (e) { clearTimeout(minuteur); return ko(e); }
       req.onupgradeneeded = function () {
@@ -166,25 +167,34 @@
   var DELAIS_RESEAU_MIN = [0, 1, 5];
   var ESSAIS_MAX = 12;
   function erreurReseau(err) {
+    // 404, 403… : l'adresse du serveur est fausse ou périmée, ce n'est pas une coupure de réseau
+    if (err && err.statut && err.statut < 500 && err.statut !== 408 && err.statut !== 429) return false;
     return err && (err.name === 'AbortError' || err.name === 'TypeError' || /^Serveur : erreur|fetch|network|load failed/i.test(err.message || ''));
   }
 
   // ── Vider la file (au démarrage, au retour du réseau, au retour dans l'appli, sur bouton) ──
   var enCours = null, aRelancer = false;
+  // Écrire une fiche seulement si elle est encore dans la file (un autre onglet a pu l'envoyer entre-temps)
+  function ecrireSiPresente(el) {
+    return LOUE.stockage.lire('file', el.id).then(function (x) { return x ? LOUE.stockage.ecrire('file', el).then(function () { return true; }) : false; });
+  }
   LOUE.viderFile = function (forcer) {
     if (enCours) { aRelancer = true; return enCours; }
-    enCours = LOUE.stockage.tout('file').then(function (liste) {
+    var vider = function () { return LOUE.stockage.tout('file').then(function (liste) {
       liste.sort(function (a, b) { return a.cree - b.cree; });
       var chaine = Promise.resolve();
-      liste.forEach(function (el) {
+      liste.forEach(function (ancien) {
+        var el = ancien;
         if (el.etat === 'erreur') return;                                   // attend une action de la personne
         if (el.env && el.env !== CONFIG.env) return;                        // fiche d'un autre mode (test / production)
         if (!forcer && el.prochainEssai && Date.now() < el.prochainEssai) return;
-        chaine = chaine.then(function () {
+        chaine = chaine.then(function () { return LOUE.stockage.lire('file', ancien.id); }).then(function (frais) {
+          if (!frais || frais.etat === 'erreur') return;                   // déjà envoyée ou mise de côté entre-temps
+          el = frais;
           el.etat = 'envoi'; el.essais++; annoncer();
           return envoyerPhotosPuisFiche(el,
             function (id) { return LOUE.stockage.lire('photos', id).then(function (p) { return p ? p.blob : null; }); },
-            function () { return LOUE.stockage.ecrire('file', el); }
+            function () { return ecrireSiPresente(el); }
           ).then(function (rep) {
             var supp = el.photos.map(function (id) { return LOUE.stockage.supprimer('photos', id); });
             return Promise.all(supp).then(function () { return LOUE.stockage.supprimer('file', el.id); })
@@ -195,14 +205,17 @@
             var definitif = err.definitif || (el.refusServeur || 0) >= ESSAIS_MAX;
             el.etat = definitif ? 'erreur' : 'en attente';
             el.message = messageClair(err) + (!err.definitif && definitif ? ' (après ' + el.refusServeur + ' essais)' : '');
+            if (definitif) el.message = el.message.replace(/,? nouvel essai automatique/, '');   // plus d'essai automatique : « Réessayer »
             var delais = reseau ? DELAIS_RESEAU_MIN : DELAIS_MIN;
             el.prochainEssai = Date.now() + delais[Math.min(el.essais, delais.length - 1)] * 60000;
-            return LOUE.stockage.ecrire('file', el).then(function () { LOUE.signaler({ type: el.etat, element: el }); });
+            // Fiche disparue de la file pendant l'essai : un autre onglet l'a envoyée, rien à signaler
+            return ecrireSiPresente(el).then(function (encore) { if (encore) LOUE.signaler({ type: el.etat, element: el }); });
           });
         });
       });
       return chaine;
-    }).catch(function (err) {
+    }); };
+    enCours = (navigator.locks && navigator.locks.request ? navigator.locks.request('loue-file-' + CONFIG.env, vider) : vider()).catch(function (err) {
       LOUE.signaler({ type: 'stockage', message: err && err.message });
     }).finally(function () {
       enCours = null; annoncer();

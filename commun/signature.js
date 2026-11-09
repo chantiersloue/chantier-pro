@@ -70,10 +70,14 @@
     return {
       effacer: function () { traits = []; dessiner(); canvas.dispatchEvent(new Event('change', { bubbles: true })); },
       annuler: function () { traits.pop(); dessiner(); canvas.dispatchEvent(new Event('change', { bubbles: true })); },
-      // Vide si aucun trait, ou un simple point / gribouillis minuscule
+      // Vide si aucun trait, ou un simple point / gribouillis minuscule : on mesure la LONGUEUR du tracé
+      // (un paraphe rapide a peu de points mais un vrai tracé ; 30 px ≈ un dixième de la largeur du cadre)
       estVide: function () {
-        var n = 0; traits.forEach(function (t) { n += t.length; });
-        return n < 8;
+        var longueur = 0;
+        traits.forEach(function (t) {
+          for (var i = 1; i < t.length; i++) longueur += Math.sqrt(Math.pow(t[i].x - t[i - 1].x, 2) + Math.pow(t[i].y - t[i - 1].y, 2));
+        });
+        return longueur < 30;
       },
       versDataUrl: function () {
         if (this.estVide()) return '';

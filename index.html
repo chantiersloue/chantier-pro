@@ -6,7 +6,7 @@
 <title>Loué App</title>
 <link rel="icon" type="image/png" href="apple-touch-icon.png">
 <link rel="manifest" href="manifest.json">
-<link rel="stylesheet" href="commun/style.css?v=4b228386af">
+<link rel="stylesheet" href="commun/style.css?v=db470dff89">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -268,6 +268,7 @@ body.loue-test .installer{padding-top:calc(56px + env(safe-area-inset-top,0px));
     <li><span>Touchez <strong>Ajouter</strong>, en haut à droite.</span></li>
     <li><span>Fermez Safari, puis ouvrez <strong>Loué App</strong> avec sa nouvelle icône sur l’écran d’accueil.</span></li>
   </ol>
+  <p class="attention" id="install-file" hidden></p>
   <p class="attention">⚠ Une fiche commencée dans Safari ne se retrouve pas dans l’appli installée : envoyez-la d’abord.</p>
   <button type="button" onclick="continuerSansInstaller()">Continuer sans installer (déconseillé)</button>
 </div>
@@ -477,10 +478,10 @@ body.loue-test .installer{padding-top:calc(56px + env(safe-area-inset-top,0px));
 </div>
 
 
-<script src="commun/config.js?v=4b228386af"></script>
-<script src="commun/api.js?v=4b228386af"></script>
-<script src="commun/ui.js?v=4b228386af"></script>
-<script src="commun/hors-ligne.js?v=4b228386af"></script>
+<script src="commun/config.js?v=db470dff89"></script>
+<script src="commun/api.js?v=db470dff89"></script>
+<script src="commun/ui.js?v=db470dff89"></script>
+<script src="commun/hors-ligne.js?v=db470dff89"></script>
 <script>
 // ── Accueil (lot 1.3 / 1.4) : listes par les briques communes, écran d'installation iPhone, « À propos » ──
 const esc = LOUE.esc;
@@ -626,6 +627,15 @@ function verifierInstallation() {
   if (!LOUE.estIPhone() || LOUE.estInstalle()) return;
   try { if (sessionStorage.getItem('loue_sans_installer')) return; } catch (e) {}
   document.getElementById('installer-iphone').hidden = false;
+  // Fiches encore dans la mémoire de Safari : elles ne passeront pas dans l'appli installée
+  LOUE.stockage.tout('file').then(liste => {
+    const n = liste.filter(e => !e.env || e.env === LOUE.env).length;
+    const p = document.getElementById('install-file');
+    if (!n) return;
+    p.textContent = '⚠ ' + n + (n > 1 ? ' fiches ne sont pas encore envoyées' : ' fiche n’est pas encore envoyée') +
+      ' depuis Safari. Attendez « ✓ Tout est envoyé » (avec du réseau) AVANT d’installer : sinon ' + (n > 1 ? 'elles seront perdues.' : 'elle sera perdue.');
+    p.hidden = false;
+  }).catch(() => {});
 }
 function continuerSansInstaller() {
   document.getElementById('installer-iphone').hidden = true;
@@ -653,7 +663,12 @@ async function afficherAPropos() {
   const garde = navigator.storage && navigator.storage.persisted ? await navigator.storage.persisted().catch(() => false) : false;
   lignes.push(['Protection des données', garde ? '✓ le téléphone ne les efface pas de lui-même' : 'non accordée par le téléphone (installez l’appli et utilisez-la régulièrement)']);
   const file = await LOUE.stockage.tout('file').catch(() => null);
-  lignes.push(['Fiches en attente', file === null ? 'mémoire du téléphone indisponible' : (file.length ? file.length + ' — elles partiront dès qu’il y aura du réseau' : '✓ aucune, tout est envoyé')]);
+  const mien = (file || []).filter(e => !e.env || e.env === LOUE.env);
+  const aVerifier = mien.filter(e => e.etat === 'erreur').length, enAttente = mien.length - aVerifier;
+  lignes.push(['Fiches en attente', file === null ? 'mémoire du téléphone indisponible'
+    : (!mien.length ? '✓ aucune, tout est envoyé'
+      : (enAttente ? enAttente + ' — elles partiront dès qu’il y aura du réseau' : '')
+        + (aVerifier ? (enAttente ? ' ; ' : '') + aVerifier + ' à vérifier (touchez l’indicateur en haut, puis « Réessayer »)' : ''))]);
   document.getElementById('apropos-contenu').innerHTML = lignes.map(l => '<div class="apropos-ligne"><div class="apropos-titre">' + l[0] + '</div><div>' + l[1] + '</div></div>').join('');
 }
 function verifierMiseAJour() {
