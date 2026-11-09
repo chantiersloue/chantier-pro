@@ -95,6 +95,7 @@ function verifierConfig() {
   catch (e) { ok(false, 'DRIVE_PLANNING_ID : ' + e.message); }
   ok(estEmail_(emailAdmin_()), 'Adresse de Franck (alertes, copies) : ' + emailAdmin_());
   [SHEET_CONTACTS, SHEET_CONTACT_NOTES, SHEET_CHANTIERS].forEach(n => ok(!!ss.getSheetByName(n), 'Onglet « ' + n + ' »'));
+  lignes.push(verifierDossiers_());   // lot 1.5 : fichier des noms de dossiers
   ok(ScriptApp.getProjectTriggers().some(t => t.getHandlerFunction() === 'renvoyerMailsEnAttente'),
      'Déclencheur des mails reportés (sinon lancer installerDeclencheurs)');
   lignes.push("Mails encore possibles aujourd'hui : " + MailApp.getRemainingDailyQuota());
