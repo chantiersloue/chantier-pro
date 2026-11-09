@@ -1510,6 +1510,46 @@ function executerMigration() {
   } finally { verrou.releaseLock(); }
 }
 
+// 3) RETOUR ARRIÈRE : remet dans leur ancien dossier les documents marqués « déplacé » (relancer tant qu'il en reste).
+//    Les nouveaux dossiers vides restent (rien n'est supprimé). La ligne passe à « remis en place ».
+function annulerMigration() {
+  const verrou = LockService.getScriptLock();
+  if (!verrou.tryLock(30000)) { Logger.log('Une autre opération est en cours : relancez dans une minute.'); return 'occupé'; }
+  try {
+    const debut = Date.now();
+    const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_MIGRATION);
+    if (!sh || sh.getLastRow() < 2) { Logger.log('Aucune migration à annuler.'); return 'rien'; }
+    const lignes = sh.getRange(2, 1, sh.getLastRow() - 1, ENTETES_MIGRATION.length).getValues();
+    let remis = 0, problemes = 0, restants = 0;
+    for (let i = 0; i < lignes.length; i++) {
+      const l = lignes[i];
+      if (l[7] !== 'déplacé') continue;
+      if (Date.now() - debut > DUREE_MAX_MS) { restants++; continue; }
+      let etat;
+      try {
+        const f = DriveApp.getFileById(String(l[3]));
+        // Le dossier chantier est celui qui contient le nouveau dossier actuel du fichier
+        let dossier = f.getParents().next();
+        const profondeur = String(l[5]).split('/').filter(Boolean).length;
+        for (let n = 0; n < profondeur; n++) dossier = dossier.getParents().next();
+        f.moveTo(trouverOuCreerAncien_(dossier, String(l[1])));
+        etat = 'remis en place'; remis++;
+      } catch (err) { etat = 'déplacé (retour impossible : ' + err.message + ')'; problemes++; }
+      sh.getRange(i + 2, 8, 1, 2).setValues([[etat, new Date()]]);
+    }
+    const bilan = remis + ' document(s) remis dans leur ancien dossier, ' + problemes + ' erreur(s).' +
+      (restants ? ' Il en reste ' + restants + ' : relancez annulerMigration().' : ' Retour arrière terminé.');
+    Logger.log(bilan);
+    return bilan;
+  } finally { verrou.releaseLock(); }
+}
+// Ancien dossier (son nom peut contenir « / », ex. « Note/Réunion/Réunion » : ce n'est PAS un chemin)
+function trouverOuCreerAncien_(chantier, nom) {
+  const it = chantier.getFoldersByName(nom);
+  while (it.hasNext()) { const d = it.next(); if (!d.isTrashed()) return d; }
+  return chantier.createFolder(nom);
+}
+
 // Contrôle pour verifierConfig()
 function verifierDossiers_() {
   try {
