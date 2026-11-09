@@ -595,132 +595,38 @@ function traiterReceptionSupport(data, brut) {
 // ATTESTATION
 // ══════════════════════════════════════════════════════════
 function traiterAttestation(data, brut) {
-  const ss         = SpreadsheetApp.getActiveSpreadsheet();
-  const horodatage = new Date();
-  const SHEET_ATT  = 'Attestations';
+  // 1. Sheet — mêmes colonnes qu'avant ; protégé contre les erreurs (données brutes, formules neutralisées)
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const SHEET_ATT = 'Attestations';
+    let sheet = ss.getSheetByName(SHEET_ATT);
+    if(!sheet){
+      sheet = ss.insertSheet(SHEET_ATT);
+      sheet.appendRow(['Horodatage','Type','Chantier','Précision','Signataire','Date','Référence','Objet/DAS N°']);
+      sheet.getRange(1,1,1,8).setFontWeight('bold').setBackground('#6B3FA0').setFontColor('white');
+    }
+    const objetOuDas = brut.typeAttest==='das' ? (brut.dasNumero||'') : String(brut.objet||'').substring(0,100);
+    sheet.appendRow([new Date(), brut.typeLabel||'', brut.chantier||'', brut.precision||'',
+      brut.signataire||'', brut.date||'', brut.ref||'', objetOuDas].map(cellule_));
+  } catch(err) { console.error('Sheet attestation:', err.message); }
 
-  // 1. Sheet
-  let sheet = ss.getSheetByName(SHEET_ATT);
-  if(!sheet){
-    sheet = ss.insertSheet(SHEET_ATT);
-    sheet.appendRow(['Horodatage','Type','Chantier','Précision','Signataire','Date','Référence','Objet/DAS N°']);
-    sheet.getRange(1,1,1,8).setFontWeight('bold').setBackground('#6B3FA0').setFontColor('white');
-  }
-  const objetOuDas = brut.typeAttest==='das' ? (brut.dasNumero||'') : String(brut.objet||'').substring(0,100);
-  sheet.appendRow([horodatage, brut.typeLabel||'', brut.chantier||'', brut.precision||'',
-    brut.signataire||'', brut.date||'', brut.ref||'', objetOuDas].map(cellule_));
+  // 2. PDF — Lot 1 : modèle unique (modeles/attestation.js, copié dans Modeles.gs), le même que l'aperçu de la page.
+  // La qualité du signataire vient TOUJOURS de l'onglet Contacts (colonne B), jamais de la page.
+  const d = validerImages_(brut);
+  const ligneSig = getContactsRaw().find(r => String(r[0]).trim().toLowerCase() === String(brut.signataire||'').trim().toLowerCase());
+  d.qualite = ligneSig ? String(ligneSig[1]||'') : '';
+  const htmlPDF = modele_attestation(d, esc_);
+  const nomFichier = nomFichier_(`Attestation_${String(brut.typeLabel||'').replace(/ /g,'_')}_${String(brut.chantier||'').replace(/ /g,'_')}.pdf`);
+  const blob = HtmlService.createHtmlOutput(htmlPDF).getAs('application/pdf').setName(nomFichier);   // fabriqué une seule fois
+  const fichier = classerFichierDrive(blob, brut.chantier||'DIVERS', 'Attestations', nomFichier);
 
-  // 2. PDF
-  const chFull = data.chantier + (data.precision ? ' — '+data.precision : '');
-  const sig    = data.signature||'';
-
-  // Qualité (rôle) du signataire — colonne B de l'onglet Contacts
-  const _rowSig    = getContactsRaw().find(r => String(r[0]).toLowerCase() === String(brut.signataire||'').toLowerCase());
-  const qualite    = _rowSig ? esc_(String(_rowSig[1]||'')) : '';
-  const qualiteTxt = qualite ? (', en qualité de '+qualite) : '';
-
-  // Couleur d'accent selon le type de document (identique à l'aperçu de l'app)
-  const typeColor  = {'mise-oeuvre':'#1A6B3B','levee-obs':'#B32E2E','das':'#1A2B4A','autre':'#6B3FA0'}[data.typeAttest] || '#6B3FA0';
-
-  let corpsHtml = '';
-  if(data.typeAttest==='das'){
-    const lignes=(data.dasPoints||[]).map((p,i)=>{
-      const cl=p.state==='ok'?'#196B3B':p.state==='nc'?'#B32E2E':p.state==='so'?'#888':'#999';
-      const lb=p.state==='ok'?'✓ OK':p.state==='nc'?'✗ N.C.':p.state==='so'?'— S.O.':'—';
-      return `<tr style="background:${i%2===0?'white':'#FAFAF8'}">
-        <td style="padding:6px 8px;border:1px solid #D8D4CE;font-size:10px">${p.label}</td>
-        <td style="padding:6px 8px;border:1px solid #D8D4CE;font-size:10px;font-weight:700;color:${cl};text-align:center;width:25%">${lb}</td>
-      </tr>`;
-    }).join('');
-    const nbOk=(data.dasPoints||[]).filter(p=>p.state==='ok').length;
-    const nbNc=(data.dasPoints||[]).filter(p=>p.state==='nc').length;
-    const nbSo=(data.dasPoints||[]).filter(p=>p.state==='so').length;
-    corpsHtml=`
-    <table style="width:100%;border-collapse:collapse;margin-bottom:10px">
-      <tr><td style="padding:6px 8px;border:1px solid #D8D4CE;background:#FAFAF8;font-size:9px;font-weight:700;text-transform:uppercase;color:#6A6460;width:38%">N° Bloc porte</td><td style="padding:6px 8px;border:1px solid #D8D4CE;font-weight:700">${data.dasNumero||'—'}</td></tr>
-      <tr><td style="padding:6px 8px;border:1px solid #D8D4CE;background:#FAFAF8;font-size:9px;font-weight:700;text-transform:uppercase;color:#6A6460">Étage / Niveau</td><td style="padding:6px 8px;border:1px solid #D8D4CE">${data.dasEtage||'—'}</td></tr>
-      <tr><td style="padding:6px 8px;border:1px solid #D8D4CE;background:#FAFAF8;font-size:9px;font-weight:700;text-transform:uppercase;color:#6A6460">Localisation</td><td style="padding:6px 8px;border:1px solid #D8D4CE">${data.dasLocalisation||'—'}</td></tr>
-      <tr><td style="padding:6px 8px;border:1px solid #D8D4CE;background:#FAFAF8;font-size:9px;font-weight:700;text-transform:uppercase;color:#6A6460">Asservissement(s)</td><td style="padding:6px 8px;border:1px solid #D8D4CE">${data.asservissements||'—'}</td></tr>
-    </table>
-    <table style="width:100%;border-collapse:collapse;margin-bottom:10px">
-      <thead><tr>
-        <th style="padding:6px 8px;background:#1A2B4A;color:white;font-size:9px;text-align:left">Point de contrôle</th>
-        <th style="padding:6px 8px;background:#1A2B4A;color:white;font-size:9px;text-align:center;width:25%">Résultat</th>
-      </tr></thead>
-      <tbody>${lignes}</tbody>
-    </table>
-    <div style="padding:7px 10px;background:${nbNc>0?'#FAE8E8':'#E1F2E9'};border:1px solid ${nbNc>0?'#B32E2E':'#196B3B'};border-radius:4px;font-size:10px;font-weight:700;color:${nbNc>0?'#B32E2E':'#196B3B'};margin-bottom:10px">
-      Bilan : ${nbOk} conforme(s) · ${nbNc} non conforme(s) · ${nbSo} sans objet
-    </div>`;
-  } else {
-    corpsHtml=`<div style="padding:10px 12px;background:#F7F5F1;border:1px solid #D8D4CE;border-radius:4px;font-size:11px;line-height:1.7;white-space:pre-wrap;margin-bottom:12px">${data.objet||'—'}</div>`;
-  }
-
-  const _nbPhotos  = (data.photos||[]).length;
-  const _photoMaxH = _nbPhotos<=1 ? '78mm' : '68mm';
-  const _photoTdW  = _nbPhotos===1 ? '100%' : '50%';
-  const photosHtml=_nbPhotos?`
-    <div style="margin-top:10px;page-break-inside:avoid">
-      <div style="font-size:9px;font-weight:700;text-transform:uppercase;color:#6A6460;margin-bottom:6px;border-bottom:2px solid ${typeColor};padding-bottom:3px">Photo${_nbPhotos>1?'s':''}</div>
-      <table style="width:100%;border-collapse:collapse"><tr>
-        ${(data.photos||[]).slice(0,2).map(p=>`<td style="width:${_photoTdW};padding:4px;text-align:center"><img src="data:${p.mime};base64,${p.data}" style="max-width:100%;max-height:${_photoMaxH};border:1px solid #ddd;"></td>`).join('')}
-      </tr></table>
-    </div>`:'';
-
-  const htmlPDF=`<html><head><style>
-    @page{size:A4;margin:1.5cm}body{font-family:Arial,sans-serif;font-size:10px;margin:0}*{box-sizing:border-box}
-  </style></head><body>
-  <div style="border-bottom:3px solid ${typeColor};padding-bottom:10px;margin-bottom:14px">
-    <table style="width:100%;border-collapse:collapse">
-      <tr>
-        <td style="vertical-align:top">
-          <div style="font-weight:800;font-size:16px;color:#1A2B4A">Loué Menuiserie</div>
-          <div style="font-size:9px;color:#6A6460">Menuiserie · Charpente · Agencement</div>
-        </td>
-        <td style="text-align:right;vertical-align:top;white-space:nowrap">
-          <div style="font-size:8px;font-weight:700;text-transform:uppercase;color:#6A6460;letter-spacing:.4px">Date</div>
-          <div style="font-size:17px;font-weight:800;color:#1A1A1A">${data.date||'—'}</div>
-          ${data.ref?`<div style="font-size:9px;color:#6A6460;margin-top:4px">Réf : ${data.ref}</div>`:''}
-        </td>
-      </tr>
-    </table>
-    <div style="text-align:center;font-weight:900;font-size:23px;color:${typeColor};letter-spacing:.5px;line-height:1.15;margin-top:12px">${(data.typeLabel||'ATTESTATION').toUpperCase()}</div>
-  </div>
-  <table style="width:100%;border-collapse:collapse;margin-bottom:12px">
-    <tr><td style="padding:6px 8px;border:1px solid #D8D4CE;background:#FAFAF8;font-size:9px;font-weight:700;text-transform:uppercase;color:#6A6460;width:35%">Chantier</td>
-        <td style="padding:6px 8px;border:1px solid #D8D4CE;font-weight:700">${chFull}</td></tr>
-  </table>
-  <div style="margin:0 0 12px;font-size:12px;line-height:1.55">
-    Je soussigné <strong>${data.signataire||'—'}</strong>${qualiteTxt}, certifie que&nbsp;:
-  </div>
-  ${corpsHtml}
-  ${photosHtml}
-  <table style="width:100%;border-collapse:collapse;margin-top:14px;border:none;page-break-inside:avoid">
-    <tr>
-      <td style="border:none;width:50%;padding-right:8px;vertical-align:top">
-        <div style="font-size:9px;font-weight:700;text-transform:uppercase;color:#6A6460;margin-bottom:4px">Signature</div>
-        <div style="border:1px solid #D8D4CE;border-radius:4px;height:75px;background:#FAFAF8;text-align:center;padding:3px">
-          ${sig?`<img src="${sig}" style="max-width:100%;max-height:68px;">`:''}
-        </div>
-        <div style="font-size:9px;color:#6A6460;margin-top:3px">${data.signataire||''} — ${data.date||''}</div>
-      </td>
-      <td style="border:none;width:50%"></td>
-    </tr>
-  </table>
-  </body></html>`;
-
-  const nomFichier=nomFichier_(`Attestation_${String(brut.typeLabel||'').replace(/ /g,'_')}_${String(brut.chantier||'').replace(/ /g,'_')}.pdf`);
-  const fichier = classerFichierDrive(HtmlService.createHtmlOutput(htmlPDF).getAs('application/pdf').setName(nomFichier), brut.chantier||'DIVERS', 'Attestations', nomFichier);
-
-  // Envoi email — conducteur du chantier (contrôlé par distribuer_)
-  const destinataires=[brut.conducteurEmail].filter(Boolean);
-  if(!destinataires.length) destinataires.push(emailConducteurChantier_(brut.chantier) || emailAdmin_());
-
+  // 3. Mail au conducteur du chantier, calculé par le serveur (sinon Franck) — contrôlé par distribuer_
+  const destinataires = [emailConducteurChantier_(brut.chantier) || emailAdmin_()];
   const sujet=`[Loué App] Attestation — ${brut.typeLabel||''} — ${brut.chantier||'?'}`;
   const corps=`Bonjour,\n\nVeuillez trouver ci-joint l'attestation.\n\nType : ${brut.typeLabel||'?'}\nChantier : ${brut.chantier||'?'}\nSignataire : ${brut.signataire||'?'}\n\nLoué App`;
   distribuer_({
     fiche: 'attestation', chantier: brut.chantier, adresses: destinataires,
     sujet: sujet, texte: corps, fichier: fichier, nomPDF: nomFichier,
-    faireBlob: () => HtmlService.createHtmlOutput(htmlPDF).getAs('application/pdf').setName(nomFichier),
+    faireBlob: () => blob,
   });
 }

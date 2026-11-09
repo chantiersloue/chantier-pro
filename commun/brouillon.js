@@ -165,9 +165,16 @@
     function lireAncien() {
       for (var i = 0; i < anciennes.length; i++) {
         var v = lireLocal(anciennes[i]);
-        if (!v || !(v.champs || v.t)) continue;
-        // Format propre à une page (ex. cotes : champs « id: valeur » + lignes) : la page fournit la conversion
-        if (options.convertirAncien) { var c = options.convertirAncien(v); return { cle: cle, t: c.t || Date.now(), champs: c.champs || {}, extra: c.extra || {} }; }
+        if (!v || typeof v !== 'object') continue;
+        // Format propre à une page (ex. cotes : champs « id: valeur » + lignes ; attestation : un objet à plat,
+        // sans « t » ni « champs ») : la page fournit la conversion, qui renvoie null si rien n'est à reprendre
+        if (options.convertirAncien) {
+          var c = null;
+          try { c = options.convertirAncien(v); } catch (e) { c = null; }
+          if (!c) continue;
+          return { cle: cle, t: c.t || Date.now(), champs: c.champs || {}, extra: c.extra || {} };
+        }
+        if (!(v.champs || v.t)) continue;
         return { cle: cle, t: v.t || Date.now(), champs: v.champs || {}, extra: {} };
       }
       return null;

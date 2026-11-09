@@ -232,4 +232,61 @@ test('aucune page n\'appelle Apps Script en JSONP seul (fetch sans cookies d\'ab
   assert.deepStrictEqual(fautives, [], 'pages en JSONP seul : ' + fautives.join(', '));
 });
 
+console.log('Lot 1.3 — attestation');
+const SIG_PNG = 'data:image/png;base64,' + Buffer.from('signature').toString('base64');
+const attestation = extra => Object.assign({ type: 'attestation', typeAttest: 'mise-oeuvre', typeLabel: 'Mise en œuvre',
+  chantier: 'CHANTIER TEST 1', precision: 'Bât. A', signataire: 'Franck PAVAGEAU', date: '09/11/2026', ref: 'PV-OPR-014',
+  objet: 'Pose des menuiseries conforme au DTU', signature: SIG_PNG, photos: [] }, extra || {});
+
+test('mise en œuvre : fiche enregistrée, PDF complet, mail au conducteur du chantier, Sheet et Drive', () => {
+  const g = environnement();
+  const r = poster(g, { action: 'fiche', id: 'fiche-0700-abcd', donnees: attestation() });
+  assert.strictEqual(r.code, 'ENREGISTRE', JSON.stringify(r));
+  const html = pdfDe(g);
+  ['ATTESTATION DE MISE EN ŒUVRE', 'CHANTIER TEST 1 — Bât. A', 'Franck PAVAGEAU', 'en qualité de Conducteur de travaux',
+    'Pose des menuiseries conforme au DTU', 'PV-OPR-014', '09/11/2026', SIG_PNG].forEach(t => assert.ok(html.indexOf(t) > -1, t));
+  assert.deepStrictEqual(g.mails.map(m => m.to), [SEB], 'conducteur du chantier (onglet Chantiers, colonne D)');
+  const f = g.feuilles['Attestations'].lignes;
+  assert.deepStrictEqual(Array.from(f[0]), ['Horodatage', 'Type', 'Chantier', 'Précision', 'Signataire', 'Date', 'Référence', 'Objet/DAS N°']);
+  assert.deepStrictEqual(Array.from(f[1]).slice(1), ['Mise en œuvre', 'CHANTIER TEST 1', 'Bât. A', 'Franck PAVAGEAU', '09/11/2026', 'PV-OPR-014', 'Pose des menuiseries conforme au DTU']);
+  const dossier = g.racine.enfants.find(e => e.nom === 'CHANTIER TEST 1').enfants.find(e => e.nom === 'Attestations');
+  assert.strictEqual(dossier.enfants.length, 1, 'PDF rangé dans Attestations');
+});
+
+test('textes piégés échappés ; la fonction du signataire vient du Sheet, pas de la page ; adresse de la page ignorée', () => {
+  const g = environnement();
+  poster(g, { action: 'fiche', id: 'fiche-0701-abcd', donnees: attestation({ typeAttest: 'autre', typeLabel: 'Vis 4" <90 cm',
+    objet: '<script>alert(1)</script>', precision: '<img src=x onerror=alert(1)>', qualite: '<b>Pirate</b>',
+    conducteurEmail: 'pirate@ext.test', signataire: 'Inconnu' }) });
+  const html = pdfDe(g);
+  assert.ok(html.indexOf('<script>alert') < 0 && html.indexOf('&lt;script&gt;alert(1)&lt;/script&gt;') > -1, 'objet échappé');
+  assert.ok(html.indexOf('<img src=x') < 0, 'précision échappée');
+  assert.ok(html.indexOf('VIS 4&quot; &lt;90 CM') > -1, 'titre « autre » échappé');
+  assert.ok(html.indexOf('Pirate') < 0 && html.indexOf('en qualité de') < 0, 'qualité envoyée par la page ignorée');
+  assert.deepStrictEqual(g.mails.map(m => m.to), [SEB], 'aucun mail à l’adresse envoyée par la page');
+});
+
+test('contrôle DAS : points, bilan et TOUTES les photos (envoyées à part) dans le PDF', () => {
+  const g = environnement();
+  const b64 = n => Buffer.from('photo-das-' + n).toString('base64');
+  for (let i = 1; i <= 3; i++) poster(g, { action: 'photo', id: 'photo-071' + i + '-abcd', fiche: 'fiche-0710-abcd', mime: 'image/jpeg', data: b64(i) });
+  const r = poster(g, { action: 'fiche', id: 'fiche-0710-abcd', donnees: attestation({ typeAttest: 'das', typeLabel: 'Contrôle DAS',
+    dasNumero: 'BP-07', dasEtage: 'R+1', dasLocalisation: 'Hall', asservissements: 'Détecteur de fumée, Électro-aimant',
+    dasPoints: [{ label: 'Joint coupe-feu en bon état', state: 'ok' }, { label: 'Seuil (aucun obstacle)', state: 'nc' }, { label: 'Signalétique conforme', state: 'so' }],
+    photos: [1, 2, 3].map(i => ({ photoRef: 'photo-071' + i + '-abcd' })) }) });
+  assert.strictEqual(r.code, 'ENREGISTRE', JSON.stringify(r));
+  const html = pdfDe(g);
+  ['ATTESTATION DE CONTRÔLE — BLOC PORTE DAS', 'BP-07', 'R+1', 'Hall', 'Détecteur de fumée, Électro-aimant', 'Joint coupe-feu en bon état',
+    '1 conforme(s) · 1 non conforme(s) · 1 sans objet'].forEach(t => assert.ok(html.indexOf(t) > -1, t));
+  [1, 2, 3].forEach(i => assert.ok(html.indexOf(b64(i)) > -1, 'photo ' + i + ' dans le PDF'));
+  assert.strictEqual(g.feuilles['Attestations'].lignes[1][7], 'BP-07', 'n° du bloc porte dans la colonne H');
+});
+
+test('attestation : l’ancien format (photos en base64 dans la fiche) marche toujours', () => {
+  const g = environnement();
+  const r = poster(g, attestation({ photos: [{ data: PHOTO_B64, mime: 'image/jpeg' }], conducteurEmail: SEB }));
+  assert.strictEqual(r.status, 'ok');
+  assert.ok(pdfDe(g).indexOf(PHOTO_B64) > -1);
+});
+
 console.log('\n' + reussis + ' test(s) réussi(s)' + (process.exitCode ? ' — DES TESTS ÉCHOUENT' : ''));
