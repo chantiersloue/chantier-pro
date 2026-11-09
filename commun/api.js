@@ -301,4 +301,20 @@
       })
       .finally(function () { clearTimeout(minuteur); });
   };
+
+  // ── Lecture simple (planning, documents d'un chantier…) : fetch anonyme d'abord, JSONP de secours (règle 3) ──
+  // requete : « action=getDossiers&chantier=… » ; renvoie une promesse des données (rejet si rien n'arrive)
+  LOUE.lire = function (requete, delaiMs) {
+    delaiMs = delaiMs || 15000;
+    var url = URL_API() + '?' + requete + '&t=' + Date.now();
+    var ctrl = window.AbortController ? new AbortController() : null;
+    var minuteur = setTimeout(function () { if (ctrl) ctrl.abort(); }, delaiMs);
+    return fetch(url, { credentials: 'omit', redirect: 'follow', signal: ctrl ? ctrl.signal : undefined })
+      .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+      .catch(function (err) {
+        if (err && err.name === 'AbortError') throw new Error('Réseau trop lent');
+        return jsonp(url, 8000);
+      })
+      .finally(function () { clearTimeout(minuteur); });
+  };
 })();

@@ -4,14 +4,14 @@
 // ne pas les modifier à la main. En cas de gros problème : remplacer ce fichier par outils/sw-secours.js.
 // Les échanges avec Apps Script ne passent JAMAIS par ce cache (fiches, listes : gérés par commun/api.js).
 // ═══════════════════════════════════════════════════════════════
-const VERSION = 'loue-2020942610';
+const VERSION = 'loue-e97f425127';
 const A_GARDER = [
   './', 'index.html', 'quitus.html', 'bordereau.html',
   'cotes.html', 'fiche-fabrication.html', 'note-reunion.html', 'bordereau-orga.html', 'bordereau-materiaux.html',
   'attestation.html', 'reception-support.html', 'absence.html',
   'manifest.json', 'logo.png', 'apple-touch-icon.png',
   // Fichiers communs et modèles, avec leur numéro de version (liste fabriquée par outils/construire.js)
-  /*COMMUNS*/ 'commun/adresses.js?v=2020942610', 'commun/api.js?v=2020942610', 'commun/brouillon.js?v=2020942610', 'commun/config.js?v=2020942610', 'commun/destinataires.js?v=2020942610', 'commun/hors-ligne.js?v=2020942610', 'commun/photos.js?v=2020942610', 'commun/signature.js?v=2020942610', 'commun/ui.js?v=2020942610', 'commun/fiche.css?v=2020942610', 'commun/style.css?v=2020942610', 'modeles/bordereau.js?v=2020942610', 'modeles/cotes.js?v=2020942610', 'modeles/fabrication.js?v=2020942610', 'modeles/quitus.js?v=2020942610',
+  /*COMMUNS*/ 'commun/adresses.js?v=e97f425127', 'commun/api.js?v=e97f425127', 'commun/brouillon.js?v=e97f425127', 'commun/config.js?v=e97f425127', 'commun/destinataires.js?v=e97f425127', 'commun/hors-ligne.js?v=e97f425127', 'commun/photos.js?v=e97f425127', 'commun/signature.js?v=e97f425127', 'commun/ui.js?v=e97f425127', 'commun/fiche.css?v=e97f425127', 'commun/style.css?v=e97f425127', 'modeles/bordereau.js?v=e97f425127', 'modeles/cotes.js?v=e97f425127', 'modeles/fabrication.js?v=e97f425127', 'modeles/quitus.js?v=e97f425127',
 ];
 
 self.addEventListener('install', ev => {

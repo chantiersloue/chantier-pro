@@ -8,6 +8,41 @@
 (function () {
   'use strict';
   var LOUE = window.LOUE = window.LOUE || {};
+
+  // ── Installation sur l'écran d'accueil (lot 1.4) ──
+  // iPhone / iPad (les iPad récents se présentent comme un Mac avec écran tactile)
+  LOUE.estIPhone = function () {
+    return /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  };
+  LOUE.estInstalle = function () {
+    return navigator.standalone === true || (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
+  };
+  // Android / PC : le navigateur propose lui-même l'installation ; on garde sa proposition pour un bouton « Installer »
+  var propositionInstallation = null;
+  window.addEventListener('beforeinstallprompt', function (e) {
+    e.preventDefault(); propositionInstallation = e;
+    document.dispatchEvent(new Event('loue-installable'));
+  });
+  LOUE.peutProposerInstallation = function () { return !!propositionInstallation; };
+  LOUE.proposerInstallation = function () {
+    if (!propositionInstallation) return Promise.resolve(false);
+    var p = propositionInstallation; propositionInstallation = null;
+    p.prompt();
+    return p.userChoice.then(function (c) { return c && c.outcome === 'accepted'; }).catch(function () { return false; });
+  };
+  // Sur iPhone, dans Safari (appli pas installée), iOS peut effacer brouillons et fiches en attente après 7 jours
+  // sans visite, et Safari et l'appli installée n'ont pas la même mémoire : on le dit sur chaque fiche.
+  // (L'accueil affiche, lui, l'écran complet « Installer l'appli ».)
+  document.addEventListener('DOMContentLoaded', function () {
+    if (!LOUE.estIPhone() || LOUE.estInstalle() || document.body.hasAttribute('data-accueil')) return;
+    try { if (sessionStorage.getItem('loue_avert_install')) return; } catch (e) {}
+    var b = document.createElement('div');
+    b.className = 'loue-avert-install no-print'; b.setAttribute('role', 'note');
+    b.innerHTML = '<span>📲 Appli pas installée : sur iPhone, vos brouillons et fiches en attente peuvent être effacés. '
+      + 'Ouvrez l’accueil et suivez « Installer l’appli ».</span><button type="button">OK</button>';
+    b.querySelector('button').onclick = function () { b.remove(); try { sessionStorage.setItem('loue_avert_install', '1'); } catch (e) {} };
+    document.body.insertBefore(b, document.body.firstChild);
+  });
   if (!('serviceWorker' in navigator) || /^(localhost|127\.0\.0\.1)$/.test(location.hostname) && !/[?&]sw=1/.test(location.search)) return;
 
   function proposer(reg) {
