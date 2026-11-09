@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="ChantierPro Fab">
 <meta name="theme-color" content="#1A2B4A">
-<link rel="stylesheet" href="commun/style.css?v=4b228386af">
+<link rel="stylesheet" href="commun/style.css?v=db470dff89">
 <style>
 :root{--orange:#D95818;--orange-l:#F8ECE4;--orange-d:#AA4110;--bg:#F2F0EC;--card:#FFF;--text:#141210;--muted:#6A6460;--border:#D8D4CE;--border2:#B8B4AE;--blue:#1454A0;--blue-l:#DCE8F8;--blue-d:#0D3D7A;--green:#196B3B;--green-l:#E1F2E9;--amber:#9A5600;--amber-l:#FDF0D8;--red:#B32E2E;--red-l:#FAE8E8;--purple:#6B3FA0;--purple-l:#EDE8F8;--header-bg:#1A2B4A;--r:8px;--rl:12px;}
 *{margin:0;padding:0;box-sizing:border-box;}
@@ -184,6 +184,25 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 
 .table-wrap-pad{background:var(--card);border:1px solid var(--border);border-radius:var(--rl);padding:16px 18px;}
 
+/* ── Terrain : champs à 16 px (sinon l'iPhone zoome à chaque champ touché), zones à toucher d'au moins 44 px ── */
+/* « !important » : certains champs des tableaux ont une petite taille écrite directement dans la ligne */
+input,select,textarea,[contenteditable="true"]{font-size:16px!important;}
+.fiche-meta-input,.info-input,.ti,.delai-date-input,.delai-sem-input{min-height:44px;}
+.fiche-meta-input{min-width:0;}   /* le champ rétrécit au lieu de dépasser de l’écran */
+.btn,.delai-btn,.add-row-btn,.add-photo-btn{min-height:44px;}
+.btn-ghost{padding:9px 12px;min-width:44px;justify-content:center;}
+.del-row{min-width:44px;min-height:44px;justify-content:center;margin:0 auto;}
+.del-row svg{width:18px;height:18px;}
+.modal-close{width:44px;height:44px;flex-shrink:0;}
+.modal-close svg{width:18px;height:18px;}
+.photo-thumb-del{top:2px;right:2px;width:44px;height:44px;}
+.photo-thumb-del svg{width:16px;height:16px;}
+.photo-label-input{padding:0 8px;}
+.photo-label-input input{min-height:44px;}
+.cmt-btn{width:44px;height:44px;}
+.draw-color{width:44px;height:44px;}
+@media(max-width:400px){.tb-badge{display:none;}}   /* petit téléphone : la barre du haut tient sur la largeur */
+
 @media(max-width:700px){.info-grid{grid-template-columns:1fr;}.fiche-title-zone{order:3;width:100%;text-align:left;}.fiche-meta-zone{min-width:100%;width:100%;}.main{padding:10px;}}
 </style>
 </head>
@@ -219,9 +238,9 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
     <div class="fiche-meta-zone">
       <div class="fiche-meta-row">
         <span class="fiche-meta-label">Chantier <span style="color:var(--red);font-size:10px;vertical-align:super">*</span></span>
-        <select class="fiche-meta-input" id="meta-chantier" onchange="onChantierFabChange(this.value)">
-          <option value="">— Sélectionner —</option>
-        </select>
+        <input class="fiche-meta-input" id="meta-chantier" list="liste-chantiers" placeholder="Choisir ou taper le chantier" autocomplete="off"
+          oninput="onChantierFabChange(this.value)" onchange="onChantierFabChange(this.value)">
+        <datalist id="liste-chantiers"></datalist>
       </div>
       <div class="fiche-meta-row">
         <span class="fiche-meta-label">N° Série</span>
@@ -472,13 +491,13 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
   </div>
 </div>
 
-<script src="commun/config.js?v=4b228386af"></script>
-<script src="commun/api.js?v=4b228386af"></script>
-<script src="commun/ui.js?v=4b228386af"></script>
-<script src="commun/photos.js?v=4b228386af"></script>
-<script src="commun/brouillon.js?v=4b228386af"></script>
-<script src="commun/hors-ligne.js?v=4b228386af"></script>
-<script src="modeles/fabrication.js?v=4b228386af"></script>
+<script src="commun/config.js?v=db470dff89"></script>
+<script src="commun/api.js?v=db470dff89"></script>
+<script src="commun/ui.js?v=db470dff89"></script>
+<script src="commun/photos.js?v=db470dff89"></script>
+<script src="commun/brouillon.js?v=db470dff89"></script>
+<script src="commun/hors-ligne.js?v=db470dff89"></script>
+<script src="modeles/fabrication.js?v=db470dff89"></script>
 <script>
 'use strict';
 // Listes locales par défaut — enrichies depuis Google Sheets
@@ -490,19 +509,21 @@ let delaiType = 'pour';
 let ALL_USERS = [], CHEF_ATELIER = { name: 'Non défini' }, ALL_CHANTIERS_FAB = [];
 const esc = LOUE.esc;
 
-// Pré-remplir le conducteur selon le chantier choisi
+// Pré-remplir le conducteur selon le chantier choisi, seulement si le champ est vide
 function onChantierFabChange(val) {
   if (!val || !ALL_CHANTIERS_FAB.length) return;
-  const nomSaisi = val.split(' — ')[0];
-  const c = ALL_CHANTIERS_FAB.find(x => x.nom.toLowerCase() === nomSaisi.toLowerCase());
+  const nomSaisi = val.split(' — ')[0].trim();
+  const c = ALL_CHANTIERS_FAB.find(x => String(x.nom).toLowerCase() === nomSaisi.toLowerCase());
   if (c && c.conducteur) {
     const el = document.getElementById('select-conducteur');
-    if (el && !el.value) { el.value = c.conducteur; onConducteurInput(); }
+    if (el && !el.value.trim()) { el.value = c.conducteur; onConducteurInput(); }
   }
 }
 
 // ── Listes (chantiers, rédacteurs, conducteurs, matériaux…) : réseau, sinon dernière liste gardée dans le téléphone ──
-const listesPretes = LOUE.chargerListes().then(r => {
+let listesDuTelephone = false;
+LOUE.chargerListes().then(r => {
+  listesDuTelephone = !!r.depuisLeTelephone;
   const data = r.donnees || {};
   ALL_USERS = (data.contacts || []).map((c, i) => ({
     id: i + 1, name: c.nom, role: c.role || '',
@@ -516,20 +537,12 @@ const listesPretes = LOUE.chargerListes().then(r => {
   if (chef) { CHEF_ATELIER = chef; document.getElementById('label-chef-atelier').textContent = chef.name; }
   document.getElementById('auteurs-list').innerHTML = ALL_USERS.filter(u => u.chefEquipe).map(u => '<option value="' + esc(u.name) + '">').join('');
   document.getElementById('conduc-list').innerHTML = ALL_USERS.filter(u => u.conducteur).map(u => '<option value="' + esc(u.name) + '">').join('');
-  const sel = document.getElementById('meta-chantier');
-  const choisi = sel.value;
-  while (sel.options.length > 1) sel.remove(1);
+  // Chantiers : suggestions sous le champ (le nom tapé ou repris d'un brouillon n'est jamais effacé)
   ALL_CHANTIERS_FAB = data.chantiers || [];
-  ALL_CHANTIERS_FAB.forEach(c => {
-    const o = document.createElement('option');
-    o.value = c.nom; o.textContent = c.nom + (c.reference ? ' — ' + c.reference : '');
-    sel.appendChild(o);
-  });
-  // Un chantier déjà choisi (brouillon restauré pendant le chargement) n'est jamais perdu
-  if (choisi && !Array.prototype.some.call(sel.options, o => o.value === choisi)) {
-    const o = document.createElement('option'); o.value = choisi; o.textContent = choisi; sel.appendChild(o);
-  }
-  sel.value = choisi;
+  document.getElementById('liste-chantiers').innerHTML = ALL_CHANTIERS_FAB
+    .map(c => '<option value="' + esc(c.nom) + '">' + esc(c.reference || '') + '</option>').join('');
+  // Chantier déjà choisi avant l'arrivée des listes : on propose son conducteur si le champ est vide
+  onChantierFabChange(document.getElementById('meta-chantier').value);
   // Listes évolutives depuis Sheets (utilisées par les nouvelles lignes)
   if (data.materiaux  && data.materiaux.length)  MATERIAUX  = data.materiaux;
   if (data.finitions  && data.finitions.length)  FINITIONS  = data.finitions;
@@ -537,7 +550,7 @@ const listesPretes = LOUE.chargerListes().then(r => {
   if (r.depuisLeTelephone) LOUE.message('Pas de réseau : listes du ' + new Date(r.date).toLocaleDateString('fr-FR') + ' gardées dans le téléphone.', 6000);
 }).catch(() => {
   document.getElementById('label-chef-atelier').textContent = 'Prévenu automatiquement';
-  LOUE.message('Listes indisponibles (pas de réseau). La fiche pourra partir plus tard.', 8000);
+  LOUE.message('Listes indisponibles (pas de réseau). Tapez le nom du chantier : la fiche partira plus tard.', 8000);
 });
 
 // ── DÉLAI ──
@@ -688,14 +701,14 @@ function options(liste) { return liste.map(v => '<option value="' + esc(v) + '">
 function diversTableHTML(b) {
   if (!b.rows.length) return '<div style="padding:18px;text-align:center;color:var(--muted);font-size:13px">Aucune ligne — touchez « Ajouter ligne »</div>';
   const thead = `<thead><tr>
-    <th class="th-group th-ref col-sep" rowspan="2" style="vertical-align:middle;text-align:left;padding-left:8px;min-width:55px">Rep.</th>
+    <th class="th-group th-ref col-sep" rowspan="2" style="vertical-align:middle;text-align:left;padding-left:8px;min-width:125px">Rep.</th>
     <th class="th-group th-ref col-sep" rowspan="2" style="vertical-align:middle;min-width:50px">Qté</th>
     <th class="th-group th-dim" colspan="3">DIMENSIONS (mm)</th>
     <th class="th-group th-dim col-sep" rowspan="2" style="vertical-align:middle;min-width:72px">Section</th>
     <th class="th-group th-mat col-sep" rowspan="2" style="vertical-align:middle;min-width:115px">Matériau</th>
     <th class="th-group th-fin" colspan="2">FINITION &amp; QUINCAILLERIE</th>
     <th class="th-group th-ref" rowspan="2" style="vertical-align:middle;min-width:140px">Observations</th>
-    <th class="th-group th-ref" rowspan="2" style="width:26px"></th>
+    <th class="th-group th-ref" rowspan="2" style="width:52px"></th>
   </tr><tr>
     <th style="min-width:72px">Long.</th><th style="min-width:72px">Larg.</th><th style="min-width:72px">Ép.</th>
     <th style="min-width:115px">Finition</th><th class="col-sep" style="min-width:120px">Quincaillerie</th>
@@ -704,7 +717,7 @@ function diversTableHTML(b) {
   const tbody = b.rows.map((r, i) => {
     const maj = champ => 'oninput="updateBlocRow(' + b.id + ',' + r.id + ',\'' + champ + '\',this.value)"';
     return `<tr style="background:${i % 2 === 0 ? 'white' : '#FDFCFA'}">
-    <td class="col-sep" style="padding:3px 4px;min-width:55px"><div style="display:flex;align-items:center;gap:3px"><span class="row-num">${i + 1}</span>
+    <td class="col-sep" style="padding:3px 4px;min-width:125px"><div style="display:flex;align-items:center;gap:3px"><span class="row-num">${i + 1}</span>
       <input id="br-rep-${r.id}" data-brouillon="non" class="ti ti-left" style="font-weight:700;font-size:12px" placeholder="Rep." value="${esc(r.repere)}" ${maj('repere')} maxlength="8"></div></td>
     <td class="col-sep"><input class="ti ti-num" placeholder="—" value="${esc(r.qte)}" type="number" ${maj('qte')} style="max-width:48px"></td>
     <td><input class="ti ti-num" placeholder="—" value="${esc(r.long)}" type="number" ${maj('long')}></td>
@@ -1009,10 +1022,10 @@ function porteTableHTML(b) {
 
   const thead = `<thead>
     <tr>
-      <th class="th-group th-ref col-sep" rowspan="2" style="vertical-align:middle;text-align:left;padding-left:8px;min-width:55px">Rep.</th>
+      <th class="th-group th-ref col-sep" rowspan="2" style="vertical-align:middle;text-align:left;padding-left:8px;min-width:125px">Rep.</th>
       <th class="th-group th-ref col-sep" rowspan="2" style="vertical-align:middle;min-width:50px">QT</th>
       ${thV}${thH}${thC}
-      <th class="th-group th-ref" rowspan="2" style="vertical-align:middle;width:26px"></th>
+      <th class="th-group th-ref" rowspan="2" style="vertical-align:middle;width:52px"></th>
     </tr>
     <tr>${th2V}${th2H}${th2C}</tr>
   </thead>`;
@@ -1033,7 +1046,7 @@ function porteTableHTML(b) {
       + '<td>' + combo(r.id, 'serrure', SERRURE, r.serrure, 'Serrure') + '</td>';
 
     return `<tr style="background:${i % 2 === 0 ? 'white' : '#FDFCFA'}">
-      <td class="col-sep" style="padding:3px 4px;min-width:55px">
+      <td class="col-sep" style="padding:3px 4px;min-width:125px">
         <div style="display:flex;align-items:center;gap:3px">
           <span class="row-num">${i + 1}</span>
           <input id="br-rep-${r.id}" data-brouillon="non" class="ti ti-left" style="font-weight:700;font-size:12px" placeholder="Rep." value="${esc(r.repere)}" ${maj(r.id, 'repere')} maxlength="8">
@@ -1138,7 +1151,17 @@ async function sendDoc() {
   const conducteurInput = document.getElementById('select-conducteur');
   const conducteurVal = conducteurInput.value.trim();
 
-  if (!ci.value.trim()) { ci.classList.add('field-error'); errors.push('Chantier manquant'); } else ci.classList.remove('field-error');
+  const nomChantier = ci.value.trim();
+  const chantierConnu = ALL_CHANTIERS_FAB.find(c => String(c.nom).toLowerCase() === nomChantier.toLowerCase());
+  let chantierHorsListe = false;
+  ci.classList.remove('field-error');
+  if (!nomChantier) { ci.classList.add('field-error'); errors.push('Chantier manquant'); }
+  // Liste chargée : le chantier doit en faire partie (une faute de frappe créerait un nouveau dossier dans Drive)
+  else if (ALL_CHANTIERS_FAB.length && !chantierConnu) {
+    // Liste ancienne gardée dans le téléphone : un chantier récent peut manquer → confirmation demandée plus bas
+    if (listesDuTelephone) chantierHorsListe = true;
+    else { ci.classList.add('field-error'); errors.push('Choisissez le chantier dans la liste'); }
+  }
   if (!ai.value.trim()) { ai.classList.add('field-error'); errors.push('« Rédigé par » manquant'); } else ai.classList.remove('field-error');
   if (!conducteurVal) {
     conducteurInput.classList.add('field-error');
@@ -1154,6 +1177,11 @@ async function sendDoc() {
     b.scrollIntoView({ behavior: 'smooth', block: 'center' });
     return;
   }
+  if (chantierHorsListe && !confirm('« ' + nomChantier + ' » n’est pas dans la liste gardée dans le téléphone (pas de réseau). Envoyer quand même avec ce nom ?')) {
+    ci.classList.add('field-error'); ci.focus();
+    return;
+  }
+  if (chantierConnu) ci.value = chantierConnu.nom;   // même écriture que dans la liste (majuscules comprises)
   document.getElementById('validationBanner').classList.remove('show');
 
   envoiEnCours = true;
