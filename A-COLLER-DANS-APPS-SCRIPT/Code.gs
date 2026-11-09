@@ -1,7 +1,7 @@
 // ═══════════════════════════════════════════════════════════════
 // LOUÉ APP — SERVEUR COMPLET, À COLLER DANS APPS SCRIPT (fichier « Code.gs », tout remplacer)
 // FICHIER GÉNÉRÉ AUTOMATIQUEMENT par « node outils/construire.js » — NE PAS MODIFIER À LA MAIN :
-// les sources sont dans le dossier apps-script/ du dépôt. Version 4b228386af
+// les sources sont dans le dossier apps-script/ du dépôt. Version du serveur 034277c05f (pages 4b228386af)
 // ═══════════════════════════════════════════════════════════════
 
 // ████ Config.gs ████
@@ -273,10 +273,11 @@ function distribuer_(o) {
   });
   if (ignorees) journal_(o, ignorees + ' autre(s) adresse(s)', 'refusé', 'plus de 20 adresses hors Sheet sur une fiche');
 
-  servies.forEach(email => envoyer_(o, email, { sujet: o.sujet, texte: o.texte, html: o.html || '', bcc: '' }, 'connue'));
-
+  // Toutes les lectures du Sheet AVANT le premier mail : une erreur de lecture ne peut plus couper un envoi à moitié
   const libelle    = LIBELLES_FICHES[o.fiche] || 'Document';
   const chantierOk = ligneChantier_(o.chantier) ? String(o.chantier).trim() : '';  // jamais de texte libre dans le mail
+
+  servies.forEach(email => envoyer_(o, email, { sujet: o.sujet, texte: o.texte, html: o.html || '', bcc: '' }, 'connue'));
   libres.forEach((email, i) => {
     if (i >= MAX_LIBRES_PAR_FICHE) {
       journal_(o, email, 'refusé', 'plus de ' + MAX_LIBRES_PAR_FICHE + ' adresses libres sur la même fiche');
@@ -395,6 +396,8 @@ function alerte_(texte, sorte) {
       abandon: "[Loué App] Mail abandonné — voir l'onglet Mails en attente",
       erreur : "[Loué App] Fiche non traitée — voir l'onglet Envois",
       photos : "[Loué App] Trop de photos aujourd'hui",
+      dossiers : '[Loué App] dossiers.json illisible',
+      rangement: '[Loué App] Document non rangé dans Drive',
     }[sorte] || "[Loué App] Envoi refusé — voir l'onglet Journal";
     GmailApp.sendEmail(emailAdmin_(), sujet,
       texte + "\n\nLes cas suivants de la journée sont notés dans l'onglet « Journal » du Sheet, sans autre mail.\n\nLoué App",
@@ -526,9 +529,9 @@ function getDossiers(chantierNom, callback) {
 
     // Lot 0 : seuls les sous-dossiers encore partagés par lien sont listés
     // (les autres ne s'ouvriraient plus chez les poseurs, et leurs noms de fichiers ne doivent pas fuiter)
-    Object.entries(SOUS_DOSSIERS).forEach(([cle, nomDossier]) => {
-      if (SOUS_DOSSIERS_PARTAGES.indexOf(nomDossier) > -1) result[cle] = lireSousDossier(chantierFolder, nomDossier, true);
-    });
+    // Lot 1.5 : le dossier Plans est celui de dossiers.json (même nom que pour le rangement)
+    const plans = dossierParChemin_(chantierFolder, dossiers_().documents.plans, false);
+    result.plans = plans ? lireSousDossier(plans, '', true) : [];
 
   } catch(err) {
     console.error('getDossiers:', err.message);
@@ -538,13 +541,6 @@ function getDossiers(chantierNom, callback) {
   return callback
     ? ContentService.createTextOutput(callback+'('+json+')').setMimeType(ContentService.MimeType.JAVASCRIPT)
     : ContentService.createTextOutput(json).setMimeType(ContentService.MimeType.JSON);
-}
-
-// Lit directement un sous-dossier par nom dans un dossier parent
-function lireSousDossierParNom(parent, nom) {
-  const sub = parent.getFoldersByName(nom);
-  if (!sub.hasNext()) return [];
-  return lireSousDossier(sub.next(), ''); // passe le dossier lui-même
 }
 
 // Lit tous les fichiers d'un sous-dossier (nomSousDossier vide = lire le dossier parent lui-même).
@@ -669,9 +665,9 @@ function idValide_(id) {
 }
 
 // ── Photos : une par requête, gardées dans « _PHOTOS EN COURS/<id de la fiche> » jusqu'à l'envoi de la fiche ──
-const MAX_PHOTO_OCTETS = 3 * 1024 * 1024;   // 3 Mo par photo (une photo compressée fait 200 à 400 Ko)
+const MAX_PHOTO_OCTETS = 1.5 * 1024 * 1024; // 1,5 Mo par photo (une photo compressée fait 200 à 400 Ko)
 const MAX_PHOTOS_PAR_FICHE = 15;
-const MAX_PHOTOS_PAR_JOUR = 400;            // ≈ 120 Mo par jour au pire : protège les 15 Go
+const MAX_PHOTOS_PAR_JOUR = 400;            // 600 Mo par jour au pire (temporaires, à la corbeille après usage) : protège les 15 Go
 // Dossier « _PHOTOS EN COURS » : créé une seule fois (sous verrou), son identifiant est gardé
 function dossierPhotosEnCours_(creer) {
   const props = PropertiesService.getScriptProperties();
@@ -686,15 +682,25 @@ function dossierPhotosFiche_(idFiche) {
   return trouverOuCreerSousDossier(dossierPhotosEnCours_(true), idFiche);
 }
 
+// Les premiers octets disent la vraie nature du fichier (JPEG FF D8 FF, PNG 89 50 4E 47, WEBP « RIFF….WEBP »)
+function signatureImage_(octets, mime) {
+  const o = Array.prototype.map.call(octets || [], x => x & 0xFF);
+  if (mime === 'image/jpeg') return o[0] === 0xFF && o[1] === 0xD8 && o[2] === 0xFF;
+  if (mime === 'image/png')  return o[0] === 0x89 && o[1] === 0x50 && o[2] === 0x4E && o[3] === 0x47;
+  if (mime === 'image/webp') return String.fromCharCode.apply(null, o.slice(0, 4)) === 'RIFF' && String.fromCharCode.apply(null, o.slice(8, 12)) === 'WEBP';
+  return false;
+}
+
 function recevoirPhoto_(corps) {
   if (!idValide_(corps.id) || !idValide_(corps.fiche)) return { ok: false, code: 'DONNEES_INVALIDES', message: 'Identifiant de photo invalide' };
   const mime = /^image\/(jpeg|png|webp)$/.test(corps.mime || '') ? corps.mime : '';
   const b64 = String(corps.data || '');
   if (!mime || !/^[A-Za-z0-9+\/=]+$/.test(b64)) return { ok: false, code: 'DONNEES_INVALIDES', message: 'Photo illisible' };
-  if (b64.length * 0.75 > MAX_PHOTO_OCTETS) return { ok: false, code: 'TROP_GROS', message: 'Photo trop lourde (3 Mo maximum)' };
+  if (b64.length * 0.75 > MAX_PHOTO_OCTETS) return { ok: false, code: 'TROP_GROS', message: 'Photo trop lourde (1,5 Mo maximum)' };
   // Sous verrou (court) : création du dossier de la fiche et compteurs ; l'écriture de la photo se fait ensuite
   const verrou = LockService.getScriptLock();
   if (!verrou.tryLock(15000)) return { ok: false, code: 'SERVEUR_OCCUPE', message: 'Serveur occupé, nouvel essai automatique' };
+  if (!signatureImage_(Utilities.base64Decode(b64.slice(0, 24)), mime)) return { ok: false, code: 'DONNEES_INVALIDES', message: 'Le fichier n’est pas une photo' };
   const nom = corps.id + '.' + mime.split('/')[1];
   let dossier;
   try {
@@ -756,7 +762,7 @@ function recevoirFiche_(corps) {
     if (trouve) {
       const statut = String(sh.getRange(trouve, 5).getValue());
       const recu = sh.getRange(trouve, 2).getValue();
-      if (statut === 'traité') return { ok: true, code: 'DEJA_RECU', message: 'Fiche déjà reçue', data: { id: corps.id } };
+      if (statut.indexOf('traité') === 0) return { ok: true, code: 'DEJA_RECU', message: 'Fiche déjà reçue', data: { id: corps.id } };   // « traité » ou « traité (incomplet) »
       if (statut === 'en cours' && recu instanceof Date && Date.now() - recu.getTime() < 7 * 60 * 1000) {
         return { ok: false, code: 'EN_COURS', message: 'Fiche en cours de traitement, nouvel essai automatique' };
       }
@@ -775,8 +781,9 @@ function recevoirFiche_(corps) {
   let dossierPhotos = null;
   try {
     const enCours = dossierPhotosEnCours_(false);
+    // Le dossier à la corbeille (nettoyage après 7 jours) ne compte pas : les photos renvoyées sont dans le nouveau
     const d = enCours ? enCours.getFoldersByName(corps.id) : null;
-    if (d && d.hasNext()) dossierPhotos = d.next();
+    while (d && d.hasNext()) { const x = d.next(); if (!x.isTrashed()) { dossierPhotos = x; break; } }
   } catch (e) {}
   const manquantes = [];
   const brut = joindrePhotos_(donnees, dossierPhotos, manquantes);
@@ -790,6 +797,15 @@ function recevoirFiche_(corps) {
   try {
     traiterFiche_(brut);
   } catch (err) {
+    // Des mails sont déjà partis : renvoyer la fiche les doublerait. On la note traitée et Franck vérifie.
+    const partis = RAPPORT_ && ((RAPPORT_['envoyé'] || []).length + (RAPPORT_['reporté'] || []).length);
+    if (partis) {
+      sh.getRange(ligne, 5, 1, 2).setValues([['traité (incomplet)', String(err.message).slice(0, 300)]]);
+      RAPPORT_ = null;
+      alerte_('Une fiche « ' + (donnees.type || '?') + ' » a été envoyée en partie (' + err.message + '). ' +
+        "Ne pas la renvoyer (les premiers destinataires l'ont reçue) : voir l'onglet Envois et le Journal.", 'erreur');
+      return { ok: true, code: 'ENREGISTRE', message: 'Fiche enregistrée (envoi incomplet : le bureau est prévenu)', data: { incomplet: true } };
+    }
     sh.getRange(ligne, 5, 1, 2).setValues([['erreur', String(err.message).slice(0, 300)]]);
     RAPPORT_ = null;
     // Souvent passager (Drive, conversion PDF) : le téléphone réessaiera plus tard ; Franck est prévenu
@@ -1252,15 +1268,15 @@ function dossiers_() {
   let conf = DOSSIERS_DEFAUT;
   try {
     const racine = DriveApp.getFolderById(driveRootId_());
-    const fichiers = racine.getFilesByName(NOM_FICHIER_DOSSIERS);
-    if (fichiers.hasNext()) {
-      const lu = JSON.parse(fichiers.next().getBlob().getDataAsString());
+    const fichier = fichierDossiers_(racine);
+    if (fichier) {
+      const lu = JSON.parse(fichier.getBlob().getDataAsString());
       // Valeurs du fichier par-dessus les valeurs par défaut : une clé oubliée ne casse rien
       conf = {
         version: lu.version || 1,
-        documents: Object.assign({}, DOSSIERS_DEFAUT.documents, lu.documents || {}),
-        hors_chantier: Object.assign({}, DOSSIERS_DEFAUT.hors_chantier, lu.hors_chantier || {}),
-        intitules: Object.assign({}, DOSSIERS_DEFAUT.intitules, lu.intitules || {}),
+        documents: cheminsSurs_(DOSSIERS_DEFAUT.documents, lu.documents),
+        hors_chantier: cheminsSurs_(DOSSIERS_DEFAUT.hors_chantier, lu.hors_chantier),
+        intitules: cheminsSurs_(DOSSIERS_DEFAUT.intitules, lu.intitules),
       };
     } else {
       racine.createFile(NOM_FICHIER_DOSSIERS, JSON.stringify(DOSSIERS_DEFAUT, null, 2), 'application/json');
@@ -1268,20 +1284,27 @@ function dossiers_() {
   } catch (err) {
     // Fichier illisible (virgule oubliée…) : on range avec les valeurs par défaut et on prévient Franck
     console.error('dossiers.json :', err.message);
-    alerterFranck_('dossiers.json illisible', 'Le fichier dossiers.json du Drive de l’appli est illisible (' + err.message +
-      '). Les documents sont rangés avec les noms par défaut en attendant. Lancez verifierConfig() pour le détail.');
+    alerte_('Le fichier dossiers.json du Drive de l’appli est illisible (' + err.message +
+      '). Les documents sont rangés avec les noms par défaut en attendant. Lancez verifierConfig() pour le détail.', 'dossiers');
   }
   try { cache.put('dossiers.json', JSON.stringify(conf), 600); } catch (e) {}
   return conf;
 }
 
-// Une alerte de ce type par jour au maximum (le fichier est relu toutes les 10 min)
-function alerterFranck_(cle, texte) {
-  const props = PropertiesService.getScriptProperties();
-  const marque = 'ALERTE_' + cle + '_' + jour_();
-  if (props.getProperty(marque)) return;
-  props.setProperty(marque, '1');
-  try { GmailApp.sendEmail(emailAdmin_(), '[Loué App] ' + cle, texte); } catch (e) { console.error('alerte :', e.message); }
+// dossiers.json de la racine (un fichier mis à la corbeille ne compte pas)
+function fichierDossiers_(racine) {
+  const it = racine.getFilesByName(NOM_FICHIER_DOSSIERS);
+  while (it.hasNext()) { const f = it.next(); if (!f.isTrashed()) return f; }
+  return null;
+}
+// Valeurs de Franck par-dessus les valeurs par défaut ; un nom vide ou contenant « .. » garde la valeur par défaut
+function cheminsSurs_(defaut, lu) {
+  const r = Object.assign({}, defaut);
+  Object.keys(lu || {}).forEach(k => {
+    const v = String(lu[k] == null ? '' : lu[k]).trim();
+    if (v && v.split('/').every(m => m.trim() !== '..')) r[k] = v;
+  });
+  return r;
 }
 
 // Sous-dossier « A/B/C » (créé s'il manque quand creer = true)
@@ -1320,7 +1343,7 @@ function ressemblances_(racine, nom) {
     const f = it.next();
     if (f.isTrashed() || estDossierTechnique_(f)) continue;
     const n = cleChantier_(f.getName());
-    if (n && n !== cle && (n.indexOf(cle) > -1 || cle.indexOf(n) > -1)) trouves.push(f);
+    if (n && (n.indexOf(cle) > -1 || cle.indexOf(n) > -1)) trouves.push(f);
   }
   return trouves;
 }
@@ -1338,7 +1361,7 @@ function dossierChantier_(chantierNom, creer) {
   const exacts = racine.getFoldersByName(nom);
   while (exacts.hasNext()) {
     const d = exacts.next();
-    if (!d.isTrashed()) { if (creer) noterDossierChantier_(nom, d, 'nom exact'); return d; }
+    if (!d.isTrashed() && !estDossierTechnique_(d)) { if (creer) noterDossierChantier_(nom, d, 'nom exact'); return d; }
   }
   // 3. Une seule ressemblance : utilisée, mais notée « à vérifier »
   const proches = ressemblances_(racine, nom);
@@ -1386,6 +1409,8 @@ function classerDocument_(type, blob, chantier, dateTexte, complement) {
     return dossier.createFile(blob.copyBlob().setName(nom));
   } catch (err) {
     console.error('classerDocument_ (' + type + ') :', err.message);
+    alerte_('Un document « ' + type + ' » (chantier « ' + String(chantier || '—') + ' ») n’a pas pu être rangé dans Drive (' +
+      err.message + '). Le mail part quand même ; le PDF est en pièce jointe.', 'rangement');
     return null;
   }
 }
@@ -1397,17 +1422,23 @@ function classerDocument_(type, blob, chantier, dateTexte, complement) {
 // ══════════════════════════════════════════════════════════
 const ANCIENS_DOSSIERS = [
   { nom: 'Fiches',               regles: [[/^cotes[_ ]/i, 'cotes'], [/^fab[_ ]/i, 'fabrication']] },
-  { nom: 'Note/Réunion/Réunion', regles: [[/./, 'note']] },
+  { nom: 'Note/Réunion/Réunion', regles: [[/^note[_ ]/i, 'note']] },
   { nom: 'Quitus',               regles: [[/^quitus/i, 'quitus'], [/^bordereau[_ ]orga/i, 'bordereau-orga'], [/^bordereau[_ ]mat/i, 'bordereau-materiaux']] },
   { nom: 'Bordereaux',           regles: [[/^bordereau[_ ]orga/i, 'bordereau-orga'], [/^bordereau[_ ]mat/i, 'bordereau-materiaux']] },
-  { nom: 'Réceptions Support',   regles: [[/./, 'reception-support']] },
-  { nom: 'Attestations',         regles: [[/./, 'attestation']] },
+  { nom: 'Réceptions Support',   regles: [[/^r[ée]ception[_ ]/i, 'reception-support']] },
+  { nom: 'Attestations',         regles: [[/^attestation[_ ]/i, 'attestation']] },
 ];
 const ENTETES_MIGRATION = ['Dossier chantier', 'Ancien dossier', 'Fichier', 'Identifiant du fichier', 'Type', 'Nouveau dossier', 'Action', 'État', 'Date'];
 
 // 1) Liste ce qui serait déplacé, SANS RIEN DÉPLACER, dans l'onglet « Migration (lot 1) ».
 //    Remplit aussi « Dossiers chantiers » pour les chantiers du Sheet. Peut être relancée sans risque.
 function planMigration() {
+  const deja = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_MIGRATION);
+  if (deja && deja.getLastRow() > 1 && deja.getRange(2, 8, deja.getLastRow() - 1, 1).getValues().some(l => l[0] === 'déplacé')) {
+    const m = 'Des documents ont déjà été déplacés : l’onglet « ' + SHEET_MIGRATION + ' » sert au retour arrière (annulerMigration). ' +
+      'Pour refaire un plan, renommez d’abord cet onglet (par exemple « Migration (lot 1) faite »).';
+    Logger.log(m); return m;
+  }
   const debut = Date.now();
   const conf = dossiers_();
   const racine = DriveApp.getFolderById(driveRootId_());
@@ -1449,8 +1480,10 @@ function planMigration() {
   (shC ? shC.getDataRange().getValues().slice(1) : []).forEach(l => {
     const nom = String(l[0] || '').trim();
     if (!nom || dejaNotes[cleChantier_(nom)]) return;
-    const exact = racine.getFoldersByName(nom);
-    if (exact.hasNext()) { noterDossierChantier_(nom, exact.next(), 'nom exact'); return; }
+    const exacts = racine.getFoldersByName(nom);
+    let exact = null;
+    while (exacts.hasNext() && !exact) { const d = exacts.next(); if (!d.isTrashed() && !estDossierTechnique_(d)) exact = d; }
+    if (exact) { noterDossierChantier_(nom, exact, 'nom exact'); return; }
     const proches = ressemblances_(racine, nom);
     if (proches.length === 1) noterDossierChantier_(nom, proches[0], 'ressemblance');
     else sansDossier.push(nom + (proches.length ? ' (' + proches.length + ' dossiers ressemblants)' : ''));
@@ -1460,7 +1493,7 @@ function planMigration() {
     'Plan de migration écrit dans l’onglet « ' + SHEET_MIGRATION + ' » (rien n’a été déplacé).',
     aDeplacer + ' document(s) à déplacer, ' + aTrier + ' à trier à la main (ils restent où ils sont).',
     'Vérifiez l’onglet « ' + SHEET_DOSSIERS + ' » : les lignes « À vérifier » doivent désigner le bon dossier (sinon corrigez l’identifiant ou supprimez la ligne).',
-    sansDossier.length ? 'Chantiers sans dossier Drive (un dossier sera créé au premier document) : ' + sansDossier.join(', ') : 'Tous les chantiers du Sheet ont un dossier.',
+    sansDossier.length ? 'Chantiers sans dossier retenu (un dossier au nom exact sera créé au premier document ; s’il existe déjà sous un autre nom, ajoutez une ligne dans « ' + SHEET_DOSSIERS + ' » avec son identifiant) : ' + sansDossier.join(', ') : 'Tous les chantiers du Sheet ont un dossier.',
     'Pour ne pas déplacer un document : remplacez « DÉPLACER » par « IGNORER » dans la colonne Action.',
     coupe ? '⚠ Arrêt avant la limite de temps de Google : relancez planMigration().' : 'Ensuite : executerMigration().',
   ].join('\n');
@@ -1468,10 +1501,19 @@ function planMigration() {
   return bilan;
 }
 
+// Une seule migration à la fois, SANS prendre le verrou du script : les fiches continuent d'arriver pendant ce temps
+function prendreMigration_() {
+  const props = PropertiesService.getScriptProperties();
+  const depuis = Number(props.getProperty('MIGRATION_EN_COURS') || 0);
+  if (depuis && Date.now() - depuis < 7 * 60 * 1000) return false;   // au-delà de 7 min : exécution morte, on reprend
+  props.setProperty('MIGRATION_EN_COURS', String(Date.now()));
+  return true;
+}
+function rendreMigration_() { PropertiesService.getScriptProperties().deleteProperty('MIGRATION_EN_COURS'); }
+
 // 2) Déplace les documents marqués « DÉPLACER » (et pas encore faits). Relancer tant qu'il en reste.
 function executerMigration() {
-  const verrou = LockService.getScriptLock();
-  if (!verrou.tryLock(30000)) { Logger.log('Une autre opération est en cours : relancez dans une minute.'); return 'occupé'; }
+  if (!prendreMigration_()) { Logger.log('Une migration est déjà en cours : relancez dans quelques minutes.'); return 'occupé'; }
   try {
     const debut = Date.now();
     const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_MIGRATION);
@@ -1507,14 +1549,13 @@ function executerMigration() {
       ' Les anciens dossiers vides restent en place (rien n’est supprimé).';
     Logger.log(bilan);
     return bilan;
-  } finally { verrou.releaseLock(); }
+  } finally { rendreMigration_(); }
 }
 
 // 3) RETOUR ARRIÈRE : remet dans leur ancien dossier les documents marqués « déplacé » (relancer tant qu'il en reste).
 //    Les nouveaux dossiers vides restent (rien n'est supprimé). La ligne passe à « remis en place ».
 function annulerMigration() {
-  const verrou = LockService.getScriptLock();
-  if (!verrou.tryLock(30000)) { Logger.log('Une autre opération est en cours : relancez dans une minute.'); return 'occupé'; }
+  if (!prendreMigration_()) { Logger.log('Une migration est déjà en cours : relancez dans quelques minutes.'); return 'occupé'; }
   try {
     const debut = Date.now();
     const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_MIGRATION);
@@ -1530,7 +1571,7 @@ function annulerMigration() {
         const f = DriveApp.getFileById(String(l[3]));
         // Le dossier chantier est celui qui contient le nouveau dossier actuel du fichier
         let dossier = f.getParents().next();
-        const profondeur = String(l[5]).split('/').filter(Boolean).length;
+        const profondeur = String(l[5]).split('/').map(x => x.trim()).filter(Boolean).length;
         for (let n = 0; n < profondeur; n++) dossier = dossier.getParents().next();
         f.moveTo(trouverOuCreerAncien_(dossier, String(l[1])));
         etat = 'remis en place'; remis++;
@@ -1541,7 +1582,7 @@ function annulerMigration() {
       (restants ? ' Il en reste ' + restants + ' : relancez annulerMigration().' : ' Retour arrière terminé.');
     Logger.log(bilan);
     return bilan;
-  } finally { verrou.releaseLock(); }
+  } finally { rendreMigration_(); }
 }
 // Ancien dossier (son nom peut contenir « / », ex. « Note/Réunion/Réunion » : ce n'est PAS un chemin)
 function trouverOuCreerAncien_(chantier, nom) {
@@ -1555,9 +1596,9 @@ function verifierDossiers_() {
   try {
     CacheService.getScriptCache().remove('dossiers.json');
     const racine = DriveApp.getFolderById(driveRootId_());
-    const f = racine.getFilesByName(NOM_FICHIER_DOSSIERS);
-    if (!f.hasNext()) { dossiers_(); return '✅ dossiers.json créé avec les noms par défaut'; }
-    JSON.parse(f.next().getBlob().getDataAsString());
+    const f = fichierDossiers_(racine);
+    if (!f) { dossiers_(); return '✅ dossiers.json créé avec les noms par défaut'; }
+    JSON.parse(f.getBlob().getDataAsString());
     const aVerifier = lignesDossiers_().slice(1).filter(l => String(l[4] || '').indexOf('OUI') === 0).length;
     return '✅ dossiers.json lisible' + (aVerifier ? ' — ⚠ ' + aVerifier + ' dossier(s) chantier « à vérifier » (onglet ' + SHEET_DOSSIERS + ')' : '');
   } catch (err) {

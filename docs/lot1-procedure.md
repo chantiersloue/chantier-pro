@@ -51,7 +51,7 @@ Pourquoi une copie d'essai ? Les nouvelles pages parlent au serveur v5. Mises en
 9. **Déployer → Gérer les déploiements** → ton déploiement TEST → ✏ **Modifier** → Version : **Nouvelle version** → **Déployer**. L'adresse ne change pas.
 10. **Vérification de la version** : ouvre l'adresse TEST (celle que tu m'avais envoyée, qui finit par `/exec`) dans un navigateur → **`Loué App API v5.0 OK`**.
     - Si tu vois encore `v4.1` : la mise à jour n'a pas été prise (règle 2 de CLAUDE.md). Fais **Nouveau déploiement** (comme au lot 0, étape B.7), envoie-moi la nouvelle adresse, je mets à jour `config.js`.
-11. **Les pages actuelles marchent avec le serveur v5** (indispensable avant l'étape D) : sur le **vrai site** avec `?env=test` (`https://chantiersloue.github.io/chantier-pro/?env=test`), envoie **un quitus** vers toi → mail reçu. Puis repasse en `?env=prod`.
+11. **Les pages actuelles marchent avec le serveur v5** (indispensable avant l'étape D) : sur le **vrai site** avec `?env=test` (`https://chantiersloue.github.io/chantier-pro/?env=test`), envoie vers toi **un quitus**, **une attestation avec une photo** et **une fiche de fabrication** → 3 mails reçus, PDF complets. Puis repasse en `?env=prod`.
 
 ---
 
@@ -115,17 +115,21 @@ Choisis un moment calme (le soir) : **demande aux gars d'envoyer leurs fiches en
 5. **Déployer → Gérer les déploiements** → ton déploiement de production → ✏ Modifier → **Nouvelle version** → Déployer.
 6. Ouvre l'adresse de production (`URL_PRODUCTION` de `commun/config.js`) → **`Loué App API v5.0 OK`**. Sinon : Nouveau déploiement, envoie-moi l'adresse, et **n'avance pas** tant que je n'ai pas mis `config.js` à jour.
 7. Avec les pages **actuelles** (pas encore le lot 1), envoie un quitus réel simple vers toi : mail reçu. Les gars peuvent continuer à travailler normalement.
-8. Fusionne la demande de fusion **`livraison/lot-1`** que je t'envoie. Attends 3 minutes.
-9. Sur ton téléphone, ouvre la vraie appli : pas de bandeau rouge ; « À propos » affiche la version **5.0**. Envoie un quitus réel vers toi : « ✓ Tout est envoyé » et mail reçu ; le PDF est dans `05 - CHANTIER/OPR - RESERVES - QUITUS` du chantier.
-10. Sur **chaque iPhone** des gars : ouvre l'appli dans Safari et suis l'écran « Installer l'appli » (une seule fois). Sur Android, c'est conseillé aussi.
+8. **Dossier Drive de chaque chantier, AVANT les nouvelles pages** : ▶ **`planMigration`** (rien n'est déplacé). Ouvre l'onglet **« Dossiers chantiers »** du vrai Sheet :
+   - chaque ligne **« OUI — vérifiez »** doit désigner le bon dossier : ouvre le dossier dans Drive par son identifiant (colonne C) ; si ce n'est pas le bon, remplace l'identifiant ;
+   - le journal liste les chantiers **sans dossier retenu**. Si l'un d'eux a déjà un dossier dans Drive sous un autre nom, ajoute une ligne : colonne A le nom du chantier **exactement comme dans l'onglet Chantiers**, colonne C l'identifiant du dossier (ouvre le dossier dans Drive : c'est la fin de l'adresse, après `folders/`). Sinon la tuile Chantiers n'affichera pas ses Plans et le premier document créera un nouveau dossier.
+9. Fusionne la demande de fusion **`livraison/lot-1`** que je t'envoie. Attends 3 minutes.
+10. Sur ton téléphone, ouvre la vraie appli : pas de bandeau rouge ; « À propos » affiche la version **5.0**. Envoie un quitus réel vers toi : « ✓ Tout est envoyé » et mail reçu ; le PDF est dans `05 - CHANTIER/OPR - RESERVES - QUITUS` du chantier.
+11. Sur **chaque iPhone** des gars : ouvre l'appli dans Safari et suis l'écran « Installer l'appli » (une seule fois). Sur Android, c'est conseillé aussi.
 
 ## Étape E — Ranger les anciens documents dans le vrai Drive (20 min)
 
 C'est la seule étape qui touche à tes vrais dossiers. Elle se défait avec `annulerMigration`.
-1. ▶ **`planMigration`** (rien n'est déplacé).
-2. **Sauvegarde** : dans le Sheet, onglet « Migration (lot 1) » → Fichier → Télécharger → **CSV** → range-le dans `_prive/migration-avant-lot1.csv`. Fais pareil pour l'onglet « Dossiers chantiers ».
+Choisis le soir ou un moment où personne n'envoie de fiche : pendant `executerMigration` (jusqu'à 5 min), les fiches continuent d'arriver, mais le Drive est très sollicité.
+1. ▶ **`planMigration`** de nouveau (rien n'est déplacé), pour avoir la liste à jour.
+2. **Sauvegarde** : onglet « Dossiers chantiers » → Fichier → Télécharger → **CSV** → `_prive/dossiers-chantiers-lot1.csv`.
 3. Vérifie les deux onglets comme sur TEST (lignes « OUI — vérifiez », lignes à IGNORER). En cas de doute, envoie-moi une capture.
-4. ▶ **`executerMigration`**, relance tant qu'il en reste.
+4. ▶ **`executerMigration`**, relance tant qu'il en reste. Puis **sauvegarde** l'onglet « Migration (lot 1) » en CSV (`_prive/migration-lot1-faite.csv`) : c'est la liste exacte de ce qui a bougé, celle dont `annulerMigration` a besoin. **Ne relance plus `planMigration`** ensuite (elle refuse de toute façon tant que cet onglet contient des documents déplacés).
 5. Contrôle sur ton PC (G:\Mon Drive) et sur un téléphone : tuile Chantiers → un chantier → Plans s'ouvre toujours.
 6. Les anciens dossiers vides restent en place. Je te donnerai une fonction pour les mettre à la corbeille après ton accord (réversible 30 jours).
 

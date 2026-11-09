@@ -49,11 +49,14 @@ function codeUnique() {
   const presents = fs.readdirSync(path.join(racine, 'apps-script')).filter(f => f.endsWith('.gs')).sort();
   const oublies = presents.filter(f => ORDRE_GS.indexOf(f) < 0);
   if (oublies.length) throw new Error('Fichier(s) Apps Script absent(s) de ORDRE_GS dans outils/construire.js : ' + oublies.join(', '));
+  // Version du serveur : empreinte de ses propres sources (deux livraisons différentes n'ont jamais le même numéro)
+  const sources = ORDRE_GS.filter(f => presents.indexOf(f) > -1).map(f => f === 'Modeles.gs' ? fabriquerModeles() : lire('apps-script/' + f));
+  const versionServeur = crypto.createHash('sha1').update(sources.join('\n')).digest('hex').slice(0, 10);
   const trait = '// ═══════════════════════════════════════════════════════════════\n';
   const entete = trait
     + '// LOUÉ APP — SERVEUR COMPLET, À COLLER DANS APPS SCRIPT (fichier « Code.gs », tout remplacer)\n'
     + '// FICHIER GÉNÉRÉ AUTOMATIQUEMENT par « node outils/construire.js » — NE PAS MODIFIER À LA MAIN :\n'
-    + '// les sources sont dans le dossier apps-script/ du dépôt. Version ' + empreinte + '\n'
+    + '// les sources sont dans le dossier apps-script/ du dépôt. Version du serveur ' + versionServeur + ' (pages ' + empreinte + ')\n'
     + trait + '\n';
   return entete + ORDRE_GS.filter(f => presents.indexOf(f) > -1).map(f => {
     const contenu = f === 'Modeles.gs' ? fabriquerModeles() : lire('apps-script/' + f);

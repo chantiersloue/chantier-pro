@@ -4,7 +4,9 @@ const assert = require('assert');
 const { creerGoogle, chargerScript } = require('./gas-harness');
 
 const FRANCK = 'franck@loue.test', SEB = 'seb@loue.test';
-const PHOTO_B64 = Buffer.from('fausse-photo-jpeg').toString('base64');
+// Début réel d'un fichier JPEG (FF D8 FF) : le serveur vérifie que c'est bien une photo
+const PHOTO_B64 = Buffer.concat([Buffer.from([0xFF, 0xD8, 0xFF, 0xE0]), Buffer.from('fausse-photo-jpeg')]).toString('base64');
+const PNG_B64 = Buffer.concat([Buffer.from([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]), Buffer.from('faux-croquis')]).toString('base64');
 
 function environnement(options = {}) {
   const google = creerGoogle(Object.assign({
@@ -122,6 +124,9 @@ test('erreurs claires : type inconnu, numéro invalide, action inconnue, donnée
 test('photo refusée : format non image, trop lourde', () => {
   const g = environnement();
   assert.strictEqual(poster(g, { action: 'photo', id: 'photo-0020-abcd', fiche: 'fiche-0020-abcd', mime: 'text/html', data: PHOTO_B64 }).code, 'DONNEES_INVALIDES');
+  // Contenu qui n'est pas une photo, même annoncé comme JPEG (il serait synchronisé sur le PC de Franck)
+  assert.strictEqual(poster(g, { action: 'photo', id: 'photo-0021-abcd', fiche: 'fiche-0020-abcd', mime: 'image/jpeg', data: Buffer.from('<script>x</script>').toString('base64') }).code, 'DONNEES_INVALIDES');
+  assert.strictEqual(poster(g, { action: 'photo', id: 'photo-0022-abcd', fiche: 'fiche-0020-abcd', mime: 'image/png', data: PHOTO_B64 }).code, 'DONNEES_INVALIDES', 'JPEG annoncé PNG');
   const gros = 'A'.repeat(4.2 * 1024 * 1024);
   assert.strictEqual(poster(g, { action: 'photo', id: 'photo-0021-abcd', fiche: 'fiche-0020-abcd', mime: 'image/jpeg', data: gros }).code, 'TROP_GROS');
 });
@@ -208,14 +213,14 @@ test('huisserie seule : hauteur, largeur du vantail et talon dans le PDF (oubli�
 
 test('textes des blocs échappés, croquis envoyé à part puis remis dans le PDF', () => {
   const g = environnement();
-  poster(g, { action: 'photo', id: 'photo-0602-abcd', fiche: 'fiche-0603-abcd', mime: 'image/png', data: PHOTO_B64 });
+  poster(g, { action: 'photo', id: 'photo-0602-abcd', fiche: 'fiche-0603-abcd', mime: 'image/png', data: PNG_B64 });
   const r = poster(g, { action: 'fiche', id: 'fiche-0603-abcd', donnees: fabrication({
     blocs: [{ id: 1, type: 'divers', rows: [{ repere: '<img src=x onerror=alert(1)>', qte: '1' }] }, { id: 2, type: 'photo', rows: [] }],
     photosBase64: [{ photoRef: 'photo-0602-abcd', label: 'Croquis' }] }) });
   assert.strictEqual(r.code, 'ENREGISTRE', JSON.stringify(r));
   const html = pdfDe(g);
   assert.ok(html.indexOf('<img src=x') < 0 && html.indexOf('&lt;img src=x') > -1, 'repère échappé');
-  assert.ok(html.indexOf('data:image/png;base64,' + PHOTO_B64) > -1, 'croquis dans le PDF');
+  assert.ok(html.indexOf('data:image/png;base64,' + PNG_B64) > -1, 'croquis dans le PDF');
   assert.ok(html.indexOf('Croquis') > -1);
 });
 
@@ -269,7 +274,7 @@ test('textes piégés échappés ; la fonction du signataire vient du Sheet, pas
 
 test('contrôle DAS : points, bilan et TOUTES les photos (envoyées à part) dans le PDF', () => {
   const g = environnement();
-  const b64 = n => Buffer.from('photo-das-' + n).toString('base64');
+  const b64 = n => Buffer.concat([Buffer.from([0xFF, 0xD8, 0xFF, 0xE0]), Buffer.from('photo-das-' + n)]).toString('base64');
   for (let i = 1; i <= 3; i++) poster(g, { action: 'photo', id: 'photo-071' + i + '-abcd', fiche: 'fiche-0710-abcd', mime: 'image/jpeg', data: b64(i) });
   const r = poster(g, { action: 'fiche', id: 'fiche-0710-abcd', donnees: attestation({ typeAttest: 'das', typeLabel: 'Contrôle DAS',
     dasNumero: 'BP-07', dasEtage: 'R+1', dasLocalisation: 'Hall', asservissements: 'Détecteur de fumée, Électro-aimant',
@@ -325,7 +330,7 @@ test('textes piégés échappés (point ajouté, commentaire, observations) ; fo
 
 test('photos de chaque point envoyées à part : toutes remises dans le PDF, sous leur point', () => {
   const g = environnement();
-  const b64 = n => Buffer.from('photo-point-' + n).toString('base64');
+  const b64 = n => Buffer.concat([Buffer.from([0xFF, 0xD8, 0xFF, 0xE0]), Buffer.from('photo-point-' + n)]).toString('base64');
   for (let i = 1; i <= 3; i++) poster(g, { action: 'photo', id: 'photo-081' + i + '-abcd', fiche: 'fiche-0810-abcd', mime: 'image/jpeg', data: b64(i) });
   const r = poster(g, { action: 'fiche', id: 'fiche-0810-abcd', donnees: reception({ points: [
     { label: 'Planéité', state: 'nok', comment: 'Bosse', photos: [{ photoRef: 'photo-0811-abcd' }, { photoRef: 'photo-0812-abcd' }, { photoRef: 'photo-0813-abcd' }] },
@@ -387,7 +392,7 @@ test('textes piégés échappés dans le PDF et dans le mail', () => {
 
 test('photos envoyées à part : toutes remises dans le PDF avec leur légende (une seule : sous les notes)', () => {
   const g = environnement();
-  const b64 = n => Buffer.from('photo-note-' + n).toString('base64');
+  const b64 = n => Buffer.concat([Buffer.from([0xFF, 0xD8, 0xFF, 0xE0]), Buffer.from('photo-note-' + n)]).toString('base64');
   for (let i = 1; i <= 3; i++) poster(g, { action: 'photo', id: 'photo-091' + i + '-abcd', fiche: 'fiche-0910-abcd', mime: 'image/jpeg', data: b64(i) });
   const r = poster(g, { action: 'fiche', id: 'fiche-0910-abcd', donnees: note({ photosBase64: [1, 2, 3].map(i =>
     ({ photoRef: 'photo-091' + i + '-abcd', label: i === 2 ? 'Appui <fenêtre>' : 'Légende ' + i })) }) });
@@ -473,6 +478,34 @@ test('absence : l’ancien format (sans numéro de fiche) marche toujours', () =
   assert.strictEqual(r.status, 'ok');
   assert.ok(pdfDe(g).indexOf('Killian MARTIN') > -1);
   assert.deepStrictEqual(g.mails.map(m => m.to), [FRANCK]);
+});
+
+
+console.log('Relecture du lot 1 — corrections serveur');
+test('photos d’une fiche abandonnée puis reprise après 7 jours : la fiche part quand même (plus de boucle sans fin)', () => {
+  const g = environnement();
+  poster(g, { action: 'photo', id: 'photo-1001-abcd', fiche: 'fiche-1001-abcd', mime: 'image/jpeg', data: PHOTO_B64 });
+  const ancien = g.racine.enfants.find(e => e.nom === '_PHOTOS EN COURS').enfants.find(e => e.nom === 'fiche-1001-abcd');
+  ancien.corbeille = true;   // nettoyage des 7 jours
+  poster(g, { action: 'photo', id: 'photo-1001-abcd', fiche: 'fiche-1001-abcd', mime: 'image/jpeg', data: PHOTO_B64 });
+  const r = poster(g, { action: 'fiche', id: 'fiche-1001-abcd', donnees: quitus({ photosBase64: [{ photoRef: 'photo-1001-abcd' }] }) });
+  assert.strictEqual(r.code, 'ENREGISTRE', JSON.stringify(r));
+});
+
+test('erreur après le départ des premiers mails : fiche notée « traité (incomplet) », pas de renvoi en double', () => {
+  const g = environnement();
+  const vrai = g.ctx.envoyer_;
+  let n = 0;
+  g.ctx.envoyer_ = function () { if (++n === 2) throw new Error('Gmail indisponible'); return vrai.apply(this, arguments); };
+  const corps = { action: 'fiche', id: 'fiche-1002-abcd', donnees: quitus({ destinataires: [FRANCK] }) };
+  const r = poster(g, corps);
+  assert.strictEqual(r.ok, true, JSON.stringify(r));
+  assert.ok(r.data && r.data.incomplet);
+  const avant = g.mails.filter(m => m.sujet.indexOf('Quitus') > -1).length;
+  assert.strictEqual(poster(g, corps).code, 'DEJA_RECU', 'un renvoi du téléphone ne refait rien');
+  assert.strictEqual(g.mails.filter(m => m.sujet.indexOf('Quitus') > -1).length, avant);
+  assert.ok(g.feuilles['Envois'].lignes.some(l => l[4] === 'traité (incomplet)'));
+  assert.ok(g.mails.some(m => /envoyée en partie/.test(m.texte)), 'Franck prévenu');
 });
 
 console.log('\n' + reussis + ' test(s) réussi(s)' + (process.exitCode ? ' — DES TESTS ÉCHOUENT' : ''));

@@ -195,10 +195,11 @@ function distribuer_(o) {
   });
   if (ignorees) journal_(o, ignorees + ' autre(s) adresse(s)', 'refusé', 'plus de 20 adresses hors Sheet sur une fiche');
 
-  servies.forEach(email => envoyer_(o, email, { sujet: o.sujet, texte: o.texte, html: o.html || '', bcc: '' }, 'connue'));
-
+  // Toutes les lectures du Sheet AVANT le premier mail : une erreur de lecture ne peut plus couper un envoi à moitié
   const libelle    = LIBELLES_FICHES[o.fiche] || 'Document';
   const chantierOk = ligneChantier_(o.chantier) ? String(o.chantier).trim() : '';  // jamais de texte libre dans le mail
+
+  servies.forEach(email => envoyer_(o, email, { sujet: o.sujet, texte: o.texte, html: o.html || '', bcc: '' }, 'connue'));
   libres.forEach((email, i) => {
     if (i >= MAX_LIBRES_PAR_FICHE) {
       journal_(o, email, 'refusé', 'plus de ' + MAX_LIBRES_PAR_FICHE + ' adresses libres sur la même fiche');
@@ -317,6 +318,8 @@ function alerte_(texte, sorte) {
       abandon: "[Loué App] Mail abandonné — voir l'onglet Mails en attente",
       erreur : "[Loué App] Fiche non traitée — voir l'onglet Envois",
       photos : "[Loué App] Trop de photos aujourd'hui",
+      dossiers : '[Loué App] dossiers.json illisible',
+      rangement: '[Loué App] Document non rangé dans Drive',
     }[sorte] || "[Loué App] Envoi refusé — voir l'onglet Journal";
     GmailApp.sendEmail(emailAdmin_(), sujet,
       texte + "\n\nLes cas suivants de la journée sont notés dans l'onglet « Journal » du Sheet, sans autre mail.\n\nLoué App",

@@ -105,9 +105,9 @@ function getDossiers(chantierNom, callback) {
 
     // Lot 0 : seuls les sous-dossiers encore partagés par lien sont listés
     // (les autres ne s'ouvriraient plus chez les poseurs, et leurs noms de fichiers ne doivent pas fuiter)
-    Object.entries(SOUS_DOSSIERS).forEach(([cle, nomDossier]) => {
-      if (SOUS_DOSSIERS_PARTAGES.indexOf(nomDossier) > -1) result[cle] = lireSousDossier(chantierFolder, nomDossier, true);
-    });
+    // Lot 1.5 : le dossier Plans est celui de dossiers.json (même nom que pour le rangement)
+    const plans = dossierParChemin_(chantierFolder, dossiers_().documents.plans, false);
+    result.plans = plans ? lireSousDossier(plans, '', true) : [];
 
   } catch(err) {
     console.error('getDossiers:', err.message);
@@ -117,13 +117,6 @@ function getDossiers(chantierNom, callback) {
   return callback
     ? ContentService.createTextOutput(callback+'('+json+')').setMimeType(ContentService.MimeType.JAVASCRIPT)
     : ContentService.createTextOutput(json).setMimeType(ContentService.MimeType.JSON);
-}
-
-// Lit directement un sous-dossier par nom dans un dossier parent
-function lireSousDossierParNom(parent, nom) {
-  const sub = parent.getFoldersByName(nom);
-  if (!sub.hasNext()) return [];
-  return lireSousDossier(sub.next(), ''); // passe le dossier lui-même
 }
 
 // Lit tous les fichiers d'un sous-dossier (nomSousDossier vide = lire le dossier parent lui-même).
@@ -248,9 +241,9 @@ function idValide_(id) {
 }
 
 // ── Photos : une par requête, gardées dans « _PHOTOS EN COURS/<id de la fiche> » jusqu'à l'envoi de la fiche ──
-const MAX_PHOTO_OCTETS = 3 * 1024 * 1024;   // 3 Mo par photo (une photo compressée fait 200 à 400 Ko)
+const MAX_PHOTO_OCTETS = 1.5 * 1024 * 1024; // 1,5 Mo par photo (une photo compressée fait 200 à 400 Ko)
 const MAX_PHOTOS_PAR_FICHE = 15;
-const MAX_PHOTOS_PAR_JOUR = 400;            // ≈ 120 Mo par jour au pire : protège les 15 Go
+const MAX_PHOTOS_PAR_JOUR = 400;            // 600 Mo par jour au pire (temporaires, à la corbeille après usage) : protège les 15 Go
 // Dossier « _PHOTOS EN COURS » : créé une seule fois (sous verrou), son identifiant est gardé
 function dossierPhotosEnCours_(creer) {
   const props = PropertiesService.getScriptProperties();
@@ -265,15 +258,25 @@ function dossierPhotosFiche_(idFiche) {
   return trouverOuCreerSousDossier(dossierPhotosEnCours_(true), idFiche);
 }
 
+// Les premiers octets disent la vraie nature du fichier (JPEG FF D8 FF, PNG 89 50 4E 47, WEBP « RIFF….WEBP »)
+function signatureImage_(octets, mime) {
+  const o = Array.prototype.map.call(octets || [], x => x & 0xFF);
+  if (mime === 'image/jpeg') return o[0] === 0xFF && o[1] === 0xD8 && o[2] === 0xFF;
+  if (mime === 'image/png')  return o[0] === 0x89 && o[1] === 0x50 && o[2] === 0x4E && o[3] === 0x47;
+  if (mime === 'image/webp') return String.fromCharCode.apply(null, o.slice(0, 4)) === 'RIFF' && String.fromCharCode.apply(null, o.slice(8, 12)) === 'WEBP';
+  return false;
+}
+
 function recevoirPhoto_(corps) {
   if (!idValide_(corps.id) || !idValide_(corps.fiche)) return { ok: false, code: 'DONNEES_INVALIDES', message: 'Identifiant de photo invalide' };
   const mime = /^image\/(jpeg|png|webp)$/.test(corps.mime || '') ? corps.mime : '';
   const b64 = String(corps.data || '');
   if (!mime || !/^[A-Za-z0-9+\/=]+$/.test(b64)) return { ok: false, code: 'DONNEES_INVALIDES', message: 'Photo illisible' };
-  if (b64.length * 0.75 > MAX_PHOTO_OCTETS) return { ok: false, code: 'TROP_GROS', message: 'Photo trop lourde (3 Mo maximum)' };
+  if (b64.length * 0.75 > MAX_PHOTO_OCTETS) return { ok: false, code: 'TROP_GROS', message: 'Photo trop lourde (1,5 Mo maximum)' };
   // Sous verrou (court) : création du dossier de la fiche et compteurs ; l'écriture de la photo se fait ensuite
   const verrou = LockService.getScriptLock();
   if (!verrou.tryLock(15000)) return { ok: false, code: 'SERVEUR_OCCUPE', message: 'Serveur occupé, nouvel essai automatique' };
+  if (!signatureImage_(Utilities.base64Decode(b64.slice(0, 24)), mime)) return { ok: false, code: 'DONNEES_INVALIDES', message: 'Le fichier n’est pas une photo' };
   const nom = corps.id + '.' + mime.split('/')[1];
   let dossier;
   try {
@@ -335,7 +338,7 @@ function recevoirFiche_(corps) {
     if (trouve) {
       const statut = String(sh.getRange(trouve, 5).getValue());
       const recu = sh.getRange(trouve, 2).getValue();
-      if (statut === 'traité') return { ok: true, code: 'DEJA_RECU', message: 'Fiche déjà reçue', data: { id: corps.id } };
+      if (statut.indexOf('traité') === 0) return { ok: true, code: 'DEJA_RECU', message: 'Fiche déjà reçue', data: { id: corps.id } };   // « traité » ou « traité (incomplet) »
       if (statut === 'en cours' && recu instanceof Date && Date.now() - recu.getTime() < 7 * 60 * 1000) {
         return { ok: false, code: 'EN_COURS', message: 'Fiche en cours de traitement, nouvel essai automatique' };
       }
@@ -354,8 +357,9 @@ function recevoirFiche_(corps) {
   let dossierPhotos = null;
   try {
     const enCours = dossierPhotosEnCours_(false);
+    // Le dossier à la corbeille (nettoyage après 7 jours) ne compte pas : les photos renvoyées sont dans le nouveau
     const d = enCours ? enCours.getFoldersByName(corps.id) : null;
-    if (d && d.hasNext()) dossierPhotos = d.next();
+    while (d && d.hasNext()) { const x = d.next(); if (!x.isTrashed()) { dossierPhotos = x; break; } }
   } catch (e) {}
   const manquantes = [];
   const brut = joindrePhotos_(donnees, dossierPhotos, manquantes);
@@ -369,6 +373,15 @@ function recevoirFiche_(corps) {
   try {
     traiterFiche_(brut);
   } catch (err) {
+    // Des mails sont déjà partis : renvoyer la fiche les doublerait. On la note traitée et Franck vérifie.
+    const partis = RAPPORT_ && ((RAPPORT_['envoyé'] || []).length + (RAPPORT_['reporté'] || []).length);
+    if (partis) {
+      sh.getRange(ligne, 5, 1, 2).setValues([['traité (incomplet)', String(err.message).slice(0, 300)]]);
+      RAPPORT_ = null;
+      alerte_('Une fiche « ' + (donnees.type || '?') + ' » a été envoyée en partie (' + err.message + '). ' +
+        "Ne pas la renvoyer (les premiers destinataires l'ont reçue) : voir l'onglet Envois et le Journal.", 'erreur');
+      return { ok: true, code: 'ENREGISTRE', message: 'Fiche enregistrée (envoi incomplet : le bureau est prévenu)', data: { incomplet: true } };
+    }
     sh.getRange(ligne, 5, 1, 2).setValues([['erreur', String(err.message).slice(0, 300)]]);
     RAPPORT_ = null;
     // Souvent passager (Drive, conversion PDF) : le téléphone réessaiera plus tard ; Franck est prévenu

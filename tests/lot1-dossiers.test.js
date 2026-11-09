@@ -199,9 +199,52 @@ test('annulerMigration : chaque document revient dans son ancien dossier (même 
 test('executerMigration sans plan, ou verrou occupé : ne fait rien', () => {
   const { g, ids } = avecAnciens();
   assert.strictEqual(g.ctx.executerMigration(), 'pas de plan');
-  const g2 = environnement({ verrouOccupe: true });
+  const g2 = environnement();
+  g2.proprietes.MIGRATION_EN_COURS = String(Date.now() - 60000);   // une autre migration tourne depuis 1 min
   assert.strictEqual(g2.ctx.executerMigration(), 'occupé');
+  const g3 = environnement({ verrouOccupe: true });
+  assert.strictEqual(g3.ctx.executerMigration(), 'pas de plan', 'le verrou des fiches ne bloque pas la migration');
   assert.strictEqual(g.elements[ids.cotes].parents[0].nom, 'Fiches');
+});
+
+console.log('Relecture du lot 1 — corrections du rangement');
+test('planMigration refuse de repartir de zéro après un déplacement (le retour arrière reste possible)', () => {
+  const { g, ids } = avecAnciens();
+  g.ctx.planMigration(); g.ctx.executerMigration();
+  assert.ok(/déjà été déplacés/.test(g.ctx.planMigration()));
+  assert.ok(/remis/.test(g.ctx.annulerMigration()));
+  assert.strictEqual(g.elements[ids.cotes].parents[0].nom, 'Fiches');
+});
+
+test('même nom à la casse ou aux espaces près : le dossier existant est retrouvé (pas de doublon)', () => {
+  const g = environnement();
+  const d = g.creerElement('dossier', 'Chantier Test 1 ', g.racine);
+  g.ctx.classerDocument_('quitus', pdf(g), 'CHANTIER TEST 1', '09/11/2026');
+  assert.ok(chemin(d, '05 - CHANTIER', 'OPR - RESERVES - QUITUS'), 'rangé dans le dossier existant');
+  assert.ok(!enfant(g.racine, 'CHANTIER TEST 1'), 'pas de nouveau dossier');
+});
+
+test('un chantier nommé comme un dossier technique n’est jamais rangé dedans', () => {
+  const g = environnement();
+  const base = g.creerElement('dossier', 'DOSSIER BASE', g.racine);
+  g.ctx.classerDocument_('quitus', pdf(g), 'DOSSIER BASE', '09/11/2026');
+  assert.strictEqual(base.enfants.length, 0, 'dossier modèle intact');
+});
+
+test('dossiers.json : un chemin vide ou avec « .. » garde la valeur par défaut', () => {
+  const g = environnement();
+  g.creerElement('fichier', 'dossiers.json', g.racine, { contenu: JSON.stringify({ documents: { quitus: '../../x', cotes: '' }, hors_chantier: { absence: ' ' } }) });
+  g.ctx.classerDocument_('quitus', pdf(g), 'CHANTIER TEST 1', '09/11/2026');
+  g.ctx.classerDocument_('absence', pdf(g), '', '09/11/2026', 'X');
+  assert.ok(chemin(g.racine, 'CHANTIER TEST 1', '05 - CHANTIER', 'OPR - RESERVES - QUITUS'));
+  assert.ok(chemin(g.racine, 'ADMINISTRATIF', 'ABSENCES'), 'absence jamais dans un chantier');
+});
+
+test('migration : un fichier mis à la main dans « Attestations » ou « Note/Réunion/Réunion » reste où il est', () => {
+  const { g, ch } = avecAnciens();
+  const att = g.creerElement('fichier', 'Scan PV signé.pdf', enfant(ch, 'Attestations'));
+  g.ctx.planMigration();
+  assert.strictEqual(g.feuilles['Migration (lot 1)'].lignes.find(l => l[3] === att.id)[6], 'À TRIER À LA MAIN');
 });
 
 console.log('Livraison — Code.gs unique à coller');
