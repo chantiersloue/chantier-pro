@@ -91,6 +91,16 @@ function installerDeclencheurs() {
   Logger.log(m); return m;
 }
 
+// Retire les 3 déclencheurs (à lancer sur la copie TEST après les essais : les 90 min de déclencheurs par jour
+// sont partagées par tout le compte Google, production comprise)
+function retirerDeclencheurs() {
+  let n = 0;
+  ScriptApp.getProjectTriggers().filter(t => DECLENCHEURS.indexOf(t.getHandlerFunction()) > -1)
+    .forEach(t => { ScriptApp.deleteTrigger(t); n++; });
+  const m = n + ' déclencheur(s) retiré(s). (installerDeclencheurs pour les remettre.)';
+  Logger.log(m); return m;
+}
+
 // À lancer après chaque modification des Propriétés du script : vérifie que tout est en place
 function verifierConfig() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();

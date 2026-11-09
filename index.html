@@ -6,7 +6,7 @@
 <title>Loué App</title>
 <link rel="icon" type="image/png" href="apple-touch-icon.png">
 <link rel="manifest" href="manifest.json">
-<link rel="stylesheet" href="commun/style.css?v=02d10fbf7e">
+<link rel="stylesheet" href="commun/style.css?v=b11f534b9d">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -303,7 +303,7 @@ body.loue-test .installer{padding-top:calc(56px + env(safe-area-inset-top,0px));
 <!-- ═══ À PROPOS (lot 1.4) ═══ -->
 <div class="page" id="page-apropos">
   <div class="page-header">
-    <button class="page-back" onclick="showPage('home')" aria-label="Retour"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg></button>
+    <button class="page-back" onclick="retourAccueil()" aria-label="Retour"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg></button>
     <span class="page-title">À propos de l’appli</span>
   </div>
   <div class="page-body">
@@ -333,7 +333,7 @@ body.loue-test .installer{padding-top:calc(56px + env(safe-area-inset-top,0px));
 <!-- ═══ UN CHANTIER : SES FICHES ET SES PLANS (lot 2) ═══ -->
 <div class="page" id="page-chantier-fiches">
   <div class="page-header">
-    <button class="page-back" onclick="showPage('home')" aria-label="Retour"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg></button>
+    <button class="page-back" onclick="retourAccueil()" aria-label="Retour"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg></button>
     <span class="page-title" id="titre-chantier">Chantier</span>
   </div>
   <div class="page-body">
@@ -465,7 +465,7 @@ body.loue-test .installer{padding-top:calc(56px + env(safe-area-inset-top,0px));
 <!-- ═══ PLANNING ═══ -->
 <div class="page" id="page-planning">
   <div class="page-header">
-    <button class="page-back" onclick="showPage('home')" aria-label="Retour"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg></button>
+    <button class="page-back" onclick="retourAccueil()" aria-label="Retour"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg></button>
     <span class="page-title">Planning équipe</span>
   </div>
   <div class="page-body">
@@ -498,10 +498,10 @@ body.loue-test .installer{padding-top:calc(56px + env(safe-area-inset-top,0px));
   </div>
 </div>
 
-<script src="commun/config.js?v=02d10fbf7e"></script>
-<script src="commun/api.js?v=02d10fbf7e"></script>
-<script src="commun/ui.js?v=02d10fbf7e"></script>
-<script src="commun/hors-ligne.js?v=02d10fbf7e"></script>
+<script src="commun/config.js?v=b11f534b9d"></script>
+<script src="commun/api.js?v=b11f534b9d"></script>
+<script src="commun/ui.js?v=b11f534b9d"></script>
+<script src="commun/hors-ligne.js?v=b11f534b9d"></script>
 <script>
 // ── Accueil (lot 2) : connexion, « Mes chantiers », fiches du chantier avec le chantier pré-rempli ──
 // Rien ici n'empêche de remplir une fiche : « Remplir une fiche sans être connecté » est toujours proposé,
@@ -533,19 +533,35 @@ const ICONE_CALENDRIER = '<svg viewBox="0 0 24 24" fill="none" stroke="currentCo
 const CHARGEMENT = '<div class="loading"><div class="spinner"></div>Chargement…</div>';
 function lireLocal(cle) { try { return JSON.parse(localStorage.getItem(cle) || 'null'); } catch (e) { return null; } }
 function ecrireLocal(cle, v) { try { localStorage.setItem(cle, JSON.stringify(v)); } catch (e) {} }
-function sansCompteChoisi() { try { return sessionStorage.getItem('loue_sans_compte_' + LOUE.env) === '1'; } catch (e) { return false; } }
-function choisirSansCompte(oui) { try { if (oui) sessionStorage.setItem('loue_sans_compte_' + LOUE.env, '1'); else sessionStorage.removeItem('loue_sans_compte_' + LOUE.env); } catch (e) {} }
+// « Continuer sans compte » est gardé dans le téléphone (pas seulement jusqu'à la fermeture) tant que la transition est ouverte
+function sansCompteChoisi() { try { return localStorage.getItem('loue_sans_compte_' + LOUE.env) === '1'; } catch (e) { return false; } }
+function choisirSansCompte(oui) { try { if (oui) localStorage.setItem('loue_sans_compte_' + LOUE.env, '1'); else localStorage.removeItem('loue_sans_compte_' + LOUE.env); } catch (e) {} }
+// Retour à l'accueil depuis une page intérieure : écran de connexion si personne n'est connecté ni « sans compte »
+function retourAccueil() {
+  if (MODE === null) { allerConnexion(); return; }
+  showPage('home');
+  if (!CHANTIERS.length) afficherAccueil();
+}
+// En mode sans compte : si le serveur dit que la transition est finie, retour à la connexion
+function verifierTransitionEnFond() {
+  LOUE.ping().then(rep => {
+    const d = (rep && rep.data) || {};
+    const etat = { ouverte: !d.comptes || !!d.transitionOuverte, fin: d.transitionJusquau || null, date: Date.now() };
+    ecrireLocal(CLE_TRANSITION, etat);
+    if (!etat.ouverte && MODE === 'sans') allerConnexion('La période sans compte est terminée : connectez-vous. Vos fiches en attente sont gardées.');
+  }).catch(() => {});
+}
 
 // ── Démarrage ──
 function demarrer() {
   if (LOUE.compte()) { MODE = 'compte'; afficherAccueil(); rafraichirCompte(); }
-  else if (sansCompteChoisi()) { MODE = 'sans'; afficherAccueil(); }
+  else if (sansCompteChoisi()) { MODE = 'sans'; afficherAccueil(); verifierTransitionEnFond(); }
   else allerConnexion();
 }
 
 // ── Connexion ──
 function allerConnexion(message) {
-  MODE = null; choisirSansCompte(false);
+  MODE = null;
   showPage('connexion');
   if (!$('cnx-id').value) $('cnx-id').value = LOUE.dernierIdentifiant();
   $('cnx-mdp').value = '';
@@ -562,7 +578,8 @@ function allerConnexion(message) {
 }
 function afficherSansCompte(etat) {
   const b = $('cnx-sans-compte');
-  b.hidden = !(etat && etat.ouverte);
+  b.hidden = !!etat && !etat.ouverte;   // rien de connu (première ouverture hors réseau) : proposé
+  if (etat && !etat.ouverte) choisirSansCompte(false);
   if (etat && etat.fin) $('cnx-jusqua').textContent = 'chantiers et plans comme avant, possible jusqu’au ' + new Date(etat.fin).toLocaleDateString('fr-FR');
 }
 function continuerSansCompte() { choisirSansCompte(true); MODE = 'sans'; afficherAccueil(); }
@@ -637,6 +654,7 @@ LOUE.surEvenement(ev => {
 function afficherAccueil() {
   showPage('home');
   const c = LOUE.compte();
+  if (MODE === 'compte') choisirSansCompte(false);   // connecté : le choix « sans compte » est oublié
   $('bandeau-sans-compte').hidden = MODE !== 'sans';
   $('bonjour').textContent = c ? 'Bonjour ' + (String(c.profil.nom || '').split(/\s+/)[0] || c.profil.id) : '';
   $('bonjour').hidden = !c;
@@ -693,7 +711,8 @@ function renderChantiers() {
   if (!liste.length) {
     el.innerHTML = MODE === 'compte' && !peutTout
       ? vide('Aucun chantier pour l’instant', 'Le bureau doit cocher vos chantiers dans le Sheet. En attendant, toutes les fiches sont dans « Fiche sans chantier choisi », plus bas.', ICONE_MAISON)
-      : vide('Aucun chantier', 'Ajoutez des chantiers dans l’onglet Chantiers du Sheet.', ICONE_MAISON);
+      : (peutTout && autres ? vide('Aucun chantier à votre nom', 'Touchez « Voir tous les chantiers » ci-dessous.', ICONE_MAISON)
+        : vide('Aucun chantier', 'Ajoutez des chantiers dans l’onglet Chantiers du Sheet.', ICONE_MAISON));
     return;
   }
   if (!affiches.length) { el.innerHTML = vide('Aucun résultat', 'Aucun chantier ne correspond à « ' + esc(filtre) + ' ».', ICONE_MAISON); return; }
@@ -872,7 +891,8 @@ function changerMonMdp() { const c = LOUE.compte(); if (c) ouvrirChoixMdp(c.prof
 async function seDeconnecter() {
   const file = await LOUE.stockage.tout('file').catch(() => []);
   const n = (file || []).filter(e => !e.env || e.env === LOUE.env).length;
-  const texte = (n ? n + (n > 1 ? ' fiches attendent' : ' fiche attend') + ' encore d’être envoyée(s) : elle(s) reste(nt) dans le téléphone et partira(ont) après la prochaine connexion.\n\n' : '')
+  const texte = (n === 1 ? 'Une fiche attend encore d’être envoyée : elle reste dans le téléphone et partira après la prochaine connexion.\n\n'
+    : n > 1 ? n + ' fiches attendent encore d’être envoyées : elles restent dans le téléphone et partiront après la prochaine connexion.\n\n' : '')
     + 'Se déconnecter de ce téléphone ?';
   if (!confirm(texte)) return;
   MODE = null;

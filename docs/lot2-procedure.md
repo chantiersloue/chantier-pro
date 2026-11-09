@@ -29,8 +29,9 @@
   - Identifiant : minuscules, chiffres, `-` ou `_`. Conseil : prénom + 2 chiffres (`thomas27`), moins facile à deviner que `tmartin`.
   - Rôles : **Poseur** (ses chantiers cochés), **Atelier** (pareil, pour plus tard), **Conducteur** (tous les chantiers ; « Mes chantiers » = colonne D à son nom), **Admin** (tout, toi).
 - **Lui donner un chantier** : onglet *Accès chantiers*, coche la case (ligne du chantier, colonne de son identifiant). Effet immédiat. Les lignes et colonnes s'ajoutent toutes seules (dans les 10 min). Case **« Tous les chantiers »** dans *Utilisateurs* pour un poseur qui va partout.
-- **Mot de passe oublié, ou identifiant bloqué** (5 erreurs = 15 min de blocage) : coche **« Réinitialiser »** → nouveau provisoire, et c'est débloqué.
-- **Téléphone perdu, départ d'un salarié** : coche **« Déconnecter ses téléphones »** (et décoche **Actif** s'il part). À la requête suivante, son téléphone revient à l'écran de connexion.
+- **Mot de passe oublié, ou identifiant bloqué** (5 erreurs = 15 min de blocage) : coche **« Réinitialiser »** → nouveau provisoire, c'est débloqué, et **l'ancien mot de passe ne marche plus** (ses téléphones sont déconnectés).
+- **Téléphone perdu, départ d'un salarié** : coche **« Déconnecter ses téléphones »** (et décoche **Actif** s'il part). À la requête suivante, son téléphone revient à l'écran de connexion. Si le mot de passe a pu être vu par quelqu'un : coche plutôt **« Réinitialiser »** (l'ancien mot de passe ne marche plus). Les fiches déjà dans son téléphone partent quand même (notées « compte désactivé »).
+- **Ne relance pas `preparerOngletsLot2` pour « réparer »** : elle ne touche jamais à un onglet *Utilisateurs* existant (elle ne pose les cases qu'à la création).
 - La colonne **État** dit où en est chaque compte (« connecté le … », « bloqué 12 min », « provisoire expiré »…).
 - **Règle de sécurité** : le Sheet n'est partagé **qu'avec toi**. Quelqu'un qui peut le modifier peut lire la clé secrète du serveur. `verifierConfig` le contrôle.
 
@@ -100,6 +101,8 @@ Ouvre `https://chantiersloue.github.io/chantier-pro/essai/` (ou l'icône « Lou�
 | 21 | Onglet *Sans compte* | Les fiches envoyées sans compte sont notées |
 
 Puis **sors du mode test** sur le vrai site : `https://chantiersloue.github.io/chantier-pro/?env=prod`.
+
+Enfin, dans l'éditeur Apps Script **de la copie TEST** : ▶ **`retirerDeclencheurs`**. Les 90 minutes de déclencheurs par jour sont partagées par tout le compte Google : la copie TEST ne doit pas en consommer pour rien (`installerDeclencheurs` les remet si besoin).
 
 ## Étape D — Production (après ton feu vert sur l'étape C, 30 min)
 

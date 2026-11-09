@@ -31,9 +31,10 @@ function environnement(options = {}) {
   google.ctx.preparerOngletsLot2();
   const u = google.feuilles['Utilisateurs'];
   // Identifiant, Nom, Rôle, Actif, Réinitialiser, Provisoire, Valable, Déconnecter, Tous, État
-  u.lignes.push(['thomas27', 'Thomas', 'Poseur', true, false, '', '', false, false, '']);
-  u.lignes.push(['seb', 'Sébastien', 'Conducteur', true, false, '', '', false, false, '']);
-  u.lignes.push(['franck', 'Franck PAVAGEAU', 'Admin', true, false, '', '', false, false, '']);
+  // En haut de l'onglet, comme Franck (lignes 2 à 4, là où preparerOngletsLot2 a mis des cases)
+  u.lignes[1] = ['thomas27', 'Thomas', 'Poseur', true, false, '', '', false, false, ''];
+  u.lignes[2] = ['seb', 'Sébastien', 'Conducteur', true, false, '', '', false, false, ''];
+  u.lignes[3] = ['franck', 'Franck PAVAGEAU', 'Admin', true, false, '', '', false, false, ''];
   google.ctx.traiterComptes();
   return google;
 }
@@ -76,6 +77,7 @@ test('preparerOngletsLot2 : onglets, colonnes E à K de Chantiers, cases ; relan
   const g = environnement();
   assert.ok(g.feuilles['Utilisateurs'] && g.feuilles['Accès chantiers'] && g.feuilles['Intervenants']);
   assert.deepStrictEqual(g.feuilles['Chantiers'].lignes[0].slice(4, 11), ['N°', 'Nom court', 'Adresse', 'Client', 'Architecte', 'Date « Terminé »', 'Chemin MEGA']);
+  ligneU(g, 'thomas27')[COL.tous] = true;   // une case cochée par Franck ne doit pas être décochée
   const avant = JSON.stringify(g.feuilles['Utilisateurs'].lignes);
   const rapport = g.ctx.preparerOngletsLot2();
   assert.strictEqual(JSON.stringify(g.feuilles['Utilisateurs'].lignes), avant, 'Utilisateurs intact');
@@ -148,7 +150,9 @@ test('provisoire expiré après 48 h : refusé, effacé du Sheet, État explique
   ligneU(g, 'thomas27')[COL.reinit] = true; g.ctx.traiterComptes();
   const prov = ligneU(g, 'thomas27')[COL.prov];
   g.t += 49 * 3600 * 1000;
-  assert.strictEqual(poster(g, { action: 'connexion', identifiant: 'thomas27', motDePasse: prov }).code, 'REFUS');
+  const r = poster(g, { action: 'connexion', identifiant: 'thomas27', motDePasse: prov });
+  assert.strictEqual(r.code, 'PROVISOIRE_EXPIRE');
+  assert.ok(/expiré/.test(r.message), r.message);
   g.ctx.traiterComptes();
   assert.strictEqual(ligneU(g, 'thomas27')[COL.prov], '');
   assert.ok(/expiré/.test(ligneU(g, 'thomas27')[COL.etat]));
@@ -269,18 +273,19 @@ test('ligne supprimée du Sheet : JETON_INVALIDE', () => {
   assert.strictEqual(poster(g, { action: 'moi', jeton }).code, 'JETON_INVALIDE');
 });
 
-test('panne du serveur (onglet Utilisateurs renommé, clé absente) : ERREUR, jamais JETON_INVALIDE', () => {
+test('panne du serveur (onglet Utilisateurs renommé, clé absente) : COMPTES_INDISPONIBLES, jamais JETON_INVALIDE', () => {
   const g = environnement();
   const jeton = activer(g, 'thomas27');
   avecTransitionFinie(g);
   const u = g.feuilles['Utilisateurs'];
   delete g.feuilles['Utilisateurs'];
-  assert.strictEqual(poster(g, { action: 'moi', jeton }).code, 'ERREUR');
-  assert.strictEqual(poster(g, { action: 'fiche', id: 'fiche-erreur-0001', jeton, donnees: quitus() }).code, 'ERREUR');
+  assert.strictEqual(poster(g, { action: 'moi', jeton }).code, 'COMPTES_INDISPONIBLES');
+  assert.strictEqual(poster(g, { action: 'fiche', id: 'fiche-erreur-0001', jeton, donnees: quitus() }).code, 'COMPTES_INDISPONIBLES');
+  assert.strictEqual(poster(g, { action: 'connexion', identifiant: 'thomas27', motDePasse: 'x' }).code, 'COMPTES_INDISPONIBLES');
   g.feuilles['Utilisateurs'] = u;
   const cle = g.proprietes.CLE_JETON;
   delete g.proprietes.CLE_JETON;
-  assert.strictEqual(poster(g, { action: 'moi', jeton }).code, 'ERREUR');
+  assert.strictEqual(poster(g, { action: 'moi', jeton }).code, 'COMPTES_INDISPONIBLES');
   g.proprietes.CLE_JETON = cle;
   assert.strictEqual(poster(g, { action: 'moi', jeton }).code, 'OK');
 });
@@ -296,6 +301,72 @@ test('prolongation : un jeton de plus de 30 jours est remplacé par un neuf dans
   g.t += 80 * JOUR;   // l'ancien aurait expiré, le neuf est encore bon
   avecTransitionFinie(g);
   assert.strictEqual(poster(g, { action: 'moi', jeton: r2.jeton }).code, 'OK');
+});
+
+test('panne des comptes PENDANT la transition : la fiche passe « sans compte »', () => {
+  const g = environnement();
+  const jeton = activer(g, 'thomas27');
+  delete g.feuilles['Utilisateurs'];
+  assert.strictEqual(poster(g, { action: 'fiche', id: 'fiche-panne-0001', jeton, donnees: quitus() }).code, 'ENREGISTRE');
+});
+
+test('« Réinitialiser » : l’ancien mot de passe ne marche plus', () => {
+  const g = environnement();
+  activer(g, 'thomas27', 'Escalier2026');
+  ligneU(g, 'thomas27')[COL.reinit] = true; g.ctx.traiterComptes();
+  assert.strictEqual(poster(g, { action: 'connexion', identifiant: 'thomas27', motDePasse: 'Escalier2026' }).code, 'REFUS');
+});
+
+test('blocage : il vaut aussi pour le provisoire (et les essais pendant le blocage comptent dans l’alerte)', () => {
+  const g = environnement();
+  ligneU(g, 'thomas27')[COL.reinit] = true; g.ctx.traiterComptes();
+  const prov = ligneU(g, 'thomas27')[COL.prov];
+  for (let i = 0; i < 5; i++) poster(g, { action: 'connexion', identifiant: 'thomas27', motDePasse: 'faux' + i });
+  assert.strictEqual(poster(g, { action: 'connexion', identifiant: 'thomas27', motDePasse: prov }).code, 'BLOQUE');
+  for (let i = 0; i < 60; i++) poster(g, { action: 'connexion', identifiant: 'thomas27', motDePasse: 'faux' });
+  assert.strictEqual(g.mails.filter(m => /connexions ratées/.test(m.sujet)).length, 1, 'alerte globale');
+});
+
+test('traiterComptes ne réécrit que les cases traitées (une case cochée ailleurs sur la ligne reste)', () => {
+  const g = environnement();
+  activer(g, 'thomas27');
+  const l = ligneU(g, 'thomas27');
+  l[COL.deco] = true;
+  // simulation : pendant le passage, Franck coche « Tous les chantiers » et « Réinitialiser » d'une autre ligne
+  const getRange = g.feuilles['Utilisateurs'].api.getRange;
+  let fait = false;
+  g.feuilles['Utilisateurs'].api.getRange = (...a) => { if (!fait) { fait = true; l[COL.tous] = true; } return getRange(...a); };
+  g.ctx.traiterComptes();
+  g.feuilles['Utilisateurs'].api.getRange = getRange;
+  assert.strictEqual(l[COL.tous], true, 'case cochée pendant le passage gardée');
+  assert.strictEqual(l[COL.deco], false);
+});
+
+test('compte désactivé (transition finie) : ses fiches sont quand même acceptées, notées « compte désactivé »', () => {
+  const g = environnement();
+  const jeton = activer(g, 'thomas27');
+  avecTransitionFinie(g);
+  ligneU(g, 'thomas27')[COL.actif] = false;
+  assert.strictEqual(poster(g, { action: 'listes', jeton }).code, 'COMPTE_REFUSE');
+  assert.strictEqual(poster(g, { action: 'fiche', id: 'fiche-inactif-01', jeton, donnees: quitus() }).code, 'ENREGISTRE');
+  assert.ok(/désactivé/.test(g.feuilles['Envois'].lignes.find(x => x[0] === 'fiche-inactif-01')[6]));
+});
+
+test('compteurs « Sans compte » : le total ne baisse pas et une seule ligne par jour et par sorte', () => {
+  const g = environnement();
+  for (let i = 0; i < 3; i++) lireGet(g, { action: 'getContacts' });
+  g.ctx.traiterComptes();
+  for (let i = 0; i < 2; i++) lireGet(g, { action: 'getContacts' });
+  g.ctx.traiterComptes(); g.ctx.traiterComptes();
+  const lignes = g.feuilles['Sans compte'].lignes.filter(l => /^lectures listes/.test(l[1]));
+  assert.strictEqual(lignes.length, 1);
+  assert.strictEqual(lignes[0][5], 5);
+});
+
+test('verifierConfig : le propriétaire du Sheet (compte Google de Loué) n’est pas signalé', () => {
+  const g = environnement({ google: { editeurs: ['franck@loue.test', 'loue.compte@gmail.test'] }, proprietes: { EMAIL_ADMIN: 'franck@loue.test' } });
+  g.contexte.Session.getEffectiveUser = () => ({ getEmail: () => 'loue.compte@gmail.test' });
+  assert.ok(!/❌ Le Sheet peut être modifié/.test(g.ctx.verifierConfig()));
 });
 
 console.log('Lot 2 — droits');
@@ -339,7 +410,7 @@ test('fiche d’un poseur pour un chantier non coché : acceptée, auteur noté 
   const r = poster(g, { action: 'fiche', id: 'fiche-auteur-0001', jeton: jt, saisiPar: 'seb', donnees: quitus({ chantier: 'CHANTIER TEST 2' }) });
   assert.strictEqual(r.code, 'ENREGISTRE', JSON.stringify(r));
   const ligne = g.feuilles['Envois'].lignes.find(l => l[0] === 'fiche-auteur-0001');
-  assert.strictEqual(ligne[6], 'thomas27 (rangée par seb)');
+  assert.strictEqual(ligne[6], 'thomas27 (rangée par seb, selon le téléphone)');
 });
 
 test('Accès chantiers : colonnes et lignes ajoutées sans rien effacer ; ligne orpheline signalée', () => {

@@ -1,7 +1,7 @@
 // ═══════════════════════════════════════════════════════════════
 // LOUÉ APP — SERVEUR COMPLET, À COLLER DANS APPS SCRIPT (fichier « Code.gs », tout remplacer)
 // FICHIER GÉNÉRÉ AUTOMATIQUEMENT par « node outils/construire.js » — NE PAS MODIFIER À LA MAIN :
-// les sources sont dans le dossier apps-script/ du dépôt. Version du serveur 5572bebae7 (pages 02d10fbf7e)
+// les sources sont dans le dossier apps-script/ du dépôt. Version du serveur 66ddbcf6da (pages b11f534b9d)
 // ═══════════════════════════════════════════════════════════════
 
 // ████ Config.gs ████
@@ -624,17 +624,18 @@ function ecrireEtat_(ligne, texte) {
 
 // ── Qui fait la requête ? ──
 // Renvoie { compte } (profil + jetonNeuf éventuel), { sans: true } (pas de jeton, transition ouverte) ou { refus: réponse }
+// Codes : JETON_INVALIDE (la page efface le jeton), CONNEXION_REQUISE, COMPTE_REFUSE (jeton gardé),
+// COMPTES_INDISPONIBLES (problème du serveur : jeton gardé, la page réessaie comme après une coupure de réseau)
+const REFUS_INDISPONIBLE = { ok: false, code: 'COMPTES_INDISPONIBLES', message: MSG_ERREUR_COMPTES };
 function identifier_(corps) {
   const jeton = corps && corps.jeton;
-  if (!jeton) {
-    let ouverte;
-    try { ouverte = transitionOuverte_(); } catch (e) { return { refus: { ok: false, code: 'ERREUR', message: MSG_ERREUR_COMPTES } }; }
-    return ouverte ? { sans: true } : { refus: { ok: false, code: 'CONNEXION_REQUISE', message: MSG_CONNEXION } };
-  }
+  let ouverte = false;
+  try { ouverte = transitionOuverte_(); } catch (e) { return { refus: REFUS_INDISPONIBLE }; }
+  if (!jeton) return ouverte ? { sans: true } : { refus: { ok: false, code: 'CONNEXION_REQUISE', message: MSG_CONNEXION } };
   try {
     // Jeton faux, expiré ou révoqué (« Déconnecter », « Réinitialiser », nouveau mot de passe) : la page l'efface.
     // Pendant la transition, la requête passe quand même « sans compte » (comme une page qui n'a pas de jeton).
-    const invalide = () => transitionOuverte_() ? { sans: true, jetonInvalide: true }
+    const invalide = () => ouverte ? { sans: true, jetonInvalide: true }
       : { refus: { ok: false, code: 'JETON_INVALIDE', message: MSG_JETON } };
     const lu = lireJeton_(jeton);
     if (!lu) return invalide();
@@ -644,15 +645,18 @@ function identifier_(corps) {
     if (Number(c.ver || 1) !== lu.ver) return invalide();
     // Ligne en double, décochée « Actif », rôle mal tapé : refus, mais le jeton est GARDÉ (une faute de saisie dans le
     // Sheet, une fois corrigée, ne doit pas obliger à réinitialiser la personne). Pour révoquer : « Déconnecter ».
-    if (!compteUtilisable_(u, lu.id)) return { refus: { ok: false, code: 'COMPTE_REFUSE',
+    // Les fiches et photos d'un compte refusé sont quand même acceptées (« désactive ») : la dernière fiche d'un gars
+    // qui part ne reste pas bloquée dans son téléphone, et envoyer une fiche ne révèle rien.
+    if (!compteUtilisable_(u, lu.id)) return { desactive: lu.id, refus: { ok: false, code: 'COMPTE_REFUSE',
       message: 'Compte refusé pour l’instant (désactivé ou mal rempli dans le Sheet) : voyez avec le bureau. Vos fiches sont gardées.' } };
     const compte = profil_(u.parId[lu.id]);
     if (lu.exp - maintenant_() < (DUREE_JETON_JOURS - PROLONGER_APRES_JOURS) * 24 * 3600 * 1000) compte.jetonNeuf = fabriquerJeton_(lu.id, lu.ver);
     return { compte: compte };
   } catch (err) {
-    // Onglet illisible, clé absente, Propriétés indisponibles : problème du SERVEUR, le téléphone garde son jeton
+    // Onglet illisible, clé absente, Propriétés indisponibles : problème du SERVEUR, le téléphone garde son jeton.
+    // Pendant la transition, une fiche passe quand même « sans compte ».
     console.error('identifier_ :', err.message);
-    return { refus: { ok: false, code: 'ERREUR', message: MSG_ERREUR_COMPTES } };
+    return { refus: REFUS_INDISPONIBLE, sansPossible: ouverte };
   }
 }
 // Ajoute le jeton neuf (prolongation) à une réponse
@@ -699,16 +703,23 @@ function verifierIdentite_(identifiant, mdp) {
   if (!idCompteValide_(id) || !mdp || mdp.length > 200) { noterEchec_(id); return { refus: refusConnexion_(MSG_FAUX) }; }
   let u, c;
   try { u = utilisateurs_(); cleJeton_(); c = u.parId[id] ? lireCompte_(id) : null; }
-  catch (err) { console.error('verifierIdentite_ :', err.message); return { refus: { ok: false, code: 'ERREUR', message: MSG_ERREUR_COMPTES } }; }
+  catch (err) { console.error('verifierIdentite_ :', err.message); return { refus: { ok: false, code: 'COMPTES_INDISPONIBLES', message: 'Serveur indisponible : réessayez dans quelques minutes.' } }; }
   const ligne = u.parId[id];
-  // Un provisoire valable ouvre la session même si l'identifiant est bloqué (Franck vient de le donner)
-  const provOk = !!(c && c.prov && c.prov.exp > maintenant_() && verifierEmpreinte_(mdp, c.prov));
-  if (!provOk) {
-    const bloque = minutesBlocage_(id);
-    if (bloque) return { refus: refusConnexion_('Trop d’essais : identifiant bloqué encore ' + bloque + ' min. '
+  // Blocage d'abord, pour TOUT essai (provisoire compris) ; un essai pendant le blocage compte dans l'alerte globale.
+  // « Réinitialiser » débloque.
+  const bloque = minutesBlocage_(id);
+  if (bloque) {
+    noterEchec_('');
+    return { refus: refusConnexion_('Trop d’essais : identifiant bloqué encore ' + bloque + ' min. '
       + 'Le bureau peut le débloquer tout de suite (case « Réinitialiser le mot de passe »).', 'BLOQUE') };
   }
-  const bon = provOk || (c && c.emp ? verifierEmpreinte_(mdp, c) : (empreinte_(mdp, 'calcul-factice', iterations_()), false));
+  // Toujours deux calculs d'empreinte (provisoire et mot de passe, ou calculs factices) : le temps de réponse ne dit rien
+  const n = iterations_();
+  const provBon = c && c.prov ? verifierEmpreinte_(mdp, c.prov) : (empreinte_(mdp, 'calcul-factice-1', n), false);
+  const empBon = c && c.emp ? verifierEmpreinte_(mdp, c) : (empreinte_(mdp, 'calcul-factice-2', n), false);
+  const provOk = provBon && c.prov.exp > maintenant_();
+  if (provBon && !provOk) return { refus: refusConnexion_('Mot de passe provisoire expiré (48 h) : demandez-en un autre au bureau.', 'PROVISOIRE_EXPIRE') };
+  const bon = provOk || empBon;
   if (!bon) { noterEchec_(id); return { refus: refusConnexion_(MSG_FAUX) }; }
   // Bon mot de passe : on peut dire pourquoi ça bloque encore
   if (u.doublons[id]) return { refus: refusConnexion_('Cet identifiant est en double dans le Sheet : prévenez le bureau.') };
@@ -735,7 +746,7 @@ function motDePasse_(corps) {
   const raison = refusMotDePasse_(nouveau, v.ligne.id) || (nouveau === String(corps.ancien) ? 'Choisissez un mot de passe différent de l’ancien.' : '');
   if (raison) return { ok: false, code: 'MDP_REFUSE', message: raison };
   const verrou = LockService.getScriptLock();   // court : deux téléphones qui changent le même mot de passe en même temps
-  if (!verrou.tryLock(10000)) return { ok: false, code: 'ERREUR', message: MSG_ERREUR_COMPTES };
+  if (!verrou.tryLock(10000)) return { ok: false, code: 'COMPTES_INDISPONIBLES', message: 'Serveur occupé : réessayez dans une minute.' };
   let c;
   try {
     c = lireCompte_(v.ligne.id);
@@ -866,12 +877,16 @@ function finirTransitionMaintenant() {
 const SORTES_LECTURE = ['listes', 'dossiers', 'planning', 'photo'];
 function noterSansCompte_(sorte, donnees) {
   try {
-    PropertiesService.getScriptProperties().setProperty('SANS_COMPTE_DERNIER', String(maintenant_()));
     const cache = cacheScript_();
-    const cle = 'SC_' + jour_() + '_' + sorte;
-    const n = Number(cache.get(cle) || 0) + 1;
-    cache.put(cle, String(n), 6 * 3600);
-    if (sorte !== 'fiche' || n > MAX_SANS_COMPTE_PAR_JOUR) return;
+    if (sorte !== 'fiche') {
+      const cle = 'SC_' + jour_() + '_' + sorte;
+      cache.put(cle, String(Number(cache.get(cle) || 0) + 1), 6 * 3600);
+      return;
+    }
+    const cleF = 'SCF_' + jour_();
+    const n = Number(cache.get(cleF) || 0) + 1;
+    cache.put(cleF, String(n), 6 * 3600);
+    if (n > MAX_SANS_COMPTE_PAR_JOUR) return;
     const d = donnees || {};
     const nomSaisi = [d.auteur, d.redacteur, d.poseur, d.demandeur, d.nomLoue, d.signataireLoue].filter(Boolean).map(String).join(' / ').slice(0, 100);
     feuille_(SHEET_SANS_COMPTE, ['Date', 'Sorte', 'Fiche', 'Chantier', 'Nom saisi dans la fiche', 'Nombre'])
@@ -883,14 +898,16 @@ function recopierCompteursSansCompte_() {
   const jours = [jour_(), Utilities.formatDate(new Date(maintenant_() - 24 * 3600 * 1000), 'Europe/Paris', 'yyyy-MM-dd')];
   let sh = null;
   jours.forEach(j => SORTES_LECTURE.forEach(sorte => {
-    const n = Number(cache.get('SC_' + j + '_' + sorte) || 0);
+    const cle = 'SC_' + j + '_' + sorte;
+    const n = Number(cache.get(cle) || 0);
     if (!n) return;
+    cache.put(cle, '0', 6 * 3600);   // compté : remis à zéro (une coupure du cache ne fait plus baisser le total)
     sh = sh || feuille_(SHEET_SANS_COMPTE, ['Date', 'Sorte', 'Fiche', 'Chantier', 'Nom saisi dans la fiche', 'Nombre']);
     const etiquette = 'lectures ' + sorte + ' du ' + j;
-    const valeurs = sh.getLastRow() > 1 ? sh.getRange(2, 2, sh.getLastRow() - 1, 1).getValues() : [];
+    const valeurs = sh.getLastRow() > 1 ? sh.getRange(2, 2, sh.getLastRow() - 1, 5).getValues() : [];
     let ligne = 0;
-    for (let i = valeurs.length - 1; i >= 0 && i >= valeurs.length - 60; i--) if (valeurs[i][0] === etiquette) { ligne = i + 2; break; }
-    if (ligne) sh.getRange(ligne, 6).setValue(n);
+    for (let i = valeurs.length - 1; i >= 0; i--) if (valeurs[i][0] === etiquette) { ligne = i + 2; break; }
+    if (ligne) sh.getRange(ligne, 6).setValue(Number(valeurs[ligne - 2][4] || 0) + n);
     else sh.appendRow([new Date(maintenant_()), etiquette, '', '', '', n]);
   }));
 }
@@ -918,42 +935,44 @@ function traiterComptes() {
       const ligne = i + 2;
       const id = normaliserId_(r[COL_U.id - 1]);
       if (!id) return;
-      const avant = r.slice(COL_U.reinit - 1, COL_U.etat);      // colonnes E à J
-      const apres = avant.slice();
-      const E = COL_U.reinit - COL_U.reinit, F = COL_U.provisoire - COL_U.reinit, G = COL_U.valable - COL_U.reinit,
-            H = COL_U.deconnecter - COL_U.reinit, J = COL_U.etat - COL_U.reinit;
-      if (!idCompteValide_(id)) { apres[J] = 'identifiant invalide : minuscules, chiffres, - ou _ seulement (2 à 30)'; }
-      else if (u.doublons[id]) { apres[J] = 'identifiant en double : corrigez l’une des lignes'; }
+      const etatAvant = String(r[COL_U.etat - 1] || '');
+      let etat = etatAvant;
+      // Seules les cases TRAITÉES sont réécrites (jamais toute la ligne : une case cochée par Franck pendant ce passage
+      // n'est pas effacée ; elle sera traitée au passage suivant)
+      const ecrire = (col, v) => { const p = u.sh.getRange(ligne, col); if (col === COL_U.provisoire || col === COL_U.valable) p.setNumberFormat('@'); p.setValue(v); };
+      if (!idCompteValide_(id)) { etat = 'identifiant invalide : minuscules, chiffres, - ou _ seulement (2 à 30)'; }
+      else if (u.doublons[id]) { etat = 'identifiant en double : corrigez l’une des lignes'; }
       else {
-        let c = lireCompte_(id), change = false;
-        if (r[COL_U.reinit - 1] === true) {
-          const prov = motDePasseProvisoire_();
-          c.prov = Object.assign(nouvelleEmpreinte_(prov), { exp: maintenant + DUREE_PROVISOIRE_H * 3600 * 1000 });
-          c.ver = Number(c.ver || 1) + 1; change = true;
-          effacerEchecs_(id);
-          apres[E] = false; apres[F] = prov; apres[G] = texteDate_(c.prov.exp);
-          apres[J] = 'provisoire créé le ' + texteDate_(maintenant) + ' : à donner à la personne (valable 48 h)';
-        } else if (c.prov && c.prov.exp <= maintenant) {
-          delete c.prov; change = true;
-          apres[F] = ''; apres[G] = '';
-          apres[J] = 'provisoire expiré : cochez « Réinitialiser » pour en créer un autre';
+        const reinit = r[COL_U.reinit - 1] === true, deco = r[COL_U.deconnecter - 1] === true;
+        let c = lireCompte_(id);
+        const expire = !reinit && c.prov && c.prov.exp <= maintenant;
+        let prov = '';
+        if (reinit || deco || expire) {
+          c = lireCompte_(id);   // relu juste avant d'écrire (un mot de passe vient peut-être d'être choisi)
+          if (reinit) {
+            prov = motDePasseProvisoire_();
+            c.prov = Object.assign(nouvelleEmpreinte_(prov), { exp: maintenant + DUREE_PROVISOIRE_H * 3600 * 1000 });
+            delete c.emp; delete c.sel; delete c.n;   // l'ancien mot de passe ne marche plus (téléphone volé, mot de passe divulgué)
+            c.ver = Number(c.ver || 1) + 1;
+            effacerEchecs_(id);
+          } else if (expire && c.prov && c.prov.exp <= maintenant) delete c.prov;
+          if (deco) c.ver = Number(c.ver || 1) + 1;
+          ecrireCompte_(id, c);
         }
-        if (r[COL_U.deconnecter - 1] === true) {
-          c.ver = Number(c.ver || 1) + 1; change = true;
-          apres[H] = false;
-          apres[J] = 'téléphones déconnectés le ' + texteDate_(maintenant);
+        if (reinit) {
+          ecrire(COL_U.provisoire, prov); ecrire(COL_U.valable, texteDate_(c.prov.exp)); ecrire(COL_U.reinit, false);
+          etat = 'provisoire créé le ' + texteDate_(maintenant) + ' : à donner à la personne (valable 48 h)';
+        } else if (expire) {
+          ecrire(COL_U.provisoire, ''); ecrire(COL_U.valable, '');
+          etat = c.emp ? 'provisoire expiré (son mot de passe actuel marche toujours)' : 'provisoire expiré : cochez « Réinitialiser » pour en créer un autre';
         }
-        if (change) ecrireCompte_(id, c);
+        if (deco) { ecrire(COL_U.deconnecter, false); etat = 'téléphones déconnectés le ' + texteDate_(maintenant); }
         const bloque = minutesBlocage_(id);
-        if (bloque && String(apres[J]).indexOf('bloqué') < 0) apres[J] = 'bloqué ' + bloque + ' min (5 essais ratés) — « Réinitialiser » débloque';
-        else if (!bloque && /^bloqué/.test(String(apres[J]))) apres[J] = '';
-        if (!c.emp && !c.prov && !apres[J]) apres[J] = 'pas encore de mot de passe : cochez « Réinitialiser »';
+        if (bloque && etat.indexOf('bloqué') < 0) etat = 'bloqué ' + bloque + ' min (5 essais ratés) — « Réinitialiser » débloque';
+        else if (!bloque && /^bloqué/.test(etat)) etat = '';
+        if (!c.emp && !c.prov && !etat) etat = 'pas encore de mot de passe : cochez « Réinitialiser »';
       }
-      // Une seule écriture par ligne (la case est décochée en même temps que le provisoire apparaît)
-      if (apres.some((v, k) => v !== avant[k])) {
-        u.sh.getRange(ligne, COL_U.reinit, 1, 4).setValues([apres.slice(0, 4).map(cellule_)]);
-        u.sh.getRange(ligne, COL_U.etat).setValue(cellule_(apres[J]));
-      }
+      if (etat !== etatAvant) u.sh.getRange(ligne, COL_U.etat).setValue(cellule_(etat));
     });
     synchroniserAcces_(u);
     recopierCompteursSansCompte_();
@@ -1042,19 +1061,22 @@ function preparerOngletsLot2() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const lignes = [];
   // Utilisateurs
+  const regle = l => SpreadsheetApp.newDataValidation().requireValueInList(l).setAllowInvalid(true).build();
   let sh = ss.getSheetByName(SHEET_UTILISATEURS);
   if (!sh) {
     sh = feuille_(SHEET_UTILISATEURS, ENTETES_UTILISATEURS);
     try { sh.setFrozenColumns(1); } catch (e) {}
-    lignes.push('✅ Onglet « ' + SHEET_UTILISATEURS + ' » créé');
+    // Listes et cases sur 200 lignes, SEULEMENT à la création : dans Sheets, insertCheckboxes() remet chaque case à FAUX,
+    // relancer la fonction décocherait les comptes
+    const n = Math.min(199, sh.getMaxRows() - 1);
+    sh.getRange(2, COL_U.role, n, 1).setDataValidation(regle(ROLES));
+    const contacts = ss.getSheetByName(SHEET_CONTACTS);
+    if (contacts && contacts.getMaxRows() > 1) sh.getRange(2, COL_U.nom, n, 1).setDataValidation(SpreadsheetApp.newDataValidation()
+      .requireValueInRange(contacts.getRange(2, 1, contacts.getMaxRows() - 1, 1), true).setAllowInvalid(true).build());
+    [COL_U.actif, COL_U.reinit, COL_U.deconnecter, COL_U.tous].forEach(c => sh.getRange(2, c, n, 1).insertCheckboxes());
+    sh.getRange(2, COL_U.provisoire, n, 2).setNumberFormat('@');
+    lignes.push('✅ Onglet « ' + SHEET_UTILISATEURS + ' » créé (cases et listes sur 200 lignes)');
   } else lignes.push('Onglet « ' + SHEET_UTILISATEURS + ' » déjà présent (non modifié)');
-  // Listes et cases sur 200 lignes : rôle, nom (depuis Contacts), cases
-  const regle = l => SpreadsheetApp.newDataValidation().requireValueInList(l).setAllowInvalid(true).build();
-  sh.getRange(2, COL_U.role, 199, 1).setDataValidation(regle(ROLES));
-  const contacts = ss.getSheetByName(SHEET_CONTACTS);
-  if (contacts) sh.getRange(2, COL_U.nom, 199, 1).setDataValidation(SpreadsheetApp.newDataValidation()
-    .requireValueInRange(contacts.getRange(2, 1, 500, 1), true).setAllowInvalid(true).build());
-  [COL_U.actif, COL_U.reinit, COL_U.deconnecter, COL_U.tous].forEach(c => sh.getRange(2, c, 199, 1).insertCheckboxes());
   // Accès chantiers
   if (!ss.getSheetByName(SHEET_ACCES)) {
     const a = feuille_(SHEET_ACCES, ['Chantier', 'Remarque (appli)']);
@@ -1076,7 +1098,7 @@ function preparerOngletsLot2() {
     const statuts = {};
     if (ch.getLastRow() > 1) ch.getRange(2, 3, ch.getLastRow() - 1, 1).getValues().forEach(r => { const s = String(r[0]).trim(); if (s) statuts[s] = (statuts[s] || 0) + 1; });
     const autres = Object.keys(statuts).filter(s => STATUTS_CHANTIER.indexOf(s) < 0);
-    ch.getRange(2, 3, Math.max(1, ch.getLastRow() + 200), 1).setDataValidation(regle(STATUTS_CHANTIER));
+    ch.getRange(2, 3, Math.max(1, Math.min(ch.getLastRow() + 200, ch.getMaxRows() - 1)), 1).setDataValidation(regle(STATUTS_CHANTIER));
     lignes.push('Statuts : liste « ' + STATUTS_CHANTIER.join(' / ') + ' » (avertissement seulement).'
       + (autres.length ? ' Valeurs actuelles hors liste, à corriger à la main : ' + autres.join(', ') + '.' : ''));
   }
@@ -1101,16 +1123,19 @@ function verifierComptes_() {
     lignes.push('Comptes actifs : ' + n + (Object.keys(u.doublons).length ? ' — ❌ en double : ' + Object.keys(u.doublons).join(', ') : ''));
   } catch (e) {}
   try {
-    const admin = String(emailAdmin_()).toLowerCase();
-    const autres = ss.getEditors().map(x => String(x.getEmail()).toLowerCase()).filter(e => e && e !== admin);
+    const moi = [emailAdmin_(), Session.getEffectiveUser().getEmail()].concat(ss.getOwner ? [ss.getOwner() && ss.getOwner().getEmail()] : [])
+      .map(e => String(e || '').toLowerCase());
+    const autres = ss.getEditors().map(x => String(x.getEmail()).toLowerCase()).filter(e => e && moi.indexOf(e) < 0);
     ok(!autres.length, autres.length ? 'Le Sheet peut être modifié par d’autres comptes (' + autres.join(', ')
       + ') : ils peuvent lire la clé secrète. Retirez-les du partage.' : 'Sheet modifiable par Franck seul');
   } catch (e) { lignes.push('Partage du Sheet : non vérifiable (' + e.message + ')'); }
   const fin = finTransition_();
   lignes.push(!fin ? (transitionOublieeDepuis_() ? '❌ ' : '') + 'Transition : pas commencée (tout marche encore sans compte ; demarrerTransition() quand tous les gars sont connectés)'
     : (maintenant_() < fin ? 'Transition : sans compte accepté jusqu’au ' + texteDate_(fin) : 'Transition terminée le ' + texteDate_(fin) + ' : sans compte refusé'));
-  const dernier = Number(propriete_('SANS_COMPTE_DERNIER') || 0);
-  if (dernier && maintenant_() - dernier < 48 * 3600 * 1000) lignes.push('⚠ Utilisation sans compte dans les dernières 48 h (le ' + texteDate_(dernier) + ') : voir l’onglet « ' + SHEET_SANS_COMPTE + ' »');
+  try {
+    const recent = resumeSansCompte_(2);
+    if (recent !== 'aucune' && recent !== '0 fiche(s), 0 lecture(s)') lignes.push('⚠ Utilisation sans compte dans les dernières 48 h : ' + recent + ' (onglet « ' + SHEET_SANS_COMPTE + ' »)');
+  } catch (e) {}
   lignes.push('Hachage : ' + iterations_() + ' itérations (mesurerHachage pour régler)');
   return lignes.join('\n');
 }
@@ -1372,7 +1397,12 @@ function routerV5_(corps) {
     if (corps.action === 'connexion')  return connexion_(corps);
     if (corps.action === 'motDePasse') return motDePasse_(corps);
     if (['photo', 'fiche', 'moi', 'listes', 'dossiers'].indexOf(corps.action) < 0) return { ok: false, code: 'ACTION_INCONNUE', message: 'Action inconnue' };
-    const qui = identifier_(corps);
+    let qui = identifier_(corps);
+    const envoi = corps.action === 'photo' || corps.action === 'fiche';
+    // Fiche ou photo d'un compte désactivé : acceptée, notée « (compte désactivé) »
+    if (qui.refus && qui.desactive && envoi) qui = { compte: { id: qui.desactive + ' (compte désactivé)' } };
+    // Comptes illisibles (panne) pendant la transition : la fiche passe « sans compte »
+    if (qui.refus && qui.sansPossible && envoi) qui = { sans: true };
     if (qui.refus) return qui.refus;
     const marquer = rep => { if (qui.jetonInvalide) rep.jetonInvalide = true; return rep; };   // la page efface son jeton
     if (corps.action === 'photo') { if (qui.sans) noterSansCompte_('photo'); return marquer(avecJeton_(recevoirPhoto_(corps), qui.compte)); }
@@ -1486,7 +1516,8 @@ function recevoirFiche_(corps, compte) {
 
   // Auteur : le compte qui envoie (et celui qui était connecté quand la fiche a été rangée, s'il est différent)
   const saisiPar = normaliserId_(corps.saisiPar);
-  const auteur = compte ? compte.id + (saisiPar && saisiPar !== compte.id && idCompteValide_(saisiPar) ? ' (rangée par ' + saisiPar + ')' : '')
+  // « rangée par » est déclaré par le téléphone (information, pas une preuve) ; le compte qui envoie est vérifié par le jeton
+  const auteur = compte ? compte.id + (saisiPar && saisiPar !== compte.id && idCompteValide_(saisiPar) ? ' (rangée par ' + saisiPar + ', selon le téléphone)' : '')
                         : 'sans compte';
   // 1. Réserver le numéro (sous verrou, court)
   const verrou = LockService.getScriptLock();
@@ -2444,6 +2475,16 @@ function installerDeclencheurs() {
   ScriptApp.newTrigger('traiterComptes').timeBased().everyMinutes(10).create();
   ScriptApp.newTrigger('surModificationSheet').forSpreadsheet(SpreadsheetApp.getActiveSpreadsheet()).onEdit().create();
   const m = 'Déclencheurs installés : renvoyerMailsEnAttente (2 h), traiterComptes (10 min), surModificationSheet (à chaque modification).';
+  Logger.log(m); return m;
+}
+
+// Retire les 3 déclencheurs (à lancer sur la copie TEST après les essais : les 90 min de déclencheurs par jour
+// sont partagées par tout le compte Google, production comprise)
+function retirerDeclencheurs() {
+  let n = 0;
+  ScriptApp.getProjectTriggers().filter(t => DECLENCHEURS.indexOf(t.getHandlerFunction()) > -1)
+    .forEach(t => { ScriptApp.deleteTrigger(t); n++; });
+  const m = n + ' déclencheur(s) retiré(s). (installerDeclencheurs pour les remettre.)';
   Logger.log(m); return m;
 }
 

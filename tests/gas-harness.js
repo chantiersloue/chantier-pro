@@ -16,7 +16,10 @@ function creerGoogle(options = {}) {
     const largeur = () => Math.max(1, ...f.lignes.map(l => l.length));
     const cellule = (r, c) => (f.lignes[r - 1] || [])[c - 1];
     const ecrire = (r, c, v) => { while (f.lignes.length < r) f.lignes.push([]); f.lignes[r - 1][c - 1] = v; };
+    // Comme Sheets : une plage qui dépasse la taille de la feuille (1000 lignes, 26 colonnes au départ) lève une erreur
+    f.maxLignes = f.maxLignes || 1000;
     const plage = (r, c, nr, nc) => {
+      if (r < 1 || c < 1 || nr < 1 || nc < 1 || r + nr - 1 > Math.max(f.maxLignes, f.lignes.length)) throw new Error('Those rows are out of bounds.');
       const p = {
         getValues: () => Array.from({ length: nr }, (_, i) => Array.from({ length: nc }, (_, j) => {
           const v = cellule(r + i, c + j); return v === undefined ? '' : v; })),
@@ -26,7 +29,7 @@ function creerGoogle(options = {}) {
         clearContent: () => { for (let i = 0; i < nr; i++) for (let j = 0; j < nc; j++) ecrire(r + i, c + j, ''); return p; },
         setFontWeight: () => p, setBackground: () => p, setFontColor: () => p,
         // Lot 2 : cases à cocher et listes de choix (la validation est gardée pour les tests)
-        insertCheckboxes: () => { for (let i = 0; i < nr; i++) for (let j = 0; j < nc; j++) { const v = cellule(r + i, c + j); if (v === undefined || v === '') ecrire(r + i, c + j, false); } f.cases = (f.cases || 0) + nr * nc; return p; },
+        insertCheckboxes: () => { for (let i = 0; i < nr; i++) for (let j = 0; j < nc; j++) ecrire(r + i, c + j, false); f.cases = (f.cases || 0) + nr * nc; return p; },
         setDataValidation: v => { f.validations = (f.validations || []).concat([{ r, c, nr, nc, v }]); return p; },
         setNote: () => p, setWrap: () => p, setNumberFormat: () => p,
         getRow: () => r, getColumn: () => c, getNumRows: () => nr, getNumColumns: () => nc,
@@ -38,6 +41,7 @@ function creerGoogle(options = {}) {
       appendRow: l => { f.lignes.push(l.slice()); },
       getDataRange: () => plage(1, 1, Math.max(1, f.lignes.length), largeur()),
       getRange: (r, c, nr = 1, nc = 1) => plage(r, c, nr, nc),
+      getMaxRows: () => Math.max(f.maxLignes, f.lignes.length),
       getLastRow: () => {
         for (let i = f.lignes.length; i > 0; i--) if (f.lignes[i - 1].some(v => v !== '' && v !== undefined)) return i;
         return 0;
@@ -190,7 +194,8 @@ function creerGoogle(options = {}) {
         requireValueInList: l => { v.liste = l; return v; }, requireValueInRange: () => v, requireCheckbox: () => { v.liste = [true, false]; return v; },
         setAllowInvalid: b => { v.invalide = b; return v; }, setHelpText: () => v, build: () => v }; return v; } },
     DriveApp, HtmlService, GmailApp, MailApp, PropertiesService, Utilities, ScriptApp,
-    LockService: { getScriptLock: () => ({ tryLock: () => !options.verrouOccupe, releaseLock: () => {} }) },
+    LockService: { getScriptLock: () => ({ tryLock: () => !options.verrouOccupe, releaseLock: () => {} }),
+                   getDocumentLock: () => ({ tryLock: () => !options.verrouOccupe, releaseLock: () => {} }) },
     CacheService: { getScriptCache: () => ({
       get: k => (cache[k] === undefined ? null : cache[k]), put: (k, v) => { cache[k] = String(v); }, remove: k => { delete cache[k]; } }) },
     Session: { getEffectiveUser: () => ({ getEmail: () => 'franck@loue.test' }),

@@ -69,7 +69,9 @@
       corps = Object.assign({}, corps, { jeton: c.jeton });
     }
     return appelerBrut(corps, delaiMs).then(function (rep) {
-      if (rep && rep.jeton && LOUE.compte()) LOUE.enregistrerCompte(rep.jeton);   // jeton prolongé de 90 jours
+      // Jeton prolongé de 90 jours, seulement s'il est bien celui de la personne connectée maintenant
+      // (une réponse peut arriver après une déconnexion et la connexion de quelqu'un d'autre)
+      if (rep && rep.jeton && LOUE.compte() && String(rep.jeton).split('.')[0] === LOUE.compte().profil.id) LOUE.enregistrerCompte(rep.jeton);
       if (rep && (rep.code === 'JETON_INVALIDE' || rep.jetonInvalide)) oublierJeton(rep.message);
       return rep;
     });
@@ -207,6 +209,7 @@
           return LOUE.appeler({ action: 'photo', id: idPhoto, fiche: el.id, mime: blob.type || 'image/jpeg', data: b64 }, 90000);
         }).then(function (rep) {
           if (LOUE.estRefusDeConnexion(rep)) throw Object.assign(new Error(messageConnexion(rep)), { connexion: true });
+          if (rep.code === 'COMPTES_INDISPONIBLES') throw Object.assign(new Error(rep.message), { indisponible: true });
           if (!rep.ok) throw Object.assign(new Error(rep.message || 'Photo refusée'), { definitif: rep.code === 'DONNEES_INVALIDES' || rep.code === 'TROP_GROS' || rep.code === 'LIMITE' });
           el.photosEnvoyees.push(idPhoto);
           return noter ? noter() : null;
@@ -218,6 +221,8 @@
     }).then(function (rep) {
       if (rep.ok) return rep;                                   // ENREGISTRE ou DEJA_RECU
       if (LOUE.estRefusDeConnexion(rep)) throw Object.assign(new Error(messageConnexion(rep)), { connexion: true });
+      // Comptes momentanément illisibles côté serveur : traité comme une coupure de réseau (jamais « à vérifier »)
+      if (rep.code === 'COMPTES_INDISPONIBLES') throw Object.assign(new Error(rep.message), { indisponible: true });
       if (rep.code === 'PHOTOS_MANQUANTES') {                   // le serveur a perdu des photos : on les renverra
         el.photosEnvoyees = el.photosEnvoyees.filter(function (id) { return ((rep.data || {}).manquantes || []).indexOf(id) < 0; });
       }
@@ -238,6 +243,7 @@
   var DELAIS_RESEAU_MIN = [0, 1, 5];
   var ESSAIS_MAX = 12;
   function erreurReseau(err) {
+    if (err && err.indisponible) return true;
     // 404, 403… : l'adresse du serveur est fausse ou périmée, ce n'est pas une coupure de réseau
     if (err && err.statut && err.statut < 500 && err.statut !== 408 && err.statut !== 429) return false;
     return err && (err.name === 'AbortError' || err.name === 'TypeError' || /^Serveur : erreur|fetch|network|load failed/i.test(err.message || ''));
