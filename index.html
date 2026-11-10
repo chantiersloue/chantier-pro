@@ -6,7 +6,7 @@
 <title>Loué App</title>
 <link rel="icon" type="image/png" href="apple-touch-icon.png">
 <link rel="manifest" href="manifest.json">
-<link rel="stylesheet" href="commun/style.css?v=e493369d3e">
+<link rel="stylesheet" href="commun/style.css?v=a54ba50d69">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -499,10 +499,10 @@ body.loue-test .installer{padding-top:calc(56px + env(safe-area-inset-top,0px));
 </div>
 
 
-<script src="commun/config.js?v=e493369d3e"></script>
-<script src="commun/api.js?v=e493369d3e"></script>
-<script src="commun/ui.js?v=e493369d3e"></script>
-<script src="commun/hors-ligne.js?v=e493369d3e"></script>
+<script src="commun/config.js?v=a54ba50d69"></script>
+<script src="commun/api.js?v=a54ba50d69"></script>
+<script src="commun/ui.js?v=a54ba50d69"></script>
+<script src="commun/hors-ligne.js?v=a54ba50d69"></script>
 <script>
 // ── Accueil (lot 2) : connexion, « Mes chantiers », fiches du chantier avec le chantier pré-rempli ──
 // Rien ici n'empêche de remplir une fiche : « Remplir une fiche sans être connecté » est toujours proposé,
@@ -666,13 +666,17 @@ function afficherAccueil() {
 // Profil et chantiers à jour (jeton prolongé) ; hors réseau, la dernière liste gardée suffit
 function rafraichirCompte() {
   LOUE.moi().then(rep => {
-    if (rep.ok) { CHANTIERS = rep.data.chantiers || []; renderChantiers(); return; }
+    if (rep.ok) {
+      CHANTIERS = rep.data.chantiers || []; renderChantiers();
+      LOUE.chargerListes().catch(() => {});   // gardées dans le téléphone pour les fiches, même plus tard sans réseau
+      return;
+    }
     if (rep.code === 'JETON_INVALIDE') return;            // l'évènement « compte déconnecté » ramène à la connexion
     if (rep.code === 'ACTION_INCONNUE') { MODE = 'sans'; chargerChantiersSansCompte(); return; }   // serveur du lot 1
     LOUE.message(rep.message || 'Liste des chantiers indisponible', 8000);
     if (!CHANTIERS.length) $('chantiers-container').innerHTML = vide('Liste indisponible', esc(rep.message || ''), ICONE_MAISON);
   }).catch(() => {
-    if (!LOUE.compte().chantiers) $('chantiers-container').innerHTML = vide('Pas de réseau', 'La liste de vos chantiers s’affichera au premier passage avec du réseau. Les fiches marchent sans réseau.', ICONE_MAISON);
+    if (!(LOUE.compte() || {}).chantiers) $('chantiers-container').innerHTML = vide('Pas de réseau', 'La liste de vos chantiers s’affichera au premier passage avec du réseau. Les fiches marchent sans réseau.', ICONE_MAISON);
     else LOUE.message('Pas de réseau : liste gardée dans le téléphone', 5000);
   });
 }

@@ -408,6 +408,7 @@
   // déjà parties : le serveur répond « déjà reçue » au lieu d'envoyer un 2e mail.
   var directs = {};
   // Message des pages quand la fiche est peut-être arrivée mais pas encore confirmée (même numéro tant que rien ne change)
+  LOUE.MSG_DIRECT_CONNEXION = '⚠ Connexion nécessaire, et le téléphone n’a PAS pu garder la fiche : ne quittez pas cette page. Ouvrez l’accueil dans un autre onglet, connectez-vous, puis revenez ici et touchez Envoyer.';
   LOUE.MSG_DIRECT_A_CONFIRMER = '⏳ Pas encore confirmé par le bureau (la fiche est peut-être déjà arrivée). Touchez Envoyer de nouveau, SANS RIEN CHANGER : il n’y aura pas de 2e mail.';
   LOUE.envoyerDirect = function (type, donnees, photos) {
     var empreinte = type + '|' + JSON.stringify(donnees) + '|' + (photos || []).map(function (p) { return p.id + ':' + (p.blob ? p.blob.size : 0); }).join(',');
@@ -423,6 +424,8 @@
         delete directs[empreinte];
         return rep;
       }).catch(function (err) {
+        // Connexion nécessaire : réessayer ne sert à rien, et la fiche n'est PAS gardée dans le téléphone
+        if (err.connexion) throw Object.assign(new Error(LOUE.MSG_DIRECT_CONNEXION), { connexion: true, definitif: true });
         if (err.definitif || n >= (err.aConfirmer ? 6 : 3)) {
           var texte = err.aConfirmer ? LOUE.MSG_DIRECT_A_CONFIRMER : messageClair(err);
           throw Object.assign(new Error(texte), { definitif: err.definitif, aConfirmer: !!err.aConfirmer });
@@ -445,6 +448,22 @@
   }
   LOUE.annoncerFile = function () { annoncer(); };
   if (canal) canal.onmessage = function () { annoncer(true); };   // une autre page a envoyé ou rangé une fiche
+
+  // Fiches passées « à vérifier » sur l'appli 5.1 parce que le serveur demandait une connexion (fin de la période de
+  // transition avant la mise à jour du téléphone) : la 6.0 les remet « en attente de connexion », elles repartent seules
+  function reprendreFichesConnexion() {
+    LOUE.stockage.tout('file').then(function (liste) {
+      var a = liste.filter(function (e) {
+        return e.etat === 'erreur' && (!e.env || e.env === CONFIG.env) && /Appli à mettre à jour|connexion nécessaire/i.test(e.message || '');
+      });
+      return Promise.all(a.map(function (e) {
+        e.etat = 'en attente'; e.attendConnexion = true; e.refusServeur = 0; e.essais = 0; e.prochainEssai = 0;
+        e.message = 'En attente : connectez-vous depuis l’accueil pour l’envoyer (la fiche est gardée)';
+        return LOUE.stockage.ecrire('file', e);
+      })).then(function () { if (a.length) annoncer(); });
+    }).catch(function () {});
+  }
+  window.addEventListener('load', reprendreFichesConnexion);
 
   // Déclencheurs du renvoi automatique (pas de « synchronisation en arrière-plan » : elle n'existe pas sur iPhone)
   // Au retour du réseau et dans l'appli : les fiches qui attendaient le réseau (ou une confirmation) partent tout de suite
@@ -496,6 +515,10 @@
       if (!g) {
         // Jeton refusé pendant la transition : la lecture sans compte marche encore
         if (!LOUE.compte()) return chargerListesSansCompte();
+        // Première fois sans réseau depuis la connexion : la liste gardée avant (sans compte) sert de secours
+        var s = null;
+        try { s = JSON.parse(localStorage.getItem(CLE_LISTES) || 'null'); } catch (e) {}
+        if (s && s.donnees) return { donnees: s.donnees, date: s.date, depuisLeTelephone: true };
         throw new Error('Listes indisponibles : pas de réseau et rien de gardé dans le téléphone');
       }
       listesPartielles = !!g.donnees.partiel;

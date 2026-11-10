@@ -78,6 +78,23 @@ cibles.forEach(([fichier, fabriquer]) => {
     else { fs.mkdirSync(path.dirname(path.join(racine, fichier)), { recursive: true }); fs.writeFileSync(path.join(racine, fichier), attendu); }
   }
 });
+// Garde-fous (relecture du lot 2) : aucun marqueur de conflit oublié après une fusion, et des scripts lisibles par le
+// navigateur (un service worker illisible ne s'installe pas : les téléphones resteraient sur l'ancienne version)
+function garderFous() {
+  const erreurs = [];
+  const suivis = require('child_process').execFileSync('git', ['ls-files'], { cwd: racine }).toString().split('\n')
+    .filter(f => /\.(js|gs|html|css|json|md)$/.test(f) && fs.existsSync(path.join(racine, f)));
+  suivis.forEach(f => {
+    if (/^(<{7}|>{7}|={7})( |$)/m.test(lire(f))) erreurs.push('marqueur de conflit dans ' + f);
+  });
+  const vm = require('vm');
+  ['sw.js'].concat(liste('commun', '.js'), liste('modeles', '.js'), ['A-COLLER-DANS-APPS-SCRIPT/Code.gs']).forEach(f => {
+    try { new vm.Script(lire(f), { filename: f }); } catch (e) { erreurs.push('syntaxe : ' + f + ' — ' + e.message); }
+  });
+  return erreurs;
+}
+const fous = garderFous();
+if (fous.length) { console.error('❌ ' + fous.join('\n❌ ')); process.exit(1); }
 if (verifier) {
   if (pasAJour.length) { console.error('Pas à jour : ' + pasAJour.join(', ') + ' → lancer « node outils/construire.js »'); process.exit(1); }
   console.log('Livraison à jour (version ' + empreinte + ')');

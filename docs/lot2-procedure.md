@@ -56,12 +56,12 @@
 2. Sheet **« ChantierPro TEST »** → Extensions → Apps Script. **Sauvegarde** : clique sur `Code.gs`, Ctrl+A, Ctrl+C, colle dans un fichier texte `_prive/Code-TEST-avant-lot2.gs` sur ton PC.
 3. Colle le nouveau `Code.gs` : sur github.com, dossier **`A-COLLER-DANS-APPS-SCRIPT`** → **`Code.gs`** → icône **« Copy raw file »** (deux carrés superposés) ; dans l'éditeur : clique dans `Code.gs`, **Ctrl+A**, **Ctrl+V**, puis l'icône **disquette**. Il ne doit y avoir qu'un seul fichier `Code.gs` dans la liste de gauche.
 4. Vérifie que la propriété **`ENVIRONNEMENT`** vaut **`TEST`** : ⚙ **Paramètres du projet** (roue dentée à gauche) → en bas, **Propriétés du script**. Elle existe depuis le lot 0. **Ne touche à aucune autre propriété.**
-5. Lance, une par une (choisir la fonction en haut, ▶ Exécuter), et lis le journal :
+5. Lance, une par une (choisir la fonction en haut, ▶ Exécuter), et lis le journal. **Si Google demande une autorisation** (à n'importe laquelle de ces fonctions, en général la première) : **Paramètres avancés → Accéder → Autoriser**, comme au lot 0.
    - **`genererCle`** → « ✅ Clé secrète créée » ;
    - **`preparerOngletsLot2`** → onglets créés, colonnes E à K de *Chantiers*. **Si une ligne commence par ❌, arrête-toi et envoie-la-moi** ;
-   - **`installerDeclencheurs`** → Google demande une nouvelle autorisation (« voir et modifier vos feuilles de calcul » : c'est pour les cases à cocher) : Paramètres avancés → Accéder → Autoriser ;
+   - **`installerDeclencheurs`** → « Déclencheurs installés : renvoyerMailsEnAttente (2 h), traiterComptes (10 min), surModificationSheet (à chaque modification) » ;
    - **`mesurerHachage`** → il donne un nombre (par exemple 3000). Ajoute la propriété **`HACHAGE_ITERATIONS`** avec ce nombre : ⚙ Paramètres du projet → Propriétés du script → **Modifier les propriétés du script** → **Ajouter une propriété** → nom `HACHAGE_ITERATIONS`, valeur le nombre → **Enregistrer**. **Note-le** : tu mettras le même en production ;
-   - **`verifierConfig`** → que des ✅, sauf la ligne « Transition : pas commencée » (normal).
+   - **`verifierConfig`** → la 1re ligne dit **`Loué App API v6.0`**, puis des ✅. Sont **normales** sans ✅ : « Transition : pas commencée… », « Comptes actifs : 0 », « Hachage : … itérations », « Mails encore possibles aujourd'hui : … », et éventuellement « ⚠ Utilisation sans compte… » ou « Partage du Sheet : non vérifiable ». Une ligne avec ❌ : arrête-toi et envoie-la-moi.
 6. **Déployer → Gérer les déploiements** → déploiement TEST → ✏ Modifier → Version : **Nouvelle version** → **Déployer**. Ouvre l'adresse TEST (celle qui finit par `/exec`, dans `_prive/ids-test.txt`) : **`Loué App API v6.0 OK`**.
    - Si tu vois encore `v5.1` : la mise à jour n'a pas été prise (règle 2 de CLAUDE.md). Fais **Nouveau déploiement**, envoie-moi la nouvelle adresse, et **attends** que je mette `commun/config.js` à jour.
 
@@ -95,7 +95,7 @@ Ouvre `https://chantiersloue.github.io/chantier-pro/essai/` sur ton téléphone 
 | 7 | Tape quelque chose, reviens, ouvre le quitus depuis un **autre** chemin (« Fiche sans chantier choisi ») | Bandeau « Brouillon retrouvé — chantier X » |
 | 8 | Envoie un quitus | « ✓ Tout est envoyé », mail reçu ; onglet *Envois*, colonne G : `poseur01` |
 | 9 | Dans le quitus, tape un chantier qui n'est pas le sien (un vrai chantier du Sheet) | Question « ne fait pas partie de vos chantiers… Envoyer quand même ? » → Oui → envoyé, rangé dans le dossier de ce chantier |
-| 10 | Tape un chantier qui n'existe pas (« ESSAI FAUTE ») | Envoyé ; mail « Document à classer » ; PDF dans `_À CLASSER` ; **aucun** dossier « ESSAI FAUTE » créé |
+| 10 | Tape un chantier qui n'existe pas (« ESSAI FAUTE ») | Envoyé ; PDF dans `_À CLASSER` ; **aucun** dossier « ESSAI FAUTE » créé ; mail « Document à classer » (**un seul par jour** : si tu refais l'essai le même jour, pas de 2e mail, c'est normal) |
 | 11 | Chantier → **Plans** | La liste des plans du chantier |
 | 12 | Mode avion → « Remplir une fiche sans être connecté » depuis l'écran de connexion (après « Se déconnecter » dans À propos) | La fiche se remplit et se range (« ⏳ en attente ») |
 | 13 | Réseau revenu, reconnecte-toi | La fiche de l'essai 12 part toute seule |
@@ -104,11 +104,13 @@ Ouvre `https://chantiersloue.github.io/chantier-pro/essai/` sur ton téléphone 
 | 16 | `conduc01` : connexion | Ses chantiers (colonne D) + bouton « Voir tous les chantiers » |
 | 17 | Connecté en `conduc01` sur le téléphone, coche « Déconnecter ses téléphones » de `conduc01` dans le Sheet, puis rouvre l'accueil | Retour à l'écran de connexion, message « Session terminée » |
 | 18 | Éditeur Apps Script : ▶ `finirTransitionMaintenant` (refusé en production, accepté sur TEST). Puis, **déconnecté**, remplis et envoie un quitus « sans être connecté » | La fiche **reste** « en attente — connectez-vous… » (jamais « à vérifier ») ; après connexion, elle part |
-| 19 | Après l'essai 18 : ouvre `https://chantiersloue.github.io/chantier-pro/?env=test` (**pages du lot 1**) et envoie un quitus | Message « Appli à mettre à jour ou connexion nécessaire… » ; la fiche est gardée |
+| 19 | Après l'essai 18, **quand l'indicateur de la copie d'essai est à « ✓ Tout est envoyé »** (les deux partagent la même mémoire du téléphone) : ouvre `https://chantiersloue.github.io/chantier-pro/?env=test` (**pages du lot 1**) et envoie un quitus | Message « Appli à mettre à jour ou connexion nécessaire… » ; la fiche est gardée |
 | 20 | ▶ `prolongerTransition` | « Transition prolongée jusqu'au … » ; l'essai 19 repasse |
 | 21 | Onglet *Sans compte* | Les fiches envoyées sans compte sont notées |
 
 Puis **sors du mode test** sur le vrai site : `https://chantiersloue.github.io/chantier-pro/?env=prod`.
+
+**Contrôle des quotas** (2 min) : dans l'éditeur Apps Script TEST, menu de gauche **Exécutions** (icône ☰ avec une flèche) : regarde la **durée** des dernières exécutions de `traiterComptes` (en secondes). Multipliée par 144 (une toutes les 10 min), elle doit rester **sous 30 minutes** par jour (le compte Google en a 90 par jour pour tous les déclencheurs). Dis-moi la durée que tu lis.
 
 Enfin, dans l'éditeur Apps Script **de la copie TEST** : ▶ **`retirerDeclencheurs`**. Les 90 minutes de déclencheurs par jour sont partagées par tout le compte Google : la copie TEST ne doit pas en consommer pour rien (`installerDeclencheurs` les remet si besoin).
 
@@ -119,7 +121,7 @@ Le serveur du lot 2 a sa **propre adresse** : l'ancien déploiement (lot 1) cont
 1. Vrai Sheet → Extensions → Apps Script. **Sauvegarde** de `Code.gs` dans `_prive/Code-avant-lot2.gs`.
 2. **Gérer les déploiements** : note la **description** et l'**adresse** du déploiement actuel (lot 1) dans `_prive/deploiements.txt`.
 3. Colle le nouveau `Code.gs`, enregistre.
-4. ▶ `genererCle`, ▶ `preparerOngletsLot2` (**❌ = arrête-toi**), ▶ `installerDeclencheurs` (autorisation), ajoute la propriété **`HACHAGE_ITERATIONS`** (le nombre de l'étape A.5), ▶ `verifierConfig` (que des ✅ sauf « Transition : pas commencée »).
+4. Vérifie que la propriété **`ENVIRONNEMENT`** n'est **PAS** `TEST` (en production, elle n'existe pas ou vaut autre chose). Puis ▶ `genererCle`, ▶ `preparerOngletsLot2` (**❌ = arrête-toi**), ▶ `installerDeclencheurs` (autorisation si Google la demande), ajoute la propriété **`HACHAGE_ITERATIONS`** (le nombre de l'étape A.5), ▶ `verifierConfig` (1re ligne `v6.0`, des ✅ ; mêmes lignes normales qu'en A.5).
 5. **Déployer → Nouveau déploiement** → type « Application Web », description **« Lot 2 — production »**, exécuter en tant que **moi**, accès **Tout le monde** → Déployer. Ouvre la nouvelle adresse (elle finit par `/exec`) : **`Loué App API v6.0 OK`**. **Envoie-moi l'adresse** : je prépare `livraison/lot-2` avec cette adresse. Pendant ce temps, les gars continuent avec l'ancien déploiement (lot 1, v5.1) : rien ne change pour eux.
 6. Remplis *Utilisateurs* : une ligne par personne, **Actif** coché, **sans** cocher « Réinitialiser » pour l'instant. 10 min plus tard, coche les chantiers de chacun dans *Accès chantiers*.
 7. Fusionne **`livraison/lot-2`** (elle retire aussi la copie d'essai `essai/`). Attends 3 min. Sur ton téléphone : écran Connexion ; « À propos » affiche **6.0**. Coche « Réinitialiser » pour **toi**, connecte-toi, ouvre un chantier, envoie un quitus réel vers toi → reçu, colonne G de *Envois* à ton identifiant.
@@ -127,15 +129,16 @@ Le serveur du lot 2 a sa **propre adresse** : l'ancien déploiement (lot 1) cont
 8. **Le jour où tu vois les gars** (un seul passage pour les deux lots) :
    - **iPhone** : ouvre l'appli dans Safari et suis l'écran **« Installer l'appli »** jusqu'au bout (c'est l'étape D.11 du lot 1, restée en attente). Sur Android, c'est conseillé aussi ;
    - coche « Réinitialiser » pour chacun, donne-lui son provisoire (valable 48 h), et fais-le se connecter **dans l'appli installée** devant toi (Safari et l'appli installée n'ont pas la même mémoire sur iPhone).
-9. Quand tout le monde est connecté (l'onglet *Sans compte* ne bouge plus pendant 2 jours) : ▶ **`demarrerTransition`**. Encore 15 jours de tolérance ; tu reçois un mail 3 jours avant la fin. Si tu oublies, un mail te le rappelle chaque jour à partir de 7 jours après la première connexion.
-10. **À la fin de la transition** : Gérer les déploiements → **archive** tous les anciens déploiements (lot 0, lot 1), en production **et** sur TEST. **N'archive jamais celui qui s'appelle « Lot 2 — production »** (son adresse est celle de `commun/config.js`). Les anciennes adresses sont lisibles dans l'historique public du dépôt : tant qu'elles marchent, elles exécutent l'ancien code sans compte.
+9. Quand tout le monde est connecté (l'onglet *Sans compte* ne bouge plus pendant 2 jours) **et que chaque téléphone affiche 6.0 dans « À propos »** (sinon : fermer et rouvrir l'appli, ou toucher « Mettre à jour ») : ▶ **`demarrerTransition`**. Encore 15 jours de tolérance ; tu reçois un mail 3 jours avant la fin. Si tu oublies, un mail te le rappelle chaque jour à partir de 7 jours après la première connexion.
+10. **À la fin de la transition** : dans l'Apps Script **de production**, Gérer les déploiements → **archive** les anciens déploiements (lot 0, lot 1). **N'archive jamais celui qui s'appelle « Lot 2 — production »** (son adresse est celle de `commun/config.js`). **Sur TEST, n'archive rien** : il n'y a qu'un déploiement, mis à jour à chaque lot, et son adresse (dans `_prive/ids-test.txt`) est celle de la copie d'essai et du mode test. Les anciennes adresses sont lisibles dans l'historique public du dépôt : tant qu'elles marchent, elles exécutent l'ancien code sans compte.
 
 ## Retour arrière
 
 | Problème | Que faire |
 |---|---|
 | Les gars ne peuvent plus travailler après la fusion de `livraison/lot-2` | Dis-le-moi : je prépare une demande de fusion qui remet **les pages du lot 1 et l'adresse du lot 1** (l'ancien déploiement tourne encore). Rien à faire dans Apps Script |
-| Après l'archivage des anciens déploiements | Recolle `_prive/Code-avant-lot2.gs`, **Nouveau déploiement**, envoie-moi l'adresse (je remets les pages du lot 1 avec elle) |
+| Après l'archivage des anciens déploiements | 1. ▶ **`retirerDeclencheurs`** (avant de recoller : sinon les déclencheurs du lot 2 resteraient et échoueraient toutes les 10 min). 2. Recolle `_prive/Code-avant-lot2.gs`, enregistre. 3. ▶ `installerDeclencheurs` (celui du lot 1 remet les mails reportés). 4. **Nouveau déploiement**, envoie-moi l'adresse (je remets les pages du lot 1 avec elle) |
+| Revenir au serveur du lot 1 sur TEST | Même chose sur TEST : ▶ `retirerDeclencheurs`, recolle `_prive/Code-TEST-avant-lot2.gs`, ▶ `installerDeclencheurs`, Gérer les déploiements → Modifier → Nouvelle version |
 | Un gars bloqué | Case « Réinitialiser » |
 | Tout le monde bloqué après la fin de la transition | ▶ `prolongerTransition` (7 jours de plus) puis dis-le-moi |
 | Clé secrète divulguée (quelqu'un a eu accès au script) | Ajoute la propriété `CONFIRMER_CHANGER_CLE` = `OUI`, puis ▶ `changerCle` : tout le monde devra se reconnecter |
