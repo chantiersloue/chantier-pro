@@ -4,14 +4,14 @@
 // ne pas les modifier à la main. En cas de gros problème : remplacer ce fichier par outils/sw-secours.js.
 // Les échanges avec Apps Script ne passent JAMAIS par ce cache (fiches, listes : gérés par commun/api.js).
 // ═══════════════════════════════════════════════════════════════
-const VERSION = 'loue-6d23e732b2';
+const VERSION = 'loue-759925c5ff';
 const A_GARDER = [
   './', 'index.html', 'quitus.html', 'bordereau.html',
   'cotes.html', 'fiche-fabrication.html', 'note-reunion.html', 'bordereau-orga.html', 'bordereau-materiaux.html',
   'attestation.html', 'reception-support.html', 'absence.html',
   'manifest.json', 'logo.png', 'apple-touch-icon.png', 'icone-192.png', 'icone-512.png', 'icone-512-maskable.png',
   // Fichiers communs et modèles, avec leur numéro de version (liste fabriquée par outils/construire.js)
-  /*COMMUNS*/ 'commun/adresses.js?v=6d23e732b2', 'commun/api.js?v=6d23e732b2', 'commun/brouillon.js?v=6d23e732b2', 'commun/config.js?v=6d23e732b2', 'commun/destinataires.js?v=6d23e732b2', 'commun/hors-ligne.js?v=6d23e732b2', 'commun/photos.js?v=6d23e732b2', 'commun/signature.js?v=6d23e732b2', 'commun/ui.js?v=6d23e732b2', 'commun/fiche.css?v=6d23e732b2', 'commun/style.css?v=6d23e732b2', 'modeles/absence.js?v=6d23e732b2', 'modeles/attestation.js?v=6d23e732b2', 'modeles/bordereau.js?v=6d23e732b2', 'modeles/cotes.js?v=6d23e732b2', 'modeles/fabrication.js?v=6d23e732b2', 'modeles/mise-en-page.js?v=6d23e732b2', 'modeles/note.js?v=6d23e732b2', 'modeles/quitus.js?v=6d23e732b2', 'modeles/reception.js?v=6d23e732b2',
+  /*COMMUNS*/ 'commun/adresses.js?v=759925c5ff', 'commun/api.js?v=759925c5ff', 'commun/brouillon.js?v=759925c5ff', 'commun/config.js?v=759925c5ff', 'commun/destinataires.js?v=759925c5ff', 'commun/hors-ligne.js?v=759925c5ff', 'commun/photos.js?v=759925c5ff', 'commun/signature.js?v=759925c5ff', 'commun/ui.js?v=759925c5ff', 'commun/fiche.css?v=759925c5ff', 'commun/style.css?v=759925c5ff', 'modeles/absence.js?v=759925c5ff', 'modeles/attestation.js?v=759925c5ff', 'modeles/bordereau.js?v=759925c5ff', 'modeles/cotes.js?v=759925c5ff', 'modeles/fabrication.js?v=759925c5ff', 'modeles/mise-en-page.js?v=759925c5ff', 'modeles/note.js?v=759925c5ff', 'modeles/quitus.js?v=759925c5ff', 'modeles/reception.js?v=759925c5ff',
 ];
 
 // Nom du cache : version + portée. La copie d'essai (essai/) et le vrai site ont chacun le leur,

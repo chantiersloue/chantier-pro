@@ -151,7 +151,20 @@
       if (emp === derniere) return Promise.resolve();          // rien de neuf depuis la dernière sauvegarde
       derniere = emp;
       var okLocal = ecrireLocal(cleLocale, e);
-      return mettreDeCote().then(function () { return LOUE.stockage.ecrire('brouillons', e); })
+      // Limite de 8 s : une mémoire bloquée (autre fenêtre figée) fait apparaître le bandeau rouge au lieu de rien
+      var sauvegarde = new Promise(function (ok, ko) {
+        var fini = false;
+        var minuteur = setTimeout(function () {
+          if (fini) return;
+          fini = true; derniere = null;   // nouvel essai à la prochaine sauvegarde
+          if (LOUE.noterIncident) LOUE.noterIncident('Sauvegarde du brouillon bloquée (plus de 8 s)');
+          ko(new Error('mémoire bloquée'));
+        }, 8000);
+        mettreDeCote().then(function () { return LOUE.stockage.ecrire('brouillons', e); })
+          .then(function (v) { if (!fini) { fini = true; clearTimeout(minuteur); ok(v); } },
+                function (err) { if (!fini) { fini = true; clearTimeout(minuteur); ko(err); } });
+      });
+      return sauvegarde
         .then(function () { return true; }, function () { return false; })
         .then(function (okBase) {
           // La copie complète (IndexedDB) suffit ; la copie texte (localStorage) n'est qu'une sécurité de plus
@@ -182,8 +195,11 @@
     // Brouillon courant : la copie la PLUS RÉCENTE ; si c'est celle de localStorage (sans photos),
     // on y rattache les photos de la copie IndexedDB
     function lireCourant() {
+      var envoye = marqueEnvoye();
       return lireBase(cle).then(function (base) {
+        if (base && envoye && (base.t || 0) <= envoye) base = null;     // fiche déjà envoyée (effacement pas terminé)
         var local = lireLocal(cleLocale);
+        if (local && envoye && (local.t || 0) <= envoye) local = null;
         if (local && local.champs && (!base || (local.t || 0) > (base.t || 0))) {
           if (base && base.extra && local.extra) rattacherPhotos(local.extra, photosParId(base.extra, {}));
           return local;
@@ -223,10 +239,21 @@
       var texte = function (x) { return JSON.stringify(x || {}, function (k, y) { return y instanceof Blob ? 'blob' : y; }); };
       return saisi || texte(e.extra) !== texte(v.extra);
     }
-    function effacerCourant() {
-      anciennes.concat([cleLocale]).forEach(function (k) { try { localStorage.removeItem(k); } catch (e) {} });
-      return LOUE.stockage.supprimer('brouillons', cle).catch(function () {});
+    // jusqua (facultatif) : n'efface que les copies au plus aussi récentes (une saisie plus récente, celle de la
+    // fiche suivante, n'est jamais effacée par un effacement en retard)
+    function effacerCourant(jusqua) {
+      anciennes.forEach(function (k) { try { localStorage.removeItem(k); } catch (e) {} });
+      var l = lireLocal(cleLocale);
+      if (!jusqua || !l || (l.t || 0) <= jusqua) { try { localStorage.removeItem(cleLocale); } catch (e) {} }
+      if (!jusqua) return LOUE.stockage.supprimer('brouillons', cle).catch(function () {});
+      return lireBase(cle).then(function (b) {
+        if (b && (b.t || 0) > jusqua) return;
+        return LOUE.stockage.supprimer('brouillons', cle);
+      }).catch(function () {});
     }
+    // Marque « fiche envoyée » : tant que l'effacement n'a pas abouti, une copie plus ancienne n'est plus proposée
+    var cleEnvoye = cleLocale + '_envoye';
+    function marqueEnvoye() { try { return Number(localStorage.getItem(cleEnvoye) || 0); } catch (e) { return 0; } }
 
     function banniere(proposition) {
       enAttente = proposition;
@@ -290,11 +317,17 @@
       effacer: function () {
         actif = false; clearTimeout(minuteur);
         var b = document.querySelector('.loue-brouillon:not(.loue-maj)'); if (b) b.remove();   // pas le bandeau « Nouvelle version »
-        var fin = mettreDeCote().then(function () { enAttente = null; return effacerCourant(); });
-        // La fiche est déjà à l'abri dans la file : si la mémoire tarde (autre onglet figé), on n'attend pas plus de 3 s
+        // La fiche est à l'abri dans la file : son brouillon ne doit plus être proposé, même si la mémoire tarde
+        var marque = Date.now();
+        try { localStorage.setItem(cleEnvoye, String(marque)); } catch (e) {}
+        var fin = mettreDeCote().then(function () { return effacerCourant(marque); })
+          .then(function () { if (marqueEnvoye() === marque) { try { localStorage.removeItem(cleEnvoye); } catch (e) {} } });
+        enAttente = null;
+        // Mémoire lente (autre fenêtre figée) : la page n'attend pas plus de 3 s
+        var minuteur3 = null;
         return Promise.race([fin, new Promise(function (ok) {
-          setTimeout(function () { if (LOUE.noterIncident) LOUE.noterIncident('Effacement du brouillon lent (plus de 3 s)'); ok(); }, 3000);
-        })]);
+          minuteur3 = setTimeout(function () { if (LOUE.noterIncident) LOUE.noterIncident('Effacement du brouillon lent (plus de 3 s)'); ok(); }, 3000);
+        })]).then(function () { clearTimeout(minuteur3); });
       },
       reprendre: function () { actif = true; deCote = false; derniere = empreinte(etat()); },
     };
