@@ -4,3 +4,8 @@ _prive/
 *.tmp
 .DS_Store
 Thumbs.db
+# clasp (envoi du serveur Apps Script, docs/clasp.md) : jeton de connexion et identifiants, JAMAIS sur GitHub
+# (le dossier de travail clasp est hors du dépôt ; ces lignes protègent d'une copie par erreur)
+.clasp.json
+.clasprc.json
+creds*.json
