@@ -4,7 +4,7 @@
 > Branche `lot-2` (partie de `refonte` après le lot 1). **Rien ne part en production** tant que Franck n'a pas testé le lot 1.
 
 ## 0. Écarts avec `PLAN.md` (décidés en autonomie, notés dans `DECISIONS.md`, à confirmer par Franck au compte-rendu)
-1. **Une fiche est acceptée pour n'importe quel chantier** (PLAN.md : « toutes les actions vérifient l'accès au chantier »). Seule la **lecture** (plans, liste des chantiers, contacts) est limitée. Raison : envoyer une fiche ne révèle rien, et un oubli de case au bureau ne doit pas bloquer un gars sur le chantier. Garde-fous : confirmation sur la page, auteur noté, **un nom de chantier inconnu ne crée plus de dossier Drive** (le PDF va dans `_À CLASSER` et Franck est prévenu).
+1. **Une fiche est acceptée pour n'importe quel chantier** (**confirmé par Franck le 10/11/2026**) (PLAN.md : « toutes les actions vérifient l'accès au chantier »). Seule la **lecture** (plans, liste des chantiers, contacts) est limitée. Raison : envoyer une fiche ne révèle rien, et un oubli de case au bureau ne doit pas bloquer un gars sur le chantier. Garde-fous : confirmation sur la page, auteur noté, **un nom de chantier inconnu ne crée plus de dossier Drive** (le PDF va dans `_À CLASSER` et Franck est prévenu).
 2. **Pas d'essai préalable du déclencheur sur téléphone avant de construire** : un secours toutes les 10 minutes rend ce point non bloquant (au pire, le mot de passe provisoire apparaît en 10 minutes). L'essai reste dans la procédure.
 3. **Pas de colonnes techniques dans le Sheet** : empreintes et compteurs sont dans les Propriétés du script et le cache du script (voir § 3).
 4. **Pas de tuiles Notes, Carnet, Signaler, Atelier** : elles arrivent avec leurs lots, jamais vides.
