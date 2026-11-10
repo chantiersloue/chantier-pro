@@ -2,7 +2,20 @@
 
 Chaque lot : **quoi**, **pourquoi**, **comment déployer**. Procédures détaillées dans `docs/lotN-procedure.md`.
 
-## Lot 1 — Fondations (serveur v5, appli 5.0) — en préparation
+## Lot 1 — Retouches après les essais (serveur v5.1, appli 5.1)
+
+**Quoi**
+- **R1 — Photos et croquis en grand dans les PDF** (fabrication, quitus, bordereaux, attestation, note de réunion, réception support) : la 1re photo se place sous le contenu de la page 1 et prend toute la place restante ; chaque croquis a une page entière ; les autres photos ont leur page (deux par page quand elles y gardent leur taille). Les petites images sont agrandies, proportions gardées. Quitus, bordereaux, attestation : les signatures passent avant les photos. Croquis dessinés en résolution double. Le serveur vérifie chaque PDF et le refait une fois si une photo a débordé. Nouvelle fonction `essaiMiseEnPage` (TEST, sans mail).
+- **R2 — Bordereau matériaux** : nouvel onglet **« Matériaux bordereau »** (créé par `verifierConfig`) ; le Type remplit la case **« Matériaux remis »** (modifiable), qui apparaît dans le PDF.
+- **R3 — Sablier** : une fiche partie dont la réponse s'est perdue est redemandée en quelques secondes (et dès le retour dans l'appli) ; le sablier disparaît dès que le serveur confirme. Aucun mail en double (numéro unique).
+
+**Pourquoi** : retours de Franck après les essais 1 à 18 sur la copie TEST.
+
+**Comment déployer** : `docs/lot1-procedure.md`, section « Retouches » (coller `Code.gs` v5.1 sur TEST, `verifierConfig`, `essaiMiseEnPage`, puis fusionner `livraison/lot-1-essai-2`).
+
+**Tests** : `node tests/lot1-retouches.test.js` (21) ; `node tests/pdf-mise-en-page.js` (16 PDF fabriqués par Chrome) ; file d'envoi essayée dans le navigateur avec le faux serveur (réponse perdue, envoi lent, retour dans l'appli).
+
+## Lot 1 — Fondations (serveur v5, appli 5.0) — en test
 
 **Quoi**
 - **Envoi sûr** : chaque fiche est rangée dans le téléphone (IndexedDB) puis envoyée ; elle n'est retirée que quand le serveur répond « enregistrée ». Renvoi automatique au retour du réseau, à l'ouverture, au retour dans l'appli. Numéro unique par fiche : jamais de double envoi. Indicateur permanent « ✓ Tout est envoyé » / « ⏳ N en attente ».
