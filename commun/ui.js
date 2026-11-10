@@ -20,11 +20,12 @@
       document.body.appendChild(t);
     }
     clearTimeout(t._minuteur);
-    t.onclick = null;
+    t.onclick = null; t.removeAttribute('data-durable');
     if (duree === 0) {   // message important : reste à l'écran jusqu'à ce qu'on le touche
       t.textContent = texte + ' (toucher pour fermer)';
       t.className = 'loue-message visible';
-      t.onclick = function () { t.className = 'loue-message'; t.onclick = null; };
+      t.setAttribute('data-durable', '1');
+      t.onclick = function () { t.className = 'loue-message'; t.onclick = null; t.removeAttribute('data-durable'); };
       return;
     }
     t.textContent = texte;
