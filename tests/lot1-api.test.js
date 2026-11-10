@@ -38,7 +38,7 @@ console.log('Lot 1.1 — API v5');
 
 test('ping : version lisible', () => {
   const r = poster(environnement(), { action: 'ping' });
-  assert.ok(r.ok && /v5/.test(r.data.version));
+  assert.ok(r.ok && /^v[5-9]\.\d/.test(r.data.version), r.data && r.data.version);
 });
 
 test('fiche : réponse « ENREGISTRE » avec le bilan des mails', () => {

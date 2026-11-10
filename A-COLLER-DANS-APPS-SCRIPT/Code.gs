@@ -1,7 +1,7 @@
 // ═══════════════════════════════════════════════════════════════
 // LOUÉ APP — SERVEUR COMPLET, À COLLER DANS APPS SCRIPT (fichier « Code.gs », tout remplacer)
 // FICHIER GÉNÉRÉ AUTOMATIQUEMENT par « node outils/construire.js » — NE PAS MODIFIER À LA MAIN :
-// les sources sont dans le dossier apps-script/ du dépôt. Version du serveur e5716b61ea (pages c473100f27)
+// les sources sont dans le dossier apps-script/ du dépôt. Version du serveur f3c6a51e1b (pages e493369d3e)
 // ═══════════════════════════════════════════════════════════════
 
 // ████ Config.gs ████
@@ -10,7 +10,7 @@
 // Loué Menuiserie
 // ═══════════════════════════════════════════════════════════════
 
-const VERSION_API = 'v5.1';
+const VERSION_API = 'v6.0';   // lot 2 (comptes)
 
 // ── CONFIGURATION ──
 const SHEET_CONTACTS      = 'Contacts';

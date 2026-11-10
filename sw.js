@@ -6,7 +6,7 @@
 // ═══════════════════════════════════════════════════════════════
 <<<<<<< HEAD
 <<<<<<< HEAD
-const VERSION = 'loue-c473100f27';
+const VERSION = 'loue-e493369d3e';
 =======
 const VERSION = 'loue-c376b086ee';
 >>>>>>> refonte
@@ -21,7 +21,7 @@ const A_GARDER = [
   // Fichiers communs et modèles, avec leur numéro de version (liste fabriquée par outils/construire.js)
 <<<<<<< HEAD
 <<<<<<< HEAD
-  /*COMMUNS*/ 'commun/adresses.js?v=c473100f27', 'commun/api.js?v=c473100f27', 'commun/brouillon.js?v=c473100f27', 'commun/config.js?v=c473100f27', 'commun/destinataires.js?v=c473100f27', 'commun/hors-ligne.js?v=c473100f27', 'commun/photos.js?v=c473100f27', 'commun/signature.js?v=c473100f27', 'commun/ui.js?v=c473100f27', 'commun/fiche.css?v=c473100f27', 'commun/style.css?v=c473100f27', 'modeles/absence.js?v=c473100f27', 'modeles/attestation.js?v=c473100f27', 'modeles/bordereau.js?v=c473100f27', 'modeles/cotes.js?v=c473100f27', 'modeles/fabrication.js?v=c473100f27', 'modeles/mise-en-page.js?v=c473100f27', 'modeles/note.js?v=c473100f27', 'modeles/quitus.js?v=c473100f27', 'modeles/reception.js?v=c473100f27',
+  /*COMMUNS*/ 'commun/adresses.js?v=e493369d3e', 'commun/api.js?v=e493369d3e', 'commun/brouillon.js?v=e493369d3e', 'commun/config.js?v=e493369d3e', 'commun/destinataires.js?v=e493369d3e', 'commun/hors-ligne.js?v=e493369d3e', 'commun/photos.js?v=e493369d3e', 'commun/signature.js?v=e493369d3e', 'commun/ui.js?v=e493369d3e', 'commun/fiche.css?v=e493369d3e', 'commun/style.css?v=e493369d3e', 'modeles/absence.js?v=e493369d3e', 'modeles/attestation.js?v=e493369d3e', 'modeles/bordereau.js?v=e493369d3e', 'modeles/cotes.js?v=e493369d3e', 'modeles/fabrication.js?v=e493369d3e', 'modeles/mise-en-page.js?v=e493369d3e', 'modeles/note.js?v=e493369d3e', 'modeles/quitus.js?v=e493369d3e', 'modeles/reception.js?v=e493369d3e',
 =======
   /*COMMUNS*/ 'commun/adresses.js?v=c376b086ee', 'commun/api.js?v=c376b086ee', 'commun/brouillon.js?v=c376b086ee', 'commun/config.js?v=c376b086ee', 'commun/destinataires.js?v=c376b086ee', 'commun/hors-ligne.js?v=c376b086ee', 'commun/photos.js?v=c376b086ee', 'commun/signature.js?v=c376b086ee', 'commun/ui.js?v=c376b086ee', 'commun/fiche.css?v=c376b086ee', 'commun/style.css?v=c376b086ee', 'modeles/absence.js?v=c376b086ee', 'modeles/attestation.js?v=c376b086ee', 'modeles/bordereau.js?v=c376b086ee', 'modeles/cotes.js?v=c376b086ee', 'modeles/fabrication.js?v=c376b086ee', 'modeles/mise-en-page.js?v=c376b086ee', 'modeles/note.js?v=c376b086ee', 'modeles/quitus.js?v=c376b086ee', 'modeles/reception.js?v=c376b086ee',
 >>>>>>> refonte
