@@ -4,3 +4,5 @@ _prive/
 *.tmp
 .DS_Store
 Thumbs.db
+# Fichiers de travail de l’outil de test du navigateur (playwright-cli)
+.playwright-cli/
