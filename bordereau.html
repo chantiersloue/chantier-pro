@@ -9,8 +9,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Loué App">
 <meta name="theme-color" content="#1A2B4A">
-<link rel="stylesheet" href="commun/style.css?v=5ec8f9000f">
-<link rel="stylesheet" href="commun/fiche.css?v=5ec8f9000f">
+<link rel="stylesheet" href="commun/style.css?v=804214df6a">
+<link rel="stylesheet" href="commun/fiche.css?v=804214df6a">
 <style>
 .declaration{background:var(--bg);border-radius:var(--r);padding:10px 12px;border:1px solid var(--border);font-size:15px;color:var(--muted);line-height:1.5;}
 .mention-rouge{background:#FFF0F0;border:1.5px solid #EFC0C0;border-radius:var(--r);padding:12px 14px;margin-bottom:12px;font-size:14px;color:var(--red);line-height:1.5;}
@@ -90,6 +90,13 @@
           <label class="meta-label" for="meta-nombre">Nombre <span class="oblig" id="nombre-oblig">*</span></label>
           <input class="meta-input" id="meta-nombre" inputmode="numeric" placeholder="Ex. : 2" autocomplete="off">
         </div>
+        <!-- Bordereau matériaux : liste proposée d'après le Type (onglet « Matériaux bordereau » du Sheet), modifiable -->
+        <div class="meta-field meta-full" id="champ-liste" style="display:none">
+          <label class="meta-label" for="meta-liste">Matériaux remis</label>
+          <textarea class="meta-input" id="meta-liste" placeholder="Une ligne par matériau, par exemple : 2 × Vis inox"></textarea>
+          <input type="hidden" id="meta-liste-auto">
+          <div id="aide-liste" style="display:none;font-size:12px;color:var(--muted);margin-top:4px">Liste proposée d’après le Type : vous pouvez la modifier.</div>
+        </div>
         <div class="meta-field meta-full">
           <label class="meta-label" for="meta-commentaires">Commentaires</label>
           <textarea class="meta-input" id="meta-commentaires" placeholder="Observations, remarques (le micro du clavier permet de dicter)"></textarea>
@@ -156,16 +163,17 @@
   </div>
 </div>
 
-<script src="commun/config.js?v=5ec8f9000f"></script>
-<script src="commun/api.js?v=5ec8f9000f"></script>
-<script src="commun/ui.js?v=5ec8f9000f"></script>
-<script src="commun/photos.js?v=5ec8f9000f"></script>
-<script src="commun/signature.js?v=5ec8f9000f"></script>
-<script src="commun/brouillon.js?v=5ec8f9000f"></script>
-<script src="commun/hors-ligne.js?v=5ec8f9000f"></script>
-<script src="commun/adresses.js?v=5ec8f9000f"></script>
-<script src="commun/destinataires.js?v=5ec8f9000f"></script>
-<script src="modeles/bordereau.js?v=5ec8f9000f"></script>
+<script src="commun/config.js?v=804214df6a"></script>
+<script src="commun/api.js?v=804214df6a"></script>
+<script src="commun/ui.js?v=804214df6a"></script>
+<script src="commun/photos.js?v=804214df6a"></script>
+<script src="commun/signature.js?v=804214df6a"></script>
+<script src="commun/brouillon.js?v=804214df6a"></script>
+<script src="commun/hors-ligne.js?v=804214df6a"></script>
+<script src="commun/adresses.js?v=804214df6a"></script>
+<script src="commun/destinataires.js?v=804214df6a"></script>
+<script src="modeles/mise-en-page.js?v=804214df6a"></script>
+<script src="modeles/bordereau.js?v=804214df6a"></script>
 <script>
 'use strict';
 // ── Organigramme ou matériaux : choisi par l'adresse (bordereau.html?type=orga ou ?type=materiaux) ──
@@ -202,14 +210,44 @@ LOUE.chargerListes().then(r => {
     .map(c => '<option value="' + LOUE.esc(c.nom) + '">' + LOUE.esc(c.reference || '') + '</option>').join('');
   document.getElementById('liste-soussignes').innerHTML = options(LISTES.contacts, c => c.nom);
   document.getElementById('liste-fonctions').innerHTML = options(LISTES.fonctions);
-  // Organigramme : modèles de clés et cylindres (onglet Types) ; matériaux : onglet Materiaux
-  document.getElementById('liste-types').innerHTML = options(ORGA ? LISTES.types : LISTES.materiaux);
+  // Organigramme : modèles de clés et cylindres (onglet Types) ; matériaux : types de l'onglet « Matériaux bordereau »
+  // (s'il est vide ou si la liste gardée dans le téléphone est ancienne : onglet Materiaux, comme avant)
+  const typesMat = Array.from(new Set((LISTES.materiauxBordereau || []).map(x => x.type)));
+  document.getElementById('liste-types').innerHTML = options(ORGA ? LISTES.types : (typesMat.length ? typesMat : LISTES.materiaux));
+  majChampListe();
   if (r.depuisLeTelephone) {
     document.getElementById('listes-info').textContent = 'Pas de réseau : listes du ' + new Date(r.date).toLocaleDateString('fr-FR') + ' gardées dans le téléphone.';
   }
 }).catch(() => {
   document.getElementById('listes-info').textContent = 'Listes indisponibles (pas de réseau). Tapez le nom du chantier : la fiche partira quand même.';
 });
+
+// ── Bordereau matériaux (retouche R2) : choisir un Type remplit « Matériaux remis » avec la liste du Sheet ──
+// Onglet « Matériaux bordereau » : une ligne par matériau (A Type, B Matériau, C Quantité). Seule une liste
+// proposée par l'appli (retenue dans un champ caché) est remplacée : ce que le poseur a tapé n'est jamais écrasé.
+function materiauxDuType(type) {
+  const t = String(type || '').trim().toLowerCase();
+  if (!t) return '';
+  return (LISTES.materiauxBordereau || []).filter(x => x.type.toLowerCase() === t && x.materiau)
+    .map(x => (x.quantite ? x.quantite + ' × ' : '') + x.materiau).join('\n');
+}
+// Le champ n'apparaît que si le Sheet propose des matériaux (ou s'il contient déjà quelque chose)
+function majChampListe() {
+  const avecMateriaux = (LISTES.materiauxBordereau || []).some(x => x.materiau);
+  document.getElementById('champ-liste').style.display = !ORGA && (avecMateriaux || document.getElementById('meta-liste').value.trim()) ? '' : 'none';
+}
+function proposerMateriaux() {
+  if (ORGA) return;
+  const liste = document.getElementById('meta-liste'), auto = document.getElementById('meta-liste-auto');
+  if (liste.value.trim() && liste.value !== auto.value) return;   // modifiée à la main : on n'y touche plus
+  const propose = materiauxDuType(document.getElementById('meta-type').value);
+  if (liste.value === propose) return;
+  liste.value = propose; auto.value = propose;
+  document.getElementById('aide-liste').style.display = propose ? '' : 'none';
+  liste.dispatchEvent(new Event('input', { bubbles: true }));   // brouillon automatique
+}
+document.getElementById('meta-type').addEventListener('input', proposerMateriaux);
+document.getElementById('meta-type').addEventListener('change', proposerMateriaux);
 
 // ── Destinataires (brique commune : une adresse tapée sans « + Ajouter » n'est plus perdue) ──
 const DEST = LOUE.destinataires({ contacts: () => (LISTES.contactNotes || []).concat(LISTES.contacts || []) });
@@ -252,6 +290,7 @@ const BROUILLON = LOUE.brouillon({
     afficherPhotos();
     if (x.sigLoue) SIG.loue.ecrireTraits(x.sigLoue);
     if (x.sigPreneur) SIG.preneur.ecrireTraits(x.sigPreneur);
+    majChampListe();
   },
 });
 
@@ -263,6 +302,7 @@ function donneesFiche(pourApercu) {
     chantier: v('meta-chantier'), date: v('meta-date'), heure: v('meta-heure'),
     soussigne: v('meta-soussigne'), preneur: v('meta-preneur'), fonction: v('meta-fonction'),
     entreprise: v('meta-entreprise'), typeDoc: v('meta-type'), nombre: v('meta-nombre'),
+    listeMateriaux: ORGA ? '' : v('meta-liste'),
     commentaires: document.getElementById('meta-commentaires').value,
     sigLoue: SIG.loue.versDataUrl(), sigPreneur: SIG.preneur.versDataUrl(),
     destinataires: DEST.liste(),   // le serveur ajoute lui-même le conducteur du chantier (ou Franck)
@@ -285,7 +325,9 @@ function imprimer(enPdf) {
 }
 
 function viderFiche() {
-  ['meta-preneur', 'meta-fonction', 'meta-entreprise', 'meta-type', 'meta-nombre', 'meta-commentaires'].forEach(id => { document.getElementById(id).value = ''; });
+  ['meta-preneur', 'meta-fonction', 'meta-entreprise', 'meta-type', 'meta-nombre', 'meta-commentaires', 'meta-liste', 'meta-liste-auto'].forEach(id => { document.getElementById(id).value = ''; });
+  document.getElementById('aide-liste').style.display = 'none';
+  majChampListe();
   DEST.vider();
   photos.forEach(p => URL.revokeObjectURL(p.url)); photos = []; afficherPhotos();
   SIG.loue.ecrireTraits([]); SIG.preneur.ecrireTraits([]);

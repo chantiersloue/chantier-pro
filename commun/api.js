@@ -32,9 +32,11 @@
   LOUE.messageClair = messageClair;
 
   // ── Appel au serveur : POST en texte simple (pas de « pré-vol » CORS), réponse lue, délai maximal ──
+  var fichesEnVol = [];   // envois de fiches en cours (pour les relancer au retour dans l'appli)
   LOUE.appeler = function (corps, delaiMs) {
     var ctrl = window.AbortController ? new AbortController() : null;
     var minuteur = setTimeout(function () { if (ctrl) ctrl.abort(); }, delaiMs || 30000);
+    if (ctrl && corps && corps.action === 'fiche') { ctrl.debut = Date.now(); fichesEnVol.push(ctrl); }
     return fetch(URL_API(), {
       method: 'POST', credentials: 'omit', redirect: 'follow',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
@@ -42,8 +44,23 @@
     }).then(function (rep) {
       if (!rep.ok) throw Object.assign(new Error('Serveur : erreur ' + rep.status), { statut: rep.status });
       return rep.json().catch(function () { throw new Error('Serveur : réponse illisible'); });
-    }).finally(function () { clearTimeout(minuteur); });
+    }).finally(function () {
+      clearTimeout(minuteur);
+      fichesEnVol = fichesEnVol.filter(function (c) { return c !== ctrl; });
+    });
   };
+  // Retour dans l'appli après plus de 5 s en arrière-plan : un envoi de fiche encore « en cours » est souvent
+  // une connexion coupée par le téléphone (iPhone surtout) dont la réponse n'arrivera jamais. On l'abandonne :
+  // la file redemande aussitôt, et le serveur, qui ne traite qu'une fois un même numéro, répond « déjà reçue ».
+  var cacheeDepuis = 0;
+  document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState === 'hidden') { cacheeDepuis = Date.now(); return; }
+    if (cacheeDepuis && Date.now() - cacheeDepuis > 5000) {
+      var depuis = cacheeDepuis;   // seulement les envois commencés AVANT le passage en arrière-plan
+      fichesEnVol.forEach(function (c) { if (c.debut <= depuis) c.abort(); });
+    }
+    cacheeDepuis = 0;
+  });
 
   // ── Base IndexedDB (une par mode) : file d'envoi, photos, brouillons ──
   var NOM_BASE = CONFIG.env === 'prod' ? 'loue' : 'loue_' + CONFIG.env;
@@ -131,8 +148,9 @@
     });
   }
 
-  // Envoie photos puis fiche. lirePhoto(id) → Promise<Blob|null> ; noter() mémorise une photo envoyée.
-  function envoyerPhotosPuisFiche(el, lirePhoto, noter) {
+  // Envoie photos puis fiche. lirePhoto(id) → Promise<Blob|null> ; noter() mémorise une photo envoyée ;
+  // avantFiche() est appelé juste avant l'envoi de la fiche elle-même.
+  function envoyerPhotosPuisFiche(el, lirePhoto, noter, avantFiche) {
     var aEnvoyer = el.photos.filter(function (id) { return el.photosEnvoyees.indexOf(id) < 0; });
     var chaine = Promise.resolve();
     aEnvoyer.forEach(function (idPhoto) {
@@ -148,9 +166,17 @@
       });
     });
     return chaine.then(function () {
-      return LOUE.appeler({ action: 'fiche', id: el.id, donnees: el.donnees }, 120000);
+      return avantFiche ? avantFiche() : null;
+    }).then(function () {
+      return LOUE.appeler({ action: 'fiche', id: el.id, donnees: el.donnees }, 120000).catch(function (err) {
+        // Réseau présent mais pas de réponse : la fiche est peut-être arrivée (réponse perdue) → à confirmer vite
+        if (erreurReseau(err) && navigator.onLine !== false) err.aConfirmer = true;
+        throw err;
+      });
     }).then(function (rep) {
       if (rep.ok) return rep;                                   // ENREGISTRE ou DEJA_RECU
+      // Le serveur fabrique encore le PDF de cette fiche (envoi précédent) : ce n'est pas un refus
+      if (rep.code === 'EN_COURS') throw Object.assign(new Error(rep.message || 'Fiche en cours de traitement'), { aConfirmer: true });
       if (rep.code === 'PHOTOS_MANQUANTES') {                   // le serveur a perdu des photos : on les renverra
         el.photosEnvoyees = el.photosEnvoyees.filter(function (id) { return ((rep.data || {}).manquantes || []).indexOf(id) < 0; });
       }
@@ -165,6 +191,7 @@
   // Une coupure de réseau ne la fait jamais passer « à vérifier » (elle est retentée sans fin, au plus toutes les 5 min).
   var DELAIS_MIN = [0, 1, 5, 15, 60];
   var DELAIS_RESEAU_MIN = [0, 1, 5];
+  var DELAIS_CONFIRMER_S = [15, 30, 60, 300];   // fiche peut-être déjà reçue : on redemande vite
   var ESSAIS_MAX = 12;
   function erreurReseau(err) {
     // 404, 403… : l'adresse du serveur est fausse ou périmée, ce n'est pas une coupure de réseau
@@ -173,13 +200,23 @@
   }
 
   // ── Vider la file (au démarrage, au retour du réseau, au retour dans l'appli, sur bouton) ──
-  var enCours = null, aRelancer = false;
+  var enCours = null, aRelancer = false, minuterieFile = null;
+  // Canal entre les pages ouvertes de l'appli (PC : plusieurs onglets) : l'indicateur de chacune reste juste
+  var canal = null;
+  try { canal = window.BroadcastChannel ? new BroadcastChannel('loue-file-' + CONFIG.env) : null; } catch (e) { canal = null; }
   // Écrire une fiche seulement si elle est encore dans la file (un autre onglet a pu l'envoyer entre-temps)
   function ecrireSiPresente(el) {
     return LOUE.stockage.lire('file', el.id).then(function (x) { return x ? LOUE.stockage.ecrire('file', el).then(function () { return true; }) : false; });
   }
+  // forcer : true = toutes les fiches tout de suite ; 'reseau' = seulement celles qui attendaient le réseau
+  // ou une confirmation du serveur (les fiches refusées par le serveur gardent leur délai)
   LOUE.viderFile = function (forcer) {
-    if (enCours) { aRelancer = true; return enCours; }
+    if (enCours) {   // relance à la fin de l'envoi en cours, avec la demande la plus forte : true > 'reseau' > simple
+      aRelancer = aRelancer === true || forcer === true ? true : (aRelancer === 'reseau' || forcer === 'reseau' ? 'reseau' : 'oui');
+      return enCours;
+    }
+    clearTimeout(minuterieFile);
+    var force = function (el) { return forcer === true || (forcer === 'reseau' && (el.attenteReseau || el.aConfirmer)); };
     var vider = function () { return LOUE.stockage.tout('file').then(function (liste) {
       liste.sort(function (a, b) { return a.cree - b.cree; });
       var chaine = Promise.resolve();
@@ -187,27 +224,39 @@
         var el = ancien;
         if (el.etat === 'erreur') return;                                   // attend une action de la personne
         if (el.env && el.env !== CONFIG.env) return;                        // fiche d'un autre mode (test / production)
-        if (!forcer && el.prochainEssai && Date.now() < el.prochainEssai) return;
+        if (!force(el) && el.prochainEssai && Date.now() < el.prochainEssai) return;
         chaine = chaine.then(function () { return LOUE.stockage.lire('file', ancien.id); }).then(function (frais) {
           if (!frais || frais.etat === 'erreur') return;                   // déjà envoyée ou mise de côté entre-temps
           el = frais;
           el.etat = 'envoi'; el.essais++; annoncer();
           return envoyerPhotosPuisFiche(el,
             function (id) { return LOUE.stockage.lire('photos', id).then(function (p) { return p ? p.blob : null; }); },
-            function () { return ecrireSiPresente(el); }
+            function () { return ecrireSiPresente(el); },
+            // Fiche notée « à confirmer » AVANT de partir : si la page est fermée pendant l'envoi,
+            // la page suivante redemande tout de suite (le serveur ne traite qu'une fois un même numéro)
+            function () { el.aConfirmer = true; el.prochainEssai = 0; return ecrireSiPresente(el); }
           ).then(function (rep) {
             var supp = el.photos.map(function (id) { return LOUE.stockage.supprimer('photos', id); });
             return Promise.all(supp).then(function () { return LOUE.stockage.supprimer('file', el.id); })
               .then(function () { LOUE.signaler({ type: 'envoyee', element: el, reponse: rep }); });
           }).catch(function (err) {
-            var reseau = erreurReseau(err);
-            if (!reseau) el.refusServeur = (el.refusServeur || 0) + 1;
+            var reseau = erreurReseau(err), aConfirmer = !!err.aConfirmer;
+            if (!reseau && !aConfirmer) el.refusServeur = (el.refusServeur || 0) + 1;
             var definitif = err.definitif || (el.refusServeur || 0) >= ESSAIS_MAX;
             el.etat = definitif ? 'erreur' : 'en attente';
+            el.attenteReseau = reseau && !definitif;
+            el.aConfirmer = aConfirmer && !definitif;
             el.message = messageClair(err) + (!err.definitif && definitif ? ' (après ' + el.refusServeur + ' essais)' : '');
             if (definitif) el.message = el.message.replace(/,? nouvel essai automatique/, '');   // plus d'essai automatique : « Réessayer »
-            var delais = reseau ? DELAIS_RESEAU_MIN : DELAIS_MIN;
-            el.prochainEssai = Date.now() + delais[Math.min(el.essais, delais.length - 1)] * 60000;
+            if (el.aConfirmer) {
+              el.message = 'Pas encore confirmée par le bureau (nouvelle demande automatique)';
+              el.confirmations = (el.confirmations || 0) + 1;
+              el.prochainEssai = Date.now() + DELAIS_CONFIRMER_S[Math.min(el.confirmations - 1, DELAIS_CONFIRMER_S.length - 1)] * 1000;
+            } else {
+              el.confirmations = 0;
+              var delais = reseau ? DELAIS_RESEAU_MIN : DELAIS_MIN;
+              el.prochainEssai = Date.now() + delais[Math.min(el.essais, delais.length - 1)] * 60000;
+            }
             // Fiche disparue de la file pendant l'essai : un autre onglet l'a envoyée, rien à signaler
             return ecrireSiPresente(el).then(function (encore) { if (encore) LOUE.signaler({ type: el.etat, element: el }); });
           });
@@ -226,10 +275,22 @@
       LOUE.signaler({ type: 'stockage', message: err && err.message });
     }).finally(function () {
       enCours = null; annoncer();
-      if (aRelancer) { aRelancer = false; setTimeout(function () { LOUE.viderFile(); }, 0); }
+      if (aRelancer) { var mode = aRelancer === 'oui' ? undefined : aRelancer; aRelancer = false; setTimeout(function () { LOUE.viderFile(mode); }, 0); return; }
+      programmer();
     });
     return enCours;
   };
+  // Prochain essai dans moins d'une minute (fiche à confirmer) : minuterie à l'heure dite
+  // (sinon le passage de chaque minute s'en charge)
+  function programmer() {
+    LOUE.stockage.tout('file').then(function (liste) {
+      var prochain = liste.filter(function (e) { return e.etat !== 'erreur' && (!e.env || e.env === CONFIG.env) && e.prochainEssai; })
+        .reduce(function (m, e) { return Math.min(m, e.prochainEssai); }, Infinity);
+      var dans = prochain - Date.now();
+      clearTimeout(minuterieFile);
+      if (dans < 60000) minuterieFile = setTimeout(function () { LOUE.viderFile(); }, Math.max(0, dans) + 200);
+    }).catch(function () {});
+  }
 
   // Réessayer une fiche « à vérifier »
   LOUE.reessayer = function (id) {
@@ -257,7 +318,8 @@
     var el = { id: LOUE.nouvelId('fiche'), donnees: r.donnees, photos: r.photos.map(function (p) { return p.id; }), photosEnvoyees: [] };
     function tenter(n) {
       return envoyerPhotosPuisFiche(el, function (id) { return Promise.resolve(blobs[id] || null); }).catch(function (err) {
-        if (err.definitif || n >= 3) throw Object.assign(new Error(messageClair(err)), { definitif: err.definitif });
+        // Même numéro à chaque essai : une fiche déjà reçue n'est jamais envoyée deux fois
+        if (err.definitif || n >= (err.aConfirmer ? 6 : 3)) throw Object.assign(new Error(messageClair(err)), { definitif: err.definitif });
         return new Promise(function (ok) { setTimeout(ok, 5000); }).then(function () { return tenter(n + 1); });
       });
     }
@@ -268,17 +330,21 @@
   var abonnes = [];
   LOUE.surEvenement = function (fn) { abonnes.push(fn); };
   LOUE.signaler = function (ev) { abonnes.forEach(function (fn) { try { fn(ev); } catch (e) {} }); };
-  function annoncer() {
+  function annoncer(depuisAutrePage) {
     LOUE.stockage.tout('file').then(function (liste) {
       LOUE.signaler({ type: 'file', liste: liste.filter(function (e) { return !e.env || e.env === CONFIG.env; }) });
+      if (canal && !depuisAutrePage) { try { canal.postMessage('file'); } catch (e) {} }
     }).catch(function () {});
   }
-  LOUE.annoncerFile = annoncer;
+  LOUE.annoncerFile = function () { annoncer(); };
+  if (canal) canal.onmessage = function () { annoncer(true); };   // une autre page a envoyé ou rangé une fiche
 
   // Déclencheurs du renvoi automatique (pas de « synchronisation en arrière-plan » : elle n'existe pas sur iPhone)
+  // Au retour du réseau et dans l'appli : les fiches qui attendaient le réseau (ou une confirmation) partent tout de suite
   window.addEventListener('online', function () { LOUE.viderFile(true); });
-  document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') LOUE.viderFile(); });
-  window.addEventListener('load', function () { setTimeout(function () { LOUE.viderFile(); }, 500); });
+  document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') LOUE.viderFile('reseau'); });
+  window.addEventListener('pageshow', function (e) { if (e.persisted) LOUE.viderFile('reseau'); });
+  window.addEventListener('load', function () { setTimeout(function () { LOUE.viderFile('reseau'); }, 500); });
   setInterval(function () { if (navigator.onLine !== false) LOUE.viderFile(); }, 60000);
 
   // ── Listes (contacts, chantiers…) : réseau d'abord, sinon la dernière liste gardée dans le téléphone ──

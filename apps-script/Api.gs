@@ -46,6 +46,11 @@ function getContacts(callback) {
   })) : [];
 
   function getList(n){ const s=ss.getSheetByName(n); return s?s.getDataRange().getValues().slice(1).map(r=>String(r[0]||'')).filter(v=>v):[]; }
+  // Bordereau matériaux (lot 1 R2) : types et matériaux proposés par défaut — une ligne par matériau, le type répété
+  const smb = ss.getSheetByName(SHEET_MAT_BORDEREAU);
+  const materiauxBordereau = smb && smb.getLastRow() > 1 ? smb.getRange(2, 1, smb.getLastRow() - 1, 3).getValues()
+    .map(r => ({ type: String(r[0]||'').trim(), materiau: String(r[1]||'').trim(), quantite: String(r[2]===0?'0':(r[2]||'')).trim() }))
+    .filter(x => x.type) : [];
 
   const json = JSON.stringify({
     contacts, chantiers, contactNotes,
@@ -54,6 +59,7 @@ function getContacts(callback) {
     quincaille : getList(SHEET_QUINCAILLE),
     fonctions  : getList(SHEET_FONCTIONS),
     types      : getList(SHEET_TYPES),
+    materiauxBordereau,
   });
 
   return callback

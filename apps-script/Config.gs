@@ -3,7 +3,7 @@
 // Loué Menuiserie
 // ═══════════════════════════════════════════════════════════════
 
-const VERSION_API = 'v5.0';
+const VERSION_API = 'v5.1';
 
 // ── CONFIGURATION ──
 const SHEET_CONTACTS      = 'Contacts';
@@ -12,6 +12,7 @@ const SHEET_CHANTIERS   = 'Chantiers';
 const SHEET_COTES       = 'Prise de Cote';
 const SHEET_FABRICATION = 'Fabrication';
 const SHEET_MATERIAUX   = 'Materiaux';
+const SHEET_MAT_BORDEREAU = 'Matériaux bordereau';   // lot 1 R2 : A Type, B Matériau, C Quantité (une ligne par matériau)
 const SHEET_FINITIONS   = 'Finitions';
 const SHEET_QUINCAILLE  = 'Quincaillerie';
 const SHEET_FONCTIONS   = 'Fonctions';

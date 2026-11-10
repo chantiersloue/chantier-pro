@@ -26,6 +26,8 @@ const google = creerGoogle({
     'Quincaillerie': [['Quincaillerie'], ['Paumelles']],
     'Fonctions': [['Fonctions'], ['OPC']],
     'Types': [['Types'], ['Pass GENERAL']],
+    'Matériaux bordereau': [['Type', 'Matériau', 'Quantité'], ['Kit pose fenêtre', 'Vis inox 4x40', 20], ['Kit pose fenêtre', 'Cartouche de mousse', 1],
+      ['Kit pose porte', 'Cales', 8], ['Clés de chantier', '', '']],
     'Prise de Cote': [['', 'REF']], 'Fabrication': [['Ref']],
   },
 });

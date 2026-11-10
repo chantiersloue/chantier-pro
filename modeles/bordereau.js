@@ -8,29 +8,6 @@
 function modele_bordereau(d, esc) {
   var orga = d.type === 'bordereau-orga';
   var titre = orga ? 'BORDEREAU DE REMISE — ORGANIGRAMME' : 'BORDEREAU DE REMISE — MATÉRIAUX';
-  var photos = (d.photosBase64 || []).filter(function (p) { return p && p.data; });
-
-  function img(p, hauteur) {
-    return '<img src="data:' + (p.mimeType || 'image/jpeg') + ';base64,' + p.data + '" style="max-width:100%;max-height:' + hauteur + ';display:block;margin:0 auto;">';
-  }
-  function legende(p) { return p.label ? '<div style="font-size:9px;margin-top:3px;color:#6A6460">' + esc(p.label) + '</div>' : ''; }
-  var photosHtml = '';
-  if (photos.length === 1) {
-    photosHtml = '<div style="margin-top:10px;border:1px solid #D8D4CE;border-radius:5px;overflow:hidden">'
-      + '<div style="background:#FAFAF8;padding:5px 10px;border-bottom:1px solid #D8D4CE;font-size:9px;font-weight:700;color:#7A4200">Photo'
-      + (photos[0].label ? ' — ' + esc(photos[0].label) : '') + '</div>'
-      + '<div style="padding:8px;text-align:center">' + img(photos[0], '100mm') + '</div></div>';
-  } else {
-    for (var i = 0; i < photos.length; i += 2) {
-      var p2 = photos[i + 1];
-      var cellule2 = p2 ? '<td style="width:50%;padding-left:6px;text-align:center">' + img(p2, '110mm') + legende(p2) + '</td>' : '<td></td>';
-      photosHtml += '<div style="page-break-before:always;padding:10px">'
-        + '<div style="font-size:9px;font-weight:700;color:#7A4200;margin-bottom:6px;border-bottom:2px solid #C8860A;padding-bottom:3px">Photos ' + (i + 1) + (p2 ? ' & ' + (i + 2) : '') + '</div>'
-        + '<table style="width:100%;border-collapse:collapse"><tr>'
-        + '<td style="width:50%;padding-right:6px;text-align:center">' + img(photos[i], '110mm') + legende(photos[i]) + '</td>' + cellule2
-        + '</tr></table></div>';
-    }
-  }
   function signature(titreSig, src) {
     return '<td style="width:50%;padding:0 4px;vertical-align:top">'
       + '<div style="font-size:9px;font-weight:700;text-transform:uppercase;color:#6A6460;margin-bottom:4px">' + titreSig + '</div>'
@@ -44,6 +21,16 @@ function modele_bordereau(d, esc) {
     : '';
   var preneur = '<strong>' + esc(d.preneur || '—') + '</strong>' + (d.fonction ? ' (' + esc(d.fonction) + ')' : '') + (d.entreprise ? ' — ' + esc(d.entreprise) : '');
   var commentaires = d.commentaires ? '<br><span style="color:#6A6460;word-break:break-word;white-space:pre-wrap">' + esc(d.commentaires) + '</span>' : '';
+  // Matériaux remis (bordereau matériaux, lot 1 R2) : proposés d'après le Type (onglet « Matériaux bordereau »), modifiables
+  var liste = !orga && d.listeMateriaux ? String(d.listeMateriaux).replace(/\s+$/, '') : '';
+  var listeHtml = liste ? '<br><span style="font-weight:700">Matériaux remis :</span><br><span style="word-break:break-word;white-space:pre-wrap">' + esc(liste) + '</span>' : '';
+
+  // ── Photos (modeles/mise-en-page.js) : la 1re sous les signatures, dans toute la place restante de la page 1,
+  // les autres en pleine page (deux par page si elles y gardent leur taille). Hauteur du contenu mesurée dans Chrome :
+  // 72,4 mm ; mention de l'organigramme 22,5 ; chaque ligne de commentaire ou de matériau 5,5.
+  var estime = 72.4 + (orga ? 22.5 : 0) + 5.53 * ((d.commentaires ? mep_lignes(d.commentaires, 168, 11) : 0) + (liste ? 1 + mep_lignes(liste, 168, 11) : 0));
+  var zone = mep_zone(d, 210, 297, 15);
+  var photosHtml = mep_photos(d.photosBase64, { largeur: zone.largeur, hauteur: zone.hauteur, reste: mep_reste(zone, estime), estime: estime, esc: esc });
 
   return '<html><head><meta charset="utf-8"><style>@page{size:A4;margin:1.5cm}body{font-family:Arial,sans-serif;font-size:10px;margin:0}*{box-sizing:border-box}</style></head><body>'
     + '<table style="width:100%;border-collapse:collapse;margin-bottom:14px;border-bottom:3px solid #7A4200;padding-bottom:10px"><tr>'
@@ -58,12 +45,12 @@ function modele_bordereau(d, esc) {
     + '<div style="padding:10px 12px;background:#FDF0D6;border:1.5px solid #C8860A;border-radius:5px;margin-bottom:10px;font-size:11px;line-height:1.9">'
     + 'Je soussigné(e) <strong>' + esc(d.soussigne || '—') + '</strong>, Entreprise Loué Menuiserie,<br>'
     + 'déclare par la présente avoir remis en main propre à ' + preneur + ' :<br>'
-    + '<strong>' + esc(d.nombre || '—') + ' × ' + esc(d.typeDoc || '—') + '</strong>' + commentaires
+    + '<strong>' + esc(d.nombre || '—') + ' × ' + esc(d.typeDoc || '—') + '</strong>' + listeHtml + commentaires
     + '</div>'
-    + photosHtml
     + '<table style="width:100%;border-collapse:collapse;margin-top:14px;page-break-inside:avoid"><tr>'
     + signature('Signature Entreprise Loué', d.sigLoue) + signature('Signature Preneur', d.sigPreneur)
     + '</tr></table>'
     + mention
+    + photosHtml
     + '</body></html>';
 }

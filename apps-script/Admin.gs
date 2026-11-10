@@ -96,9 +96,55 @@ function verifierConfig() {
   ok(estEmail_(emailAdmin_()), 'Adresse de Franck (alertes, copies) : ' + emailAdmin_());
   [SHEET_CONTACTS, SHEET_CONTACT_NOTES, SHEET_CHANTIERS].forEach(n => ok(!!ss.getSheetByName(n), 'Onglet « ' + n + ' »'));
   lignes.push(verifierDossiers_());   // lot 1.5 : fichier des noms de dossiers
+  // Lot 1 R2 : onglet des matériaux proposés par le bordereau matériaux (créé vide, avec ses titres)
+  if (!ss.getSheetByName(SHEET_MAT_BORDEREAU)) {
+    feuille_(SHEET_MAT_BORDEREAU, ['Type', 'Matériau', 'Quantité']);
+    lignes.push('✅ Onglet « ' + SHEET_MAT_BORDEREAU + ' » créé (vide) : une ligne par matériau — A le type, B le matériau, C la quantité');
+  } else ok(true, 'Onglet « ' + SHEET_MAT_BORDEREAU + ' »');
   ok(ScriptApp.getProjectTriggers().some(t => t.getHandlerFunction() === 'renvoyerMailsEnAttente'),
      'Déclencheur des mails reportés (sinon lancer installerDeclencheurs)');
   lignes.push("Mails encore possibles aujourd'hui : " + MailApp.getRemainingDailyQuota());
+  Logger.log(lignes.join('\n'));
+  return lignes.join('\n');
+}
+
+
+// ══════════════════════════════════════════════════════════
+// ESSAI DE MISE EN PAGE DES PHOTOS (lot 1, retouche R1) — à lancer sur TEST, AUCUN mail envoyé
+// Fabrique 3 PDF d'essai à la racine du Drive de l'appli (« _ESSAI MISE EN PAGE … ») et écrit dans le journal,
+// pour chacun : le format de page réel du PDF de Google, le nombre de pages obtenu et le nombre prévu.
+// Si une ligne dit « refait », le contrôle automatique a dû corriger : envoyer le journal à Claude.
+// ══════════════════════════════════════════════════════════
+const ESSAI_PHOTO_JPEG = '/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAMCAgMCAgMDAwMEAwMEBQgFBQQEBQoHBwYIDAoMDAsKCwsNDhIQDQ4RDgsLEBYQERMUFRUVDA8XGBYUGBIUFRT/2wBDAQMEBAUEBQkFBQkUDQsNFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBT/wAARCAAGAAgDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwDEooor9dPyQ//Z';
+const ESSAI_CROQUIS_PNG = 'iVBORw0KGgoAAAANSUhEUgAAACIAAAAVCAIAAACsWquAAAAAZUlEQVR4nL3NOw7AIAwEUQ7h+1/VKYIERJbjzy5TTPuGXGmIiKq+J7UYqnQwPMxgGJLNwDGPAWL/DEQKMX0swXSwNFOTKkwBqzMpqcXEMQATwWCMLyEZB8MzJsZiPhKR2bHJXOgBFDn9wGtZlnUAAAAASUVORK5CYII=';
+function essaiMiseEnPage() {
+  const racine = DriveApp.getFolderById(driveRootId_());
+  const photo = label => ({ data: ESSAI_PHOTO_JPEG, mimeType: 'image/jpeg', label: label || '' });
+  const croquis = { data: ESSAI_CROQUIS_PNG, mimeType: 'image/png', label: 'Croquis' };
+  const ligne = (i, n) => ({ repere: 'R' + i, qte: 2, long: 2040, larg: 830, haut: 40, section: '40x40', materiau: 'Médium', finition: 'BLANC', quincaillerie: 'Paumelles', observations: n });
+  const cas = [
+    ['fabrication', modele_fabrication, { chantier: 'ESSAI MISE EN PAGE', date: '01/01/2026', auteur: 'Essai', chefAtelier: 'Essai', conducteur: 'Essai', delai: 'Essai',
+      blocs: [{ id: 1, type: 'divers', rows: [ligne(1, 'photo en page 1'), ligne(2, 'croquis en page 2')] }], photosBase64: [photo('Photo : toute la place sous le tableau'), croquis] }],
+    ['quitus', modele_quitus, { chantier: 'ESSAI MISE EN PAGE', date: '01/01/2026', heure: '12h00', intervenant: 'Essai', solde: 'OUI',
+      description: 'Essai : 1 photo en page 1 sous les signatures, 2 photos sur la page 2.', photosBase64: [photo('1'), photo('2'), photo('3')] }],
+    ['bordereau', modele_bordereau, { type: 'bordereau-materiaux', chantier: 'ESSAI MISE EN PAGE', date: '01/01/2026', heure: '12h00', soussigne: 'Essai', preneur: 'Essai',
+      entreprise: 'Essai', typeDoc: 'Kit', nombre: '1', listeMateriaux: '2 × Vis\n1 × Mousse', photosBase64: [photo('Photo en page 1')] }],
+  ];
+  const lignes = ['Essai de mise en page (' + VERSION_API + ')'];
+  cas.forEach(([nom, modele, d]) => {
+    const html = modele(d, esc_);
+    const brut = HtmlService.createHtmlOutput(html).getAs('application/pdf');
+    const info = infoPdf_(brut);
+    const prevues = 1 + (html.match(/page-break-before:always/g) || []).length;
+    const blob = pdfDuModele_(modele, d, '_ESSAI MISE EN PAGE ' + nom + '.pdf');
+    const refait = info.pages && info.pages > prevues && html.indexOf('data-mep="page1"') > -1;
+    const anciens = racine.getFilesByName(blob.getName());
+    while (anciens.hasNext()) anciens.next().setTrashed(true);
+    racine.createFile(blob);
+    lignes.push((refait ? '⚠ ' : '✅ ') + nom + ' : format ' + (info.l ? info.l + ' × ' + info.h + ' mm' : 'illisible')
+      + ', ' + (info.pages || '?') + ' page(s) pour ' + prevues + ' prévue(s)' + (refait ? ' → refait avec la photo sur une page à elle' : ''));
+  });
+  lignes.push('PDF à ouvrir à la racine du Drive de l’appli : « _ESSAI MISE EN PAGE … » (à supprimer ensuite).');
   Logger.log(lignes.join('\n'));
   return lignes.join('\n');
 }

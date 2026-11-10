@@ -154,16 +154,25 @@ function modele_fabrication(d, esc) {
       + '<div style="font-size:10px;line-height:1.5">' + commentaires + '</div></div>'
     : '';
 
-  // ── Photos et croquis : 1 seule → sous les blocs ; 2 et plus → une par page ──
-  var photos = (d.photosBase64 || []).filter(function (p) { return p && p.data; });
-  var photosSection = photos.map(function (p) {
-    var seule = photos.length === 1;
-    var mh = seule ? '95mm' : '135mm';
-    return '<div style="' + (seule ? 'margin-top:8px;page-break-inside:avoid;' : 'page-break-before:always;padding:10px;') + 'text-align:center">'
-      + '<img src="data:' + (p.mimeType || 'image/jpeg') + ';base64,' + p.data + '" style="max-width:100%;max-height:' + mh + ';width:auto;height:auto;border:1px solid #ddd;display:block;margin:0 auto">'
-      + (p.label ? '<div style="font-size:9px;color:#666;margin-top:3px">' + esc(p.label) + '</div>' : '')
-      + '</div>';
-  }).join('');
+  // ── Photos et croquis (modeles/mise-en-page.js) : la 1re photo sous les blocs, en page 1, dans toute la place
+  // restante ; chaque croquis sur une page entière ; les autres photos en pleine page (ou deux par page) ──
+  // Hauteur estimée du contenu de la page 1 (mm), mesurée dans Chrome : en-tête 44 ; bloc 26 (porte 25,7) + 5,3 par
+  // ligne en plus ; bloc vide 17,2 ; commentaires 8,2 + 4 par ligne. Les blocs ne se coupent pas d'une page à l'autre.
+  var estime = 44;
+  (d.blocs || []).forEach(function (b) {
+    if (b.type === 'photo') return;
+    var rows = b.rows || [];
+    if (!rows.length) { estime += 17.2; return; }
+    estime += (b.type === 'porte' ? 25.7 : 26.2) + 5.3 * (rows.length - 1);
+    rows.forEach(function (r) {   // texte long dans une case : lignes en plus
+      var plusLong = 0;
+      Object.keys(r).forEach(function (k) { if (typeof r[k] === 'string' || typeof r[k] === 'number') plusLong = Math.max(plusLong, String(r[k]).length); });
+      if (plusLong > 40) estime += 3.4 * Math.ceil((plusLong - 40) / 40);
+    });
+  });
+  if (commentaireSection) estime += 8.2 + 4 * mep_lignes(mep_texteBrut(d.commentaires), 260, 10);
+  var zone = mep_zone(d, 297, 210, 10);
+  var photosSection = mep_photos(d.photosBase64, { largeur: zone.largeur, hauteur: zone.hauteur, reste: mep_reste(zone, estime), estime: estime, esc: esc });
 
   return '<html><head><meta charset="utf-8"><style>@page{size:landscape;margin:1cm}body{font-family:Arial,sans-serif;font-size:10px;margin:0}*{box-sizing:border-box}</style></head><body>'
     + enTete + blocsHtml + commentaireSection + photosSection

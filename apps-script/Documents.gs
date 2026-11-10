@@ -4,6 +4,36 @@
 // ═══════════════════════════════════════════════════════════════
 
 // ═══════════════════════════════════════════════════════════════
+// PDF D'UN MODÈLE, CONTRÔLÉ (lot 1, retouche R1)
+// Le modèle place la 1re photo sous le contenu de la page 1 d'après une ESTIMATION de la hauteur du contenu.
+// Le moteur PDF de Google n'est pas exactement celui de l'aperçu : on compte les pages du PDF obtenu.
+// Une page de trop = la photo a été rejetée sur la page suivante → on refait le PDF UNE fois, avec le format
+// de page réel et cette photo sur une page à elle. (Quelques secondes de plus, rarement.)
+// ═══════════════════════════════════════════════════════════════
+function pdfDuModele_(modele, d, nom) {
+  const html = modele(d, esc_);
+  const blob = HtmlService.createHtmlOutput(html).getAs('application/pdf').setName(nom);
+  if (html.indexOf('data-mep="page1"') < 0) return blob;
+  const info = infoPdf_(blob);
+  const prevues = 1 + (html.match(/page-break-before:always/g) || []).length;
+  if (!info.pages || info.pages <= prevues) return blob;
+  console.log('Mise en page : ' + info.pages + ' pages au lieu de ' + prevues + ' (format ' + info.l + ' × ' + info.h
+    + ' mm) : la photo de la page 1 passe sur une page à elle');
+  const d2 = Object.assign({}, d, { _mepSansPage1: true });
+  if (info.l && info.h) d2._mepFormat = { l: info.l, h: info.h };
+  return HtmlService.createHtmlOutput(modele(d2, esc_)).getAs('application/pdf').setName(nom);
+}
+// Nombre de pages et format (mm) d'un PDF, lus dans le fichier ; {} si illisible
+function infoPdf_(blob) {
+  let t = '';
+  try { t = blob.getDataAsString('ISO-8859-1'); } catch (e) { return {}; }
+  const pages = (t.match(/\/Type\s*\/Page(?![s\w])/g) || []).length;
+  const m = t.match(/\/MediaBox\s*\[\s*([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s*\]/);
+  const mm = x => Math.round(Number(x) * 25.4 / 72);
+  return { pages: pages, l: m ? mm(m[3] - m[1]) : 0, h: m ? mm(m[4] - m[2]) : 0 };
+}
+
+// ═══════════════════════════════════════════════════════════════
 // NOTE DE RÉUNION
 // ═══════════════════════════════════════════════════════════════
 function traiterNoteReunion(data, brut) {
@@ -11,9 +41,8 @@ function traiterNoteReunion(data, brut) {
   // Lot 1 : PDF fabriqué par le modèle unique (modeles/note.js, copié dans Modeles.gs), le même que l'aperçu de la page
   const d = validerImages_(brut);
   if (!d.date) d.date = Utilities.formatDate(now, 'Europe/Paris', 'dd/MM/yyyy');
-  const htmlPDF = modele_note(d, esc_);
   const nomPDF = nomFichier_(`Note_${brut.chantier||'—'}_${String(d.date).replace(/\//g,'-')}.pdf`);
-  const blob   = HtmlService.createHtmlOutput(htmlPDF).getAs('application/pdf').setName(nomPDF);   // fabriqué une seule fois
+  const blob   = pdfDuModele_(modele_note, d, nomPDF);   // fabriqué une seule fois (contrôlé : R1)
 
   // Classement Drive (lot 1.5 : dossier « note » de dossiers.json, 05 - CHANTIER/COMPTE RENDU par défaut)
   const fichier = classerDocument_('note', blob, brut.chantier, d.date);
@@ -54,8 +83,7 @@ function traiterBordereau(data, brut) {
   const isOrga   = brut.type==='bordereau-orga';
   const nomPDF   = nomFichier_(`Bordereau_${isOrga?'Orga':'Mat'}_${brut.chantier||'—'}_${String(brut.date||'').replace(/\//g,'-')}.pdf`);
   // Lot 1 : PDF fabriqué par le modèle unique (modeles/bordereau.js, copié dans Modeles.gs), le même que l'aperçu de la page
-  const htmlPDF = modele_bordereau(validerImages_(brut), esc_);
-  const blob = HtmlService.createHtmlOutput(htmlPDF).getAs('application/pdf').setName(nomPDF);
+  const blob = pdfDuModele_(modele_bordereau, validerImages_(brut), nomPDF);
   // Lot 0 : les bordereaux ont leur propre dossier (ils allaient par erreur dans « Quitus »)
   const fichier = classerDocument_(brut.type === 'bordereau-orga' ? 'bordereau-orga' : 'bordereau-materiaux', blob, brut.chantier, brut.date);
   const sujet = `[Loué App] ${isOrga?'Bordereau Organigramme':'Bordereau Matériaux'} — ${brut.chantier||'—'}`;
@@ -75,9 +103,7 @@ function traiterQuitus(data, brut) {
   const chantierBrut    = (brut.chantier||'—') + (brut.precision ? ' — ' + brut.precision : '');
   const nomPDF   = nomFichier_(`Quitus_${chantierBrut}_${String(brut.date||'').replace(/\//g,'-')}.pdf`);
   // Lot 1 : PDF fabriqué par le modèle unique (modeles/quitus.js, copié dans Modeles.gs), le même que l'aperçu de la page
-  const htmlPDF = modele_quitus(validerImages_(brut), esc_);
-
-  const blob = HtmlService.createHtmlOutput(htmlPDF).getAs('application/pdf').setName(nomPDF);
+  const blob = pdfDuModele_(modele_quitus, validerImages_(brut), nomPDF);
   const fichier = classerDocument_('quitus', blob, brut.chantier, brut.date, brut.precision);
   const pdfUnique = () => blob;   // le même PDF sert au classement et aux mails
   const sujet = `[Loué App] Quitus — ${chantierBrut}`;
@@ -180,9 +206,8 @@ function envoyerEmailFabrication(data, horodatage, brut) {
   if (!destinataires.length) destinataires.push(emailAdmin_());
 
   // Lot 1 : PDF fabriqué par le modèle unique (modeles/fabrication.js, copié dans Modeles.gs), le même que l'aperçu de la page
-  const htmlPDF = modele_fabrication(validerImages_(brut), esc_);
   const nomPDF = nomFichier_(`Fab_${brut.chantier||'—'}${brut.serie?'_S'+brut.serie:''}_${brut.date||''}.pdf`);
-  const blobPdf = HtmlService.createHtmlOutput(htmlPDF).getAs('application/pdf').setName(nomPDF);
+  const blobPdf = pdfDuModele_(modele_fabrication, validerImages_(brut), nomPDF);
 
   // Classement automatique (lot 1.5 : dossier « fabrication » de dossiers.json, 07 - ATELIER par défaut)
   let fichier = null;
@@ -304,9 +329,8 @@ function traiterReceptionSupport(data, brut) {
   } catch(err) { console.error('Sheet réception support:', err.message); }
 
   // 2. PDF — Lot 1 : modèle unique (modeles/reception.js, copié dans Modeles.gs), le même que l'aperçu de la page
-  const htmlPDF = modele_reception(validerImages_(brut), esc_);
   const nomFichier = nomFichier_(`Reception_${String(brut.chantier||'').replace(/ /g,'_')}_${String(brut.lotLabel||'').replace(/ /g,'_')}.pdf`);
-  const blobPDF = HtmlService.createHtmlOutput(htmlPDF).getAs('application/pdf').setName(nomFichier);   // fabriqué une seule fois
+  const blobPDF = pdfDuModele_(modele_reception, validerImages_(brut), nomFichier);   // fabriqué une seule fois
 
   // 3. Drive (sous-dossier « Réceptions Support » du chantier)
   const fichier = classerDocument_('reception-support', blobPDF, brut.chantier, brut.date, brut.lotLabel);
@@ -351,9 +375,8 @@ function traiterAttestation(data, brut) {
   const d = validerImages_(brut);
   const ligneSig = getContactsRaw().find(r => String(r[0]).trim().toLowerCase() === String(brut.signataire||'').trim().toLowerCase());
   d.qualite = ligneSig ? String(ligneSig[1]||'') : '';
-  const htmlPDF = modele_attestation(d, esc_);
   const nomFichier = nomFichier_(`Attestation_${String(brut.typeLabel||'').replace(/ /g,'_')}_${String(brut.chantier||'').replace(/ /g,'_')}.pdf`);
-  const blob = HtmlService.createHtmlOutput(htmlPDF).getAs('application/pdf').setName(nomFichier);   // fabriqué une seule fois
+  const blob = pdfDuModele_(modele_attestation, d, nomFichier);   // fabriqué une seule fois (contrôlé : R1)
   const fichier = classerDocument_('attestation', blob, brut.chantier, brut.date, brut.typeLabel);
 
   // 3. Mail au conducteur du chantier, calculé par le serveur (sinon Franck) — contrôlé par distribuer_

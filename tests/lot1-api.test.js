@@ -390,7 +390,7 @@ test('textes piégés échappés dans le PDF et dans le mail', () => {
   assert.ok(corps.indexOf('<script>alert') < 0 && corps.indexOf('&lt;script&gt;') > -1, 'mail échappé');
 });
 
-test('photos envoyées à part : toutes remises dans le PDF avec leur légende (une seule : sous les notes)', () => {
+test('photos envoyées à part : toutes remises dans le PDF avec leur légende (une seule : sous les notes, page 1)', () => {
   const g = environnement();
   const b64 = n => Buffer.concat([Buffer.from([0xFF, 0xD8, 0xFF, 0xE0]), Buffer.from('photo-note-' + n)]).toString('base64');
   for (let i = 1; i <= 3; i++) poster(g, { action: 'photo', id: 'photo-091' + i + '-abcd', fiche: 'fiche-0910-abcd', mime: 'image/jpeg', data: b64(i) });
@@ -399,7 +399,7 @@ test('photos envoyées à part : toutes remises dans le PDF avec leur légende (
   assert.strictEqual(r.code, 'ENREGISTRE', JSON.stringify(r));
   const html = pdfDe(g);
   [1, 2, 3].forEach(i => assert.ok(html.indexOf(b64(i)) > -1, 'photo ' + i));
-  ['Légende 1', 'Appui &lt;fenêtre&gt;', 'Légende 3', 'Photos / Croquis 1 &amp; 2', 'Photos / Croquis 3'].forEach(t => assert.ok(html.indexOf(t) > -1, t));
+  ['Légende 1', 'Appui &lt;fenêtre&gt;', 'Légende 3'].forEach(t => assert.ok(html.indexOf(t) > -1, t));
   const g2 = environnement();
   poster(g2, { action: 'photo', id: 'photo-0920-abcd', fiche: 'fiche-0920-abcd', mime: 'image/jpeg', data: b64(9) });
   poster(g2, { action: 'fiche', id: 'fiche-0920-abcd', donnees: note({ photosBase64: [{ photoRef: 'photo-0920-abcd', label: 'Seule' }] }) });
