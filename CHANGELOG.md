@@ -2,7 +2,9 @@
 
 Chaque lot : **quoi**, **pourquoi**, **comment déployer**. Procédures détaillées dans `docs/lotN-procedure.md`.
 
-## Lot 2 — Comptes, rôles, accueil (avec 9a) — serveur v6.0, appli 6.0 — en test (rien en production)
+## Lot 2 — Comptes, rôles, accueil (avec 9a) — serveur v6.0.1, appli 6.0.1 — en test (rien en production)
+
+**Correctif 6.0.1 (après les essais sur TEST)** : essai 12, le bouton ne reste plus bloqué sur « Rangement dans le téléphone… » (même correctif que la 5.1.1 de production) ; essai 14, la colonne État dit « bloqué » dès le 5e essai raté ; journal des incidents dans « À propos » ; nouveau test `node tests/hors-ligne.test.js` (vrai Chrome hors-ligne, avec un autre onglet qui occupe la mémoire du téléphone). Procédure : `docs/lot2-procedure.md`, section « Correctif après tes essais ».
 
 **Quoi**
 - **Comptes** : identifiant + mot de passe (connexion une fois tous les 90 jours). Onglet *Utilisateurs* : rôle, case « Réinitialiser » (mot de passe provisoire de 48 h, déblocage, déconnexion), case « Déconnecter ses téléphones », case « Tous les chantiers ». Empreintes des mots de passe dans les Propriétés du script, jamais dans le Sheet. 5 erreurs = 15 min de blocage ; alerte à Franck au-delà de 50 échecs par heure.
@@ -21,6 +23,14 @@ Chaque lot : **quoi**, **pourquoi**, **comment déployer**. Procédures détaill
 **Mise à jour avec le lot 1 en production (10/11/2026)** : retouches du lot 1 reprises ; versions 6.0 ; `node outils/construire.js --verifier` refuse désormais un marqueur de conflit oublié ou un script illisible (un service worker cassé avait échappé au contrôle sur la branche du lot 2, jamais en production) ; envoi direct (téléphone qui ne peut pas garder la fiche) : connexion dans la page, sans la quitter ; listes de secours la 1re fois sans réseau ; fiches restées « à vérifier » sur l'appli 5.1 reprises par la 6.0.
 
 **Tests** : `node tests/lot2-comptes.test.js` (44 tests) + tests des lots 0 et 1 ; pages essayées dans le navigateur avec le faux serveur (comptes d'essai), en 375 px.
+
+## Lot 1 — Correctif 5.1.1 : bouton bloqué sur « Rangement dans le téléphone… » — prêt pour la production
+
+**Quoi** : le rangement d'une fiche dans le téléphone a maintenant une limite de 12 s. Au-delà, la fiche part directement si le réseau est là ; sinon un message clair dit quoi faire (garder la page ouverte, fermer les autres onglets de l'appli dans Chrome, toucher Envoyer de nouveau) et le texte reste en brouillon. Une écriture qui finit en retard est défaite : jamais de fiche en double. L'effacement du brouillon après l'envoi n'attend jamais plus de 3 s. Nouveau : un journal des incidents dans « À propos » (rangement bloqué ou lent), à transmettre au bureau.
+
+**Pourquoi** : essai 12 du lot 2 (Motorola, appli installée, mode avion) : le bouton restait bloqué plus de 2 min sans message. Reproduit sur PC quand un AUTRE onglet de l'appli garde la mémoire du téléphone occupée (Android fige les onglets en arrière-plan) : la page attendait sans limite. Même défaut dans l'appli 5.1 en production (même code de rangement).
+
+**Comment déployer** : fusionner la demande `livraison/lot-1-correctif-file`. Rien à changer dans Apps Script. « À propos » affiche ensuite **5.1.1**.
 
 ## Lot 1 — Retouches après les essais (serveur v5.1, appli 5.1) — en production depuis le 10/11/2026
 

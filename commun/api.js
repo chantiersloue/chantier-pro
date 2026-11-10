@@ -191,7 +191,26 @@
     return { donnees: JSON.parse(texte), photos: nouvelles };
   }
 
-  // ── Ajouter une fiche à la file ──
+  // ── Journal des incidents (gardé dans le téléphone, affiché dans « À propos ») ──
+  // Sert à comprendre un blocage sur le terrain : Franck le lit dans « À propos » et me le transmet.
+  var CLE_INCIDENTS = 'loue_incidents_' + CONFIG.env;
+  LOUE.noterIncident = function (texte) {
+    try {
+      var l = JSON.parse(localStorage.getItem(CLE_INCIDENTS) || '[]');
+      l.unshift({ t: Date.now(), texte: String(texte).slice(0, 200), page: location.pathname.split('/').pop() || 'index.html', enLigne: navigator.onLine });
+      localStorage.setItem(CLE_INCIDENTS, JSON.stringify(l.slice(0, 10)));
+    } catch (e) {}
+  };
+  LOUE.incidents = function () { try { return JSON.parse(localStorage.getItem(CLE_INCIDENTS) || '[]'); } catch (e) { return []; } };
+
+  // Rangement bloqué : la mémoire du téléphone (IndexedDB) attend une autre fenêtre ou un onglet de l'appli resté
+  // figé au milieu d'une écriture (Android fige les onglets en arrière-plan). Sans limite, le bouton restait bloqué
+  // sur « Rangement dans le téléphone… » sans aucun message (essai 12 du lot 2).
+  var RANGEMENT_MAX_MS = 12000;
+  LOUE.MSG_MEMOIRE_BLOQUEE = 'le téléphone n’arrive pas à ranger la fiche (mémoire occupée par un autre onglet de l’appli) : gardez CETTE page ouverte, fermez les AUTRES onglets de l’appli dans Chrome, puis touchez Envoyer de nouveau';
+  LOUE.stockageBloqueLe = 0;
+
+
   // donnees : les champs de la fiche ; photos : [{ id, blob }] référencées dans donnees par { photoRef: id }
   LOUE.mettreEnFile = function (type, donnees, photos, libelle) {
     var r = renumeroter(Object.assign({}, donnees, { type: type }), photos);
@@ -204,8 +223,27 @@
     var ecritures = r.photos.map(function (p) {
       return LOUE.stockage.ecrire('photos', { id: p.id, fiche: element.id, blob: p.blob });
     });
-    return Promise.all(ecritures).then(function () { return LOUE.stockage.ecrire('file', element); })
-      .then(function () { annoncer(); return element; });
+    var ecriture = Promise.all(ecritures).then(function () { return LOUE.stockage.ecrire('file', element); });
+    var debut = Date.now(), minuteur = null, tropTard = false;
+    var limite = new Promise(function (ok, ko) {
+      minuteur = setTimeout(function () {
+        tropTard = true;
+        LOUE.stockageBloqueLe = Date.now();
+        LOUE.noterIncident('Rangement bloqué plus de ' + (RANGEMENT_MAX_MS / 1000) + ' s (' + r.photos.length + ' photo(s))');
+        // Si l'écriture finit plus tard, on la défait : la page a déjà dit que la fiche n'était pas rangée
+        ecriture.then(function () {
+          return Promise.all(element.photos.map(function (id) { return LOUE.stockage.supprimer('photos', id); }))
+            .then(function () { return LOUE.stockage.supprimer('file', element.id); })
+            .then(function () { LOUE.noterIncident('Rangement arrivé en retard : annulé (pas de doublon)'); annoncer(); });
+        }).catch(function () {});
+        ko(Object.assign(new Error(LOUE.MSG_MEMOIRE_BLOQUEE), { stockageBloque: true }));
+      }, RANGEMENT_MAX_MS);
+    });
+    return Promise.race([ecriture.then(function () {
+      clearTimeout(minuteur);
+      if (!tropTard && Date.now() - debut > 3000) LOUE.noterIncident('Rangement lent : ' + Math.round((Date.now() - debut) / 1000) + ' s');
+      annoncer(); return element;
+    }, function (err) { clearTimeout(minuteur); throw err; }), limite]);
   };
 
   function blobEnBase64(blob) {
@@ -437,6 +475,8 @@
         }
         if (err.definitif || n >= (err.aConfirmer ? 6 : 3)) {
           var texte = err.aConfirmer ? LOUE.MSG_DIRECT_A_CONFIRMER : messageClair(err);
+          // Le rangement venait d'être bloqué : on le dit (sinon « pas de réseau » seul laisserait croire à un oubli)
+          if (!err.aConfirmer && Date.now() - LOUE.stockageBloqueLe < 120000) texte = 'pas de réseau pour l’envoyer directement, et ' + LOUE.MSG_MEMOIRE_BLOQUEE;
           throw Object.assign(new Error(texte), { definitif: err.definitif, aConfirmer: !!err.aConfirmer });
         }
         return new Promise(function (ok) { setTimeout(ok, 5000); }).then(function () { return tenter(n + 1); });

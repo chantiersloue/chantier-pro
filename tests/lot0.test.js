@@ -269,7 +269,7 @@ console.log('Lot 0 — consultation et partages Drive');
 
 test('doGet : version, callback JSONP contrôlé', () => {
   const g = environnement();
-  assert.strictEqual(g.ctx.doGet({ parameter: {} }).contenu, 'Loué App API v6.0 OK');
+  assert.strictEqual(g.ctx.doGet({ parameter: {} }).contenu, 'Loué App API v6.0.1 OK');
   const r = g.ctx.doGet({ parameter: { action: 'getContacts', callback: 'alert(1);x' } });
   assert.ok(r.contenu.charAt(0) === '{', 'callback invalide ignoré : JSON simple');
 });

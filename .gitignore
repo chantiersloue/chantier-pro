@@ -9,3 +9,5 @@ Thumbs.db
 .clasp.json
 .clasprc.json
 creds*.json
+# Fichiers de travail de l’outil de test du navigateur (playwright-cli)
+.playwright-cli/

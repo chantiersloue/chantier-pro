@@ -261,6 +261,12 @@ function noterEchec_(id) {
   if (n >= ESSAIS_AVANT_BLOCAGE) {
     cache.put('BLOQUE_' + id, String(maintenant_() + BLOCAGE_MIN * 60000), BLOCAGE_MIN * 60 + 60);
     cache.remove('ECHECS_' + id);
+    // État écrit tout de suite dans le Sheet (sinon au passage suivant de traiterComptes, jusqu'à 10 min) ;
+    // seulement pour un compte qui existe (un identifiant inventé n'écrit rien). traiterComptes l'effacera au déblocage.
+    try {
+      const l = utilisateurs_().parId[id];
+      if (l) ecrireEtat_(l.ligne, 'bloqué ' + BLOCAGE_MIN + ' min (5 essais ratés) — « Réinitialiser » débloque');
+    } catch (e) { console.error('noterEchec_ :', e.message); }
   } else {
     cache.put('ECHECS_' + id, String(n), BLOCAGE_MIN * 60);
   }

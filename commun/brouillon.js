@@ -299,7 +299,11 @@
       effacer: function () {
         actif = false; clearTimeout(minuteur);
         var b = document.querySelector('.loue-brouillon:not(.loue-maj)'); if (b) b.remove();   // pas le bandeau « Nouvelle version »
-        return mettreDeCote().then(function () { enAttente = null; return effacerCourant(); });
+        var fin = mettreDeCote().then(function () { enAttente = null; return effacerCourant(); });
+        // La fiche est déjà à l'abri dans la file : si la mémoire tarde (autre onglet figé), on n'attend pas plus de 3 s
+        return Promise.race([fin, new Promise(function (ok) {
+          setTimeout(function () { if (LOUE.noterIncident) LOUE.noterIncident('Effacement du brouillon lent (plus de 3 s)'); ok(); }, 3000);
+        })]);
       },
       reprendre: function () { actif = true; deCote = false; derniere = empreinte(etat()); },
     };

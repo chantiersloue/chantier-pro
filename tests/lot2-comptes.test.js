@@ -173,6 +173,9 @@ test('force brute : 5 essais → bloqué 15 min ; débloqué après 15 min ; « 
   for (let i = 0; i < 5; i++) poster(g, { action: 'connexion', identifiant: 'thomas27', motDePasse: 'faux' + i });
   const r = poster(g, { action: 'connexion', identifiant: 'thomas27', motDePasse: 'Escalier2026' });
   assert.strictEqual(r.code, 'BLOQUE', 'même le bon mot de passe est refusé pendant le blocage');
+  assert.ok(/bloqué/.test(ligneU(g, 'thomas27')[COL.etat]), 'État écrit tout de suite (essai 14) : ' + ligneU(g, 'thomas27')[COL.etat]);
+  for (let i = 0; i < 5; i++) poster(g, { action: 'connexion', identifiant: 'inconnu99', motDePasse: 'faux' + i });
+  assert.ok(!g.feuilles['Utilisateurs'].lignes.some(l => /inconnu99/.test(String(l[COL.etat] || ''))), 'un identifiant inventé n’écrit rien');
   g.ctx.traiterComptes();
   assert.ok(/bloqué/.test(ligneU(g, 'thomas27')[COL.etat]), ligneU(g, 'thomas27')[COL.etat]);
   g.t += 16 * 60 * 1000;
