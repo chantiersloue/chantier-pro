@@ -1,7 +1,7 @@
 // ═══════════════════════════════════════════════════════════════
 // LOUÉ APP — SERVEUR COMPLET, À COLLER DANS APPS SCRIPT (fichier « Code.gs », tout remplacer)
 // FICHIER GÉNÉRÉ AUTOMATIQUEMENT par « node outils/construire.js » — NE PAS MODIFIER À LA MAIN :
-// les sources sont dans le dossier apps-script/ du dépôt. Version du serveur f3c6a51e1b (pages c6aea7c918)
+// les sources sont dans le dossier apps-script/ du dépôt. Version du serveur f3c6a51e1b (pages 9bbb75edc5)
 // ═══════════════════════════════════════════════════════════════
 
 // ████ Config.gs ████

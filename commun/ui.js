@@ -138,6 +138,8 @@
         envoi.then(apres).catch(function () { erreur('Pas de réseau : réessayez quand le téléphone capte (gardez la page ouverte).'); })
           .then(function () { b.disabled = false; });
       };
+      // Touche « OK » / « Entrée » du clavier du téléphone : comme le bouton
+      f.addEventListener('keydown', function (e) { if (e.key === 'Enter' && e.target.tagName === 'INPUT') { e.preventDefault(); $('data-ok').click(); } });
       document.body.appendChild(f);
       ($('data-id').value ? $('data-mdp') : $('data-id')).focus();
     });
