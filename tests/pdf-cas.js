@@ -69,5 +69,7 @@ module.exports = function (cas, x) {
   cas('bordereau — preneur, entreprise et type longs', 'modele_bordereau', bord('bordereau-materiaux', [PAYSAGE()], { preneur: 'Jean-Christophe Martin',
     fonction: 'Conducteur de travaux', entreprise: 'Entreprise Générale de Bâtiment du Littoral', chantier: '403-OPALE / STEEN RAIMONDEAU — ST GILLES X DE VIE',
     typeDoc: 'Kit de pose complet pour menuiseries extérieures en aluminium avec accessoires', listeMateriaux: '20 × Vis\n1 × Mousse' }), page1(DEBOUT_A4));
+  cas('fabrication — commentaire tapé sur téléphone (9 lignes dont 2 vides)', 'modele_fabrication', fab([divers(1, 2)], [PAYSAGE()],
+    { commentaires: 'Ligne 1<div>Ligne 2</div><div><br></div><div>Ligne 4</div><div>Ligne 5</div><div><br></div><div>Ligne 7</div><div>Ligne 8</div><div>Ligne 9</div>' }), page1(PAYSAGE_A4));
   cas('fabrication — 3 croquis seuls (une page chacun)', 'modele_fabrication', fab([], [CROQUIS(), CROQUIS(), CROQUIS()]), PAYSAGE_A4);
 };

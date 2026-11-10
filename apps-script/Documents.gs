@@ -17,16 +17,25 @@ function pdfDuModele_(modele, d, nom) {
   if (html.indexOf('data-mep=') < 0) return blob;   // pas de photo : rien à contrôler
   const info = infoPdf_(blob);
   if (!info.pages) { console.log('Mise en page : nombre de pages illisible dans le PDF de Google, contrôle impossible'); return blob; }
-  const prevues = 1 + (html.match(/page-break-before:always/g) || []).length;
+  const prevues = pagesPrevues_(html);
   if (info.pages <= prevues) return blob;
   const d2 = Object.assign({}, d, { _mepSansPage1: true, _mepMargeEnPlus: 10 });
   if (info.l && info.h) d2._mepFormat = { l: info.l, h: info.h };
-  const blob2 = HtmlService.createHtmlOutput(modele(d2, esc_)).getAs('application/pdf').setName(nom);
+  const html2 = modele(d2, esc_);
+  const blob2 = HtmlService.createHtmlOutput(html2).getAs('application/pdf').setName(nom);
   const info2 = infoPdf_(blob2);
-  const garde2 = info2.pages && info2.pages < info.pages;
+  // On compare les pages EN TROP (le PDF refait a normalement une page prévue de plus : la photo de la page 1
+  // y a sa propre page) ; à égalité, le PDF refait est gardé (pages de photos moins hautes, format réel)
+  const enTrop = info.pages - prevues, enTrop2 = info2.pages ? info2.pages - pagesPrevues_(html2) : Infinity;
+  const garde2 = enTrop2 <= enTrop;
   console.log('Mise en page : ' + info.pages + ' pages pour ' + prevues + ' prévues (format ' + info.l + ' × ' + info.h + ' mm) ; '
-    + 'refait : ' + (info2.pages || '?') + ' pages → ' + (garde2 ? 'PDF refait gardé' : 'premier PDF gardé'));
+    + 'refait : ' + (info2.pages || '?') + ' pages pour ' + pagesPrevues_(html2) + ' prévues → ' + (garde2 ? 'PDF refait gardé' : 'premier PDF gardé'));
   return garde2 ? blob2 : blob;
+}
+// Pages prévues : pages du contenu (estimées par le modèle) + une par saut de page des photos
+function pagesPrevues_(html) {
+  const contenu = Number((html.match(/data-mep-contenu="(\d+)"/) || [])[1] || 1);
+  return contenu + (html.match(/page-break-before:always/g) || []).length;
 }
 // Nombre de pages et format (mm) d'un PDF, lus dans le fichier ; {} si illisible
 function infoPdf_(blob) {

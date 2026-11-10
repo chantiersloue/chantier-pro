@@ -452,7 +452,7 @@ function modele_fabrication(d, esc) {
   // commentaires 8,2 + 1,5 × la taille de la police par ligne (4 mm en taille normale, 5,6 « agrandi »).
   // Les blocs ne se coupent pas d'une page à l'autre.
   var cartouche = 31.2 + 4.5 * (mep_lignes(String(d.chantier || '—') + (d.refChantier ? ' / ' + d.refChantier : ''), 68, 12) - 1)
-    + (d.zone ? 8.8 + 2.9 * (mep_lignes(d.zone, 80, 10) - 1) : 0)
+    + (d.zone ? 8.8 + 2.9 * (mep_lignes(d.zone, 84, 10) - 1) : 0)
     + (d.delaiPrecision ? 3.5 + 3.1 * (mep_lignes(d.delaiPrecision, 40, 10) - 1) : 0);
   var estime = Math.max(44, cartouche + 4);
   (d.blocs || []).forEach(function (b) {
@@ -468,20 +468,22 @@ function modele_fabrication(d, esc) {
   });
   if (commentaireSection) {
     estime += 8.2;
-    String(commentaires).split(/<br\s*\/?>|<\/div>|<\/p>/i).forEach(function (ligne) {
+    // Le champ éditable du téléphone écrit « Ligne 1<div>Ligne 2</div><div><br></div>… » : chaque <div>/<p> ouvre une
+    // ligne, un <br> seul dans un bloc est une ligne vide (comptée : elle prend sa place à l'écran)
+    String(commentaires).replace(/<br\s*\/?>\s*(<\/div>|<\/p>)/gi, '$1').replace(/<(div|p)\b[^>]*>/gi, '\n')
+      .replace(/<br\s*\/?>/gi, '\n').replace(/<\/(div|p)>/gi, '').replace(/^\n/, '').replace(/\n+$/, '').split('\n').forEach(function (ligne) {
       var tailles = [10];   // taille de police la plus grande de la ligne (px), « agrandi » = 1,4 em
       (ligne.match(/font-size:\s*[\d.]+(em|px|%)/gi) || []).forEach(function (t) {
         var n = parseFloat(t.replace(/font-size:\s*/i, ''));
         tailles.push(/em/i.test(t) ? n * 10 : /%/.test(t) ? n / 10 : n);
       });
       var px = Math.min(40, Math.max.apply(null, tailles));
-      var texte = mep_texteBrut(ligne);
-      if (!texte && !/<span|<b|<i|<u/i.test(ligne)) return;
-      estime += mep_lignes(texte, 260, px) * px * 1.5 * MEP_PX_MM;
+      estime += mep_lignes(mep_texteBrut(ligne), 260, px) * px * 1.5 * MEP_PX_MM;
     });
   }
   var zone = mep_zone(d, 297, 210, 10);
-  var photosSection = mep_photos(d.photosBase64, { largeur: zone.largeur, hauteur: zone.hauteur, reste: mep_reste(zone, estime), estime: estime, esc: esc });
+  var photosSection = mep_photos(d.photosBase64, { largeur: zone.largeur, hauteur: zone.hauteur, reste: mep_reste(zone, estime), estime: estime, esc: esc,
+    pagesContenu: mep_pages(zone, estime), croquisParLegende: true });
 
   return '<html><head><meta charset="utf-8"><style>@page{size:landscape;margin:1cm}body{font-family:Arial,sans-serif;font-size:10px;margin:0}*{box-sizing:border-box}</style></head><body>'
     + enTete + blocsHtml + commentaireSection + photosSection
@@ -561,8 +563,9 @@ function mep_lireTaille(p) {
 
 // Croquis = image PNG (croquis dessiné dans l'appli ; les photos sont toujours en JPEG) ou photo dont la légende
 // contient « croquis » (photo d'un croquis sur papier)
-function mep_estCroquis(p) {
-  return !!(p && (p.croquis === true || /png/i.test(p.mimeType || p.mime || '') || /croquis/i.test(p.label || '')));
+// (la légende ne compte que pour la fiche de fabrication : option croquisParLegende de mep_photos)
+function mep_estCroquis(p, parLegende) {
+  return !!(p && (p.croquis === true || /png/i.test(p.mimeType || p.mime || '') || (parLegende && /croquis/i.test(p.label || ''))));
 }
 
 // Taille (mm) d'une image qui tient dans une boîte l * h en gardant ses proportions ; null si taille inconnue
@@ -598,19 +601,23 @@ function mep_surface(p, l, h) {
 //   estime           : hauteur estimée du contenu de la page 1 (mm), notée dans le document (contrôles),
 //   esc              : fonction d'échappement,
 //   titre(i, n)      : (facultatif) titre affiché en haut de chaque page de photos,
-//   page1Titre       : (facultatif) titre au-dessus de la photo de la page 1 }
+//   page1Titre       : (facultatif) titre au-dessus de la photo de la page 1,
+//   pagesContenu     : (facultatif) nombre de pages estimé du contenu (contrôle du serveur), 1 par défaut,
+//   croquisParLegende: (facultatif) une photo dont la légende contient « croquis » est un croquis }
 function mep_photos(photos, o) {
   photos = (photos || []).filter(function (p) { return p && p.data; });
   if (!photos.length) return '';
   var esc = o.esc, L = o.largeur, H = o.hauteur;
   var titreH = o.titre ? 9 : 0;                         // hauteur du titre d'une page de photos
-  var html = '';
+  // Repère invisible pour le contrôle du serveur : nombre de pages du contenu avant les photos
+  var html = '<div data-mep-contenu="' + Math.max(1, Math.round(o.pagesContenu || 1)) + '" style="display:none"></div>';
   var reste = photos.slice();
+  var croquis = function (p) { return mep_estCroquis(p, o.croquisParLegende); };
 
   // 1. Première photo (pas un croquis) sous le contenu de la page 1
   var place = (o.reste || 0) - (o.page1Titre ? 9 : 0) - 3;
   var premiere = -1;
-  for (var i = 0; i < reste.length; i++) if (!mep_estCroquis(reste[i])) { premiere = i; break; }
+  for (var i = 0; i < reste.length; i++) if (!croquis(reste[i])) { premiere = i; break; }
   if (premiere > -1 && place >= MEP_MIN_PAGE1_MM) {
     var p0 = reste.splice(premiere, 1)[0];
     var h0 = place - (p0.label ? MEP_LEGENDE_MM : 0);
@@ -623,7 +630,7 @@ function mep_photos(photos, o) {
   while (reste.length) {
     var a = reste.shift();
     var hA = hPage - (a.label ? MEP_LEGENDE_MM : 0);
-    if (!mep_estCroquis(a) && reste.length && !mep_estCroquis(reste[0])) {
+    if (!croquis(a) && reste.length && !croquis(reste[0])) {
       var b = reste[0];
       // Deux photos : l'une sous l'autre (page debout) ou côte à côte (page couchée)
       var debout = H >= L;
@@ -672,6 +679,8 @@ function mep_zone(d, l, h, marge) {
   var enPlus = d && d._mepMargeEnPlus > 0 ? Math.min(40, Number(d._mepMargeEnPlus)) : 0;
   return { largeur: l - 2 * marge, hauteur: h - 2 * marge - enPlus, sansPage1: !!(d && d._mepSansPage1) };
 }
+// Nombre de pages estimé d'un contenu (contrôle du serveur)
+function mep_pages(zone, estime) { return Math.max(1, Math.ceil((estime || 0) / zone.hauteur)); }
 // Place libre sous un contenu estimé (marge de sécurité de 6 mm), 0 si le contenu ne tient pas sur la page 1
 function mep_reste(zone, estime) {
   if (zone.sansPage1) return 0;
@@ -711,7 +720,8 @@ function modele_note(d, esc) {
     4.2 * (d.objet ? mep_lignes(d.objet, 100, 11) - 1 : 0))
     + (d.commentaires ? 12.5 + 4.94 * mep_lignes(d.commentaires, 168, 11) : 0);
   var zone = mep_zone(d, 210, 297, 15);
-  var photosHtml = mep_photos(d.photosBase64, { largeur: zone.largeur, hauteur: zone.hauteur, reste: mep_reste(zone, estime), estime: estime, esc: esc });
+  var photosHtml = mep_photos(d.photosBase64, { largeur: zone.largeur, hauteur: zone.hauteur, reste: mep_reste(zone, estime), estime: estime, esc: esc,
+    pagesContenu: mep_pages(zone, estime) });
 
   return '<html><head><meta charset="utf-8"><style>@page{size:A4;margin:1.5cm}body{font-family:Arial,sans-serif;font-size:10px;margin:0}*{box-sizing:border-box}</style></head><body>'
     + '<table style="width:100%;border-collapse:collapse;margin-bottom:12px;border-bottom:3px solid #0D7A6B"><tr>'
@@ -821,12 +831,14 @@ function modele_reception(d, esc) {
   // Photos de chaque point (modeles/mise-en-page.js) : pages à part, titre du point en haut de chaque page,
   // chaque photo en pleine page (deux par page si elles y gardent leur taille)
   var zone = mep_zone(d, 210, 297, 15);
-  var photosHtml = points.map(function (p) {
+  // Pages du contenu (contrôle du serveur) : estimation basse (en-tête et signature 60 mm, 7 mm par point)
+  var pagesContenu = mep_pages(zone, 60 + 7 * points.length);
+  var photosHtml = points.map(function (p, n) {
     var titre = function (n, total) {
       return '<div style="font-weight:700;font-size:11px;color:#0D7A6B;border-bottom:2px solid #0D7A6B;padding-bottom:4px;margin-bottom:2mm;height:7mm;overflow:hidden">'
         + 'Photos — ' + esc(p.label || '') + (total > 1 ? ' (' + (n + 1) + '/' + total + ')' : '') + '</div>';
     };
-    return mep_photos(p.photos, { largeur: zone.largeur, hauteur: zone.hauteur, reste: 0, esc: esc, titre: titre });
+    return mep_photos(p.photos, { largeur: zone.largeur, hauteur: zone.hauteur, reste: 0, esc: esc, titre: titre, pagesContenu: pagesContenu });
   }).join('');
 
   return '<html><head><meta charset="utf-8"><style>@page{size:A4;margin:1.5cm}body{font-family:Arial,sans-serif;font-size:10px;margin:0}*{box-sizing:border-box}</style></head><body>'

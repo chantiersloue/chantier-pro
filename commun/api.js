@@ -407,6 +407,8 @@
   // La même fiche renvoyée (le poseur touche de nouveau Envoyer, sans rien changer) garde son NUMÉRO et ses photos
   // déjà parties : le serveur répond « déjà reçue » au lieu d'envoyer un 2e mail.
   var directs = {};
+  // Message des pages quand la fiche est peut-être arrivée mais pas encore confirmée (même numéro tant que rien ne change)
+  LOUE.MSG_DIRECT_A_CONFIRMER = '⏳ Pas encore confirmé par le bureau (la fiche est peut-être déjà arrivée). Touchez Envoyer de nouveau, SANS RIEN CHANGER : il n’y aura pas de 2e mail.';
   LOUE.envoyerDirect = function (type, donnees, photos) {
     var empreinte = type + '|' + JSON.stringify(donnees) + '|' + (photos || []).map(function (p) { return p.id + ':' + (p.blob ? p.blob.size : 0); }).join(',');
     var el = directs[empreinte];
@@ -422,8 +424,8 @@
         return rep;
       }).catch(function (err) {
         if (err.definitif || n >= (err.aConfirmer ? 6 : 3)) {
-          var texte = err.aConfirmer ? 'réponse du bureau pas encore reçue (la fiche est peut-être déjà arrivée : un nouvel essai ne crée pas de 2e mail)' : messageClair(err);
-          throw Object.assign(new Error(texte), { definitif: err.definitif });
+          var texte = err.aConfirmer ? LOUE.MSG_DIRECT_A_CONFIRMER : messageClair(err);
+          throw Object.assign(new Error(texte), { definitif: err.definitif, aConfirmer: !!err.aConfirmer });
         }
         return new Promise(function (ok) { setTimeout(ok, 5000); }).then(function () { return tenter(n + 1); });
       });

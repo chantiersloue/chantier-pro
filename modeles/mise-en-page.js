@@ -70,8 +70,9 @@ function mep_lireTaille(p) {
 
 // Croquis = image PNG (croquis dessiné dans l'appli ; les photos sont toujours en JPEG) ou photo dont la légende
 // contient « croquis » (photo d'un croquis sur papier)
-function mep_estCroquis(p) {
-  return !!(p && (p.croquis === true || /png/i.test(p.mimeType || p.mime || '') || /croquis/i.test(p.label || '')));
+// (la légende ne compte que pour la fiche de fabrication : option croquisParLegende de mep_photos)
+function mep_estCroquis(p, parLegende) {
+  return !!(p && (p.croquis === true || /png/i.test(p.mimeType || p.mime || '') || (parLegende && /croquis/i.test(p.label || ''))));
 }
 
 // Taille (mm) d'une image qui tient dans une boîte l * h en gardant ses proportions ; null si taille inconnue
@@ -107,19 +108,23 @@ function mep_surface(p, l, h) {
 //   estime           : hauteur estimée du contenu de la page 1 (mm), notée dans le document (contrôles),
 //   esc              : fonction d'échappement,
 //   titre(i, n)      : (facultatif) titre affiché en haut de chaque page de photos,
-//   page1Titre       : (facultatif) titre au-dessus de la photo de la page 1 }
+//   page1Titre       : (facultatif) titre au-dessus de la photo de la page 1,
+//   pagesContenu     : (facultatif) nombre de pages estimé du contenu (contrôle du serveur), 1 par défaut,
+//   croquisParLegende: (facultatif) une photo dont la légende contient « croquis » est un croquis }
 function mep_photos(photos, o) {
   photos = (photos || []).filter(function (p) { return p && p.data; });
   if (!photos.length) return '';
   var esc = o.esc, L = o.largeur, H = o.hauteur;
   var titreH = o.titre ? 9 : 0;                         // hauteur du titre d'une page de photos
-  var html = '';
+  // Repère invisible pour le contrôle du serveur : nombre de pages du contenu avant les photos
+  var html = '<div data-mep-contenu="' + Math.max(1, Math.round(o.pagesContenu || 1)) + '" style="display:none"></div>';
   var reste = photos.slice();
+  var croquis = function (p) { return mep_estCroquis(p, o.croquisParLegende); };
 
   // 1. Première photo (pas un croquis) sous le contenu de la page 1
   var place = (o.reste || 0) - (o.page1Titre ? 9 : 0) - 3;
   var premiere = -1;
-  for (var i = 0; i < reste.length; i++) if (!mep_estCroquis(reste[i])) { premiere = i; break; }
+  for (var i = 0; i < reste.length; i++) if (!croquis(reste[i])) { premiere = i; break; }
   if (premiere > -1 && place >= MEP_MIN_PAGE1_MM) {
     var p0 = reste.splice(premiere, 1)[0];
     var h0 = place - (p0.label ? MEP_LEGENDE_MM : 0);
@@ -132,7 +137,7 @@ function mep_photos(photos, o) {
   while (reste.length) {
     var a = reste.shift();
     var hA = hPage - (a.label ? MEP_LEGENDE_MM : 0);
-    if (!mep_estCroquis(a) && reste.length && !mep_estCroquis(reste[0])) {
+    if (!croquis(a) && reste.length && !croquis(reste[0])) {
       var b = reste[0];
       // Deux photos : l'une sous l'autre (page debout) ou côte à côte (page couchée)
       var debout = H >= L;
@@ -181,6 +186,8 @@ function mep_zone(d, l, h, marge) {
   var enPlus = d && d._mepMargeEnPlus > 0 ? Math.min(40, Number(d._mepMargeEnPlus)) : 0;
   return { largeur: l - 2 * marge, hauteur: h - 2 * marge - enPlus, sansPage1: !!(d && d._mepSansPage1) };
 }
+// Nombre de pages estimé d'un contenu (contrôle du serveur)
+function mep_pages(zone, estime) { return Math.max(1, Math.ceil((estime || 0) / zone.hauteur)); }
 // Place libre sous un contenu estimé (marge de sécurité de 6 mm), 0 si le contenu ne tient pas sur la page 1
 function mep_reste(zone, estime) {
   if (zone.sansPage1) return 0;
