@@ -30,9 +30,61 @@
 
 - **`A-COLLER-DANS-APPS-SCRIPT/Code.gs`** : **tout le serveur** en un seul fichier, à coller tel quel (comme au lot 0). Ne le modifie jamais à la main : je le fabrique à partir du dossier `apps-script/`.
 - **Demande de fusion `livraison/lot-1-essai`** (étapes A à C) : ajoute à GitHub le dossier `essai/` (une **copie d'essai** de l'appli, toujours branchée sur la copie TEST) et le fichier `Code.gs` ci-dessus. **Le vrai site n'est pas touché.**
-- **Demande de fusion `livraison/lot-1`** (étape D) : les vraies pages du lot 1 ; elle retire le dossier `essai/`.
+- **Demande de fusion `livraison/lot-1-essai-2`** (retouches R1 à R3) : met à jour la copie d'essai et `Code.gs` (v5.1). Le vrai site n'est pas touché.
+- **Demande de fusion `livraison/lot-1`** (étape D) : les vraies pages du lot 1, **retouches comprises** ; elle retire le dossier `essai/`.
 
 Pourquoi une copie d'essai ? Les nouvelles pages parlent au serveur v5. Mises en ligne avant la mise à jour du serveur de production, elles casseraient l'appli des gars. La copie d'essai permet de tout tester sans risque.
+
+---
+
+## Retouches après tes essais (R1, R2, R3) — à faire AVANT l'étape D (45 min)
+
+> Tes essais 1 à 16 et 18 sont validés. Tu as demandé 3 retouches. Elles sont prêtes dans la demande de fusion **`livraison/lot-1-essai-2`** (copie d'essai mise à jour, nouveau `Code.gs` **v5.1**).
+> **Ordre : colle le nouveau serveur (R-A) juste après la fusion, avant tout essai.** Une page neuve qui parlerait à l'ancien serveur perdrait la liste « Matériaux remis » sans rien dire (sur la copie d'essai, sans gravité). En production (étape D), c'est l'inverse qui est imposé : serveur d'abord, pages ensuite.
+
+| Retouche | Ce qui change |
+|---|---|
+| **R1 — Photos et croquis en grand** | Dans le PDF (aperçu et mail), la 1re photo se place **sur la page 1, sous la fiche**, et prend **toute la place restante** (proportions gardées). Chaque **croquis a une page entière** (croquis dessiné dans l'appli, ou, dans la fiche de fabrication, photo dont la légende contient « croquis » : dis-moi si ça te va). Les autres photos ont leur page : deux par page seulement si elles y restent presque aussi grandes. Même logique pour le quitus, les bordereaux, l'attestation, la note de réunion et la réception support. ⚠ Quitus, bordereaux et attestation : les **signatures passent avant les photos** (sinon une grande photo les repoussait en page 2) : dis-moi si ça te va. Les croquis sont dessinés en résolution double (plus nets en grand). |
+| **R2 — Matériaux par défaut** | Nouvel onglet **« Matériaux bordereau »** dans le Sheet : **une ligne par matériau**, colonne A le **Type**, B le **Matériau**, C la **Quantité**. Dans le bordereau matériaux, le champ Type propose ces types ; en choisir un remplit la case **« Matériaux remis »**, que le poseur peut modifier. Elle apparaît dans le PDF. Si tu ne remplis que la colonne A, c'est simplement ta liste de types (rien ne se remplit). |
+| **R3 — Sablier** | Cause : le serveur avait bien reçu la fiche (le mail était parti), mais sa réponse s'était perdue, en général parce que l'appli était passée en arrière-plan pour aller voir le mail. L'appli attendait jusqu'à 5 minutes avant de redemander. Maintenant elle redemande au bout de 15 s, et **tout de suite quand on revient dans l'appli** : le serveur répond « déjà reçue » et le sablier disparaît. **Jamais de 2e mail** : une fiche garde le même numéro à chaque renvoi, et le serveur ne la traite qu'une fois. |
+
+### R-A — Serveur v5.1 sur la copie TEST (15 min)
+1. Fusionne la demande de fusion **`livraison/lot-1-essai-2`** (bouton vert **Merge pull request**, puis **Confirm merge**). Garde avant cela une fiche ouverte dans l'appli d'essai de ton téléphone : elle servira à l'essai 17 (R-D).
+2. Sheet **« ChantierPro TEST »** → **Extensions → Apps Script**.
+3. **Sauvegarde** : `Code.gs` → Ctrl+A, Ctrl+C → colle dans `_prive/Code-TEST-avant-retouches.gs` sur ton PC.
+4. Sur github.com : dossier **`A-COLLER-DANS-APPS-SCRIPT`** → **`Code.gs`** → icône **« Copy raw file »**. Dans l'éditeur : Ctrl+A, Ctrl+V, **disquette**.
+5. ▶ **`verifierConfig`** : le journal affiche **`Loué App API v5.1`**, des ✅, et **« Onglet « Matériaux bordereau » créé (vide) »**.
+6. **Déployer → Gérer les déploiements** → déploiement TEST → ✏ **Modifier** → **Nouvelle version** → **Déployer**.
+7. Ouvre l'adresse TEST (qui finit par `/exec`) : **`Loué App API v5.1 OK`**. Si tu vois encore `v5.0` : **Nouveau déploiement**, envoie-moi la nouvelle adresse.
+
+### R-B — Essai de mise en page par Google (5 min, aucun mail)
+L'aperçu de l'appli est fabriqué par ton navigateur, le PDF du mail par Google. Ils sont très proches, mais je n'ai pas pu mesurer le moteur de Google moi-même.
+1. Dans l'éditeur Apps Script TEST : ▶ **`essaiMiseEnPage`**.
+2. **Copie le journal et envoie-le-moi** (3 lignes « fabrication / quitus / bordereau » avec un format en mm et un nombre de pages).
+3. Ouvre les 3 PDF **« _ESSAI MISE EN PAGE … »** à la racine du dossier CHANTIERPRO-TEST :
+   - fabrication : la photo sous le tableau, le croquis seul sur la page 2 ;
+   - quitus : une photo en page 1 sous les signatures, deux photos en page 2.
+   Puis mets-les à la corbeille.
+4. Une ligne commence par ⚠ : le contrôle automatique a corrigé (la photo est passée sur une page à elle). Ce n'est pas bloquant, mais envoie-moi le journal pour que je règle l'estimation.
+
+### R-C — Remplir l'onglet « Matériaux bordereau » sur TEST (5 min)
+Exemple (fictif) : une ligne `KIT POSE FENETRE | VIS INOX 4X40 | 20`, une ligne `KIT POSE FENETRE | MOUSSE | 1`, une ligne `CLES DE CHANTIER` (colonne A seule).
+
+### R-D — Pages : essai 17 et essais des retouches (20 min)
+| # | À faire | Résultat attendu | ✔ |
+|---|---|---|---|
+| 17 | **Mise à jour** : la fiche gardée ouverte à l'étape R-A.1 ; reviens dessus quelques minutes après la fusion | bandeau **« Nouvelle version — Mettre à jour »** ; touche-le : la page se recharge, le brouillon est gardé ; « À propos » affiche **5.1** | ☐ |
+| R1-a | Fabrication : 1 bloc de 2 lignes, **1 photo** et **1 croquis**, Aperçu, puis Envoyer | page 1 : la photo sous le tableau, en grand ; page 2 : le croquis en pleine page ; le PDF du mail est pareil | ☐ |
+| R1-a2 | Fabrication : photographie un croquis sur papier avec « Photo d'un croquis » et écris **croquis** dans sa légende | ce croquis a sa page entière | ☐ |
+| R1-b | Quitus avec **3 photos** et 2 signatures | page 1 : signatures puis une photo en grand ; page 2 : les deux autres | ☐ |
+| R1-c | Attestation ou bordereau avec 1 photo | la photo sous les signatures, en grand, sur la page 1 | ☐ |
+| R2 | Bordereau **matériaux** : Type « KIT POSE FENETRE » | « Matériaux remis » se remplit (20 × VIS INOX 4X40, 1 × MOUSSE). Modifie une ligne, change de Type : ta modification reste, et un bouton « Remplacer par la liste du type » apparaît. Ferme la page et rouvre-la : brouillon restauré avec la liste. Envoie : la liste est dans le PDF | ☐ |
+| R3-a | Avec du réseau, envoie un quitus et passe **tout de suite** dans Gmail ; reviens dans l'appli quand le mail est arrivé | le sablier disparaît dans les secondes qui suivent ton retour, sans rien toucher ; **un seul mail** | ☐ |
+| R3-b | Refais les essais **12 et 13** (mode avion, puis retour du réseau) | « ✓ Tout est envoyé » sans toucher Envoyer ; un seul mail | ☐ |
+
+### Si une retouche pose problème (retour arrière)
+- **Serveur** : recolle `_prive/Code-TEST-avant-retouches.gs`, enregistre, **Gérer les déploiements → Nouvelle version**. ⚠ La copie d'essai mise à jour attend le serveur v5.1 : préviens-moi, je te prépare le retour arrière de `essai/` (une demande de fusion).
+- **Pages** : préviens-moi ; je prépare une demande de fusion qui remet l'ancienne copie d'essai. (Le bouton **Revert** de GitHub marche aussi pour la copie d'essai.)
 
 ---
 
@@ -110,16 +162,16 @@ Choisis un moment calme (le soir) : **demande aux gars d'envoyer leurs fiches en
 
 1. Ouvre le **vrai** Sheet « ChantierPro » → Extensions → Apps Script.
 2. **Sauvegarde** : tout le contenu de `Code.gs` dans `_prive/Code-avant-lot1.gs` sur ton PC (c'est le retour arrière).
-3. Colle le `Code.gs` de `A-COLLER-DANS-APPS-SCRIPT` (même méthode qu'à l'étape A.4–A.5), enregistre.
-4. ▶ `verifierConfig` → que des ✅ et « dossiers.json créé » ; ▶ `installerDeclencheurs`.
+3. Colle le `Code.gs` de `A-COLLER-DANS-APPS-SCRIPT` (même méthode qu'à l'étape A.4–A.5 ; c'est la version **v5.1**, retouches comprises), enregistre.
+4. ▶ `verifierConfig` → que des ✅, « dossiers.json créé » et « Onglet « Matériaux bordereau » créé » ; ▶ `installerDeclencheurs`. Recopie dans ce nouvel onglet les lignes que tu as validées sur TEST (R-C).
 5. **Déployer → Gérer les déploiements** → ton déploiement de production → ✏ Modifier → **Nouvelle version** → Déployer.
-6. Ouvre l'adresse de production (`URL_PRODUCTION` de `commun/config.js`) → **`Loué App API v5.0 OK`**. Sinon : Nouveau déploiement, envoie-moi l'adresse, et **n'avance pas** tant que je n'ai pas mis `config.js` à jour.
+6. Ouvre l'adresse de production (`URL_PRODUCTION` de `commun/config.js`) → **`Loué App API v5.1 OK`**. Sinon : Nouveau déploiement, envoie-moi l'adresse, et **n'avance pas** tant que je n'ai pas mis `config.js` à jour.
 7. Avec les pages **actuelles** (pas encore le lot 1), envoie un quitus réel simple vers toi : mail reçu. Les gars peuvent continuer à travailler normalement.
 8. **Dossier Drive de chaque chantier, AVANT les nouvelles pages** : ▶ **`planMigration`** (rien n'est déplacé). Ouvre l'onglet **« Dossiers chantiers »** du vrai Sheet :
    - chaque ligne **« OUI — vérifiez »** doit désigner le bon dossier : ouvre le dossier dans Drive par son identifiant (colonne C) ; si ce n'est pas le bon, remplace l'identifiant ;
    - le journal liste les chantiers **sans dossier retenu**. Si l'un d'eux a déjà un dossier dans Drive sous un autre nom, ajoute une ligne : colonne A le nom du chantier **exactement comme dans l'onglet Chantiers**, colonne C l'identifiant du dossier (ouvre le dossier dans Drive : c'est la fin de l'adresse, après `folders/`). Sinon la tuile Chantiers n'affichera pas ses Plans et le premier document créera un nouveau dossier.
 9. Fusionne la demande de fusion **`livraison/lot-1`** que je t'envoie. Attends 3 minutes.
-10. Sur ton téléphone, ouvre la vraie appli : pas de bandeau rouge ; « À propos » affiche la version **5.0**. Envoie un quitus réel vers toi : « ✓ Tout est envoyé » et mail reçu ; le PDF est dans `05 - CHANTIER/OPR - RESERVES - QUITUS` du chantier.
+10. Sur ton téléphone, ouvre la vraie appli : pas de bandeau rouge ; « À propos » affiche la version **5.1**. Envoie un quitus réel vers toi : « ✓ Tout est envoyé » et mail reçu ; le PDF est dans `05 - CHANTIER/OPR - RESERVES - QUITUS` du chantier.
 11. Sur **chaque iPhone** des gars : ouvre l'appli dans Safari et suis l'écran « Installer l'appli » (une seule fois). Sur Android, c'est conseillé aussi.
 
 ## Étape E — Ranger les anciens documents dans le vrai Drive (20 min)
@@ -148,6 +200,7 @@ Choisis le soir ou un moment où personne n'envoie de fiche : pendant `executerM
 
 - [ ] A — coller le serveur sur TEST, vérifier `v5.0`, vérifier les pages actuelles avec `?env=test`.
 - [ ] B — ouvrir et installer la copie d'essai.
-- [ ] C — les 18 essais + la migration sur TEST (avec son retour arrière).
+- [ ] C — les 18 essais + la migration sur TEST (avec son retour arrière). *(Fait, sauf l'essai 17.)*
+- [ ] Retouches — R-A serveur v5.1 sur TEST, R-B `essaiMiseEnPage` (m'envoyer le journal), R-C onglet « Matériaux bordereau », R-D essai 17 et essais des retouches.
 - [ ] D — serveur de production, puis fusion de `livraison/lot-1`, puis installation sur les iPhone des gars.
 - [ ] E — migration du vrai Drive, après sauvegarde CSV.
