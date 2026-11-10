@@ -109,6 +109,13 @@
     tout:      function (nom)     { return magasin(nom, 'readonly',  function (s) { return s.getAll(); }); },
     ecrire:    function (nom, v)  { return magasin(nom, 'readwrite', function (s) { return s.put(v); }); },
     supprimer: function (nom, id) { return magasin(nom, 'readwrite', function (s) { return s.delete(id); }); },
+    // Supprime seulement si garderSi(valeur) est faux, lecture et suppression dans la même transaction
+    supprimerSi: function (nom, id, garderSi) {
+      return magasin(nom, 'readwrite', function (s) {
+        var g = s.get(id);
+        g.onsuccess = function () { if (!(g.result && garderSi(g.result))) s.delete(id); };
+      });
+    },
   };
 
   // Les photos reçoivent de NOUVEAUX numéros à chaque mise en file : deux envois du même brouillon
@@ -412,7 +419,9 @@
     }
     function tenter(n) {
       return envoyerPhotosPuisFiche(el, function (id) { return Promise.resolve(el.blobs[id] || null); }).then(function (rep) {
-        delete directs[empreinte];
+        // Réussite après le plafond de 2 min : la page a dit « touchez Envoyer de nouveau » ; on garde le numéro,
+        // le 2e appui le reprendra et le serveur répondra « déjà reçue »
+        if (!el.plafonne) delete directs[empreinte];
         return rep;
       }).catch(function (err) {
         if (err.definitif || n >= (err.aConfirmer ? 6 : 3)) {
@@ -430,7 +439,7 @@
     // Juste après un rangement bloqué, avec un réseau faible : pas plus de 2 min sur « Envoi direct… »
     // (même numéro au prochain appui : « déjà reçue » si elle était arrivée)
     return Promise.race([essai, new Promise(function (ok, ko) {
-      setTimeout(function () { ko(Object.assign(new Error(LOUE.MSG_DIRECT_A_CONFIRMER), { aConfirmer: true })); }, 120000);
+      setTimeout(function () { el.plafonne = true; ko(Object.assign(new Error(LOUE.MSG_DIRECT_A_CONFIRMER), { aConfirmer: true })); }, 120000);
     })]);
   };
 

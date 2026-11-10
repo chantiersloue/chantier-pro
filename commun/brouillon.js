@@ -122,7 +122,8 @@
       var bar = document.getElementById('loue-brouillon-alerte');
       if (!niveau) {
         if (bar) bar.remove();
-        if (ancien && LOUE.message) LOUE.message('✓ Brouillon de nouveau enregistré dans le téléphone');
+        var durable = document.querySelector('#loue-message.visible[data-durable]');
+        if (ancien && LOUE.message && !durable) LOUE.message('✓ Brouillon de nouveau enregistré dans le téléphone');
         return;
       }
       if (!bar) {
@@ -147,6 +148,7 @@
     function sauver() {
       if (!actif) return Promise.resolve();
       var e = etat();
+      var m = marqueEnvoye(); if (m && e.t <= m) e.t = m + 1;
       var emp = empreinte(e);
       if (emp === derniere) return Promise.resolve();          // rien de neuf depuis la dernière sauvegarde
       derniere = emp;
@@ -246,10 +248,8 @@
       var l = lireLocal(cleLocale);
       if (!jusqua || !l || (l.t || 0) <= jusqua) { try { localStorage.removeItem(cleLocale); } catch (e) {} }
       if (!jusqua) return LOUE.stockage.supprimer('brouillons', cle).catch(function () {});
-      return lireBase(cle).then(function (b) {
-        if (b && (b.t || 0) > jusqua) return;
-        return LOUE.stockage.supprimer('brouillons', cle);
-      }).catch(function () {});
+      // Une seule transaction : une sauvegarde de la fiche suivante, mise en attente entre-temps, n'est jamais effacée
+      return LOUE.stockage.supprimerSi('brouillons', cle, function (b) { return (b.t || 0) > jusqua; }).catch(function () {});
     }
     // Marque « fiche envoyée » : tant que l'effacement n'a pas abouti, une copie plus ancienne n'est plus proposée
     var cleEnvoye = cleLocale + '_envoye';
