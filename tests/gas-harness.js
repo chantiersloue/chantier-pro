@@ -20,6 +20,8 @@ function creerGoogle(options = {}) {
       const p = {
         getValues: () => Array.from({ length: nr }, (_, i) => Array.from({ length: nc }, (_, j) => {
           const v = cellule(r + i, c + j); return v === undefined ? '' : v; })),
+        // Texte affiché (comme Sheets en France : virgule décimale)
+        getDisplayValues: () => p.getValues().map(l => l.map(v => typeof v === 'number' ? String(v).replace('.', ',') : String(v))),
         getValue: () => { const v = cellule(r, c); return v === undefined ? '' : v; },
         setValues: vals => { vals.forEach((l, i) => l.forEach((v, j) => ecrire(r + i, c + j, v))); return p; },
         setValue: v => { ecrire(r, c, v); return p; },
@@ -63,6 +65,7 @@ function creerGoogle(options = {}) {
       getId: () => id, getName: () => el.nom, getUrl: () => 'https://drive.google.com/' + id,
       getMimeType: () => (extra && extra.mime) || 'application/pdf',
       getLastUpdated: () => new Date(2026, 9, 29),
+      getDateCreated: () => new Date(el.cree || Date.now()),
       getParents: () => it(el.parents),
       setSharing: (a, p) => {
         // Option « heritage » : comme Drive, on ne peut pas retirer un partage hérité du dossier parent
@@ -72,12 +75,23 @@ function creerGoogle(options = {}) {
       },
       getSharingAccess: () => accesEffectif(el), getSharingPermission: () => el.permission,
       isTrashed: () => el.corbeille, setTrashed: v => { el.corbeille = v; },
-      getBlob: () => blob(el.contenu || '', el.nom),
+      getBlob: () => blob(el.contenu || '', el.nom, extra && extra.mime),
       getFiles: () => it(el.enfants.filter(e => e.type === 'fichier')),
       getFolders: () => it(el.enfants.filter(e => e.type === 'dossier')),
       getFoldersByName: n => it(el.enfants.filter(e => e.type === 'dossier' && e.nom === n)),
+      getFilesByName: n => it(el.enfants.filter(e => e.type === 'fichier' && e.nom === n && !e.corbeille)),
       createFolder: n => creerElement('dossier', n, el).api,
-      createFile: b => creerElement('fichier', b.getName(), el, { contenu: b.contenu }).api,
+      createFile: (b, contenu, mime) => typeof b === 'string'
+        ? creerElement('fichier', b, el, { contenu: contenu, mime: mime }).api
+        : creerElement('fichier', b.getName(), el, { contenu: b.contenu, mime: b.mime }).api,
+      // Déplacement : même identifiant, nouveau dossier parent (comme Drive)
+      moveTo: dest => {
+        const cible = elements[dest.getId()];
+        el.parents.forEach(p => { p.enfants = p.enfants.filter(e => e !== el); });
+        el.parents = [cible]; cible.enfants.push(el);
+        return el.api;
+      },
+      setContent: c => { el.contenu = c; return el.api; },
     };
     return el;
   }
@@ -105,10 +119,12 @@ function creerGoogle(options = {}) {
   }
 
   // ── Blob / HTML → PDF ──
-  function blob(contenu, nom) {
-    const b = { contenu, nom,
+  function blob(contenu, nom, mime) {
+    const b = { contenu, nom, mime,
       setName: n => { b.nom = n; return b; }, getName: () => b.nom,
-      copyBlob: () => blob(contenu, b.nom) };
+      getDataAsString: () => Buffer.isBuffer(contenu) ? contenu.toString('utf8') : String(contenu),
+      getBytes: () => Array.from(Buffer.from(typeof contenu === 'string' ? contenu : contenu, typeof contenu === 'string' ? 'utf8' : undefined)),
+      copyBlob: () => blob(contenu, b.nom, mime) };
     return b;
   }
   const HtmlService = { createHtmlOutput: html => ({ getAs: () => blob(html, 'sans-nom.pdf') }) };
@@ -137,10 +153,14 @@ function creerGoogle(options = {}) {
   }) };
   const deux = n => String(n).padStart(2, '0');
   const Utilities = {
+    base64Decode: s => Array.from(Buffer.from(s, 'base64')),
+    base64Encode: octets => Buffer.from(octets).toString('base64'),
+    newBlob: (octets, mime, nom) => blob(Buffer.from(octets), nom, mime),
     formatDate: (d, tz, f) => f.replace('yyyy', d.getFullYear()).replace('MM', deux(d.getMonth() + 1))
       .replace('dd', deux(d.getDate())).replace('HH', deux(d.getHours())).replace('mm', deux(d.getMinutes())),
   };
   const declencheurs = [];
+  const cache = {};
   const ScriptApp = {
     getProjectTriggers: () => declencheurs.map(t => ({ getHandlerFunction: () => t })),
     deleteTrigger: () => { declencheurs.length = 0; },
@@ -150,6 +170,8 @@ function creerGoogle(options = {}) {
     SpreadsheetApp: { getActiveSpreadsheet: () => ss },
     DriveApp, HtmlService, GmailApp, MailApp, PropertiesService, Utilities, ScriptApp,
     LockService: { getScriptLock: () => ({ tryLock: () => !options.verrouOccupe, releaseLock: () => {} }) },
+    CacheService: { getScriptCache: () => ({
+      get: k => (cache[k] === undefined ? null : cache[k]), put: (k, v) => { cache[k] = String(v); }, remove: k => { delete cache[k]; } }) },
     Session: { getEffectiveUser: () => ({ getEmail: () => 'franck@loue.test' }),
                getActiveUser: () => ({ getEmail: () => '' }) },
     ContentService: { MimeType: { TEXT: 'text', JSON: 'json', JAVASCRIPT: 'js' },
@@ -157,16 +179,17 @@ function creerGoogle(options = {}) {
     Logger: { log: () => {} },
     console: { log: () => {}, error: () => {} },
   };
-  return { contexte, feuilles, elements, mails, etat, proprietes, creerElement, declencheurs };
+  return { contexte, feuilles, elements, mails, etat, proprietes, creerElement, declencheurs, cache };
 }
 
 // Charge tous les fichiers .gs du dossier apps-script dans un contexte simulé
-function chargerScript(google) {
+// fichierUnique (facultatif) : charger seulement ce fichier (ex. le Code.gs à coller de la livraison)
+function chargerScript(google, fichierUnique) {
   const dossier = path.join(__dirname, '..', 'apps-script');
   const ctx = vm.createContext(google.contexte);
-  fs.readdirSync(dossier).filter(f => f.endsWith('.gs')).sort().forEach(f => {
-    vm.runInContext(fs.readFileSync(path.join(dossier, f), 'utf8'), ctx, { filename: f });
-  });
+  const fichiers = fichierUnique ? [fichierUnique]
+    : fs.readdirSync(dossier).filter(f => f.endsWith('.gs')).sort().map(f => path.join(dossier, f));
+  fichiers.forEach(f => vm.runInContext(fs.readFileSync(f, 'utf8'), ctx, { filename: path.basename(f) }));
   return ctx;
 }
 

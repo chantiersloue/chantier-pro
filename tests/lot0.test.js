@@ -44,12 +44,12 @@ function test(nom, fn) {
 
 console.log('Lot 0 — envois normaux (adresses du Sheet), comme avant');
 
-test('note de réunion : destinataires du Sheet servis normalement', () => {
+test('note de réunion : destinataires du Sheet servis normalement + copie au conducteur du chantier (lot 1)', () => {
   const g = environnement();
   const r = poster(g, { type: 'note', chantier: 'CHANTIER TEST 1', auteur: 'Franck', date: '29/10/2026', objet: 'Réunion',
     commentaires: 'RAS', destinataires: [FRANCK, ARCHI], photosBase64: [PHOTO] });
   assert.strictEqual(r.status, 'ok');
-  assert.deepStrictEqual(destinatairesDe(g), [ARCHI, FRANCK].sort());
+  assert.deepStrictEqual(destinatairesDe(g), [ARCHI, FRANCK, SEB].sort());
   assert.ok(g.mails.every(m => m.sujet.indexOf('Note de réunion') > -1 && !m.opts.bcc));
   assert.strictEqual(journal(g).length, 0);
 });
@@ -87,13 +87,15 @@ test('fabrication : un mail en échec ne fait plus planter la fiche (reporté)',
   assert.strictEqual(g.feuilles['Mails en attente'].lignes.length, 3, '2 mails reportés');
 });
 
-['bordereau-orga', 'bordereau-materiaux'].forEach(type => test(type + ' : envoi et dossier « Bordereaux »', () => {
+['bordereau-orga', 'bordereau-materiaux'].forEach(type => test(type + ' : envoi et dossier du bordereau (lot 1.5)', () => {
   const g = environnement();
   poster(g, { type, chantier: 'CHANTIER TEST 1', date: '29/10/2026', heure: '10:00', soussigne: 'Franck', preneur: 'M. X',
     typeDoc: 'Pass GENERAL', nombre: '2', sigLoue: SIG, sigPreneur: SIG, destinataires: [FRANCK], photosBase64: [PHOTO] });
-  assert.deepStrictEqual(destinatairesDe(g), [FRANCK]);
+  assert.deepStrictEqual(destinatairesDe(g), [FRANCK, SEB].sort(), 'destinataire choisi + copie au conducteur du chantier');
   const chantier = g.racine.enfants.find(e => e.nom === 'CHANTIER TEST 1');
-  assert.ok(chantier.enfants.find(e => e.nom === 'Bordereaux').enfants.length === 1, 'PDF rangé dans Bordereaux');
+  const sous = chantier.enfants.find(e => e.nom === '05 - CHANTIER').enfants.find(e => e.nom === (type === 'bordereau-orga' ? 'ORGANIGRAMME' : 'BORDEREAUX MATERIAUX'));
+  assert.ok(sous.enfants.length === 1, 'PDF rangé dans le dossier du bordereau');
+  assert.ok(!chantier.enfants.some(e => e.nom === 'Quitus'), 'plus jamais dans « Quitus »');
   assert.ok(pdfHtml(g).indexOf(SIG) > -1, 'la signature est dans le PDF');
 }));
 
@@ -130,9 +132,8 @@ test('adresse libre : mail au contenu imposé, PJ renommée, copie cachée au co
   const g = environnement();
   poster(g, { type: 'quitus', chantier: 'CHANTIER TEST 1', intervenant: 'Client <b>gras</b>',
     description: 'Cliquez sur http://arnaque.test', destinataires: ['client@gmail.test'], photosBase64: [] });
-  assert.strictEqual(g.mails.length, 1);
-  const m = g.mails[0];
-  assert.strictEqual(m.to, 'client@gmail.test');
+  assert.strictEqual(g.mails.length, 2, 'le client + la copie habituelle au conducteur du chantier');
+  const m = g.mails.find(x => x.to === 'client@gmail.test');
   assert.strictEqual(m.sujet, 'Loué Menuiserie — Quitus — CHANTIER TEST 1');
   assert.ok(m.texte.indexOf('arnaque') < 0 && !m.opts.htmlBody, 'aucun texte libre dans le mail');
   assert.strictEqual(m.opts.bcc, SEB, 'conducteur du chantier en copie cachée');
@@ -143,14 +144,15 @@ test('adresse libre : mail au contenu imposé, PJ renommée, copie cachée au co
 test('adresse libre : chantier inventé → absent du sujet, copie à Franck', () => {
   const g = environnement();
   poster(g, { type: 'quitus', chantier: 'Gagnez un iPhone !', destinataires: ['x@y.test'], photosBase64: [] });
-  assert.strictEqual(g.mails[0].sujet, 'Loué Menuiserie — Quitus');
-  assert.strictEqual(g.mails[0].opts.bcc, FRANCK);
+  const libre = g.mails.find(x => x.to === 'x@y.test');
+  assert.strictEqual(libre.sujet, 'Loué Menuiserie — Quitus');
+  assert.strictEqual(libre.opts.bcc, FRANCK);
 });
 
 test('adresse libre : 3e adresse sur une fiche refusée, une seule alerte par jour', () => {
   const g = environnement();
   poster(g, { type: 'note', chantier: 'CHANTIER TEST 1', destinataires: ['a@x.test', 'b@x.test', 'c@x.test', 'd@x.test'] });
-  const libres = g.mails.filter(m => m.to !== FRANCK);
+  const libres = g.mails.filter(m => m.to !== FRANCK && m.to !== SEB);   // SEB : copie au conducteur du chantier
   assert.strictEqual(libres.length, 2);
   const alertes = g.mails.filter(m => m.to === FRANCK && m.sujet.indexOf('Envoi refusé') > -1);
   assert.strictEqual(alertes.length, 1, 'une seule alerte');
@@ -171,7 +173,16 @@ test('adresse libre : plafond de 10 par jour pour toute l\'appli', () => {
 test('adresse mal formée : refusée sans envoi', () => {
   const g = environnement();
   poster(g, { type: 'quitus', chantier: 'CHANTIER TEST 1', destinataires: ['pas une adresse', 'a@b'] });
-  assert.strictEqual(g.mails.filter(m => m.to !== FRANCK).length, 0);
+  assert.strictEqual(g.mails.filter(m => m.to !== FRANCK && m.to !== SEB).length, 0);
+});
+
+test('quitus sans destinataire : copie au conducteur du chantier calculée par le serveur', () => {
+  const g = environnement();
+  poster(g, { type: 'quitus', chantier: 'CHANTIER TEST 1', destinataires: [] });
+  assert.deepStrictEqual(destinatairesDe(g), [SEB]);
+  const h = environnement();
+  poster(h, { type: 'quitus', chantier: 'Chantier inconnu', destinataires: [] });
+  assert.deepStrictEqual(destinatairesDe(h), [FRANCK], 'chantier sans conducteur : Franck');
 });
 
 console.log('Lot 0 — quota de mails');
@@ -181,17 +192,32 @@ test('quota bas : mails reportés, ceux de Franck partent ; renvoi automatique e
   poster(g, { type: 'note', chantier: 'CHANTIER TEST 1', destinataires: [FRANCK, ARCHI] });
   assert.deepStrictEqual(destinatairesDe(g), [FRANCK], 'seul Franck reçoit');
   const attente = g.feuilles['Mails en attente'].lignes;
-  assert.strictEqual(attente.length, 2);
+  assert.strictEqual(attente.length, 3, 'archi et conducteur du chantier reportés');
   assert.strictEqual(attente[1][3], ARCHI);
   g.etat.quota = 100;
   g.ctx.renvoyerMailsEnAttente();
-  assert.deepStrictEqual(destinatairesDe(g), [ARCHI, FRANCK].sort());
+  assert.deepStrictEqual(destinatairesDe(g), [ARCHI, FRANCK, SEB].sort());
   assert.strictEqual(g.feuilles['Mails en attente'].lignes[1][10], 'envoyé');
 });
 
-test('absence reportée : PDF gardé dans _MAILS EN ATTENTE puis mis à la corbeille après envoi', () => {
+test('absence reportée (lot 1.5) : le PDF rangé dans ADMINISTRATIF/ABSENCES sert au renvoi et n’est jamais mis à la corbeille', () => {
   const g = environnement({ quota: 5 });
-  poster(g, { type: 'absence', nom: 'Killian', dateAbsence: '30/10/2026', emailPerso: '', destinataires: [SEB] });
+  poster(g, { type: 'absence', nom: 'Killian', dateDepot: '09/11/2026', dateAbsence: '30/11/2026', emailPerso: SEB });
+  const abs = g.racine.enfants.find(e => e.nom === 'ADMINISTRATIF').enfants.find(e => e.nom === 'ABSENCES');
+  assert.ok(abs && abs.enfants.length === 1, 'PDF rangé dans ADMINISTRATIF/ABSENCES');
+  assert.ok(!g.racine.enfants.some(e => e.nom === '_MAILS EN ATTENTE'), 'plus de PDF temporaire');
+  const attente = g.feuilles['Mails en attente'].lignes;
+  assert.strictEqual(attente[1][8], abs.enfants[0].id, 'le mail reporté reprend le PDF rangé');
+  g.etat.quota = 100;
+  g.ctx.renvoyerMailsEnAttente();
+  assert.ok(g.mails.some(m => m.to === SEB), 'mail reporté envoyé');
+  assert.ok(!abs.enfants[0].corbeille, 'le PDF rangé reste en place');
+});
+
+test('absence reportée, rangement Drive en échec : PDF temporaire dans _MAILS EN ATTENTE puis corbeille (comme avant)', () => {
+  const g = environnement({ quota: 5 });
+  g.ctx.classerDocument_ = () => null;
+  poster(g, { type: 'absence', nom: 'Killian', dateAbsence: '30/10/2026', emailPerso: SEB });
   const dossier = g.racine.enfants.find(e => e.nom === '_MAILS EN ATTENTE');
   assert.ok(dossier && dossier.enfants.length === 1);
   g.etat.quota = 100;
@@ -242,7 +268,7 @@ console.log('Lot 0 — consultation et partages Drive');
 
 test('doGet : version, callback JSONP contrôlé', () => {
   const g = environnement();
-  assert.strictEqual(g.ctx.doGet({ parameter: {} }).contenu, 'Loué App API v4.1 OK');
+  assert.strictEqual(g.ctx.doGet({ parameter: {} }).contenu, 'Loué App API v5.1 OK');
   const r = g.ctx.doGet({ parameter: { action: 'getContacts', callback: 'alert(1);x' } });
   assert.ok(r.contenu.charAt(0) === '{', 'callback invalide ignoré : JSON simple');
 });
@@ -263,7 +289,7 @@ test('getDossiers : seul « Plans » est listé (et partagé) ; Accès n\'est pl
 test('PDF produits : plus jamais partagés publiquement', () => {
   const g = environnement();
   poster(g, { type: 'quitus', chantier: 'CHANTIER TEST 1', destinataires: [FRANCK] });
-  const quitus = g.racine.enfants.find(e => e.nom === 'CHANTIER TEST 1').enfants.find(e => e.nom === 'Quitus');
+  const quitus = g.racine.enfants.find(e => e.nom === 'CHANTIER TEST 1').enfants.find(e => e.nom === '05 - CHANTIER').enfants.find(e => e.nom === 'OPR - RESERVES - QUITUS');
   assert.strictEqual(quitus.enfants[0].acces, 'PRIVATE');
 });
 
@@ -368,7 +394,7 @@ test('partage hérité : dossiers traités d\'abord, fichiers marqués « déjà
 test('destinataires : une chaîne au lieu d\'un tableau est ignorée, 20 adresses au plus', () => {
   const g = environnement();
   poster(g, { type: 'note', chantier: 'CHANTIER TEST 1', destinataires: 'a@x.test' });
-  assert.strictEqual(g.mails.length, 0);
+  assert.deepStrictEqual(destinatairesDe(g), [SEB], 'seule la copie au conducteur du chantier part');
   const beaucoup = Array.from({ length: 500 }, (_, i) => 'pirate' + i + '@x.test');
   poster(g, { type: 'note', chantier: 'CHANTIER TEST 1', destinataires: beaucoup });
   assert.ok(journal(g).length <= 21, 'journal borné (20 lignes + 1 ligne de résumé) : ' + journal(g).length);
@@ -393,7 +419,7 @@ test('plus de 20 destinataires du Sheet : tous servis', () => {
   const g = environnement();
   g.feuilles['Contacts notes'].lignes = lignes;
   poster(g, { type: 'note', chantier: 'CHANTIER TEST 1', destinataires: lignes.slice(1).map(l => l[1]) });
-  assert.strictEqual(g.mails.length, 25);
+  assert.strictEqual(g.mails.length, 26, '25 + la copie au conducteur du chantier');
 });
 test('retour arrière depuis la sauvegarde CSV (colonne État vide)', () => {
   const g = environnement();
