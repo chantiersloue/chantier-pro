@@ -20,6 +20,8 @@ function creerGoogle(options = {}) {
       const p = {
         getValues: () => Array.from({ length: nr }, (_, i) => Array.from({ length: nc }, (_, j) => {
           const v = cellule(r + i, c + j); return v === undefined ? '' : v; })),
+        // Texte affiché (comme Sheets en France : virgule décimale)
+        getDisplayValues: () => p.getValues().map(l => l.map(v => typeof v === 'number' ? String(v).replace('.', ',') : String(v))),
         getValue: () => { const v = cellule(r, c); return v === undefined ? '' : v; },
         setValues: vals => { vals.forEach((l, i) => l.forEach((v, j) => ecrire(r + i, c + j, v))); return p; },
         setValue: v => { ecrire(r, c, v); return p; },

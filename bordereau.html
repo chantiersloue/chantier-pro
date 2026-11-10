@@ -9,8 +9,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Loué App">
 <meta name="theme-color" content="#1A2B4A">
-<link rel="stylesheet" href="commun/style.css?v=804214df6a">
-<link rel="stylesheet" href="commun/fiche.css?v=804214df6a">
+<link rel="stylesheet" href="commun/style.css?v=fc0526361e">
+<link rel="stylesheet" href="commun/fiche.css?v=fc0526361e">
 <style>
 .declaration{background:var(--bg);border-radius:var(--r);padding:10px 12px;border:1px solid var(--border);font-size:15px;color:var(--muted);line-height:1.5;}
 .mention-rouge{background:#FFF0F0;border:1.5px solid #EFC0C0;border-radius:var(--r);padding:12px 14px;margin-bottom:12px;font-size:14px;color:var(--red);line-height:1.5;}
@@ -96,6 +96,7 @@
           <textarea class="meta-input" id="meta-liste" placeholder="Une ligne par matériau, par exemple : 2 × Vis inox"></textarea>
           <input type="hidden" id="meta-liste-auto">
           <div id="aide-liste" style="display:none;font-size:12px;color:var(--muted);margin-top:4px">Liste proposée d’après le Type : vous pouvez la modifier.</div>
+          <button class="btn btn-secondary btn-petit" type="button" id="btn-liste-type" style="display:none;margin-top:6px" onclick="remplacerParListeDuType()"></button>
         </div>
         <div class="meta-field meta-full">
           <label class="meta-label" for="meta-commentaires">Commentaires</label>
@@ -163,17 +164,17 @@
   </div>
 </div>
 
-<script src="commun/config.js?v=804214df6a"></script>
-<script src="commun/api.js?v=804214df6a"></script>
-<script src="commun/ui.js?v=804214df6a"></script>
-<script src="commun/photos.js?v=804214df6a"></script>
-<script src="commun/signature.js?v=804214df6a"></script>
-<script src="commun/brouillon.js?v=804214df6a"></script>
-<script src="commun/hors-ligne.js?v=804214df6a"></script>
-<script src="commun/adresses.js?v=804214df6a"></script>
-<script src="commun/destinataires.js?v=804214df6a"></script>
-<script src="modeles/mise-en-page.js?v=804214df6a"></script>
-<script src="modeles/bordereau.js?v=804214df6a"></script>
+<script src="commun/config.js?v=fc0526361e"></script>
+<script src="commun/api.js?v=fc0526361e"></script>
+<script src="commun/ui.js?v=fc0526361e"></script>
+<script src="commun/photos.js?v=fc0526361e"></script>
+<script src="commun/signature.js?v=fc0526361e"></script>
+<script src="commun/brouillon.js?v=fc0526361e"></script>
+<script src="commun/hors-ligne.js?v=fc0526361e"></script>
+<script src="commun/adresses.js?v=fc0526361e"></script>
+<script src="commun/destinataires.js?v=fc0526361e"></script>
+<script src="modeles/mise-en-page.js?v=fc0526361e"></script>
+<script src="modeles/bordereau.js?v=fc0526361e"></script>
 <script>
 'use strict';
 // ── Organigramme ou matériaux : choisi par l'adresse (bordereau.html?type=orga ou ?type=materiaux) ──
@@ -214,7 +215,7 @@ LOUE.chargerListes().then(r => {
   // (s'il est vide ou si la liste gardée dans le téléphone est ancienne : onglet Materiaux, comme avant)
   const typesMat = Array.from(new Set((LISTES.materiauxBordereau || []).map(x => x.type)));
   document.getElementById('liste-types').innerHTML = options(ORGA ? LISTES.types : (typesMat.length ? typesMat : LISTES.materiaux));
-  majChampListe();
+  majChampListe(); majAideListe();
   if (r.depuisLeTelephone) {
     document.getElementById('listes-info').textContent = 'Pas de réseau : listes du ' + new Date(r.date).toLocaleDateString('fr-FR') + ' gardées dans le téléphone.';
   }
@@ -239,13 +240,33 @@ function majChampListe() {
 function proposerMateriaux() {
   if (ORGA) return;
   const liste = document.getElementById('meta-liste'), auto = document.getElementById('meta-liste-auto');
-  if (liste.value.trim() && liste.value !== auto.value) return;   // modifiée à la main : on n'y touche plus
   const propose = materiauxDuType(document.getElementById('meta-type').value);
-  if (liste.value === propose) return;
-  liste.value = propose; auto.value = propose;
-  document.getElementById('aide-liste').style.display = propose ? '' : 'none';
-  liste.dispatchEvent(new Event('input', { bubbles: true }));   // brouillon automatique
+  // Modifiée à la main : on n'y touche plus (un bouton propose la liste du nouveau type)
+  if (!(liste.value.trim() && liste.value !== auto.value) && liste.value !== propose) {
+    liste.value = propose; auto.value = propose;
+    liste.dispatchEvent(new Event('input', { bubbles: true }));   // brouillon automatique
+  }
+  majAideListe();
 }
+// Aide « liste proposée » seulement si la liste est encore celle proposée ; bouton si le type propose autre chose
+function majAideListe() {
+  const liste = document.getElementById('meta-liste'), auto = document.getElementById('meta-liste-auto');
+  const type = document.getElementById('meta-type').value.trim();
+  const propose = materiauxDuType(type);
+  document.getElementById('aide-liste').style.display = liste.value.trim() && liste.value === auto.value ? '' : 'none';
+  const bouton = document.getElementById('btn-liste-type');
+  bouton.style.display = !ORGA && propose && liste.value !== propose ? '' : 'none';
+  bouton.textContent = 'Remplacer par la liste du type « ' + type + ' »';
+}
+function remplacerParListeDuType() {
+  const liste = document.getElementById('meta-liste'), auto = document.getElementById('meta-liste-auto');
+  const propose = materiauxDuType(document.getElementById('meta-type').value);
+  if (liste.value.trim() && !confirm('Remplacer la liste des matériaux par celle du type choisi ? Vos modifications seront perdues.')) return;
+  liste.value = propose; auto.value = propose;
+  liste.dispatchEvent(new Event('input', { bubbles: true }));
+  majAideListe();
+}
+document.getElementById('meta-liste').addEventListener('input', majAideListe);
 document.getElementById('meta-type').addEventListener('input', proposerMateriaux);
 document.getElementById('meta-type').addEventListener('change', proposerMateriaux);
 
@@ -290,7 +311,7 @@ const BROUILLON = LOUE.brouillon({
     afficherPhotos();
     if (x.sigLoue) SIG.loue.ecrireTraits(x.sigLoue);
     if (x.sigPreneur) SIG.preneur.ecrireTraits(x.sigPreneur);
-    majChampListe();
+    majChampListe(); majAideListe();
   },
 });
 
@@ -326,8 +347,7 @@ function imprimer(enPdf) {
 
 function viderFiche() {
   ['meta-preneur', 'meta-fonction', 'meta-entreprise', 'meta-type', 'meta-nombre', 'meta-commentaires', 'meta-liste', 'meta-liste-auto'].forEach(id => { document.getElementById(id).value = ''; });
-  document.getElementById('aide-liste').style.display = 'none';
-  majChampListe();
+  majChampListe(); majAideListe();
   DEST.vider();
   photos.forEach(p => URL.revokeObjectURL(p.url)); photos = []; afficherPhotos();
   SIG.loue.ecrireTraits([]); SIG.preneur.ecrireTraits([]);

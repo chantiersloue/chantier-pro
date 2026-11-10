@@ -137,12 +137,12 @@ function essaiMiseEnPage() {
     const info = infoPdf_(brut);
     const prevues = 1 + (html.match(/page-break-before:always/g) || []).length;
     const blob = pdfDuModele_(modele, d, '_ESSAI MISE EN PAGE ' + nom + '.pdf');
-    const refait = info.pages && info.pages > prevues && html.indexOf('data-mep="page1"') > -1;
+    const refait = info.pages && info.pages > prevues;
     const anciens = racine.getFilesByName(blob.getName());
     while (anciens.hasNext()) anciens.next().setTrashed(true);
     racine.createFile(blob);
     lignes.push((refait ? '⚠ ' : '✅ ') + nom + ' : format ' + (info.l ? info.l + ' × ' + info.h + ' mm' : 'illisible')
-      + ', ' + (info.pages || '?') + ' page(s) pour ' + prevues + ' prévue(s)' + (refait ? ' → refait avec la photo sur une page à elle' : ''));
+      + ', ' + (info.pages || '?') + ' page(s) pour ' + prevues + ' prévue(s)' + (refait ? ' → contrôle : PDF refait (voir le journal d’exécution)' : ''));
   });
   lignes.push('PDF à ouvrir à la racine du Drive de l’appli : « _ESSAI MISE EN PAGE … » (à supprimer ensuite).');
   Logger.log(lignes.join('\n'));

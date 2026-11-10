@@ -55,7 +55,9 @@
   var cacheeDepuis = 0;
   document.addEventListener('visibilitychange', function () {
     if (document.visibilityState === 'hidden') { cacheeDepuis = Date.now(); return; }
-    if (cacheeDepuis && Date.now() - cacheeDepuis > 5000) {
+    // Sur PC, une requête continue en arrière-plan : on ne l'abandonne qu'après une longue absence (30 s)
+    var telephone = (navigator.maxTouchPoints || 0) > 0 || (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
+    if (cacheeDepuis && Date.now() - cacheeDepuis > (telephone ? 5000 : 30000)) {
       var depuis = cacheeDepuis;   // seulement les envois commencés AVANT le passage en arrière-plan
       fichesEnVol.forEach(function (c) { if (c.debut <= depuis) c.abort(); });
     }
@@ -170,7 +172,8 @@
     }).then(function () {
       return LOUE.appeler({ action: 'fiche', id: el.id, donnees: el.donnees }, 120000).catch(function (err) {
         // Réseau présent mais pas de réponse : la fiche est peut-être arrivée (réponse perdue) → à confirmer vite
-        if (erreurReseau(err) && navigator.onLine !== false) err.aConfirmer = true;
+        // (page de Google à la place de la réponse : la fiche a pu être traitée aussi)
+        if ((erreurReseau(err) || /réponse illisible/.test(err.message || '')) && navigator.onLine !== false) err.aConfirmer = true;
         throw err;
       });
     }).then(function (rep) {
@@ -216,7 +219,12 @@
       return enCours;
     }
     clearTimeout(minuterieFile);
-    var force = function (el) { return forcer === true || (forcer === 'reseau' && (el.attenteReseau || el.aConfirmer)); };
+    var force = function (el) {
+      if (forcer === true) return true;
+      if (forcer !== 'reseau') return false;
+      // fiches rangées avant la version 5.1 : pas de marque « attenteReseau », mais leur message dit « réseau »
+      return !!(el.attenteReseau || el.aConfirmer || (el.attenteReseau === undefined && /réseau/i.test(el.message || '')));
+    };
     var vider = function () { return LOUE.stockage.tout('file').then(function (liste) {
       liste.sort(function (a, b) { return a.cree - b.cree; });
       var chaine = Promise.resolve();
@@ -311,15 +319,27 @@
 
   // ── Plan de secours : le téléphone refuse de garder la fiche (navigation privée, mémoire pleine) ──
   // On l'envoie directement, page ouverte. photos : [{ id, blob }]
+  // La même fiche renvoyée (le poseur touche de nouveau Envoyer, sans rien changer) garde son NUMÉRO et ses photos
+  // déjà parties : le serveur répond « déjà reçue » au lieu d'envoyer un 2e mail.
+  var directs = {};
   LOUE.envoyerDirect = function (type, donnees, photos) {
-    var r = renumeroter(Object.assign({}, donnees, { type: type }), photos);
-    var blobs = {};
-    r.photos.forEach(function (p) { blobs[p.id] = p.blob; });
-    var el = { id: LOUE.nouvelId('fiche'), donnees: r.donnees, photos: r.photos.map(function (p) { return p.id; }), photosEnvoyees: [] };
+    var empreinte = type + '|' + JSON.stringify(donnees) + '|' + (photos || []).map(function (p) { return p.id + ':' + (p.blob ? p.blob.size : 0); }).join(',');
+    var el = directs[empreinte];
+    if (!el) {
+      var r = renumeroter(Object.assign({}, donnees, { type: type }), photos);
+      el = { id: LOUE.nouvelId('fiche'), donnees: r.donnees, photos: r.photos.map(function (p) { return p.id; }), photosEnvoyees: [], blobs: {} };
+      r.photos.forEach(function (p) { el.blobs[p.id] = p.blob; });
+      directs[empreinte] = el;
+    }
     function tenter(n) {
-      return envoyerPhotosPuisFiche(el, function (id) { return Promise.resolve(blobs[id] || null); }).catch(function (err) {
-        // Même numéro à chaque essai : une fiche déjà reçue n'est jamais envoyée deux fois
-        if (err.definitif || n >= (err.aConfirmer ? 6 : 3)) throw Object.assign(new Error(messageClair(err)), { definitif: err.definitif });
+      return envoyerPhotosPuisFiche(el, function (id) { return Promise.resolve(el.blobs[id] || null); }).then(function (rep) {
+        delete directs[empreinte];
+        return rep;
+      }).catch(function (err) {
+        if (err.definitif || n >= (err.aConfirmer ? 6 : 3)) {
+          var texte = err.aConfirmer ? 'réponse du bureau pas encore reçue (la fiche est peut-être déjà arrivée : un nouvel essai ne crée pas de 2e mail)' : messageClair(err);
+          throw Object.assign(new Error(texte), { definitif: err.definitif });
+        }
         return new Promise(function (ok) { setTimeout(ok, 5000); }).then(function () { return tenter(n + 1); });
       });
     }

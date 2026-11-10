@@ -1,7 +1,7 @@
 // ═══════════════════════════════════════════════════════════════
 // LOUÉ APP — SERVEUR COMPLET, À COLLER DANS APPS SCRIPT (fichier « Code.gs », tout remplacer)
 // FICHIER GÉNÉRÉ AUTOMATIQUEMENT par « node outils/construire.js » — NE PAS MODIFIER À LA MAIN :
-// les sources sont dans le dossier apps-script/ du dépôt. Version du serveur c87394c704 (pages 804214df6a)
+// les sources sont dans le dossier apps-script/ du dépôt. Version du serveur 8fdc8d516b (pages fc0526361e)
 // ═══════════════════════════════════════════════════════════════
 
 // ████ Config.gs ████
@@ -473,8 +473,9 @@ function getContacts(callback) {
   function getList(n){ const s=ss.getSheetByName(n); return s?s.getDataRange().getValues().slice(1).map(r=>String(r[0]||'')).filter(v=>v):[]; }
   // Bordereau matériaux (lot 1 R2) : types et matériaux proposés par défaut — une ligne par matériau, le type répété
   const smb = ss.getSheetByName(SHEET_MAT_BORDEREAU);
-  const materiauxBordereau = smb && smb.getLastRow() > 1 ? smb.getRange(2, 1, smb.getLastRow() - 1, 3).getValues()
-    .map(r => ({ type: String(r[0]||'').trim(), materiau: String(r[1]||'').trim(), quantite: String(r[2]===0?'0':(r[2]||'')).trim() }))
+  // Texte affiché par Sheets (getDisplayValues) : une quantité 2,5 reste « 2,5 » (et pas « 2.5 » ou une date)
+  const materiauxBordereau = smb && smb.getLastRow() > 1 ? smb.getRange(2, 1, smb.getLastRow() - 1, 3).getDisplayValues()
+    .map(r => ({ type: String(r[0]||'').trim(), materiau: String(r[1]||'').trim(), quantite: String(r[2]||'').trim() }))
     .filter(x => x.type) : [];
 
   const json = JSON.stringify({
@@ -854,23 +855,28 @@ function chercherEnvoi_(sh, id) {
 
 // ═══════════════════════════════════════════════════════════════
 // PDF D'UN MODÈLE, CONTRÔLÉ (lot 1, retouche R1)
-// Le modèle place la 1re photo sous le contenu de la page 1 d'après une ESTIMATION de la hauteur du contenu.
-// Le moteur PDF de Google n'est pas exactement celui de l'aperçu : on compte les pages du PDF obtenu.
-// Une page de trop = la photo a été rejetée sur la page suivante → on refait le PDF UNE fois, avec le format
-// de page réel et cette photo sur une page à elle. (Quelques secondes de plus, rarement.)
+// Le modèle place les photos d'après une ESTIMATION de la hauteur du contenu (photo de la page 1) et la zone utile
+// d'une page A4 (pages de photos). Le moteur PDF de Google n'est pas exactement celui de l'aperçu : on compte les pages
+// du PDF obtenu. Une page de plus que prévu (photo rejetée, page blanche) → on refait le PDF UNE fois, avec le format
+// de page réel, la photo de la page 1 sur une page à elle et des pages de photos moins hautes, et on garde celui des
+// deux qui a le moins de pages. (Quelques secondes de plus, rarement ; aussi pour un texte de plusieurs pages.)
 // ═══════════════════════════════════════════════════════════════
 function pdfDuModele_(modele, d, nom) {
   const html = modele(d, esc_);
   const blob = HtmlService.createHtmlOutput(html).getAs('application/pdf').setName(nom);
-  if (html.indexOf('data-mep="page1"') < 0) return blob;
+  if (html.indexOf('data-mep=') < 0) return blob;   // pas de photo : rien à contrôler
   const info = infoPdf_(blob);
+  if (!info.pages) { console.log('Mise en page : nombre de pages illisible dans le PDF de Google, contrôle impossible'); return blob; }
   const prevues = 1 + (html.match(/page-break-before:always/g) || []).length;
-  if (!info.pages || info.pages <= prevues) return blob;
-  console.log('Mise en page : ' + info.pages + ' pages au lieu de ' + prevues + ' (format ' + info.l + ' × ' + info.h
-    + ' mm) : la photo de la page 1 passe sur une page à elle');
-  const d2 = Object.assign({}, d, { _mepSansPage1: true });
+  if (info.pages <= prevues) return blob;
+  const d2 = Object.assign({}, d, { _mepSansPage1: true, _mepMargeEnPlus: 10 });
   if (info.l && info.h) d2._mepFormat = { l: info.l, h: info.h };
-  return HtmlService.createHtmlOutput(modele(d2, esc_)).getAs('application/pdf').setName(nom);
+  const blob2 = HtmlService.createHtmlOutput(modele(d2, esc_)).getAs('application/pdf').setName(nom);
+  const info2 = infoPdf_(blob2);
+  const garde2 = info2.pages && info2.pages < info.pages;
+  console.log('Mise en page : ' + info.pages + ' pages pour ' + prevues + ' prévues (format ' + info.l + ' × ' + info.h + ' mm) ; '
+    + 'refait : ' + (info2.pages || '?') + ' pages → ' + (garde2 ? 'PDF refait gardé' : 'premier PDF gardé'));
+  return garde2 ? blob2 : blob;
 }
 // Nombre de pages et format (mm) d'un PDF, lus dans le fichier ; {} si illisible
 function infoPdf_(blob) {
@@ -1776,12 +1782,12 @@ function essaiMiseEnPage() {
     const info = infoPdf_(brut);
     const prevues = 1 + (html.match(/page-break-before:always/g) || []).length;
     const blob = pdfDuModele_(modele, d, '_ESSAI MISE EN PAGE ' + nom + '.pdf');
-    const refait = info.pages && info.pages > prevues && html.indexOf('data-mep="page1"') > -1;
+    const refait = info.pages && info.pages > prevues;
     const anciens = racine.getFilesByName(blob.getName());
     while (anciens.hasNext()) anciens.next().setTrashed(true);
     racine.createFile(blob);
     lignes.push((refait ? '⚠ ' : '✅ ') + nom + ' : format ' + (info.l ? info.l + ' × ' + info.h + ' mm' : 'illisible')
-      + ', ' + (info.pages || '?') + ' page(s) pour ' + prevues + ' prévue(s)' + (refait ? ' → refait avec la photo sur une page à elle' : ''));
+      + ', ' + (info.pages || '?') + ' page(s) pour ' + prevues + ' prévue(s)' + (refait ? ' → contrôle : PDF refait (voir le journal d’exécution)' : ''));
   });
   lignes.push('PDF à ouvrir à la racine du Drive de l’appli : « _ESSAI MISE EN PAGE … » (à supprimer ensuite).');
   Logger.log(lignes.join('\n'));
@@ -2164,8 +2170,13 @@ function modele_bordereau(d, esc) {
 
   // ── Photos (modeles/mise-en-page.js) : la 1re sous les signatures, dans toute la place restante de la page 1,
   // les autres en pleine page (deux par page si elles y gardent leur taille). Hauteur du contenu mesurée dans Chrome :
-  // 72,4 mm ; mention de l'organigramme 22,5 ; chaque ligne de commentaire ou de matériau 5,5.
-  var estime = 72.4 + (orga ? 22.5 : 0) + 5.53 * ((d.commentaires ? mep_lignes(d.commentaires, 168, 11) : 0) + (liste ? 1 + mep_lignes(liste, 168, 11) : 0));
+  // 72,4 mm ; mention de l'organigramme 22,5 ; chaque ligne de commentaire ou de matériau 5,5 ; ligne du preneur ou
+  // du type trop longue : 5,5 par ligne en plus ; chantier long dans l'en-tête : 3 par ligne en plus.
+  var estime = 72.4 + (orga ? 22.5 : 0) + 5.53 * ((d.commentaires ? mep_lignes(d.commentaires, 168, 11) : 0) + (liste ? 1 + mep_lignes(liste, 168, 11) : 0))
+    + 5.53 * (mep_lignes('déclare par la présente avoir remis en main propre à ' + (d.preneur || '—') + ' (' + (d.fonction || '') + ') — ' + (d.entreprise || '') + ' :', 168, 11) - 1)
+    + 5.53 * (mep_lignes((d.nombre || '—') + ' × ' + (d.typeDoc || '—'), 168, 11) - 1)
+    + 5.53 * (mep_lignes('Je soussigné(e) ' + (d.soussigne || '—') + ', Entreprise Loué Menuiserie,', 168, 11) - 1)
+    + 3 * (mep_lignes('Chantier : ' + (d.chantier || '—'), 70, 10) - 1);
   var zone = mep_zone(d, 210, 297, 15);
   var photosHtml = mep_photos(d.photosBase64, { largeur: zone.largeur, hauteur: zone.hauteur, reste: mep_reste(zone, estime), estime: estime, esc: esc });
 
@@ -2407,9 +2418,15 @@ function modele_fabrication(d, esc) {
 
   // ── Photos et croquis (modeles/mise-en-page.js) : la 1re photo sous les blocs, en page 1, dans toute la place
   // restante ; chaque croquis sur une page entière ; les autres photos en pleine page (ou deux par page) ──
-  // Hauteur estimée du contenu de la page 1 (mm), mesurée dans Chrome : en-tête 44 ; bloc 26 (porte 25,7) + 5,3 par
-  // ligne en plus ; bloc vide 17,2 ; commentaires 8,2 + 4 par ligne. Les blocs ne se coupent pas d'une page à l'autre.
-  var estime = 44;
+  // Hauteur estimée du contenu de la page 1 (mm), mesurée dans Chrome : en-tête 44 (tableau des temps), ou le cartouche
+  // de gauche + 4 s'il est plus haut (31,2 ; chantier : 4,5 par ligne en plus ; zone 8,8 + 2,9 par ligne en plus ;
+  // précision du délai 3,5 + 3,1 par ligne en plus) ; bloc 26 (porte 25,7) + 5,3 par ligne en plus ; bloc vide 17,2 ;
+  // commentaires 8,2 + 1,5 × la taille de la police par ligne (4 mm en taille normale, 5,6 « agrandi »).
+  // Les blocs ne se coupent pas d'une page à l'autre.
+  var cartouche = 31.2 + 4.5 * (mep_lignes(String(d.chantier || '—') + (d.refChantier ? ' / ' + d.refChantier : ''), 68, 12) - 1)
+    + (d.zone ? 8.8 + 2.9 * (mep_lignes(d.zone, 80, 10) - 1) : 0)
+    + (d.delaiPrecision ? 3.5 + 3.1 * (mep_lignes(d.delaiPrecision, 40, 10) - 1) : 0);
+  var estime = Math.max(44, cartouche + 4);
   (d.blocs || []).forEach(function (b) {
     if (b.type === 'photo') return;
     var rows = b.rows || [];
@@ -2421,7 +2438,20 @@ function modele_fabrication(d, esc) {
       if (plusLong > 40) estime += 3.4 * Math.ceil((plusLong - 40) / 40);
     });
   });
-  if (commentaireSection) estime += 8.2 + 4 * mep_lignes(mep_texteBrut(d.commentaires), 260, 10);
+  if (commentaireSection) {
+    estime += 8.2;
+    String(commentaires).split(/<br\s*\/?>|<\/div>|<\/p>/i).forEach(function (ligne) {
+      var tailles = [10];   // taille de police la plus grande de la ligne (px), « agrandi » = 1,4 em
+      (ligne.match(/font-size:\s*[\d.]+(em|px|%)/gi) || []).forEach(function (t) {
+        var n = parseFloat(t.replace(/font-size:\s*/i, ''));
+        tailles.push(/em/i.test(t) ? n * 10 : /%/.test(t) ? n / 10 : n);
+      });
+      var px = Math.min(40, Math.max.apply(null, tailles));
+      var texte = mep_texteBrut(ligne);
+      if (!texte && !/<span|<b|<i|<u/i.test(ligne)) return;
+      estime += mep_lignes(texte, 260, px) * px * 1.5 * MEP_PX_MM;
+    });
+  }
   var zone = mep_zone(d, 297, 210, 10);
   var photosSection = mep_photos(d.photosBase64, { largeur: zone.largeur, hauteur: zone.hauteur, reste: mep_reste(zone, estime), estime: estime, esc: esc });
 
@@ -2440,7 +2470,7 @@ function modele_fabrication(d, esc) {
 //  1. la première photo se place sous le contenu de la page 1 et prend toute la place restante
 //     (s'il reste trop peu de place, elle part sur une page à elle) ;
 //  2. un croquis (image PNG dessinée dans l'appli) a toujours une page entière ;
-//  3. les autres photos : une par page, ou deux si elles y gardent presque leur taille (85 %).
+//  3. les autres photos : une par page, ou deux si elles y gardent presque leur taille (90 % de leurs côtés).
 // Les tailles sont calculées à partir de la taille réelle de l'image (lue dans ses premiers octets) :
 // une petite image est AGRANDIE (max-width / max-height ne le font jamais).
 // ═══════════════════════════════════════════════════════════════
@@ -2448,10 +2478,17 @@ var MEP_PX_MM = 25.4 / 96;          // 1 pixel CSS = 0,2646 mm
 var MEP_LEGENDE_MM = 6;             // place d'une légende sous la photo
 var MEP_ECART_MM = 4;               // espace entre deux photos d'une même page
 var MEP_MIN_PAGE1_MM = 60;          // en dessous, la première photo ne reste pas en page 1
-var MEP_PAIRE = 0.85;               // deux photos par page seulement si chacune garde 85 % de sa taille seule
+var MEP_PAIRE = 0.8;                // deux photos par page seulement si chacune garde 80 % de sa surface seule (90 % de ses côtés)
+var MEP_MARGE_PAGE_MM = 8;          // place gardée libre sur une page de photos (moteur PDF de Google pas mesuré)
 
 // Largeur et hauteur (pixels) d'une image en base64, lues dans ses premiers octets ; null si inconnues
 function mep_taille(p) {
+  if (p && p.mepTaille !== undefined) return p.mepTaille;   // déjà lue (une photo est mesurée plusieurs fois)
+  var t = mep_lireTaille(p);
+  try { if (p) p.mepTaille = t; } catch (e) {}
+  return t;
+}
+function mep_lireTaille(p) {
   var b64 = p && typeof p.data === 'string' ? p.data.replace(/\s/g, '') : '';
   if (!b64) return null;
   var ALPHA = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
@@ -2494,9 +2531,10 @@ function mep_taille(p) {
   return null;
 }
 
-// Croquis = image PNG (les photos sont toujours enregistrées en JPEG par l'appli)
+// Croquis = image PNG (croquis dessiné dans l'appli ; les photos sont toujours en JPEG) ou photo dont la légende
+// contient « croquis » (photo d'un croquis sur papier)
 function mep_estCroquis(p) {
-  return !!(p && (p.croquis === true || /png/i.test(p.mimeType || p.mime || '')));
+  return !!(p && (p.croquis === true || /png/i.test(p.mimeType || p.mime || '') || /croquis/i.test(p.label || '')));
 }
 
 // Taille (mm) d'une image qui tient dans une boîte l * h en gardant ses proportions ; null si taille inconnue
@@ -2552,7 +2590,7 @@ function mep_photos(photos, o) {
   }
 
   // 2 et 3. Pages de photos : croquis seul, photos par une ou par deux
-  var hPage = H - titreH - 2;
+  var hPage = H - titreH - MEP_MARGE_PAGE_MM;
   var pages = [];
   while (reste.length) {
     var a = reste.shift();
@@ -2578,7 +2616,7 @@ function mep_photos(photos, o) {
     pages.push(mep_image(a, L, hA, esc));
   }
   pages.forEach(function (contenu, n) {
-    html += '<div style="page-break-before:always;page-break-inside:avoid">'
+    html += '<div data-mep="photos" style="page-break-before:always;page-break-inside:avoid">'
       + (o.titre ? o.titre(n, pages.length) : '') + contenu + '</div>';
   });
   return html;
@@ -2602,7 +2640,9 @@ function mep_zone(d, l, h, marge) {
   var f = d && d._mepFormat;
   var paysage = l > h;
   if (f && f.l > 50 && f.h > 50) { l = paysage ? Math.max(f.l, f.h) : Math.min(f.l, f.h); h = paysage ? Math.min(f.l, f.h) : Math.max(f.l, f.h); }
-  return { largeur: l - 2 * marge, hauteur: h - 2 * marge, sansPage1: !!(d && d._mepSansPage1) };
+  // d._mepMargeEnPlus : le serveur a trouvé une page de trop → pages de photos un peu moins hautes
+  var enPlus = d && d._mepMargeEnPlus > 0 ? Math.min(40, Number(d._mepMargeEnPlus)) : 0;
+  return { largeur: l - 2 * marge, hauteur: h - 2 * marge - enPlus, sansPage1: !!(d && d._mepSansPage1) };
 }
 // Place libre sous un contenu estimé (marge de sécurité de 6 mm), 0 si le contenu ne tient pas sur la page 1
 function mep_reste(zone, estime) {
@@ -2638,8 +2678,9 @@ function modele_note(d, esc) {
 
   // ── Photos (modeles/mise-en-page.js) : la 1re sous les notes si elles tiennent sur la page 1, dans toute la place
   // restante ; les autres en pleine page (deux par page si elles y gardent leur taille). Hauteur mesurée dans Chrome :
-  // en-tête 36 mm (objet long : 4,2 par ligne en plus) ; notes 12,5 + 4,94 par ligne.
-  var estime = 36 + 4.2 * (d.objet ? mep_lignes(d.objet, 100, 11) - 1 : 0)
+  // en-tête 36 mm (chantier long : 4,5 par ligne en plus, rédacteur : 3,2 ; objet long : 4,2) ; notes 12,5 + 4,94 par ligne.
+  var estime = 36 + Math.max(4.5 * (mep_lignes(d.chantier || '—', 35, 12) - 1) + 3.2 * (mep_lignes(d.auteur || '—', 39, 11) - 1),
+    4.2 * (d.objet ? mep_lignes(d.objet, 100, 11) - 1 : 0))
     + (d.commentaires ? 12.5 + 4.94 * mep_lignes(d.commentaires, 168, 11) : 0);
   var zone = mep_zone(d, 210, 297, 15);
   var photosHtml = mep_photos(d.photosBase64, { largeur: zone.largeur, hauteur: zone.hauteur, reste: mep_reste(zone, estime), estime: estime, esc: esc });

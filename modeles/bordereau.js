@@ -27,8 +27,13 @@ function modele_bordereau(d, esc) {
 
   // ── Photos (modeles/mise-en-page.js) : la 1re sous les signatures, dans toute la place restante de la page 1,
   // les autres en pleine page (deux par page si elles y gardent leur taille). Hauteur du contenu mesurée dans Chrome :
-  // 72,4 mm ; mention de l'organigramme 22,5 ; chaque ligne de commentaire ou de matériau 5,5.
-  var estime = 72.4 + (orga ? 22.5 : 0) + 5.53 * ((d.commentaires ? mep_lignes(d.commentaires, 168, 11) : 0) + (liste ? 1 + mep_lignes(liste, 168, 11) : 0));
+  // 72,4 mm ; mention de l'organigramme 22,5 ; chaque ligne de commentaire ou de matériau 5,5 ; ligne du preneur ou
+  // du type trop longue : 5,5 par ligne en plus ; chantier long dans l'en-tête : 3 par ligne en plus.
+  var estime = 72.4 + (orga ? 22.5 : 0) + 5.53 * ((d.commentaires ? mep_lignes(d.commentaires, 168, 11) : 0) + (liste ? 1 + mep_lignes(liste, 168, 11) : 0))
+    + 5.53 * (mep_lignes('déclare par la présente avoir remis en main propre à ' + (d.preneur || '—') + ' (' + (d.fonction || '') + ') — ' + (d.entreprise || '') + ' :', 168, 11) - 1)
+    + 5.53 * (mep_lignes((d.nombre || '—') + ' × ' + (d.typeDoc || '—'), 168, 11) - 1)
+    + 5.53 * (mep_lignes('Je soussigné(e) ' + (d.soussigne || '—') + ', Entreprise Loué Menuiserie,', 168, 11) - 1)
+    + 3 * (mep_lignes('Chantier : ' + (d.chantier || '—'), 70, 10) - 1);
   var zone = mep_zone(d, 210, 297, 15);
   var photosHtml = mep_photos(d.photosBase64, { largeur: zone.largeur, hauteur: zone.hauteur, reste: mep_reste(zone, estime), estime: estime, esc: esc });
 

@@ -251,4 +251,62 @@ test('serveur : le bordereau matériaux envoyé contient la liste', () => {
   assert.ok(recus[0].indexOf('2 × Cales') > -1);
 });
 
+console.log('Relecture — cas ajoutés');
+
+test('serveur : PDF refait PIRE que le premier → le premier est gardé', () => {
+  const g = environnement();
+  const recus = [];
+  g.ctx.HtmlService = { createHtmlOutput: html => ({ getAs: () => {
+    recus.push(html);
+    const n = 1 + (html.match(/page-break-before:always/g) || []).length + (recus.length === 1 ? 1 : 3);
+    const texte = Array.from({ length: n }, () => '<< /Type /Page /MediaBox [0 0 595 842] >>').join('\n');
+    return { nom: recus.length, setName(x) { return this; }, getName() { return 'x'; }, getDataAsString: () => texte, getBytes: () => [], copyBlob() { return this; } };
+  } }) };
+  const blob = g.ctx.pdfDuModele_(g.ctx.modele_quitus, { chantier: 'C', photosBase64: [photo(1600, 1200)] }, 'x.pdf');
+  assert.strictEqual(recus.length, 2);
+  assert.strictEqual(blob.nom, 1, 'premier PDF gardé');
+});
+
+test('serveur : croquis seul (aucune photo en page 1) → contrôlé aussi ; PDF illisible → noté dans le journal', () => {
+  const g = environnement();
+  const recus = moteurPdf(g, 1);
+  g.ctx.pdfDuModele_(g.ctx.modele_fabrication, { chantier: 'C', blocs: [], photosBase64: [croquis()] }, 'x.pdf');
+  assert.strictEqual(recus.length, 2, 'page de trop sur une page de croquis : refait');
+  assert.ok(/_mepMargeEnPlus|data-mep="photos"/.test(recus[1]));
+  const g2 = environnement();   // faux moteur du harnais : pas de pages lisibles
+  const logs = [];
+  g2.ctx.console = { log: x => logs.push(String(x)), error: () => {}, warn: () => {} };
+  g2.ctx.pdfDuModele_(g2.ctx.modele_fabrication, { chantier: 'C', blocs: [], photosBase64: [croquis()] }, 'x.pdf');
+  assert.ok(logs.some(l => /illisible/.test(l)), logs.join(' | '));
+});
+
+test('pages de photos : 8 mm gardés libres ; plus encore quand le serveur refait (_mepMargeEnPlus)', () => {
+  const h1 = M.mep_photos([photo(1200, 1600)], Object.assign(M.mep_zone({}, 297, 210, 10), { reste: 0, esc }));
+  const h2 = M.mep_photos([photo(1200, 1600)], Object.assign(M.mep_zone({ _mepMargeEnPlus: 10 }, 297, 210, 10), { reste: 0, esc }));
+  const l = h => Number(h.match(/width:([\d.]+)mm;max-width/)[1]);
+  assert.ok(Math.abs(l(h1) - 182 * 0.75) < 0.2, 'photo en hauteur : (190 - 8) × 3/4 = ' + l(h1));
+  assert.ok(l(h2) < l(h1));
+});
+
+test('photo dont la légende contient « croquis » (croquis papier photographié) : page entière', () => {
+  const html = M.modele_fabrication({ chantier: 'C', blocs: [], photosBase64: [photo(1600, 1200, 'Croquis du placard')] }, esc);
+  assert.ok(html.indexOf('data-mep="page1"') < 0);
+  assert.strictEqual(pages(html), 2);
+});
+
+test('estimations : chantier long, zone, précision, commentaire agrandi comptés (fabrication) ; chantier long (note)', () => {
+  const base = { chantier: 'C', blocs: [], photosBase64: [photo(1600, 1200)] };
+  const est = (m, d) => Number(M[m](d, esc).match(/data-estime="(\d+)"/)[1]);
+  const long = '403-OPALE / STEEN RAIMONDEAU — ST GILLES X DE VIE ET ENCORE DU TEXTE';
+  assert.ok(est('modele_fabrication', Object.assign({}, base, { chantier: long, zone: 'R+1 bâtiment A logements 101 à 115 et circulations', delaiPrecision: 'a\nb\nc' })) >= 55, 'mesuré dans Chrome : 57,7 mm (44 sans ces lignes)');
+  assert.ok(est('modele_fabrication', Object.assign({}, base, { commentaires: '<span style="font-size:1.4em">A</span>' })) > est('modele_fabrication', Object.assign({}, base, { commentaires: 'A' })));
+  assert.ok(est('modele_note', { chantier: long, photosBase64: [photo(1600, 1200)] }) >= 45);
+});
+
+test('Matériaux bordereau : quantité lue comme affichée dans le Sheet (2,5 reste « 2,5 »)', () => {
+  const g = environnement({ 'Matériaux bordereau': [['Type', 'Matériau', 'Quantité'], ['Kit', 'Mastic', 2.5]] });
+  const l = JSON.parse(g.ctx.doGet({ parameter: { action: 'getContacts' } }).contenu);
+  assert.strictEqual(l.materiauxBordereau[0].quantite, '2,5');
+});
+
 console.log(reussis + ' test(s) réussi(s)' + (process.exitCode ? ' — DES TESTS ÉCHOUENT' : ''));

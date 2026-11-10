@@ -19,8 +19,9 @@ function modele_note(d, esc) {
 
   // ── Photos (modeles/mise-en-page.js) : la 1re sous les notes si elles tiennent sur la page 1, dans toute la place
   // restante ; les autres en pleine page (deux par page si elles y gardent leur taille). Hauteur mesurée dans Chrome :
-  // en-tête 36 mm (objet long : 4,2 par ligne en plus) ; notes 12,5 + 4,94 par ligne.
-  var estime = 36 + 4.2 * (d.objet ? mep_lignes(d.objet, 100, 11) - 1 : 0)
+  // en-tête 36 mm (chantier long : 4,5 par ligne en plus, rédacteur : 3,2 ; objet long : 4,2) ; notes 12,5 + 4,94 par ligne.
+  var estime = 36 + Math.max(4.5 * (mep_lignes(d.chantier || '—', 35, 12) - 1) + 3.2 * (mep_lignes(d.auteur || '—', 39, 11) - 1),
+    4.2 * (d.objet ? mep_lignes(d.objet, 100, 11) - 1 : 0))
     + (d.commentaires ? 12.5 + 4.94 * mep_lignes(d.commentaires, 168, 11) : 0);
   var zone = mep_zone(d, 210, 297, 15);
   var photosHtml = mep_photos(d.photosBase64, { largeur: zone.largeur, hauteur: zone.hauteur, reste: mep_reste(zone, estime), estime: estime, esc: esc });

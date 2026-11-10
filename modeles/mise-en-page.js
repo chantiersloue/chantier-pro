@@ -7,7 +7,7 @@
 //  1. la première photo se place sous le contenu de la page 1 et prend toute la place restante
 //     (s'il reste trop peu de place, elle part sur une page à elle) ;
 //  2. un croquis (image PNG dessinée dans l'appli) a toujours une page entière ;
-//  3. les autres photos : une par page, ou deux si elles y gardent presque leur taille (85 %).
+//  3. les autres photos : une par page, ou deux si elles y gardent presque leur taille (90 % de leurs côtés).
 // Les tailles sont calculées à partir de la taille réelle de l'image (lue dans ses premiers octets) :
 // une petite image est AGRANDIE (max-width / max-height ne le font jamais).
 // ═══════════════════════════════════════════════════════════════
@@ -15,10 +15,17 @@ var MEP_PX_MM = 25.4 / 96;          // 1 pixel CSS = 0,2646 mm
 var MEP_LEGENDE_MM = 6;             // place d'une légende sous la photo
 var MEP_ECART_MM = 4;               // espace entre deux photos d'une même page
 var MEP_MIN_PAGE1_MM = 60;          // en dessous, la première photo ne reste pas en page 1
-var MEP_PAIRE = 0.85;               // deux photos par page seulement si chacune garde 85 % de sa taille seule
+var MEP_PAIRE = 0.8;                // deux photos par page seulement si chacune garde 80 % de sa surface seule (90 % de ses côtés)
+var MEP_MARGE_PAGE_MM = 8;          // place gardée libre sur une page de photos (moteur PDF de Google pas mesuré)
 
 // Largeur et hauteur (pixels) d'une image en base64, lues dans ses premiers octets ; null si inconnues
 function mep_taille(p) {
+  if (p && p.mepTaille !== undefined) return p.mepTaille;   // déjà lue (une photo est mesurée plusieurs fois)
+  var t = mep_lireTaille(p);
+  try { if (p) p.mepTaille = t; } catch (e) {}
+  return t;
+}
+function mep_lireTaille(p) {
   var b64 = p && typeof p.data === 'string' ? p.data.replace(/\s/g, '') : '';
   if (!b64) return null;
   var ALPHA = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
@@ -61,9 +68,10 @@ function mep_taille(p) {
   return null;
 }
 
-// Croquis = image PNG (les photos sont toujours enregistrées en JPEG par l'appli)
+// Croquis = image PNG (croquis dessiné dans l'appli ; les photos sont toujours en JPEG) ou photo dont la légende
+// contient « croquis » (photo d'un croquis sur papier)
 function mep_estCroquis(p) {
-  return !!(p && (p.croquis === true || /png/i.test(p.mimeType || p.mime || '')));
+  return !!(p && (p.croquis === true || /png/i.test(p.mimeType || p.mime || '') || /croquis/i.test(p.label || '')));
 }
 
 // Taille (mm) d'une image qui tient dans une boîte l * h en gardant ses proportions ; null si taille inconnue
@@ -119,7 +127,7 @@ function mep_photos(photos, o) {
   }
 
   // 2 et 3. Pages de photos : croquis seul, photos par une ou par deux
-  var hPage = H - titreH - 2;
+  var hPage = H - titreH - MEP_MARGE_PAGE_MM;
   var pages = [];
   while (reste.length) {
     var a = reste.shift();
@@ -145,7 +153,7 @@ function mep_photos(photos, o) {
     pages.push(mep_image(a, L, hA, esc));
   }
   pages.forEach(function (contenu, n) {
-    html += '<div style="page-break-before:always;page-break-inside:avoid">'
+    html += '<div data-mep="photos" style="page-break-before:always;page-break-inside:avoid">'
       + (o.titre ? o.titre(n, pages.length) : '') + contenu + '</div>';
   });
   return html;
@@ -169,7 +177,9 @@ function mep_zone(d, l, h, marge) {
   var f = d && d._mepFormat;
   var paysage = l > h;
   if (f && f.l > 50 && f.h > 50) { l = paysage ? Math.max(f.l, f.h) : Math.min(f.l, f.h); h = paysage ? Math.min(f.l, f.h) : Math.max(f.l, f.h); }
-  return { largeur: l - 2 * marge, hauteur: h - 2 * marge, sansPage1: !!(d && d._mepSansPage1) };
+  // d._mepMargeEnPlus : le serveur a trouvé une page de trop → pages de photos un peu moins hautes
+  var enPlus = d && d._mepMargeEnPlus > 0 ? Math.min(40, Number(d._mepMargeEnPlus)) : 0;
+  return { largeur: l - 2 * marge, hauteur: h - 2 * marge - enPlus, sansPage1: !!(d && d._mepSansPage1) };
 }
 // Place libre sous un contenu estimé (marge de sécurité de 6 mm), 0 si le contenu ne tient pas sur la page 1
 function mep_reste(zone, estime) {

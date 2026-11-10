@@ -55,4 +55,19 @@ module.exports = function (cas, x) {
     { label: 'Planéité des cloisons', state: 'nok', comment: 'Bosse au R+1', photos: [PAYSAGE()] },
     { label: 'Réservations', state: 'ok', comment: '', photos: [PAYSAGE(), PAYSAGE(), PORTRAIT()] },
     { label: 'Sol fini', state: 'so', comment: '', photos: [] }]), DEBOUT_A4);
+
+  // ── Cas difficiles trouvés par la relecture (textes longs dans les en-têtes, commentaire agrandi) ──
+  const c41 = '403-OPALE / STEEN RAIMONDEAU — ST GILLES X';
+  cas('fabrication — chantier long + réf. + précision du délai', 'modele_fabrication',
+    fab([divers(1, 2)], [PAYSAGE()], { chantier: c41, refChantier: 'BAT A R+2', delaiPrecision: 'impératif avant la pose' }), page1(PAYSAGE_A4));
+  cas('fabrication — chantier, zone et précision sur plusieurs lignes', 'modele_fabrication',
+    fab([divers(1, 2)], [PAYSAGE()], { chantier: c41 + ' ' + c41, refChantier: 'BAT A', zone: 'R+1 bâtiment A logements 101 à 115 et circulations communes',
+      delaiPrecision: 'ligne 1\nligne 2\nligne 3' }), page1(PAYSAGE_A4));
+  cas('fabrication — commentaire agrandi', 'modele_fabrication', fab([divers(1, 2)], [PAYSAGE()],
+    { commentaires: '<span style="font-size:1.4em">Attention</span><br><span style="font-size:1.4em">Chants plaqués</span><br>Livrer avant la pose' }), page1(PAYSAGE_A4));
+  cas('note — chantier et rédacteur longs', 'modele_note', note([PAYSAGE()], { chantier: '403-OPALE / STEEN RAIMONDEAU — ST GILLES X DE VIE', auteur: 'Jean-Christophe De La Fontaine-Martin' }), page1(DEBOUT_A4));
+  cas('bordereau — preneur, entreprise et type longs', 'modele_bordereau', bord('bordereau-materiaux', [PAYSAGE()], { preneur: 'Jean-Christophe Martin',
+    fonction: 'Conducteur de travaux', entreprise: 'Entreprise Générale de Bâtiment du Littoral', chantier: '403-OPALE / STEEN RAIMONDEAU — ST GILLES X DE VIE',
+    typeDoc: 'Kit de pose complet pour menuiseries extérieures en aluminium avec accessoires', listeMateriaux: '20 × Vis\n1 × Mousse' }), page1(DEBOUT_A4));
+  cas('fabrication — 3 croquis seuls (une page chacun)', 'modele_fabrication', fab([], [CROQUIS(), CROQUIS(), CROQUIS()]), PAYSAGE_A4);
 };

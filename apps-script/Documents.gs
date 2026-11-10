@@ -5,23 +5,28 @@
 
 // ═══════════════════════════════════════════════════════════════
 // PDF D'UN MODÈLE, CONTRÔLÉ (lot 1, retouche R1)
-// Le modèle place la 1re photo sous le contenu de la page 1 d'après une ESTIMATION de la hauteur du contenu.
-// Le moteur PDF de Google n'est pas exactement celui de l'aperçu : on compte les pages du PDF obtenu.
-// Une page de trop = la photo a été rejetée sur la page suivante → on refait le PDF UNE fois, avec le format
-// de page réel et cette photo sur une page à elle. (Quelques secondes de plus, rarement.)
+// Le modèle place les photos d'après une ESTIMATION de la hauteur du contenu (photo de la page 1) et la zone utile
+// d'une page A4 (pages de photos). Le moteur PDF de Google n'est pas exactement celui de l'aperçu : on compte les pages
+// du PDF obtenu. Une page de plus que prévu (photo rejetée, page blanche) → on refait le PDF UNE fois, avec le format
+// de page réel, la photo de la page 1 sur une page à elle et des pages de photos moins hautes, et on garde celui des
+// deux qui a le moins de pages. (Quelques secondes de plus, rarement ; aussi pour un texte de plusieurs pages.)
 // ═══════════════════════════════════════════════════════════════
 function pdfDuModele_(modele, d, nom) {
   const html = modele(d, esc_);
   const blob = HtmlService.createHtmlOutput(html).getAs('application/pdf').setName(nom);
-  if (html.indexOf('data-mep="page1"') < 0) return blob;
+  if (html.indexOf('data-mep=') < 0) return blob;   // pas de photo : rien à contrôler
   const info = infoPdf_(blob);
+  if (!info.pages) { console.log('Mise en page : nombre de pages illisible dans le PDF de Google, contrôle impossible'); return blob; }
   const prevues = 1 + (html.match(/page-break-before:always/g) || []).length;
-  if (!info.pages || info.pages <= prevues) return blob;
-  console.log('Mise en page : ' + info.pages + ' pages au lieu de ' + prevues + ' (format ' + info.l + ' × ' + info.h
-    + ' mm) : la photo de la page 1 passe sur une page à elle');
-  const d2 = Object.assign({}, d, { _mepSansPage1: true });
+  if (info.pages <= prevues) return blob;
+  const d2 = Object.assign({}, d, { _mepSansPage1: true, _mepMargeEnPlus: 10 });
   if (info.l && info.h) d2._mepFormat = { l: info.l, h: info.h };
-  return HtmlService.createHtmlOutput(modele(d2, esc_)).getAs('application/pdf').setName(nom);
+  const blob2 = HtmlService.createHtmlOutput(modele(d2, esc_)).getAs('application/pdf').setName(nom);
+  const info2 = infoPdf_(blob2);
+  const garde2 = info2.pages && info2.pages < info.pages;
+  console.log('Mise en page : ' + info.pages + ' pages pour ' + prevues + ' prévues (format ' + info.l + ' × ' + info.h + ' mm) ; '
+    + 'refait : ' + (info2.pages || '?') + ' pages → ' + (garde2 ? 'PDF refait gardé' : 'premier PDF gardé'));
+  return garde2 ? blob2 : blob;
 }
 // Nombre de pages et format (mm) d'un PDF, lus dans le fichier ; {} si illisible
 function infoPdf_(blob) {
