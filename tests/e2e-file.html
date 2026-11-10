@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Test file d'attente</title>
+<link rel="stylesheet" href="../commun/style.css">
+<script src="../commun/config.js"></script>
+<script src="../commun/api.js"></script>
+<script src="../commun/ui.js"></script>
+<script src="../commun/photos.js"></script>
+</head><body>
+<h1>Test de bout en bout : file d'attente d'envoi</h1>
+<p>Page de test (développement) : à ouvrir avec <code>?api=http://127.0.0.1:8790/exec</code> et le faux serveur lancé.</p>
+<pre id="journal"></pre>
+<script>
+// Scénarios pilotés depuis la console ou par l'outil de test
+window.SERVEUR = 'http://127.0.0.1:8790';
+window.regler = m => fetch(SERVEUR + '/reglage?mode=' + m).then(r => r.json());
+window.etat = () => fetch(SERVEUR + '/etat').then(r => r.json());
+window.fauxBlob = () => new Promise(ok => { const c = document.createElement('canvas'); c.width = c.height = 64;
+  const x = c.getContext('2d'); x.fillStyle = '#c00'; x.fillRect(0, 0, 64, 64); c.toBlob(ok, 'image/jpeg', .7); });
+window.ficheQuitus = async (dest) => {
+  const b = await fauxBlob(); const idP = LOUE.nouvelId('photo');
+  return LOUE.mettreEnFile('quitus', { chantier: 'CHANTIER TEST 1', date: '30/10/2026', intervenant: 'Client', solde: 'OUI',
+    destinataires: dest || ['franck@loue.test'], photosBase64: [{ photoRef: idP, label: 'Porte' }] }, [{ id: idP, blob: b }], 'Quitus');
+};
+window.fileActuelle = () => LOUE.stockage.tout('file');
+</script>
+</body></html>
