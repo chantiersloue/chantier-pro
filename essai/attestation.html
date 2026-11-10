@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Loué App — Attestation</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Loué App">
+<meta name="theme-color" content="#1A2B4A">
+<link rel="stylesheet" href="commun/style.css?v=9bbb75edc5">
+<link rel="stylesheet" href="commun/fiche.css?v=9bbb75edc5">
+<style>
+:root{--purple:#6B3FA0;--purple-l:#EDE8F8;}
+.type-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.type-btn{min-height:56px;padding:10px 8px;border-radius:var(--r);border:2px solid var(--border2);background:#fff;cursor:pointer;font-family:inherit;font-size:16px;font-weight:700;color:var(--text);}
+.type-btn.active{border-color:var(--purple);background:var(--purple-l);color:var(--purple);}
+.choix-group{display:flex;flex-wrap:wrap;gap:8px;}
+.choix-btn{min-height:44px;padding:8px 12px;border:1.5px solid var(--border2);border-radius:var(--r);background:#fff;cursor:pointer;font-family:inherit;font-size:15px;color:var(--text);}
+.choix-btn.active{background:var(--purple-l);border-color:var(--purple);color:var(--purple);font-weight:700;}
+.das-compteurs{font-size:14px;font-weight:700;margin-bottom:10px;}
+.das-points{display:flex;flex-direction:column;gap:8px;}
+.das-point-row{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:8px 10px;background:var(--bg);border:1px solid var(--border);border-radius:var(--r);}
+.das-point-label{flex:1 1 180px;font-size:15px;}
+.das-states{display:flex;gap:6px;}
+.das-state-btn{min-width:68px;min-height:44px;border-radius:var(--r);border:1.5px solid var(--border2);background:#fff;cursor:pointer;font-family:inherit;font-size:14px;font-weight:700;color:var(--text);}
+.das-state-btn.ok.active{background:var(--green);border-color:var(--green);color:#fff;}
+.das-state-btn.so.active{background:#6F6F6F;border-color:#6F6F6F;color:#fff;}
+.das-state-btn.nc.active{background:var(--red);border-color:var(--red);color:#fff;}
+</style>
+</head>
+<body>
+
+<div class="topbar no-print">
+  <a class="btn btn-secondary btn-petit" href="index.html" aria-label="Retour à l'accueil">‹ Retour</a>
+  <span class="tb-name">Attestation</span>
+  <span id="loue-envoi-place"></span>
+  <button class="btn btn-secondary btn-petit" type="button" onclick="ouvrirApercu()">Aperçu</button>
+</div>
+
+<div class="main">
+
+  <div class="val-banner" id="valBanner" role="alert"></div>
+
+  <!-- TYPE D'ATTESTATION -->
+  <div class="section">
+    <div class="section-head" style="color:var(--purple)">Type d'attestation <span class="oblig">*</span></div>
+    <div class="section-body">
+      <div class="type-grid">
+        <button class="type-btn" type="button" data-type="mise-oeuvre" onclick="choisirType('mise-oeuvre')">Mise en œuvre</button>
+        <button class="type-btn" type="button" data-type="levee-obs" onclick="choisirType('levee-obs')">Levée d'observations</button>
+        <button class="type-btn" type="button" data-type="das" onclick="choisirType('das')">Contrôle DAS</button>
+        <button class="type-btn" type="button" data-type="autre" onclick="choisirType('autre')">Autre</button>
+      </div>
+      <div id="type-autre-field" class="meta-field" style="display:none;margin-top:10px">
+        <label class="meta-label" for="type-autre-text">Type d'attestation (titre du document)</label>
+        <input class="meta-input" id="type-autre-text" placeholder="Préciser le type d'attestation…">
+      </div>
+    </div>
+  </div>
+
+  <!-- CHANTIER ET SIGNATAIRE -->
+  <div class="section">
+    <div class="section-head" style="color:var(--purple)">Chantier et signataire</div>
+    <div class="section-body">
+      <div class="aide">Le PDF est envoyé automatiquement au conducteur du chantier.</div>
+      <div class="meta-grid">
+        <div class="meta-field meta-full">
+          <label class="meta-label" for="meta-chantier">Chantier <span class="oblig">*</span></label>
+          <input class="meta-input" id="meta-chantier" list="liste-chantiers" placeholder="Choisir ou taper le chantier" autocomplete="off">
+          <datalist id="liste-chantiers"></datalist>
+          <div class="listes-info" id="listes-info"></div>
+        </div>
+        <div class="meta-field meta-full">
+          <label class="meta-label" for="meta-precision">Précision chantier (facultatif)</label>
+          <input class="meta-input" id="meta-precision" placeholder="Ex. : bâtiment A, niveau 2, appt 12…">
+        </div>
+        <div class="meta-field">
+          <label class="meta-label" for="meta-signataire">Signataire <span class="oblig">*</span></label>
+          <input class="meta-input" id="meta-signataire" placeholder="Nom…" list="liste-signataires" autocomplete="off">
+          <datalist id="liste-signataires"></datalist>
+        </div>
+        <div class="meta-field">
+          <label class="meta-label" for="meta-date">Date</label>
+          <input class="meta-input" id="meta-date" type="date">
+        </div>
+        <div class="meta-field meta-full">
+          <label class="meta-label" for="meta-ref">Référence du document (facultatif : PV OPR, rapport du bureau de contrôle…)</label>
+          <input class="meta-input" id="meta-ref" placeholder="Ex. : PV-OPR-2026-014…">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- OBJET (tous les types sauf le contrôle DAS, qui a ses propres champs) -->
+  <div class="section" id="section-objet">
+    <div class="section-head" style="color:var(--purple)" id="objet-titre">Objet de l'attestation <span class="oblig">*</span></div>
+    <div class="section-body">
+      <textarea class="meta-input" id="meta-objet" rows="5" placeholder="Décrire l'objet de l'attestation (le micro du clavier permet de dicter)"></textarea>
+    </div>
+  </div>
+
+  <!-- CONTRÔLE DAS -->
+  <div class="section" id="section-das" style="display:none">
+    <div class="section-head" style="color:var(--purple)">Identification du bloc porte</div>
+    <div class="section-body">
+      <div class="meta-grid">
+        <div class="meta-field">
+          <label class="meta-label" for="das-numero">N° du bloc porte <span class="oblig">*</span></label>
+          <input class="meta-input" id="das-numero" placeholder="Ex. : BP-01…">
+        </div>
+        <div class="meta-field">
+          <label class="meta-label" for="das-etage">Étage / niveau</label>
+          <input class="meta-input" id="das-etage" placeholder="Ex. : RDC, R+1…">
+        </div>
+        <div class="meta-field meta-full">
+          <label class="meta-label" for="das-localisation">Localisation</label>
+          <input class="meta-input" id="das-localisation" placeholder="Ex. : couloir principal, hall d'entrée…">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section" id="section-das-asserv" style="display:none">
+    <div class="section-head" style="color:var(--purple)">Type(s) d'asservissement</div>
+    <div class="section-body">
+      <div class="choix-group" id="asserv-group"></div>
+    </div>
+  </div>
+
+  <div class="section" id="section-das-points" style="display:none">
+    <div class="section-head" style="color:var(--purple)">Points de contrôle DAS</div>
+    <div class="section-body">
+      <div class="das-compteurs" id="das-compteurs"></div>
+      <div class="das-points" id="das-points-list"></div>
+    </div>
+  </div>
+
+  <!-- PHOTOS -->
+  <div class="section">
+    <div class="section-head" style="color:var(--purple)">Photos (facultatif)</div>
+    <div class="section-body">
+      <input type="file" id="photo-cam" accept="image/*" capture="environment" hidden onchange="ajouterPhotos(this.files);this.value=''">
+      <input type="file" id="photo-galerie" accept="image/*" multiple hidden onchange="ajouterPhotos(this.files);this.value=''">
+      <div class="photo-btns">
+        <button class="btn" type="button" onclick="document.getElementById('photo-cam').click()">📷 Prendre une photo</button>
+        <button class="btn" type="button" onclick="document.getElementById('photo-galerie').click()">🖼 Galerie</button>
+      </div>
+      <div class="photos-list" id="photos-list"></div>
+    </div>
+  </div>
+
+  <!-- SIGNATURE -->
+  <div class="section">
+    <div class="section-head" style="color:var(--purple)">Signature</div>
+    <div class="section-body">
+      <div class="sig-box">
+        <div class="sig-label">Signature du signataire <button class="btn btn-secondary btn-petit" type="button" onclick="SIG.effacer()">Effacer</button></div>
+        <canvas class="sig" id="sig-canvas"></canvas>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="bottom-bar no-print">
+  <a class="btn btn-secondary" href="index.html">‹ Retour</a>
+  <button class="btn btn-green" id="btn-envoyer" type="button" onclick="envoyer()" style="flex:1">Envoyer l'attestation</button>
+</div>
+
+<!-- APERÇU (le même modèle que le PDF envoyé par mail) -->
+<div class="apercu" id="apercu" role="dialog" aria-label="Aperçu du PDF">
+  <div class="apercu-inner">
+    <div class="apercu-head">
+      <b>Aperçu du PDF</b>
+      <button class="btn btn-secondary btn-petit" type="button" onclick="imprimer()">🖨 Imprimer</button>
+      <button class="btn btn-secondary btn-petit" type="button" onclick="imprimer(true)">⬇ Enregistrer en PDF</button>
+      <button class="btn btn-secondary btn-petit" type="button" onclick="fermerApercu()">Fermer</button>
+    </div>
+    <iframe id="apercu-cadre" title="Aperçu de l'attestation"></iframe>
+    <div class="apercu-aide">« Enregistrer en PDF » : dans la fenêtre qui s'ouvre, choisissez l'imprimante « Enregistrer au format PDF » (ou « Microsoft Print to PDF »).</div>
+  </div>
+</div>
+
+<script src="commun/config.js?v=9bbb75edc5"></script>
+<script src="commun/api.js?v=9bbb75edc5"></script>
+<script src="commun/ui.js?v=9bbb75edc5"></script>
+<script src="commun/photos.js?v=9bbb75edc5"></script>
+<script src="commun/signature.js?v=9bbb75edc5"></script>
+<script src="commun/brouillon.js?v=9bbb75edc5"></script>
+<script src="commun/hors-ligne.js?v=9bbb75edc5"></script>
+<script src="modeles/mise-en-page.js?v=9bbb75edc5"></script>
+<script src="modeles/attestation.js?v=9bbb75edc5"></script>
+<script>
+'use strict';
+// ── Listes fixes ──
+const DAS_POINTS = [
+  'Fermeture automatique sur déclenchement',
+  'Fermeture manuelle (poignée/bouton)',
+  'Maintien en position ouverte',
+  'Déverrouillage sur alarme',
+  'Réarmement après essai',
+  'État du mécanisme de fermeture',
+  'Signalétique conforme',
+  'Accessibilité dégagée',
+  'Joint coupe-feu en bon état',
+  'Charnières et bras de fermeture',
+  'Absence de calage/obstruction',
+  'Seuil (aucun obstacle)',
+];
+const ASSERVISSEMENTS = ['Détecteur de fumée', 'SSI / Centrale', 'Commande manuelle', 'Coupure électrique',
+  'Télécommande', 'Bouton poussoir', 'Gâche électrique', 'Électro-aimant'];
+// Libellé court : colonne « Type » de l'onglet Attestations, sujet du mail, nom du fichier (comme avant la refonte)
+const TYPES_COURTS = { 'mise-oeuvre': 'Mise en œuvre', 'levee-obs': 'Levée d\'observations', 'das': 'Contrôle DAS' };
+
+// ── État de la fiche ──
+let typeChoisi = null;
+let dasStates = {};       // { libellé du point : 'ok' | 'so' | 'nc' }
+let asserv = [];          // asservissements cochés
+let photos = [];          // [{ id, blob, url }]
+let LISTES = { contacts: [], contactNotes: [], chantiers: [] };
+const SIG = LOUE.signature(document.getElementById('sig-canvas'));
+const prevenir = () => document.dispatchEvent(new Event('change'));   // déclenche la sauvegarde du brouillon
+
+// ── Date du jour (champ modifiable, comme avant) ──
+function dateDuJour() {
+  const now = new Date(), p = n => String(n).padStart(2, '0');
+  document.getElementById('meta-date').value = now.getFullYear() + '-' + p(now.getMonth() + 1) + '-' + p(now.getDate());
+}
+dateDuJour();
+function dateFr() {
+  const v = document.getElementById('meta-date').value;
+  return v ? v.split('-').reverse().join('/') : '';
+}
+
+// ── Listes (chantiers, contacts) : réseau, sinon dernière liste gardée dans le téléphone ──
+let listesDuTelephone = false;
+LOUE.chargerListes().then(r => {
+  listesDuTelephone = !!r.depuisLeTelephone || !!r.partiel;   // lot 2 : liste ancienne, ou limitée à « mes chantiers » → on demande confirmation
+  LISTES = Object.assign(LISTES, r.donnees || {});
+  document.getElementById('liste-chantiers').innerHTML = (LISTES.chantiers || [])
+    .map(c => '<option value="' + LOUE.esc(c.nom) + '">' + LOUE.esc(c.reference || '') + '</option>').join('');
+  document.getElementById('liste-signataires').innerHTML = (LISTES.contacts || [])
+    .map(c => '<option value="' + LOUE.esc(c.nom) + '"></option>').join('');
+  if (r.depuisLeTelephone) {
+    const d = new Date(r.date);
+    document.getElementById('listes-info').textContent = 'Pas de réseau : listes du ' + d.toLocaleDateString('fr-FR') + ' gardées dans le téléphone.';
+  }
+}).catch(() => {
+  document.getElementById('listes-info').textContent = 'Listes indisponibles (pas de réseau). Tapez le nom du chantier : la fiche partira quand même.';
+});
+
+// ── Type d'attestation ──
+function choisirType(type) {
+  typeChoisi = type;
+  document.querySelectorAll('.type-btn').forEach(b => b.classList.toggle('active', b.dataset.type === type));
+  const das = type === 'das';
+  ['section-das', 'section-das-asserv', 'section-das-points'].forEach(id => { document.getElementById(id).style.display = das ? '' : 'none'; });
+  document.getElementById('section-objet').style.display = das ? 'none' : '';
+  document.getElementById('type-autre-field').style.display = type === 'autre' ? '' : 'none';
+  const titres = { 'mise-oeuvre': 'Objet — mise en œuvre', 'levee-obs': 'Objet — observations levées' };
+  document.getElementById('objet-titre').innerHTML = LOUE.esc(titres[type] || 'Objet de l\'attestation') + ' <span class="oblig">*</span>';
+  afficherDas();
+  prevenir();
+}
+function libelleCourt() {
+  if (typeChoisi === 'autre') return document.getElementById('type-autre-text').value.trim() || 'Attestation';
+  return TYPES_COURTS[typeChoisi] || '';
+}
+
+// ── Contrôle DAS : asservissements et points ──
+function afficherAsserv() {
+  document.getElementById('asserv-group').innerHTML = ASSERVISSEMENTS.map((a, i) => {
+    const actif = asserv.indexOf(a) > -1;
+    return '<button type="button" class="choix-btn' + (actif ? ' active' : '') + '" aria-pressed="' + actif + '" onclick="basculerAsserv(' + i + ')">' + LOUE.esc(a) + '</button>';
+  }).join('');
+}
+function basculerAsserv(i) {
+  const a = ASSERVISSEMENTS[i];
+  asserv = asserv.indexOf(a) > -1 ? asserv.filter(x => x !== a) : asserv.concat([a]);
+  afficherAsserv(); prevenir();
+}
+function texteAsserv() { return ASSERVISSEMENTS.filter(a => asserv.indexOf(a) > -1).join(', '); }
+
+function afficherDas() {
+  const etats = [['ok', '✓ OK'], ['so', '— S.O.'], ['nc', '✗ N.C.']];
+  document.getElementById('das-points-list').innerHTML = DAS_POINTS.map((p, i) =>
+    '<div class="das-point-row"><span class="das-point-label">' + LOUE.esc(p) + '</span><div class="das-states">'
+    + etats.map(e => '<button type="button" class="das-state-btn ' + e[0] + (dasStates[p] === e[0] ? ' active' : '') + '" aria-pressed="' + (dasStates[p] === e[0])
+      + '" onclick="choisirEtatDas(' + i + ',\'' + e[0] + '\')">' + e[1] + '</button>').join('')
+    + '</div></div>').join('');
+  const vals = Object.keys(dasStates).map(k => dasStates[k]);
+  const nb = s => vals.filter(v => v === s).length;
+  document.getElementById('das-compteurs').innerHTML = '<span style="color:var(--green)">' + nb('ok') + ' conforme(s)</span> · '
+    + '<span style="color:var(--red)">' + nb('nc') + ' non conforme(s)</span> · <span style="color:#6F6F6F">' + nb('so') + ' sans objet</span>';
+}
+function choisirEtatDas(i, etat) {
+  const p = DAS_POINTS[i];
+  if (dasStates[p] === etat) delete dasStates[p]; else dasStates[p] = etat;   // deuxième appui : on retire le choix
+  afficherDas(); prevenir();
+}
+
+// ── Photos : compressées dès qu'on les ajoute (200 à 400 Ko chacune) ──
+async function ajouterPhotos(fichiers) {
+  for (const f of Array.from(fichiers || [])) {
+    if (photos.length >= LOUE.PHOTOS_MAX) { LOUE.message(LOUE.PHOTOS_MAX + ' photos au maximum par fiche'); break; }
+    try {
+      const blob = await LOUE.compresserPhoto(f);
+      photos.push({ id: LOUE.nouvelId('photo'), blob, url: URL.createObjectURL(blob) });
+    } catch (err) { LOUE.message(err.message, 8000); }
+  }
+  afficherPhotos(); prevenir();
+}
+function retirerPhoto(i) { URL.revokeObjectURL(photos[i].url); photos.splice(i, 1); afficherPhotos(); prevenir(); }
+function afficherPhotos() {
+  document.getElementById('photos-list').innerHTML = photos.map((p, i) =>
+    '<div class="photo-item"><div class="photo-item-head"><span class="photo-item-num" style="flex:1">Photo ' + (i + 1) + '</span>'
+    + '<button class="btn btn-secondary btn-petit" type="button" onclick="retirerPhoto(' + i + ')">Retirer</button></div>'
+    + '<img src="' + p.url + '" alt="Photo ' + (i + 1) + '"></div>').join('');
+}
+
+// ── Brouillon automatique : champs + type + contrôle DAS + photos + signature ──
+// Ancien brouillon (avant la refonte, clé « loue_attestation_brouillon ») : objet à plat, photos en texte (base64)
+function dataUrlEnBlob(url) {
+  const m = /^data:([^;,]+);base64,(.*)$/.exec(url || '');
+  if (!m || !m[2]) return null;
+  const bin = atob(m[2]), octets = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) octets[i] = bin.charCodeAt(i);
+  return new Blob([octets], { type: m[1] });
+}
+function convertirAncien(v) {
+  const champs = {};
+  const mettre = (id, val) => { if (val) champs[id] = { v: String(val) }; };
+  mettre('type-autre-text', v.typeAutreText); mettre('meta-chantier', v.chantier); mettre('meta-precision', v.precision);
+  mettre('meta-signataire', v.signataire); mettre('meta-date', v.date); mettre('meta-ref', v.ref); mettre('meta-objet', v.objet);
+  mettre('das-numero', v.dasNumero); mettre('das-etage', v.dasEtage); mettre('das-localisation', v.dasLocalisation);
+  const anciennes = (Array.isArray(v.photos) ? v.photos : []).map(p => {
+    let blob = null;
+    try { blob = dataUrlEnBlob(p && p.url && String(p.url).indexOf('data:') === 0 ? p.url : 'data:' + ((p && p.mime) || 'image/jpeg') + ';base64,' + ((p && p.base64) || '')); } catch (e) {}
+    return blob ? { id: LOUE.nouvelId('photo'), blob } : null;
+  }).filter(Boolean);
+  if (!v.type && !Object.keys(champs).length && !anciennes.length) return null;
+  return { champs, extra: { type: v.type || null, asserv: Array.isArray(v.asservissements) ? v.asservissements : [],
+    dasStates: v.dasStates && typeof v.dasStates === 'object' ? v.dasStates : {}, photos: anciennes } };
+}
+LOUE.preRemplirChantier('meta-chantier');   // lot 2 : chantier choisi à l'accueil (avant la photo de la page vierge)
+const BROUILLON = LOUE.brouillon({
+  champChantier: 'meta-chantier',
+  cle: 'attestation',
+  anciennesCles: ['loue_attestation_brouillon'],
+  convertirAncien,
+  capturer: () => ({
+    type: typeChoisi, asserv: asserv.slice(), dasStates: Object.assign({}, dasStates),
+    photos: photos.map(p => ({ id: p.id, blob: p.blob })),
+    sig: SIG.lireTraits(),
+  }),
+  restaurer: x => {
+    dasStates = {};
+    Object.keys(x.dasStates || {}).forEach(k => { if (['ok', 'so', 'nc'].indexOf(x.dasStates[k]) > -1) dasStates[k] = x.dasStates[k]; });
+    asserv = (x.asserv || []).filter(a => ASSERVISSEMENTS.indexOf(a) > -1);
+    afficherAsserv();
+    if (x.type) choisirType(x.type); else afficherDas();
+    photos.forEach(p => URL.revokeObjectURL(p.url));
+    photos = (x.photos || []).filter(p => p && p.blob).map(p => ({ id: p.id || LOUE.nouvelId('photo'), blob: p.blob, url: URL.createObjectURL(p.blob) }));
+    afficherPhotos();
+    if (x.sig) SIG.ecrireTraits(x.sig);
+    // Photos d'un ancien brouillon (jamais compressées) : on les compresse maintenant
+    photos.filter(p => p.blob.size > 1500000).forEach(async p => {
+      try {
+        const b = await LOUE.compresserPhoto(p.blob);
+        URL.revokeObjectURL(p.url); p.blob = b; p.url = URL.createObjectURL(b);
+        afficherPhotos(); prevenir();
+      } catch (e) {}
+    });
+  },
+});
+
+// ── Données de la fiche (mêmes noms de champs qu'avant la refonte) ──
+function qualiteDe(nom) {
+  const c = (LISTES.contacts || []).find(x => x.nom && x.nom.toLowerCase() === String(nom || '').trim().toLowerCase());
+  return c && c.role ? c.role : '';
+}
+function donneesFiche(pourApercu) {
+  const v = id => document.getElementById(id).value.trim();
+  const d = {
+    typeAttest: typeChoisi || '', typeLabel: libelleCourt(),
+    chantier: v('meta-chantier'), precision: v('meta-precision'), signataire: v('meta-signataire'),
+    date: dateFr(), ref: v('meta-ref'), objet: document.getElementById('meta-objet').value,
+    dasNumero: v('das-numero'), dasEtage: v('das-etage'), dasLocalisation: v('das-localisation'),
+    asservissements: texteAsserv(),
+    dasPoints: typeChoisi === 'das' ? DAS_POINTS.map(p => ({ label: p, state: dasStates[p] || '' })) : [],
+    signature: SIG.versDataUrl(),
+    // Aperçu : photos lues sur place ; envoi : références aux photos envoyées une par une
+    photos: photos.map(p => pourApercu ? { data: p.dataB64 || '', mimeType: p.blob.type || 'image/jpeg' } : { photoRef: p.id }),
+  };
+  // Fonction du signataire : pour l'aperçu seulement (le serveur la lit lui-même dans l'onglet Contacts)
+  if (pourApercu) d.qualite = qualiteDe(d.signataire);
+  return d;
+}
+
+// ── Aperçu, impression, enregistrement en PDF (le même modèle que le PDF du mail) ──
+async function ouvrirApercu() {
+  for (const p of photos) if (!p.dataB64) p.dataB64 = (await LOUE.blobEnDataUrl(p.blob)).split(',')[1];
+  document.getElementById('apercu-cadre').srcdoc = modele_attestation(donneesFiche(true), LOUE.esc);
+  document.getElementById('apercu').classList.add('open');
+}
+function fermerApercu() { document.getElementById('apercu').classList.remove('open'); }
+function imprimer(enPdf) {
+  const cadre = document.getElementById('apercu-cadre');
+  if (enPdf) LOUE.message('Choisissez l’imprimante « Enregistrer au format PDF »', 6000);
+  cadre.contentWindow.focus();
+  cadre.contentWindow.print();
+}
+
+// Après l'envoi : on vide ce qui est propre à cette attestation ; on garde le type, le chantier, la précision,
+// le signataire, la date et la référence (plusieurs attestations de suite, par exemple une par bloc porte)
+function viderFiche() {
+  ['meta-objet', 'das-numero', 'das-etage', 'das-localisation'].forEach(id => { document.getElementById(id).value = ''; });
+  dasStates = {}; asserv = []; afficherAsserv(); afficherDas();
+  photos.forEach(p => URL.revokeObjectURL(p.url)); photos = []; afficherPhotos();
+  SIG.ecrireTraits([]);
+  window.scrollTo(0, 0);
+}
+
+// ── Envoi : la fiche est rangée dans le téléphone, puis part (tout de suite ou au retour du réseau) ──
+let envoiEnCours = false;
+const TEXTE_BOUTON = 'Envoyer l\'attestation';
+async function envoyer() {
+  if (envoiEnCours) return;
+  const erreurs = [];
+  const champ = id => document.getElementById(id);
+  ['meta-chantier', 'meta-signataire', 'meta-objet', 'das-numero'].forEach(id => champ(id).classList.remove('error'));
+  if (!typeChoisi) erreurs.push('choisissez le type d’attestation');
+  const nomChantier = champ('meta-chantier').value.trim();
+  const listeChantiers = (LISTES.chantiers || []).map(c => String(c.nom).toLowerCase());
+  if (!nomChantier) { champ('meta-chantier').classList.add('error'); erreurs.push('chantier manquant'); }
+  // Liste chargée : le chantier doit en faire partie (une faute de frappe créerait un nouveau dossier dans Drive)
+  else if (listeChantiers.length && listeChantiers.indexOf(nomChantier.toLowerCase()) < 0) {
+    // Liste ancienne gardée dans le téléphone : un chantier récent peut manquer → on demande confirmation
+    if (!(listesDuTelephone && confirm(LOUE.questionHorsListe(nomChantier)))) {
+      champ('meta-chantier').classList.add('error'); erreurs.push('choisissez le chantier dans la liste');
+    }
+  }
+  if (!champ('meta-signataire').value.trim()) { champ('meta-signataire').classList.add('error'); erreurs.push('signataire manquant'); }
+  if (typeChoisi === 'das' && !champ('das-numero').value.trim()) { champ('das-numero').classList.add('error'); erreurs.push('n° du bloc porte manquant'); }
+  if (typeChoisi && typeChoisi !== 'das' && !champ('meta-objet').value.trim()) { champ('meta-objet').classList.add('error'); erreurs.push('objet de l’attestation manquant'); }
+  const bandeau = document.getElementById('valBanner');
+  if (erreurs.length) {
+    bandeau.textContent = 'À compléter : ' + erreurs.join(', ') + '.';
+    bandeau.classList.add('show'); bandeau.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    return;
+  }
+  bandeau.classList.remove('show');
+  envoiEnCours = true;
+  const bouton = document.getElementById('btn-envoyer');
+  bouton.disabled = true; bouton.textContent = 'Rangement dans le téléphone…';
+  const lesPhotos = photos.map(p => ({ id: p.id, blob: p.blob }));
+  let enFile = false;
+  try {
+    await LOUE.mettreEnFile('attestation', donneesFiche(false), lesPhotos, 'Attestation');
+    enFile = true;
+    await BROUILLON.effacer();   // la fiche est à l'abri dans la file d'envoi
+    LOUE.message('Attestation rangée dans le téléphone. Envoi au conducteur du chantier en cours… (voir l’indicateur en haut)', 6000);
+    viderFiche();
+    LOUE.viderFile();   // on reste sur la page : quitter maintenant couperait l'envoi en cours (il reprendrait plus tard)
+    BROUILLON.reprendre();
+  } catch (err) {
+    if (!enFile) {
+      // Plan de secours : le téléphone refuse de garder la fiche (navigation privée, mémoire pleine) → envoi direct
+      bouton.textContent = 'Envoi direct… ne quittez pas la page';
+      try {
+        const rep = await LOUE.envoyerDirect('attestation', donneesFiche(false), lesPhotos);
+        await BROUILLON.effacer();
+        LOUE.message('✓ Attestation envoyée — ' + (rep.message || ''), 8000);
+        viderFiche(); BROUILLON.reprendre();
+      } catch (err2) {
+        LOUE.message(err2.aConfirmer ? LOUE.MSG_DIRECT_A_CONFIRMER : err2.connexion ? LOUE.MSG_DIRECT_CONNEXION : '⚠ L’attestation n’est pas partie : ' + err2.message + '. Gardez la page ouverte et réessayez quand il y aura du réseau.', 12000);
+      }
+    }
+  }
+  bouton.disabled = false; bouton.textContent = TEXTE_BOUTON;
+  envoiEnCours = false;
+}
+
+afficherAsserv();
+afficherDas();
+</script>
+</body>
+</html>

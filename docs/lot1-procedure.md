@@ -1,5 +1,7 @@
 # Lot 1 — Fondations : procédure de déploiement et de test
 
+> **État au 10/11/2026 : le lot 1 est en production** (serveur v5.1, pages de la demande de fusion #6, rangement du vrai Drive fait). Reste seulement l'étape D.11 : installer l'appli sur les iPhone des poseurs. Le lot 2 suit : `docs/lot2-procedure.md`.
+>
 > Pour Franck. Durée totale : environ 2 h 30 en 5 étapes, réparties sur plusieurs jours si tu veux.
 > **Ne passe à l'étape suivante que si la précédente est verte.** Si une ligne n'est pas verte : arrête-toi et envoie-moi une capture, je corrige en priorité.
 > Les identifiants (dossiers, Sheet) sont dans `_prive/` : `ids-drive.txt` et `ids-test.txt`.
@@ -198,9 +200,9 @@ Choisis le soir ou un moment où personne n'envoie de fiche : pendant `executerM
 
 ## Ce que tu dois faire, en résumé
 
-- [ ] A — coller le serveur sur TEST, vérifier `v5.0`, vérifier les pages actuelles avec `?env=test`.
-- [ ] B — ouvrir et installer la copie d'essai.
-- [ ] C — les 18 essais + la migration sur TEST (avec son retour arrière). *(Fait, sauf l'essai 17.)*
-- [ ] Retouches — R-A serveur v5.1 sur TEST, R-B `essaiMiseEnPage` (m'envoyer le journal), R-C onglet « Matériaux bordereau », R-D essai 17 et essais des retouches.
-- [ ] D — serveur de production, puis fusion de `livraison/lot-1`, puis installation sur les iPhone des gars.
-- [ ] E — migration du vrai Drive, après sauvegarde CSV.
+- [x] A — coller le serveur sur TEST, vérifier `v5.0`, vérifier les pages actuelles avec `?env=test`.
+- [x] B — ouvrir et installer la copie d'essai.
+- [x] C — les 18 essais + la migration sur TEST (avec son retour arrière).
+- [x] Retouches — R-A serveur v5.1 sur TEST, R-B `essaiMiseEnPage`, R-C onglet « Matériaux bordereau », R-D essai 17 et essais des retouches.
+- [x] D — serveur de production (v5.1), puis fusion de `livraison/lot-1` (demande #6). **Reste D.11 : installation sur les iPhone des gars.**
+- [x] E — migration du vrai Drive, après sauvegarde CSV.
