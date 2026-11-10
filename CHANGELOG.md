@@ -13,7 +13,7 @@ Chaque lot : **quoi**, **pourquoi**, **comment déployer**. Procédures détaill
 
 **Comment déployer** : `docs/lot1-procedure.md`, section « Retouches » (coller `Code.gs` v5.1 sur TEST, `verifierConfig`, `essaiMiseEnPage`, puis fusionner `livraison/lot-1-essai-2`).
 
-**Tests** : `node tests/lot1-retouches.test.js` (27) ; `node tests/pdf-mise-en-page.js` (22 PDF fabriqués par Chrome) ; file d'envoi essayée dans le navigateur avec le faux serveur (réponse perdue, envoi lent, retour dans l'appli).
+**Tests** : `node tests/lot1-retouches.test.js` (29) ; `node tests/pdf-mise-en-page.js` (23 PDF fabriqués par Chrome) ; file d'envoi essayée dans le navigateur avec le faux serveur (réponse perdue, envoi lent, retour dans l'appli).
 
 ## Lot 1 — Fondations (serveur v5, appli 5.0) — en test
 

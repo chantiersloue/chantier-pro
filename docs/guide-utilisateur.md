@@ -18,7 +18,7 @@ Remplis la fiche, signe, touche **Envoyer**.
   - Dans la liste, **« Pas encore confirmée par le bureau »** : la fiche est sans doute arrivée, l'appli attend la confirmation. Elle redemande toute seule dans les secondes qui suivent (et dès que tu reviens dans l'appli). **Ne refais pas la fiche** : un renvoi automatique ne crée jamais de 2e mail, mais une fiche refaite à la main, si.
 - **Pas de réseau sur le chantier ?** Remplis et envoie quand même : la fiche attend dans le téléphone.
 - **Photos** : 10 au maximum par fiche. Elles sont réduites automatiquement (rien à faire).
-- **Photos dans le PDF** : la 1re photo se place sur la page 1, sous la fiche, en aussi grand que possible ; chaque croquis a une page entière (pour la photo d'un croquis sur papier, écris « croquis » dans la légende) ; les autres photos ont leur page (deux par page quand elles y restent aussi grandes).
+- **Photos dans le PDF** : la 1re photo se place sur la page 1, sous la fiche, en aussi grand que possible ; chaque croquis a une page entière (fiche de fabrication : pour la photo d'un croquis sur papier, écris « croquis » dans la légende) ; les autres photos ont leur page (deux par page quand elles y restent aussi grandes).
 - **Bordereau matériaux** : choisis le **Type**, la case **« Matériaux remis »** se remplit avec la liste prévue au bureau. Tu peux la modifier (ajouter, enlever, changer une quantité) : ce que tu tapes n'est jamais remplacé sans ton accord (bouton « Remplacer par la liste du type »).
 - **Aperçu** (en haut) : montre exactement le PDF qui partira. Sur PC : **Imprimer** ou **Enregistrer en PDF** (choisir l'imprimante « Enregistrer au format PDF »).
 

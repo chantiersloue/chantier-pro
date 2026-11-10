@@ -135,7 +135,7 @@ function essaiMiseEnPage() {
     const html = modele(d, esc_);
     const brut = HtmlService.createHtmlOutput(html).getAs('application/pdf');
     const info = infoPdf_(brut);
-    const prevues = 1 + (html.match(/page-break-before:always/g) || []).length;
+    const prevues = pagesPrevues_(html);
     const blob = pdfDuModele_(modele, d, '_ESSAI MISE EN PAGE ' + nom + '.pdf');
     const refait = info.pages && info.pages > prevues;
     const anciens = racine.getFilesByName(blob.getName());

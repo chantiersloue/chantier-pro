@@ -158,10 +158,11 @@ function moteurPdf(g, pagesEnTrop, format) {
   const recus = [];
   g.ctx.HtmlService = { createHtmlOutput: html => ({ getAs: () => {
     recus.push(html);
-    const n = 1 + (html.match(/page-break-before:always/g) || []).length + (recus.length === 1 ? pagesEnTrop : 0);
+    const contenu = Number((html.match(/data-mep-contenu="(\d+)"/) || [])[1] || 1);
+    const n = contenu + (html.match(/page-break-before:always/g) || []).length + (recus.length === 1 ? pagesEnTrop : 0);
     const texte = '%PDF-1.4\n' + Array.from({ length: n }, () => '<< /Type /Page /MediaBox [0 0 ' + (format || '842 595') + '] >>').join('\n')
       + '\n<< /Type /Pages /Count ' + n + ' >>';
-    return { contenu: texte, nom: '', setName(x) { this.nom = x; return this; }, getName() { return this.nom; },
+    return { contenu: texte, ordre: recus.length, nom: '', setName(x) { this.nom = x; return this; }, getName() { return this.nom; },
       getDataAsString: () => texte, getBytes: () => Array.from(Buffer.from(texte)), copyBlob() { return this; } };
   } }) };
   return recus;
@@ -190,6 +191,16 @@ test('serveur : une page de trop (photo rejetée) → PDF refait une fois, photo
   assert.ok(recus[0].indexOf('data-mep="page1"') > -1 && recus[1].indexOf('data-mep="page1"') < 0);
   assert.ok(logs.some(l => /216 × 279 mm/.test(l)), logs.join(' | '));
   assert.strictEqual(g.mails.length, 1, 'un seul mail');
+  assert.strictEqual(g.mails[0].opts.attachments[0].ordre, 2, 'c’est le PDF REFAIT qui part (relecture, 2e tour)');
+});
+
+test('serveur : note de plusieurs pages avec photos → pages du contenu comptées, PDF fabriqué une seule fois', () => {
+  const g = environnement();
+  const recus = moteurPdf(g, 0);
+  const longue = Array(90).fill('Point de suivi du chantier, à reprendre.').join('\n');
+  g.ctx.pdfDuModele_(g.ctx.modele_note, { chantier: 'C', commentaires: longue, photosBase64: [photo(1600, 1200)] }, 'x.pdf');
+  assert.ok(/data-mep-contenu="2"/.test(recus[0]), 'contenu estimé sur 2 pages');
+  assert.strictEqual(recus.length, 1);
 });
 
 test('serveur : PDF illisible (pages non trouvées) → gardé tel quel', () => {
@@ -288,10 +299,20 @@ test('pages de photos : 8 mm gardés libres ; plus encore quand le serveur refai
   assert.ok(l(h2) < l(h1));
 });
 
-test('photo dont la légende contient « croquis » (croquis papier photographié) : page entière', () => {
+test('photo dont la légende contient « croquis » (croquis papier photographié) : page entière, dans la fiche de fabrication seulement', () => {
   const html = M.modele_fabrication({ chantier: 'C', blocs: [], photosBase64: [photo(1600, 1200, 'Croquis du placard')] }, esc);
   assert.ok(html.indexOf('data-mep="page1"') < 0);
   assert.strictEqual(pages(html), 2);
+  const q = M.modele_quitus({ chantier: 'C', photosBase64: [photo(1600, 1200, 'Croquis du placard')] }, esc);
+  assert.ok(q.indexOf('data-mep="page1"') > -1, 'quitus : une photo reste une photo');
+});
+
+test('commentaire tapé sur téléphone (« Ligne 1<div>Ligne 2</div><div><br></div>… ») : chaque ligne comptée, lignes vides comprises', () => {
+  const est = c => Number(M.modele_fabrication({ chantier: 'C', blocs: [], commentaires: c, photosBase64: [photo(1600, 1200)] }, esc).match(/data-estime="(\d+)"/)[1]);
+  const tel = 'Ligne 1<div>Ligne 2</div><div><br></div><div>Ligne 4</div><div><br></div><div>Ligne 6</div>';
+  const br = 'Ligne 1<br>Ligne 2<br><br>Ligne 4<br><br>Ligne 6';
+  assert.strictEqual(est(tel), est(br), 'mêmes 6 lignes');
+  assert.ok(est(tel) >= 44 + 8 + 6 * 3.9, String(est(tel)));
 });
 
 test('estimations : chantier long, zone, précision, commentaire agrandi comptés (fabrication) ; chantier long (note)', () => {

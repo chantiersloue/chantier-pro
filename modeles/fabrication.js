@@ -162,7 +162,7 @@ function modele_fabrication(d, esc) {
   // commentaires 8,2 + 1,5 × la taille de la police par ligne (4 mm en taille normale, 5,6 « agrandi »).
   // Les blocs ne se coupent pas d'une page à l'autre.
   var cartouche = 31.2 + 4.5 * (mep_lignes(String(d.chantier || '—') + (d.refChantier ? ' / ' + d.refChantier : ''), 68, 12) - 1)
-    + (d.zone ? 8.8 + 2.9 * (mep_lignes(d.zone, 80, 10) - 1) : 0)
+    + (d.zone ? 8.8 + 2.9 * (mep_lignes(d.zone, 84, 10) - 1) : 0)
     + (d.delaiPrecision ? 3.5 + 3.1 * (mep_lignes(d.delaiPrecision, 40, 10) - 1) : 0);
   var estime = Math.max(44, cartouche + 4);
   (d.blocs || []).forEach(function (b) {
@@ -178,20 +178,22 @@ function modele_fabrication(d, esc) {
   });
   if (commentaireSection) {
     estime += 8.2;
-    String(commentaires).split(/<br\s*\/?>|<\/div>|<\/p>/i).forEach(function (ligne) {
+    // Le champ éditable du téléphone écrit « Ligne 1<div>Ligne 2</div><div><br></div>… » : chaque <div>/<p> ouvre une
+    // ligne, un <br> seul dans un bloc est une ligne vide (comptée : elle prend sa place à l'écran)
+    String(commentaires).replace(/<br\s*\/?>\s*(<\/div>|<\/p>)/gi, '$1').replace(/<(div|p)\b[^>]*>/gi, '\n')
+      .replace(/<br\s*\/?>/gi, '\n').replace(/<\/(div|p)>/gi, '').replace(/^\n/, '').replace(/\n+$/, '').split('\n').forEach(function (ligne) {
       var tailles = [10];   // taille de police la plus grande de la ligne (px), « agrandi » = 1,4 em
       (ligne.match(/font-size:\s*[\d.]+(em|px|%)/gi) || []).forEach(function (t) {
         var n = parseFloat(t.replace(/font-size:\s*/i, ''));
         tailles.push(/em/i.test(t) ? n * 10 : /%/.test(t) ? n / 10 : n);
       });
       var px = Math.min(40, Math.max.apply(null, tailles));
-      var texte = mep_texteBrut(ligne);
-      if (!texte && !/<span|<b|<i|<u/i.test(ligne)) return;
-      estime += mep_lignes(texte, 260, px) * px * 1.5 * MEP_PX_MM;
+      estime += mep_lignes(mep_texteBrut(ligne), 260, px) * px * 1.5 * MEP_PX_MM;
     });
   }
   var zone = mep_zone(d, 297, 210, 10);
-  var photosSection = mep_photos(d.photosBase64, { largeur: zone.largeur, hauteur: zone.hauteur, reste: mep_reste(zone, estime), estime: estime, esc: esc });
+  var photosSection = mep_photos(d.photosBase64, { largeur: zone.largeur, hauteur: zone.hauteur, reste: mep_reste(zone, estime), estime: estime, esc: esc,
+    pagesContenu: mep_pages(zone, estime), croquisParLegende: true });
 
   return '<html><head><meta charset="utf-8"><style>@page{size:landscape;margin:1cm}body{font-family:Arial,sans-serif;font-size:10px;margin:0}*{box-sizing:border-box}</style></head><body>'
     + enTete + blocsHtml + commentaireSection + photosSection
