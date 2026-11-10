@@ -85,7 +85,8 @@ function garderFous() {
   const suivis = require('child_process').execFileSync('git', ['ls-files'], { cwd: racine }).toString().split('\n')
     .filter(f => /\.(js|gs|html|css|json|md)$/.test(f) && fs.existsSync(path.join(racine, f)));
   suivis.forEach(f => {
-    if (/^(<{7}|>{7}|={7})( |$)/m.test(lire(f))) erreurs.push('marqueur de conflit dans ' + f);
+    const t = lire(f);   // « ======= » seul peut souligner un titre Markdown : il ne compte qu'avec un « <<<<<<< »
+    if (/^(<{7}|>{7}) /m.test(t) || (/^<{7}/m.test(t) && /^={7}$/m.test(t))) erreurs.push('marqueur de conflit dans ' + f);
   });
   const vm = require('vm');
   ['sw.js'].concat(liste('commun', '.js'), liste('modeles', '.js'), ['A-COLLER-DANS-APPS-SCRIPT/Code.gs']).forEach(f => {

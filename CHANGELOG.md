@@ -18,6 +18,8 @@ Chaque lot : **quoi**, **pourquoi**, **comment déployer**. Procédures détaill
 
 **Comment déployer** : `docs/lot2-procedure.md` (étapes A à D : serveur TEST, comptes d'essai, essais sur la copie d'essai `livraison/lot-2-essai`, production avec un **nouveau déploiement**).
 
+**Mise à jour avec le lot 1 en production (10/11/2026)** : retouches du lot 1 reprises ; versions 6.0 ; `node outils/construire.js --verifier` refuse désormais un marqueur de conflit oublié ou un script illisible (un service worker cassé avait échappé au contrôle sur la branche du lot 2, jamais en production) ; envoi direct (téléphone qui ne peut pas garder la fiche) : connexion dans la page, sans la quitter ; listes de secours la 1re fois sans réseau ; fiches restées « à vérifier » sur l'appli 5.1 reprises par la 6.0.
+
 **Tests** : `node tests/lot2-comptes.test.js` (44 tests) + tests des lots 0 et 1 ; pages essayées dans le navigateur avec le faux serveur (comptes d'essai), en 375 px.
 
 ## Lot 1 — Retouches après les essais (serveur v5.1, appli 5.1) — en production depuis le 10/11/2026

@@ -329,6 +329,7 @@
               // Pas connecté, session terminée, compte refusé : la fiche attend la connexion (elle repart dès qu'elle a lieu)
               el.etat = 'en attente'; el.message = err.message; el.attendConnexion = true;
               el.aConfirmer = false; el.attenteReseau = false;   // refusée faute de connexion : pas traitée par le serveur
+              el.refusServeur = 0;                                 // les refus « connexion » de l'appli 5.1 ne comptent plus
               el.prochainEssai = Date.now() + 15 * 60000;
               return ecrireSiPresente(el).then(function (encore) { if (encore) LOUE.signaler({ type: el.etat, element: el }); });
             }
@@ -408,7 +409,7 @@
   // déjà parties : le serveur répond « déjà reçue » au lieu d'envoyer un 2e mail.
   var directs = {};
   // Message des pages quand la fiche est peut-être arrivée mais pas encore confirmée (même numéro tant que rien ne change)
-  LOUE.MSG_DIRECT_CONNEXION = '⚠ Connexion nécessaire, et le téléphone n’a PAS pu garder la fiche : ne quittez pas cette page. Ouvrez l’accueil dans un autre onglet, connectez-vous, puis revenez ici et touchez Envoyer.';
+  LOUE.MSG_DIRECT_CONNEXION = '⚠ Fiche pas envoyée : il faut se connecter, et le téléphone n’a PAS pu la garder. Ne quittez pas cette page : touchez Envoyer de nouveau, une fenêtre de connexion s’ouvrira ici.';
   LOUE.MSG_DIRECT_A_CONFIRMER = '⏳ Pas encore confirmé par le bureau (la fiche est peut-être déjà arrivée). Touchez Envoyer de nouveau, SANS RIEN CHANGER : il n’y aura pas de 2e mail.';
   LOUE.envoyerDirect = function (type, donnees, photos) {
     var empreinte = type + '|' + JSON.stringify(donnees) + '|' + (photos || []).map(function (p) { return p.id + ':' + (p.blob ? p.blob.size : 0); }).join(',');
@@ -419,13 +420,21 @@
       r.photos.forEach(function (p) { el.blobs[p.id] = p.blob; });
       directs[empreinte] = el;
     }
+    var connexionDemandee = false;
     function tenter(n) {
       return envoyerPhotosPuisFiche(el, function (id) { return Promise.resolve(el.blobs[id] || null); }).then(function (rep) {
         delete directs[empreinte];
         return rep;
       }).catch(function (err) {
-        // Connexion nécessaire : réessayer ne sert à rien, et la fiche n'est PAS gardée dans le téléphone
-        if (err.connexion) throw Object.assign(new Error(LOUE.MSG_DIRECT_CONNEXION), { connexion: true, definitif: true });
+        // Connexion nécessaire, et la fiche n'est PAS gardée dans le téléphone : connexion DANS la page (une fois),
+        // puis nouvel essai avec le même numéro
+        if (err.connexion) {
+          var echec = function () { throw Object.assign(new Error(LOUE.MSG_DIRECT_CONNEXION), { connexion: true, definitif: true }); };
+          if (connexionDemandee || !LOUE.demanderConnexion) echec();
+          connexionDemandee = true;
+          return LOUE.demanderConnexion('Connexion nécessaire pour envoyer cette fiche. Le téléphone n’a pas pu la garder : connectez-vous ici, sans quitter la page.')
+            .then(function (ok) { if (!ok) echec(); return tenter(n + 1); });
+        }
         if (err.definitif || n >= (err.aConfirmer ? 6 : 3)) {
           var texte = err.aConfirmer ? LOUE.MSG_DIRECT_A_CONFIRMER : messageClair(err);
           throw Object.assign(new Error(texte), { definitif: err.definitif, aConfirmer: !!err.aConfirmer });
@@ -507,7 +516,11 @@
     return LOUE.appeler({ action: 'listes' }, 15000).then(function (rep) {
       if (rep && rep.code === 'ACTION_INCONNUE') return chargerListesSansCompte();   // serveur pas encore à jour (lot 1)
       if (!rep || !rep.ok || !listesValables(rep.data)) throw new Error((rep && rep.message) || 'Listes indisponibles');
-      try { localStorage.setItem(cle, JSON.stringify({ date: Date.now(), donnees: rep.data })); } catch (e) {}
+      try {
+        localStorage.setItem(cle, JSON.stringify({ date: Date.now(), donnees: rep.data }));
+        // La liste de la personne est gardée : l'ancienne liste « sans compte » (tous les chantiers) ne sert plus
+        if (!rep.data.partiel) localStorage.removeItem(CLE_LISTES);
+      } catch (e) {}
       listesPartielles = !!rep.data.partiel;
       return { donnees: rep.data, date: Date.now(), depuisLeTelephone: false, partiel: !!rep.data.partiel };
     }).catch(function () {

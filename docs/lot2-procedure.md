@@ -120,7 +120,7 @@ Le serveur du lot 2 a sa **propre adresse** : l'ancien déploiement (lot 1) cont
 
 1. Vrai Sheet → Extensions → Apps Script. **Sauvegarde** de `Code.gs` dans `_prive/Code-avant-lot2.gs`.
 2. **Gérer les déploiements** : note la **description** et l'**adresse** du déploiement actuel (lot 1) dans `_prive/deploiements.txt`.
-3. Colle le nouveau `Code.gs`, enregistre.
+3. Colle le nouveau `Code.gs` comme en A.3 (github.com → `A-COLLER-DANS-APPS-SCRIPT/Code.gs` → « Copy raw file » ; dans l'éditeur : Ctrl+A, Ctrl+V, disquette ; un seul fichier `Code.gs` à gauche).
 4. Vérifie que la propriété **`ENVIRONNEMENT`** n'est **PAS** `TEST` (en production, elle n'existe pas ou vaut autre chose). Puis ▶ `genererCle`, ▶ `preparerOngletsLot2` (**❌ = arrête-toi**), ▶ `installerDeclencheurs` (autorisation si Google la demande), ajoute la propriété **`HACHAGE_ITERATIONS`** (le nombre de l'étape A.5), ▶ `verifierConfig` (1re ligne `v6.0`, des ✅ ; mêmes lignes normales qu'en A.5).
 5. **Déployer → Nouveau déploiement** → type « Application Web », description **« Lot 2 — production »**, exécuter en tant que **moi**, accès **Tout le monde** → Déployer. Ouvre la nouvelle adresse (elle finit par `/exec`) : **`Loué App API v6.0 OK`**. **Envoie-moi l'adresse** : je prépare `livraison/lot-2` avec cette adresse. Pendant ce temps, les gars continuent avec l'ancien déploiement (lot 1, v5.1) : rien ne change pour eux.
 6. Remplis *Utilisateurs* : une ligne par personne, **Actif** coché, **sans** cocher « Réinitialiser » pour l'instant. 10 min plus tard, coche les chantiers de chacun dans *Accès chantiers*.
@@ -138,7 +138,7 @@ Le serveur du lot 2 a sa **propre adresse** : l'ancien déploiement (lot 1) cont
 |---|---|
 | Les gars ne peuvent plus travailler après la fusion de `livraison/lot-2` | Dis-le-moi : je prépare une demande de fusion qui remet **les pages du lot 1 et l'adresse du lot 1** (l'ancien déploiement tourne encore). Rien à faire dans Apps Script |
 | Après l'archivage des anciens déploiements | 1. ▶ **`retirerDeclencheurs`** (avant de recoller : sinon les déclencheurs du lot 2 resteraient et échoueraient toutes les 10 min). 2. Recolle `_prive/Code-avant-lot2.gs`, enregistre. 3. ▶ `installerDeclencheurs` (celui du lot 1 remet les mails reportés). 4. **Nouveau déploiement**, envoie-moi l'adresse (je remets les pages du lot 1 avec elle) |
-| Revenir au serveur du lot 1 sur TEST | Même chose sur TEST : ▶ `retirerDeclencheurs`, recolle `_prive/Code-TEST-avant-lot2.gs`, ▶ `installerDeclencheurs`, Gérer les déploiements → Modifier → Nouvelle version |
+| Revenir au serveur du lot 1 sur TEST | Même chose sur TEST : ▶ `retirerDeclencheurs`, recolle `_prive/Code-TEST-avant-lot2.gs`, ▶ `installerDeclencheurs`, Gérer les déploiements → Modifier → Nouvelle version. Quand tu n'as plus besoin de TEST : supprime son déclencheur (Apps Script → icône réveil **Déclencheurs** → ⋮ → Supprimer), pour le quota |
 | Un gars bloqué | Case « Réinitialiser » |
 | Tout le monde bloqué après la fin de la transition | ▶ `prolongerTransition` (7 jours de plus) puis dis-le-moi |
 | Clé secrète divulguée (quelqu'un a eu accès au script) | Ajoute la propriété `CONFIRMER_CHANGER_CLE` = `OUI`, puis ▶ `changerCle` : tout le monde devra se reconnecter |

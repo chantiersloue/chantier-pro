@@ -38,6 +38,8 @@ Remplis la fiche, signe, touche **Envoyer**.
 - **Bordereau matériaux** : choisis le **Type**, la case **« Matériaux remis »** se remplit avec la liste prévue au bureau. Tu peux la modifier (ajouter, enlever, changer une quantité) : ce que tu tapes n'est jamais remplacé sans ton accord (bouton « Remplacer par la liste du type »).
 - **Aperçu** (en haut) : montre exactement le PDF qui partira. Sur PC : **Imprimer** ou **Enregistrer en PDF** (choisir l'imprimante « Enregistrer au format PDF »).
 
+**Rare : « le téléphone n'a pas pu garder la fiche »** (navigation privée, mémoire pleine) : l'appli l'envoie directement, **page ouverte**. Si elle demande de se connecter, une petite fenêtre de connexion s'ouvre **dans la page** : connecte-toi là, sans quitter la fiche, et elle part.
+
 ## Ne rien perdre : le brouillon
 
 - Tout ce que tu tapes est **gardé automatiquement** dans le téléphone, photos et signatures comprises.
