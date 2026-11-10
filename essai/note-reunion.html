@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Loué App — Note de réunion</title>
+<link rel="icon" type="image/png" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Note Réunion">
+<meta name="theme-color" content="#1A2B4A">
+<link rel="stylesheet" href="commun/style.css?v=9bbb75edc5">
+<link rel="stylesheet" href="commun/fiche.css?v=9bbb75edc5">
+<style>
+.photo-item-head .photo-item-num{flex:1;}
+.photo-legende{display:block;width:100%;min-height:48px;padding:0 12px;border:none;border-bottom:1px solid var(--border);background:#fff;font-size:16px;font-family:inherit;color:var(--text);outline:none;}
+.photo-item img{cursor:pointer;}
+/* Annotation des photos : plein écran, boutons de 44 px au moins (utilisables avec des gants) */
+.annot{position:fixed;inset:0;background:#111;z-index:200;display:flex;flex-direction:column;}
+.annot[hidden]{display:none;}
+body.loue-test .annot{top:40px;}
+.annot-barre{display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:6px 8px;background:var(--header-bg);}
+.annot-outil{min-width:48px;min-height:48px;border-radius:8px;border:2px solid transparent;background:rgba(255,255,255,.15);color:#fff;font-size:20px;font-family:inherit;cursor:pointer;}
+.annot-outil.active{border-color:#fff;background:rgba(255,255,255,.35);}
+.annot-couleur{width:44px;height:44px;border-radius:50%;border:3px solid rgba(255,255,255,.25);cursor:pointer;}
+.annot-couleur.active{border-color:#fff;box-shadow:0 0 0 2px var(--header-bg) inset;}
+.annot-taille{display:flex;align-items:center;gap:6px;color:#fff;font-size:14px;}
+.annot-taille input{width:90px;height:44px;accent-color:#0D7A6B;}
+.annot-zone{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;overflow:hidden;}
+#annot-canvas{display:block;touch-action:none;cursor:crosshair;background:#fff;}
+.annot-actions{display:flex;gap:8px;padding:8px 12px calc(8px + env(safe-area-inset-bottom,0px));background:var(--header-bg);}
+.annot-actions .btn{flex:1;}
+</style>
+</head>
+<body>
+
+<div class="topbar no-print">
+  <a class="btn btn-secondary btn-petit" href="index.html" aria-label="Retour à l'accueil">‹ Retour</a>
+  <span class="tb-name">Note de réunion</span>
+  <span id="loue-envoi-place"></span>
+  <button class="btn btn-secondary btn-petit" type="button" onclick="ouvrirApercu()">Aperçu</button>
+</div>
+
+<div class="main">
+
+  <div class="val-banner" id="valBanner" role="alert"></div>
+
+  <!-- DESTINATAIRES -->
+  <div class="section">
+    <div class="section-head" style="color:var(--teal)">Destinataires</div>
+    <div class="section-body">
+      <div class="aide">Le conducteur du chantier reçoit automatiquement une copie. Ajoutez ici les autres destinataires (2 adresses hors liste au maximum).</div>
+      <div class="dest-chips" id="dest-chips"></div>
+      <div class="dest-row">
+        <input class="meta-input" id="dest-input" type="email" inputmode="email" placeholder="nom@exemple.fr" autocomplete="off" data-brouillon="non">
+        <div class="dest-suggestions" id="dest-sugg"></div>
+        <button class="btn btn-secondary" type="button" id="dest-ajouter">+ Ajouter</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- INFORMATIONS -->
+  <div class="section">
+    <div class="section-head" style="color:var(--teal)">Informations</div>
+    <div class="section-body">
+      <div class="meta-grid">
+        <div class="meta-field">
+          <label class="meta-label" for="meta-date">Date</label>
+          <input class="meta-input" id="meta-date" readonly>
+        </div>
+        <div class="meta-field">
+          <label class="meta-label" for="meta-auteur">Rédigé par <span class="oblig">*</span></label>
+          <input class="meta-input" id="meta-auteur" placeholder="Votre nom" list="liste-auteurs" autocomplete="off">
+          <datalist id="liste-auteurs"></datalist>
+        </div>
+        <div class="meta-field meta-full">
+          <label class="meta-label" for="meta-chantier">Chantier <span class="oblig">*</span></label>
+          <input class="meta-input" id="meta-chantier" list="liste-chantiers" placeholder="Choisir ou taper le chantier" autocomplete="off">
+          <datalist id="liste-chantiers"></datalist>
+          <div class="listes-info" id="listes-info"></div>
+        </div>
+        <div class="meta-field meta-full">
+          <label class="meta-label" for="meta-objet">Objet / titre de la réunion</label>
+          <input class="meta-input" id="meta-objet" placeholder="Ex. : réunion de chantier semaine 14">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- NOTES -->
+  <div class="section">
+    <div class="section-head" style="color:var(--teal)">Notes et commentaires</div>
+    <div class="section-body">
+      <textarea class="meta-input" id="meta-commentaires" rows="6" placeholder="Points abordés, décisions prises… (le micro du clavier permet de dicter)"></textarea>
+    </div>
+  </div>
+
+  <!-- PHOTOS -->
+  <div class="section">
+    <div class="section-head" style="color:var(--teal)">Photos et croquis</div>
+    <div class="section-body">
+      <div class="aide">Touchez une photo (ou « Annoter ») pour dessiner dessus. Dans le PDF : une seule photo sous les notes, sinon deux photos par page.</div>
+      <input type="file" id="photo-cam" accept="image/*" capture="environment" hidden onchange="ajouterPhotos(this.files);this.value=''">
+      <input type="file" id="photo-galerie" accept="image/*" multiple hidden onchange="ajouterPhotos(this.files);this.value=''">
+      <div class="photo-btns">
+        <button class="btn" type="button" onclick="document.getElementById('photo-cam').click()">📷 Prendre une photo</button>
+        <button class="btn" type="button" onclick="document.getElementById('photo-galerie').click()">🖼 Galerie</button>
+      </div>
+      <div class="photos-list" id="photos-list"></div>
+    </div>
+  </div>
+
+</div>
+
+<div class="bottom-bar no-print">
+  <a class="btn btn-secondary" href="index.html">‹ Retour</a>
+  <button class="btn btn-green" id="btn-envoyer" type="button" onclick="envoyer()" style="flex:1">Envoyer la note</button>
+</div>
+
+<!-- ANNOTATION D'UNE PHOTO (plein écran) -->
+<div class="annot no-print" id="annot" role="dialog" aria-label="Annoter la photo" hidden>
+  <div class="annot-barre">
+    <button class="annot-outil active" type="button" data-outil="stylo" aria-label="Stylo" title="Stylo">✏️</button>
+    <button class="annot-outil" type="button" data-outil="fleche" aria-label="Flèche" title="Flèche">↗</button>
+    <button class="annot-outil" type="button" data-outil="rect" aria-label="Rectangle" title="Rectangle">▭</button>
+    <button class="annot-outil" type="button" data-outil="gomme" aria-label="Gomme" title="Gomme (efface le dessin)">🧽</button>
+    <button class="annot-couleur active" type="button" data-couleur="#E53E3E" style="background:#E53E3E" aria-label="Rouge"></button>
+    <button class="annot-couleur" type="button" data-couleur="#D97706" style="background:#D97706" aria-label="Orange"></button>
+    <button class="annot-couleur" type="button" data-couleur="#1454A0" style="background:#1454A0" aria-label="Bleu"></button>
+    <button class="annot-couleur" type="button" data-couleur="#196B3B" style="background:#196B3B" aria-label="Vert"></button>
+    <button class="annot-couleur" type="button" data-couleur="#141210" style="background:#141210" aria-label="Noir"></button>
+    <button class="annot-couleur" type="button" data-couleur="#FFFFFF" style="background:#FFFFFF" aria-label="Blanc"></button>
+    <label class="annot-taille">Taille <input type="range" min="1" max="20" value="3" id="annot-taille" data-brouillon="non"></label>
+    <button class="annot-outil" type="button" onclick="annulerTrait()" aria-label="Annuler le dernier trait" title="Annuler le dernier trait">↶</button>
+  </div>
+  <div class="annot-zone"><canvas id="annot-canvas"></canvas></div>
+  <div class="annot-actions">
+    <button class="btn btn-secondary" type="button" onclick="fermerAnnotation(false)">Annuler</button>
+    <button class="btn btn-green" type="button" onclick="fermerAnnotation(true)">Valider</button>
+  </div>
+</div>
+
+<!-- APERÇU (le même modèle que le PDF envoyé par mail) -->
+<div class="apercu" id="apercu" role="dialog" aria-label="Aperçu du PDF">
+  <div class="apercu-inner">
+    <div class="apercu-head">
+      <b>Aperçu du PDF</b>
+      <button class="btn btn-secondary btn-petit" type="button" onclick="imprimer()">🖨 Imprimer</button>
+      <button class="btn btn-secondary btn-petit" type="button" onclick="imprimer(true)">⬇ Enregistrer en PDF</button>
+      <button class="btn btn-secondary btn-petit" type="button" onclick="fermerApercu()">Fermer</button>
+    </div>
+    <iframe id="apercu-cadre" title="Aperçu de la note de réunion"></iframe>
+    <div class="apercu-aide">« Enregistrer en PDF » : dans la fenêtre qui s'ouvre, choisissez l'imprimante « Enregistrer au format PDF » (ou « Microsoft Print to PDF »).</div>
+  </div>
+</div>
+
+<script src="commun/config.js?v=9bbb75edc5"></script>
+<script src="commun/api.js?v=9bbb75edc5"></script>
+<script src="commun/ui.js?v=9bbb75edc5"></script>
+<script src="commun/photos.js?v=9bbb75edc5"></script>
+<script src="commun/brouillon.js?v=9bbb75edc5"></script>
+<script src="commun/hors-ligne.js?v=9bbb75edc5"></script>
+<script src="commun/adresses.js?v=9bbb75edc5"></script>
+<script src="commun/destinataires.js?v=9bbb75edc5"></script>
+<script src="modeles/mise-en-page.js?v=9bbb75edc5"></script>
+<script src="modeles/note.js?v=9bbb75edc5"></script>
+<script>
+'use strict';
+// ── État de la fiche ──
+let photos = [];          // [{ id, blob, url, label, annotee }]
+let LISTES = { contacts: [], contactNotes: [], chantiers: [] };
+const prevenir = () => document.dispatchEvent(new Event('change'));   // déclenche la sauvegarde du brouillon
+
+// ── Date du jour (remise à jour après chaque envoi) ──
+function dateDuJour() {
+  const now = new Date(), p = n => String(n).padStart(2, '0');
+  document.getElementById('meta-date').value = p(now.getDate()) + '/' + p(now.getMonth() + 1) + '/' + now.getFullYear();
+}
+dateDuJour();
+
+// ── Listes (chantiers, contacts) : réseau, sinon dernière liste gardée dans le téléphone ──
+let listesDuTelephone = false;
+LOUE.chargerListes().then(r => {
+  listesDuTelephone = !!r.depuisLeTelephone || !!r.partiel;   // lot 2 : liste ancienne, ou limitée à « mes chantiers » → on demande confirmation
+  LISTES = Object.assign(LISTES, r.donnees || {});
+  document.getElementById('liste-chantiers').innerHTML = (LISTES.chantiers || [])
+    .map(c => '<option value="' + LOUE.esc(c.nom) + '">' + LOUE.esc(c.reference || '') + '</option>').join('');
+  document.getElementById('liste-auteurs').innerHTML = (LISTES.contacts || [])
+    .map(c => '<option value="' + LOUE.esc(c.nom) + '"></option>').join('');
+  if (r.depuisLeTelephone) {
+    const d = new Date(r.date);
+    document.getElementById('listes-info').textContent = 'Pas de réseau : listes du ' + d.toLocaleDateString('fr-FR') + ' gardées dans le téléphone.';
+  }
+}).catch(() => {
+  document.getElementById('listes-info').textContent = 'Listes indisponibles (pas de réseau). Tapez le nom du chantier : la note partira quand même.';
+});
+
+// ── Destinataires (brique commune : une adresse tapée sans « + Ajouter » n'est plus perdue) ──
+const DEST = LOUE.destinataires({ contacts: () => (LISTES.contactNotes || []).concat(LISTES.contacts || []) });
+
+// ── Photos : compressées dès qu'on les ajoute (200 à 400 Ko chacune) ──
+async function ajouterPhotos(fichiers) {
+  for (const f of Array.from(fichiers || [])) {
+    if (photos.length >= LOUE.PHOTOS_MAX) { LOUE.message(LOUE.PHOTOS_MAX + ' photos au maximum par note'); break; }
+    try {
+      const blob = await LOUE.compresserPhoto(f);
+      photos.push({ id: LOUE.nouvelId('photo'), blob, url: URL.createObjectURL(blob), label: '', annotee: false });
+    } catch (err) { LOUE.message(err.message, 8000); }
+  }
+  afficherPhotos(); prevenir();
+}
+function retirerPhoto(i) {
+  if (!photos[i]) return;
+  if (photos[i].annotee && !confirm('Retirer la photo ' + (i + 1) + ' ? Ses annotations seront perdues.')) return;
+  URL.revokeObjectURL(photos[i].url); photos.splice(i, 1); afficherPhotos(); prevenir();
+}
+function afficherPhotos() {
+  const liste = document.getElementById('photos-list');
+  liste.innerHTML = photos.map((p, i) =>
+    '<div class="photo-item"><div class="photo-item-head"><span class="photo-item-num">Photo ' + (i + 1) + (p.annotee ? ' (annotée)' : '') + '</span>'
+    + '<button class="btn btn-secondary btn-petit" type="button" onclick="ouvrirAnnotation(' + i + ')">✏️ Annoter</button>'
+    + '<button class="btn btn-secondary btn-petit" type="button" onclick="retirerPhoto(' + i + ')">Retirer</button></div>'
+    + '<input class="photo-legende" data-i="' + i + '" placeholder="Légende ou commentaire (facultatif)…" data-brouillon="non" aria-label="Légende de la photo ' + (i + 1) + '" value="' + LOUE.esc(p.label) + '">'
+    + '<img src="' + p.url + '" alt="Photo ' + (i + 1) + ' — touchez pour annoter" onclick="ouvrirAnnotation(' + i + ')"></div>').join('');
+  liste.querySelectorAll('.photo-legende').forEach(el => el.addEventListener('input', () => { photos[+el.dataset.i].label = el.value; }));
+}
+
+// ── Annotation d'une photo ──
+// Le dessin se fait sur la photo en PLEINE résolution (avant : réduite à la largeur de l'écran, donc floue dans le PDF).
+// Les traits sont gardés un par un : « Annuler le dernier trait » ne consomme pas de mémoire, la gomme rend la photo d'origine.
+const ANNOT = { i: null, img: null, formes: [], courante: null, outil: 'stylo', couleur: '#E53E3E', taille: 3, image: null };
+const toile = document.getElementById('annot-canvas');
+function ouvrirAnnotation(i) {
+  const p = photos[i];
+  if (!p) return;
+  const img = new Image();
+  img.onload = () => {
+    Object.assign(ANNOT, { i, img, formes: [], courante: null });
+    toile.width = img.naturalWidth; toile.height = img.naturalHeight;
+    document.getElementById('annot').hidden = false;
+    document.body.style.overflow = 'hidden';
+    ajusterAnnotation(); dessinerAnnotation();
+    requestAnimationFrame(ajusterAnnotation);   // barre d'outils sur deux lignes : la zone peut encore changer
+  };
+  img.onerror = () => LOUE.message('Photo illisible : impossible de l’annoter', 6000);
+  img.src = p.url;
+}
+function ajusterAnnotation() {
+  if (!ANNOT.img) return;
+  const zone = toile.parentElement;
+  toile.style.width = toile.style.height = '1px';   // la photo ne doit pas agrandir la zone avant la mesure
+  const r = Math.min(zone.clientWidth / toile.width, zone.clientHeight / toile.height);
+  toile.style.width = Math.max(1, Math.floor(toile.width * r)) + 'px';
+  toile.style.height = Math.max(1, Math.floor(toile.height * r)) + 'px';
+}
+window.addEventListener('resize', () => { if (!document.getElementById('annot').hidden) ajusterAnnotation(); });
+function echelle() { const r = toile.getBoundingClientRect(); return r.width ? toile.width / r.width : 1; }
+function position(ev) {
+  const r = toile.getBoundingClientRect();
+  return { x: (ev.clientX - r.left) * toile.width / r.width, y: (ev.clientY - r.top) * toile.height / r.height };
+}
+function tracer(ctx, f) {
+  const pts = f.points, a = pts[0], b = pts[pts.length - 1];
+  ctx.save();
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.lineWidth = f.epaisseur;
+  // Gomme : on repeint avec la photo d'origine (aucun trait blanc sur la photo)
+  ctx.strokeStyle = f.outil === 'gomme' ? ctx.createPattern(ANNOT.img, 'no-repeat') : f.couleur;
+  ctx.beginPath();
+  if (f.outil === 'rect') {
+    ctx.rect(a.x, a.y, b.x - a.x, b.y - a.y);
+  } else if (f.outil === 'fleche') {
+    const angle = Math.atan2(b.y - a.y, b.x - a.x);
+    ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y);
+    ctx.lineTo(b.x - f.tete * Math.cos(angle - Math.PI / 6), b.y - f.tete * Math.sin(angle - Math.PI / 6));
+    ctx.moveTo(b.x, b.y);
+    ctx.lineTo(b.x - f.tete * Math.cos(angle + Math.PI / 6), b.y - f.tete * Math.sin(angle + Math.PI / 6));
+  } else {
+    ctx.moveTo(a.x, a.y);
+    if (pts.length === 1) ctx.lineTo(a.x + 0.1, a.y);
+    for (let k = 1; k < pts.length; k++) ctx.lineTo(pts[k].x, pts[k].y);
+  }
+  ctx.stroke();
+  ctx.restore();
+}
+let dessinPrevu = false;
+function dessinerAnnotation() {
+  dessinPrevu = false;
+  if (!ANNOT.img) return;
+  const ctx = toile.getContext('2d');
+  ctx.drawImage(ANNOT.img, 0, 0, toile.width, toile.height);
+  ANNOT.formes.forEach(f => tracer(ctx, f));
+  if (ANNOT.courante) tracer(ctx, ANNOT.courante);
+}
+function redessiner() { if (!dessinPrevu) { dessinPrevu = true; requestAnimationFrame(dessinerAnnotation); } }
+toile.addEventListener('pointerdown', ev => {
+  if (!ANNOT.img) return;
+  ev.preventDefault();
+  try { toile.setPointerCapture(ev.pointerId); } catch (e) {}
+  const e = echelle();
+  const epaisseur = ANNOT.taille * e * (ANNOT.outil === 'gomme' ? 4 : 1);
+  ANNOT.courante = { outil: ANNOT.outil, couleur: ANNOT.couleur, epaisseur, tete: Math.max(18 * e, epaisseur * 3), points: [position(ev)] };
+  redessiner();
+});
+toile.addEventListener('pointermove', ev => {
+  if (!ANNOT.courante) return;
+  ev.preventDefault();
+  const p = position(ev);
+  if (ANNOT.courante.outil === 'stylo' || ANNOT.courante.outil === 'gomme') ANNOT.courante.points.push(p);
+  else ANNOT.courante.points[1] = p;
+  redessiner();
+});
+function finTrait() {
+  if (!ANNOT.courante) return;
+  ANNOT.formes.push(ANNOT.courante); ANNOT.courante = null; redessiner();
+}
+toile.addEventListener('pointerup', finTrait);
+toile.addEventListener('pointercancel', finTrait);
+function annulerTrait() { ANNOT.formes.pop(); redessiner(); }
+document.querySelectorAll('.annot-outil[data-outil]').forEach(b => b.addEventListener('click', () => {
+  ANNOT.outil = b.dataset.outil;
+  document.querySelectorAll('.annot-outil[data-outil]').forEach(x => x.classList.toggle('active', x === b));
+}));
+document.querySelectorAll('.annot-couleur').forEach(b => b.addEventListener('click', () => {
+  ANNOT.couleur = b.dataset.couleur;
+  document.querySelectorAll('.annot-couleur').forEach(x => x.classList.toggle('active', x === b));
+  if (ANNOT.outil === 'gomme') document.querySelector('.annot-outil[data-outil="stylo"]').click();
+}));
+document.getElementById('annot-taille').addEventListener('input', ev => { ANNOT.taille = +ev.target.value; });
+function fermerAnnotation(garder) {
+  const i = ANNOT.i;
+  const fermer = () => {
+    document.getElementById('annot').hidden = true;
+    document.body.style.overflow = '';
+    Object.assign(ANNOT, { i: null, img: null, formes: [], courante: null });
+  };
+  if (!garder) {
+    if (ANNOT.formes.length && !confirm('Abandonner les annotations de cette photo ?')) return;
+    fermer(); return;
+  }
+  if (!ANNOT.formes.length || !photos[i]) { fermer(); return; }
+  dessinerAnnotation();
+  toile.toBlob(blob => {
+    if (!blob) { LOUE.message('Annotation impossible (mémoire du téléphone ?). Réessayez.', 6000); return; }
+    const p = photos[i];
+    URL.revokeObjectURL(p.url);
+    Object.assign(p, { blob, url: URL.createObjectURL(blob), annotee: true, dataB64: null });
+    fermer();
+    afficherPhotos(); prevenir();
+  }, 'image/jpeg', 0.85);
+}
+
+// ── Brouillon automatique : champs + destinataires + photos (annotées ou non) et leurs légendes ──
+// Reprend l'ancien brouillon de la page (« brouillon_note » : texte seul).
+LOUE.preRemplirChantier('meta-chantier');   // lot 2 : chantier choisi à l'accueil (avant la photo de la page vierge)
+const BROUILLON = LOUE.brouillon({
+  champChantier: 'meta-chantier',
+  cle: 'note',
+  anciennesCles: ['brouillon_note'],
+  capturer: () => ({
+    destinataires: DEST.liste(),
+    photos: photos.map(p => ({ id: p.id, blob: p.blob, label: p.label, annotee: !!p.annotee })),
+  }),
+  restaurer: x => {
+    DEST.remettre(x.destinataires);
+    photos.forEach(p => URL.revokeObjectURL(p.url));
+    photos = (x.photos || []).filter(p => p && p.blob)
+      .map(p => ({ id: p.id || LOUE.nouvelId('photo'), blob: p.blob, url: URL.createObjectURL(p.blob), label: p.label || '', annotee: !!p.annotee }));
+    afficherPhotos();
+  },
+});
+
+// ── Données de la fiche (mêmes noms de champs qu'avant la refonte) ──
+function donneesFiche(pourApercu) {
+  const v = id => document.getElementById(id).value.trim();
+  return {
+    chantier: v('meta-chantier'), auteur: v('meta-auteur'), date: v('meta-date'), objet: v('meta-objet'),
+    commentaires: document.getElementById('meta-commentaires').value,
+    destinataires: DEST.liste(),   // le serveur ajoute lui-même le conducteur du chantier (ou Franck)
+    // Aperçu : photos lues sur place ; envoi : références aux photos envoyées une par une
+    photosBase64: photos.map(p => pourApercu ? { data: p.dataB64 || '', mimeType: 'image/jpeg', label: p.label } : { photoRef: p.id, label: p.label }),
+  };
+}
+
+// ── Aperçu, impression, enregistrement en PDF (le même modèle que le PDF du mail) ──
+async function ouvrirApercu() {
+  for (const p of photos) if (!p.dataB64) p.dataB64 = (await LOUE.blobEnDataUrl(p.blob)).split(',')[1];
+  document.getElementById('apercu-cadre').srcdoc = modele_note(donneesFiche(true), LOUE.esc);
+  document.getElementById('apercu').classList.add('open');
+}
+function fermerApercu() { document.getElementById('apercu').classList.remove('open'); }
+function imprimer(enPdf) {
+  const cadre = document.getElementById('apercu-cadre');
+  if (enPdf) LOUE.message('Choisissez l’imprimante « Enregistrer au format PDF »', 6000);
+  cadre.contentWindow.focus();
+  cadre.contentWindow.print();
+}
+
+// Après l'envoi : on garde le rédacteur et le chantier ; on vide les destinataires, l'objet, les notes et les photos
+function viderFiche() {
+  ['meta-objet', 'meta-commentaires'].forEach(id => { document.getElementById(id).value = ''; });
+  DEST.vider();
+  photos.forEach(p => URL.revokeObjectURL(p.url)); photos = []; afficherPhotos();
+  dateDuJour();
+  window.scrollTo(0, 0);
+}
+
+// ── Envoi : la note est rangée dans le téléphone, puis part (tout de suite ou au retour du réseau) ──
+let envoiEnCours = false;
+const TEXTE_BOUTON = 'Envoyer la note';
+async function envoyer() {
+  if (envoiEnCours) return;
+  if (!DEST.verifierAvantEnvoi()) return;   // adresse tapée mais pas encore validée
+  const erreurs = [];
+  const champ = id => document.getElementById(id);
+  ['meta-chantier', 'meta-auteur'].forEach(id => champ(id).classList.remove('error'));
+  const nomChantier = champ('meta-chantier').value.trim();
+  const listeChantiers = (LISTES.chantiers || []).map(c => String(c.nom).toLowerCase());
+  if (!nomChantier) { champ('meta-chantier').classList.add('error'); erreurs.push('chantier manquant'); }
+  // Liste chargée : le chantier doit en faire partie (une faute de frappe créerait un nouveau dossier dans Drive)
+  else if (listeChantiers.length && listeChantiers.indexOf(nomChantier.toLowerCase()) < 0) {
+    // Liste ancienne gardée dans le téléphone : un chantier récent peut manquer → on demande confirmation
+    if (!(listesDuTelephone && confirm(LOUE.questionHorsListe(nomChantier)))) {
+      champ('meta-chantier').classList.add('error'); erreurs.push('choisissez le chantier dans la liste');
+    }
+  }
+  if (!champ('meta-auteur').value.trim()) { champ('meta-auteur').classList.add('error'); erreurs.push('« Rédigé par » manquant'); }
+  const bandeau = document.getElementById('valBanner');
+  if (erreurs.length) {
+    bandeau.textContent = 'À compléter : ' + erreurs.join(', ') + '.';
+    bandeau.classList.add('show'); bandeau.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    return;
+  }
+  bandeau.classList.remove('show');
+  envoiEnCours = true;
+  const bouton = document.getElementById('btn-envoyer');
+  bouton.disabled = true; bouton.textContent = 'Rangement dans le téléphone…';
+  const lesPhotos = photos.map(p => ({ id: p.id, blob: p.blob }));
+  let enFile = false;
+  try {
+    await LOUE.mettreEnFile('note', donneesFiche(false), lesPhotos, 'Note de réunion');
+    enFile = true;
+    await BROUILLON.effacer();   // la note est à l'abri dans la file d'envoi
+    LOUE.message('Note rangée dans le téléphone. Envoi en cours… (voir l’indicateur en haut)', 6000);
+    viderFiche();
+    LOUE.viderFile();   // on reste sur la page : quitter maintenant couperait l'envoi en cours (il reprendrait plus tard)
+    BROUILLON.reprendre();
+  } catch (err) {
+    if (!enFile) {
+      // Plan de secours : le téléphone refuse de garder la note (navigation privée, mémoire pleine) → envoi direct
+      bouton.textContent = 'Envoi direct… ne quittez pas la page';
+      try {
+        const rep = await LOUE.envoyerDirect('note', donneesFiche(false), lesPhotos);
+        await BROUILLON.effacer();
+        LOUE.message('✓ Note envoyée — ' + (rep.message || ''), 8000);
+        viderFiche(); BROUILLON.reprendre();
+      } catch (err2) {
+        LOUE.message(err2.aConfirmer ? LOUE.MSG_DIRECT_A_CONFIRMER : err2.connexion ? LOUE.MSG_DIRECT_CONNEXION : '⚠ La note n’est pas partie : ' + err2.message + '. Gardez la page ouverte et réessayez quand il y aura du réseau.', 12000);
+      }
+    }
+  }
+  bouton.disabled = false; bouton.textContent = TEXTE_BOUTON;
+  envoiEnCours = false;
+}
+</script>
+</body>
+</html>

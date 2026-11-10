@@ -1,0 +1,82 @@
+/* ═══════════════════════════════════════════════════════════════
+   Loué App — styles communs (indicateur d'envoi, messages, impression)
+   Zones tactiles d'au moins 44 px, contrastes lisibles au soleil.
+   ═══════════════════════════════════════════════════════════════ */
+
+/* Indicateur d'envoi : toujours visible, en haut à droite, au-dessus des barres d'envoi */
+.loue-envoi {
+  position: fixed; top: calc(8px + env(safe-area-inset-top, 0px)); right: 8px; z-index: 500;
+  min-height: 44px; max-width: calc(100vw - 16px); padding: 10px 14px;
+  border: 0; border-radius: 22px; font: 700 14px/1.2 system-ui, -apple-system, 'Segoe UI', sans-serif;
+  box-shadow: 0 2px 8px rgba(0,0,0,.25); cursor: pointer;
+}
+.loue-envoi.ok      { background: #E1F2E9; color: #145A31; opacity: .85; }
+.loue-envoi.attente { background: #FFE8A3; color: #5A3D00; }
+.loue-envoi.erreur  { background: #B32E2E; color: #fff; }
+/* Version courte, dans la barre du haut de la page */
+.loue-envoi.compact { position: static; min-width: 48px; padding: 8px 10px; box-shadow: none; opacity: 1; }
+
+/* Mode test : le bandeau rouge occupe le haut, le reste descend d'autant */
+body.loue-test { padding-top: 40px; }
+body.loue-test .topbar { top: 40px; }
+body.loue-test .loue-envoi:not(.compact) { top: 48px; }
+
+/* Message temporaire */
+.loue-message {
+  position: fixed; left: 50%; bottom: calc(90px + env(safe-area-inset-bottom, 0px)); z-index: 600;
+  transform: translate(-50%, 30px); opacity: 0; pointer-events: none;
+  max-width: calc(100vw - 32px); padding: 12px 16px; border-radius: 10px;
+  background: #141210; color: #fff; font: 600 15px/1.35 system-ui, -apple-system, 'Segoe UI', sans-serif;
+  transition: .25s;
+}
+.loue-message.visible { transform: translate(-50%, 0); opacity: 1; }
+
+/* Liste des fiches en attente */
+.loue-file {
+  position: fixed; top: calc(60px + env(safe-area-inset-top, 0px)); right: 8px; left: 8px; z-index: 550;
+  max-width: 480px; margin-left: auto; max-height: 70vh; overflow: auto;
+  background: #fff; color: #141210; border-radius: 14px; padding: 14px;
+  box-shadow: 0 6px 24px rgba(0,0,0,.3); font: 15px/1.4 system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+.loue-file-tete { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.loue-file ul { list-style: none; padding: 0; margin: 10px 0; }
+.loue-file li { padding: 10px 0; border-bottom: 1px solid #ddd; }
+.loue-file li.erreur { color: #8A1F1F; }
+.loue-file button { min-height: 44px; padding: 8px 14px; border-radius: 10px; border: 1px solid #999; background: #f4f4f4; font: inherit; }
+.loue-file .loue-btn { width: 100%; background: #1A2B4A; color: #fff; border: 0; font-weight: 700; }
+.loue-file-aide { font-size: 13px; color: #555; }
+
+/* Bannière « Brouillon retrouvé » */
+.loue-brouillon {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 650; display: flex; flex-wrap: wrap; align-items: center; gap: 10px;
+  padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px)); background: #1A2B4A; color: #fff;
+  box-shadow: 0 -2px 12px rgba(0,0,0,.25); font: 15px/1.35 system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+.loue-brouillon span { flex: 1; min-width: 180px; }
+.loue-brouillon button { min-height: 44px; padding: 8px 16px; border-radius: 8px; font: 700 15px system-ui, sans-serif; cursor: pointer; }
+.loue-brouillon [data-oui] { background: #0D7A6B; color: #fff; border: 0; }
+.loue-brouillon [data-non] { background: transparent; color: #fff; border: 1px solid rgba(255,255,255,.6); }
+.loue-brouillon-alerte {
+  position: fixed; left: 0; right: 0; top: 0; z-index: 700; display: flex; flex-wrap: wrap; align-items: center; gap: 10px;
+  padding: calc(10px + env(safe-area-inset-top, 0px)) 16px 10px; background: #A11B1B; color: #fff;
+  box-shadow: 0 2px 12px rgba(0,0,0,.3); font: 700 14px/1.3 system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+.loue-brouillon-alerte[hidden] { display: none; }
+body.loue-test .loue-brouillon-alerte { top: 40px; padding-top: 10px; }   /* sous le bandeau du mode test */
+.loue-brouillon-alerte span { flex: 1; min-width: 200px; }
+.loue-brouillon-alerte button { min-height: 44px; padding: 8px 16px; border-radius: 8px; border: 1px solid #fff; background: transparent; color: #fff; font: 700 15px system-ui, sans-serif; cursor: pointer; }
+
+/* Impression (PC) : seul le document s'imprime, sans les boutons ni l'indicateur */
+@media print {
+  .loue-envoi, .loue-message, .loue-file, .no-print { display: none !important; }
+}
+
+/* iPhone, appli pas installée (lot 1.4) */
+.loue-avert-install { display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: #FFF4D6; color: #5A3D00;
+  border-bottom: 1px solid #E0B030; font: 600 14px/1.35 system-ui, -apple-system, sans-serif; }
+.loue-avert-install span { flex: 1; }
+.loue-avert-install button { min-height: 44px; min-width: 56px; border-radius: 8px; border: 1px solid #5A3D00; background: transparent; color: #5A3D00; font: 700 15px system-ui, sans-serif; }
+
+/* Bandeau « Nouvelle version » en haut (la bannière du brouillon et la barre d'envoi restent visibles en bas) */
+.loue-brouillon.loue-maj { top: 0; bottom: auto; padding: calc(10px + env(safe-area-inset-top, 0px)) 16px 10px; }
+body.loue-test .loue-brouillon.loue-maj { top: 40px; padding-top: 10px; }
