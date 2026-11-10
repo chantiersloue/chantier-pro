@@ -1,7 +1,7 @@
 // ═══════════════════════════════════════════════════════════════
 // LOUÉ APP — SERVEUR COMPLET, À COLLER DANS APPS SCRIPT (fichier « Code.gs », tout remplacer)
 // FICHIER GÉNÉRÉ AUTOMATIQUEMENT par « node outils/construire.js » — NE PAS MODIFIER À LA MAIN :
-// les sources sont dans le dossier apps-script/ du dépôt. Version du serveur 017898d7c9 (pages a5ffceb8c1)
+// les sources sont dans le dossier apps-script/ du dépôt. Version du serveur 779c357590 (pages 26927a2b9a)
 // ═══════════════════════════════════════════════════════════════
 
 // ████ Config.gs ████
@@ -694,7 +694,16 @@ function noterEchec_(id) {
     // seulement pour un compte qui existe (un identifiant inventé n'écrit rien). traiterComptes l'effacera au déblocage.
     try {
       const l = utilisateurs_().parId[id];
-      if (l) ecrireEtat_(l.ligne, 'bloqué ' + BLOCAGE_MIN + ' min (5 essais ratés) — « Réinitialiser » débloque');
+      if (l) {
+        // Sous le verrou du script (le même que traiterComptes) : jamais d'État écrit en même temps que « Réinitialiser » ;
+        // verrou pas libre en 2 s : traiterComptes écrira l'état à son passage
+        const v = LockService.getScriptLock();
+        const deja = !!(v.hasLock && v.hasLock());
+        if (deja || v.tryLock(2000)) {
+          try { ecrireEtat_(l.ligne, 'bloqué ' + BLOCAGE_MIN + ' min (5 essais ratés) — « Réinitialiser » débloque'); }
+          finally { if (!deja) v.releaseLock(); }
+        }
+      }
     } catch (e) { console.error('noterEchec_ :', e.message); }
   } else {
     cache.put('ECHECS_' + id, String(n), BLOCAGE_MIN * 60);

@@ -41,7 +41,7 @@
 ## Les fichiers de la livraison
 
 - **`A-COLLER-DANS-APPS-SCRIPT/Code.gs`** : tout le serveur, à coller tel quel (comme aux lots 0 et 1).
-- **Demande de fusion `livraison/lot-2-essai`** (fusionnée, essais faits) puis **`livraison/lot-2-essai-2`** (correctif 6.0.1, section ci-dessous) : ajoute au site la copie d'essai du lot 2 (dossier `essai/`, toujours branchée sur TEST) et le nouveau `Code.gs` (v6.0). **Le vrai site n'est pas touché** : les gars continuent avec le lot 1.
+- **Demande de fusion `livraison/lot-2-essai`** (fusionnée, essais faits) puis **`livraison/lot-2-essai-2`** (correctif 6.0.1, section ci-dessous) : ajoute au site la copie d'essai du lot 2 (dossier `essai/`, toujours branchée sur TEST) et le nouveau `Code.gs` (v6.0.1). **Le vrai site n'est pas touché** : les gars continuent avec le lot 1.
 - **Demande de fusion `livraison/lot-2`** (étape D, je la prépare quand tu m'envoies l'adresse du nouveau déploiement de production) : les vraies pages du lot 2 avec cette adresse ; elle retire la copie d'essai.
 
 **Ce qu'il te faut avant de commencer** : ton PC ; ton téléphone ; un 2e téléphone si tu peux (sinon le tien suffit, en te déconnectant entre deux essais) ; 3 noms de la liste *Contacts* du Sheet TEST (toi, un poseur, un conducteur) ; environ 2 h devant toi. Rien à acheter, rien à installer sur le PC.
@@ -50,7 +50,7 @@
 
 ## Correctif après tes essais (6.0.1) — à faire avant l'étape D (30 min)
 
-> Tes essais 1 à 11 et 14 à 21 sont validés. L'essai 12 a montré un vrai défaut, corrigé ici, et l'essai 14 une petite amélioration.
+> Tes essais 1 à 11 et 13 à 21 sont validés (l'essai 14 marchait ; il gagne une petite amélioration). L'essai 12 a montré un vrai défaut, corrigé ici.
 
 | Quoi | Ce qui change |
 |---|---|
@@ -66,8 +66,9 @@
 
 | # | Essai | Attendu |
 |---|---|---|
-| 12 | Connecté en `poseur01`, **mode avion**, quitus complet avec photo → Envoyer | « Quitus rangé dans le téléphone » et « ⏳ 1 » en haut, en quelques secondes. Si un jour le message « le téléphone n'arrive pas à ranger la fiche » apparaît : fais ce qu'il dit, puis envoie-moi la capture de « À propos » (incidents) |
-| 12 bis | Réseau revenu | la fiche part toute seule, mail reçu une seule fois |
+| 12 | L'essai 12 d'origine (plus bas, étape C) : **déconnecté**, « Remplir une fiche sans être connecté », mode avion → Envoyer | « Quitus rangé dans le téléphone » et « ⏳ 1 » |
+| 12 bis | Connecté en `poseur01`, **mode avion**, quitus complet avec photo → Envoyer | « Quitus rangé dans le téléphone » et « ⏳ 1 » en haut, en quelques secondes. Si un jour le message « le téléphone n'arrive pas à ranger la fiche » apparaît : fais ce qu'il dit, puis envoie-moi la capture de « À propos » (incidents) |
+| 12 ter | Réseau revenu | les deux fiches partent toutes seules, chaque mail reçu une seule fois |
 | 14 | 5 faux mots de passe pour `poseur01` | « bloqué » dans la colonne État **tout de suite** (recharge le Sheet) ; « Réinitialiser » le débloque |
 
 5. Si un essai n'est pas vert : arrête-toi et envoie-moi une capture. Sinon : étape D (le `Code.gs` à coller en production est le même, v6.0.1).

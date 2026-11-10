@@ -9,8 +9,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Loué App">
 <meta name="theme-color" content="#1A2B4A">
-<link rel="stylesheet" href="commun/style.css?v=a5ffceb8c1">
-<link rel="stylesheet" href="commun/fiche.css?v=a5ffceb8c1">
+<link rel="stylesheet" href="commun/style.css?v=26927a2b9a">
+<link rel="stylesheet" href="commun/fiche.css?v=26927a2b9a">
 <style>
 :root{--purple:#6B3FA0;--purple-l:#EDE8F8;}
 .type-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
@@ -183,15 +183,15 @@
   </div>
 </div>
 
-<script src="commun/config.js?v=a5ffceb8c1"></script>
-<script src="commun/api.js?v=a5ffceb8c1"></script>
-<script src="commun/ui.js?v=a5ffceb8c1"></script>
-<script src="commun/photos.js?v=a5ffceb8c1"></script>
-<script src="commun/signature.js?v=a5ffceb8c1"></script>
-<script src="commun/brouillon.js?v=a5ffceb8c1"></script>
-<script src="commun/hors-ligne.js?v=a5ffceb8c1"></script>
-<script src="modeles/mise-en-page.js?v=a5ffceb8c1"></script>
-<script src="modeles/attestation.js?v=a5ffceb8c1"></script>
+<script src="commun/config.js?v=26927a2b9a"></script>
+<script src="commun/api.js?v=26927a2b9a"></script>
+<script src="commun/ui.js?v=26927a2b9a"></script>
+<script src="commun/photos.js?v=26927a2b9a"></script>
+<script src="commun/signature.js?v=26927a2b9a"></script>
+<script src="commun/brouillon.js?v=26927a2b9a"></script>
+<script src="commun/hors-ligne.js?v=26927a2b9a"></script>
+<script src="modeles/mise-en-page.js?v=26927a2b9a"></script>
+<script src="modeles/attestation.js?v=26927a2b9a"></script>
 <script>
 'use strict';
 // ── Listes fixes ──
@@ -475,7 +475,7 @@ async function envoyer() {
         LOUE.message('✓ Attestation envoyée — ' + (rep.message || ''), 8000);
         viderFiche(); BROUILLON.reprendre();
       } catch (err2) {
-        LOUE.message(err2.aConfirmer ? LOUE.MSG_DIRECT_A_CONFIRMER : err2.connexion ? LOUE.MSG_DIRECT_CONNEXION : '⚠ L’attestation n’est pas partie : ' + err2.message + '. Gardez la page ouverte et réessayez quand il y aura du réseau.', 12000);
+        LOUE.message(err2.stockageBloque ? '⚠ L’attestation n’est pas partie : ' + err2.message + '.' : err2.aConfirmer ? LOUE.MSG_DIRECT_A_CONFIRMER : err2.connexion ? LOUE.MSG_DIRECT_CONNEXION : '⚠ L’attestation n’est pas partie : ' + err2.message + '. Gardez la page ouverte et réessayez quand il y aura du réseau.', err2.stockageBloque ? 0 : 12000);
       }
     }
   }

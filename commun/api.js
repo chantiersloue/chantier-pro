@@ -191,60 +191,91 @@
     return { donnees: JSON.parse(texte), photos: nouvelles };
   }
 
-  // ── Journal des incidents (gardé dans le téléphone, affiché dans « À propos ») ──
+  // ── Journal des incidents (gardé dans le téléphone 30 jours, affiché dans « À propos ») ──
   // Sert à comprendre un blocage sur le terrain : Franck le lit dans « À propos » et me le transmet.
   var CLE_INCIDENTS = 'loue_incidents_' + CONFIG.env;
+  var JOURS_INCIDENTS = 30;
+  function incidentsRecents() {
+    var limite = Date.now() - JOURS_INCIDENTS * 24 * 3600 * 1000;
+    try { return JSON.parse(localStorage.getItem(CLE_INCIDENTS) || '[]').filter(function (i) { return i && i.t > limite; }); } catch (e) { return []; }
+  }
   LOUE.noterIncident = function (texte) {
     try {
-      var l = JSON.parse(localStorage.getItem(CLE_INCIDENTS) || '[]');
-      l.unshift({ t: Date.now(), texte: String(texte).slice(0, 200), page: location.pathname.split('/').pop() || 'index.html', enLigne: navigator.onLine });
+      var l = incidentsRecents();
+      l.unshift({ t: Date.now(), texte: String(texte).slice(0, 200), page: location.pathname.split('/').pop() || 'index.html',
+        enLigne: navigator.onLine, version: CONFIG.version || '', installee: !!(LOUE.estInstalle && LOUE.estInstalle()) });
       localStorage.setItem(CLE_INCIDENTS, JSON.stringify(l.slice(0, 10)));
     } catch (e) {}
   };
-  LOUE.incidents = function () { try { return JSON.parse(localStorage.getItem(CLE_INCIDENTS) || '[]'); } catch (e) { return []; } };
+  LOUE.incidents = incidentsRecents;
 
   // Rangement bloqué : la mémoire du téléphone (IndexedDB) attend une autre fenêtre ou un onglet de l'appli resté
-  // figé au milieu d'une écriture (Android fige les onglets en arrière-plan). Sans limite, le bouton restait bloqué
+  // figé au milieu d'une écriture (Android fige les applis en arrière-plan). Sans limite, le bouton restait bloqué
   // sur « Rangement dans le téléphone… » sans aucun message (essai 12 du lot 2).
   var RANGEMENT_MAX_MS = 12000;
-  LOUE.MSG_MEMOIRE_BLOQUEE = 'le téléphone n’arrive pas à ranger la fiche (mémoire occupée par un autre onglet de l’appli) : gardez CETTE page ouverte, fermez les AUTRES onglets de l’appli dans Chrome, puis touchez Envoyer de nouveau';
+  LOUE.MSG_MEMOIRE_BLOQUEE = 'le téléphone n’arrive pas à ranger la fiche (mémoire occupée par une autre fenêtre de l’appli). Gardez CETTE page ouverte ; fermez les AUTRES fenêtres de l’appli Loué (bouton carré d’Android) et ses onglets dans Chrome ; puis touchez Envoyer de nouveau, sans rien changer. Le texte de la fiche reste dans le brouillon';
   LOUE.stockageBloqueLe = 0;
+  // Empreinte d'une fiche : la même fiche renvoyée sans changement garde son numéro (envoi direct puis rangement)
+  function empreinteFiche(type, donnees, photos) {
+    return type + '|' + JSON.stringify(donnees) + '|' + (photos || []).map(function (p) { return p.id + ':' + (p.blob ? p.blob.size : 0); }).join(',');
+  }
 
-
+  // ── Ajouter une fiche à la file ──
   // donnees : les champs de la fiche ; photos : [{ id, blob }] référencées dans donnees par { photoRef: id }
   LOUE.mettreEnFile = function (type, donnees, photos, libelle) {
-    var r = renumeroter(Object.assign({}, donnees, { type: type }), photos);
+    // La même fiche déjà tentée en envoi direct (rangement bloqué, puis « Envoyer » de nouveau sans rien changer) :
+    // même numéro et mêmes photos, pour que le serveur réponde « déjà reçue » au lieu d'envoyer un 2e mail
+    var emp = empreinteFiche(type, donnees, photos), direct = directs[emp];
+    var r = direct
+      ? { donnees: direct.donnees, photos: direct.photos.map(function (id) { return { id: id, blob: direct.blobs[id] }; }) }
+      : renumeroter(Object.assign({}, donnees, { type: type }), photos);
     var element = {
-      id: LOUE.nouvelId('fiche'), type: type, libelle: libelle || type, cree: Date.now(), env: CONFIG.env,
+      id: direct ? direct.id : LOUE.nouvelId('fiche'), type: type, libelle: libelle || type, cree: Date.now(), env: CONFIG.env,
       saisiPar: (LOUE.compte() || { profil: {} }).profil.id || '',   // qui était connecté quand la fiche a été rangée
       donnees: r.donnees, photos: r.photos.map(function (p) { return p.id; }),
-      photosEnvoyees: [], etat: 'en attente', message: '', essais: 0, prochainEssai: 0,
+      photosEnvoyees: direct ? direct.photosEnvoyees.slice() : [], etat: 'en attente', message: '', essais: 0, prochainEssai: 0,
     };
-    var ecritures = r.photos.map(function (p) {
-      return LOUE.stockage.ecrire('photos', { id: p.id, fiche: element.id, blob: p.blob });
+    var debut = Date.now();
+    // Fiche et photos rangées en UNE seule opération : si la mémoire est bloquée, elle est annulée net à 12 s.
+    // Rien n'est écrit : ni fiche qui partirait en double plus tard, ni photo orpheline.
+    return base().then(function (db) {
+      return new Promise(function (ok, ko) {
+        var tx, fini = false;
+        try { tx = db.transaction(['photos', 'file'], 'readwrite'); } catch (e) { ko(e); return; }
+        r.photos.forEach(function (p) { tx.objectStore('photos').put({ id: p.id, fiche: element.id, blob: p.blob }); });
+        tx.objectStore('file').put(element);
+        var minuteur = setTimeout(function () {
+          if (fini) return;
+          fini = true;
+          LOUE.stockageBloqueLe = Date.now();
+          LOUE.noterIncident('Rangement bloqué plus de ' + (RANGEMENT_MAX_MS / 1000) + ' s (' + r.photos.length + ' photo(s)) : annulé');
+          try { tx.abort(); } catch (e) { /* trop tard pour annuler : oncomplete défera l'écriture */ }
+          ko(Object.assign(new Error(LOUE.MSG_MEMOIRE_BLOQUEE), { stockageBloque: true }));
+        }, RANGEMENT_MAX_MS);
+        tx.oncomplete = function () {
+          clearTimeout(minuteur);
+          if (fini) { defaireRangement(element); return; }   // terminée malgré l'annulation demandée
+          fini = true;
+          if (Date.now() - debut > 5000) LOUE.noterIncident('Rangement lent : ' + Math.round((Date.now() - debut) / 1000) + ' s');
+          if (direct) delete directs[emp];
+          annoncer(); ok(element);
+        };
+        tx.onerror = tx.onabort = function () {
+          clearTimeout(minuteur);
+          if (fini) return;
+          fini = true;
+          ko(tx.error || new Error('Stockage du téléphone indisponible'));
+        };
+      });
     });
-    var ecriture = Promise.all(ecritures).then(function () { return LOUE.stockage.ecrire('file', element); });
-    var debut = Date.now(), minuteur = null, tropTard = false;
-    var limite = new Promise(function (ok, ko) {
-      minuteur = setTimeout(function () {
-        tropTard = true;
-        LOUE.stockageBloqueLe = Date.now();
-        LOUE.noterIncident('Rangement bloqué plus de ' + (RANGEMENT_MAX_MS / 1000) + ' s (' + r.photos.length + ' photo(s))');
-        // Si l'écriture finit plus tard, on la défait : la page a déjà dit que la fiche n'était pas rangée
-        ecriture.then(function () {
-          return Promise.all(element.photos.map(function (id) { return LOUE.stockage.supprimer('photos', id); }))
-            .then(function () { return LOUE.stockage.supprimer('file', element.id); })
-            .then(function () { LOUE.noterIncident('Rangement arrivé en retard : annulé (pas de doublon)'); annoncer(); });
-        }).catch(function () {});
-        ko(Object.assign(new Error(LOUE.MSG_MEMOIRE_BLOQUEE), { stockageBloque: true }));
-      }, RANGEMENT_MAX_MS);
-    });
-    return Promise.race([ecriture.then(function () {
-      clearTimeout(minuteur);
-      if (!tropTard && Date.now() - debut > 3000) LOUE.noterIncident('Rangement lent : ' + Math.round((Date.now() - debut) / 1000) + ' s');
-      annoncer(); return element;
-    }, function (err) { clearTimeout(minuteur); throw err; }), limite]);
   };
+  // Rangement terminé APRÈS que la page a dit « pas rangé » (cas très rare : annulation impossible) : on le défait
+  function defaireRangement(element) {
+    Promise.all(element.photos.map(function (id) { return LOUE.stockage.supprimer('photos', id); }))
+      .then(function () { return LOUE.stockage.supprimer('file', element.id); })
+      .then(function () { LOUE.noterIncident('Rangement arrivé en retard : défait (pas de doublon)'); annoncer(); })
+      .catch(function () {});
+  }
 
   function blobEnBase64(blob) {
     return new Promise(function (ok, ko) {
@@ -318,7 +349,7 @@
   }
 
   // ── Vider la file (au démarrage, au retour du réseau, au retour dans l'appli, sur bouton) ──
-  var enCours = null, aRelancer = false, minuterieFile = null;
+  var enCours = null, aRelancer = false, minuterieFile = null, abandonsVerrou = 0;
   // Canal entre les pages ouvertes de l'appli (PC : plusieurs onglets) : l'indicateur de chacune reste juste
   var canal = null;
   try { canal = window.BroadcastChannel ? new BroadcastChannel('loue-file-' + CONFIG.env) : null; } catch (e) { canal = null; }
@@ -401,7 +432,15 @@
       var ctrl = window.AbortController ? new AbortController() : null;
       var minuteur = setTimeout(function () { if (ctrl) ctrl.abort(); }, 30000);
       return navigator.locks.request('loue-file-' + CONFIG.env, ctrl ? { signal: ctrl.signal } : {}, function () { clearTimeout(minuteur); return vider(); })
-        .catch(function (err) { clearTimeout(minuteur); if (err && err.name === 'AbortError') return; throw err; });   // réessayé au prochain passage
+        .then(function (v) { abandonsVerrou = 0; return v; }, function (err) {
+          clearTimeout(minuteur);
+          if (err && err.name === 'AbortError') {   // réessayé au prochain passage
+            abandonsVerrou++;
+            if (abandonsVerrou === 3 && LOUE.noterIncident) LOUE.noterIncident('File d’envoi occupée par une autre fenêtre de l’appli (3 essais de suite)');
+            return;
+          }
+          throw err;
+        });
     };
     enCours = (navigator.locks && navigator.locks.request ? avecVerrou() : vider()).catch(function (err) {
       LOUE.signaler({ type: 'stockage', message: err && err.message });
@@ -450,7 +489,7 @@
   LOUE.MSG_DIRECT_CONNEXION = '⚠ Fiche pas envoyée : il faut se connecter, et le téléphone n’a PAS pu la garder. Ne quittez pas cette page : touchez Envoyer de nouveau, une fenêtre de connexion s’ouvrira ici.';
   LOUE.MSG_DIRECT_A_CONFIRMER = '⏳ Pas encore confirmé par le bureau (la fiche est peut-être déjà arrivée). Touchez Envoyer de nouveau, SANS RIEN CHANGER : il n’y aura pas de 2e mail.';
   LOUE.envoyerDirect = function (type, donnees, photos) {
-    var empreinte = type + '|' + JSON.stringify(donnees) + '|' + (photos || []).map(function (p) { return p.id + ':' + (p.blob ? p.blob.size : 0); }).join(',');
+    var empreinte = empreinteFiche(type, donnees, photos);
     var el = directs[empreinte];
     if (!el) {
       var r = renumeroter(Object.assign({}, donnees, { type: type }), photos);
@@ -475,14 +514,21 @@
         }
         if (err.definitif || n >= (err.aConfirmer ? 6 : 3)) {
           var texte = err.aConfirmer ? LOUE.MSG_DIRECT_A_CONFIRMER : messageClair(err);
-          // Le rangement venait d'être bloqué : on le dit (sinon « pas de réseau » seul laisserait croire à un oubli)
-          if (!err.aConfirmer && Date.now() - LOUE.stockageBloqueLe < 120000) texte = 'pas de réseau pour l’envoyer directement, et ' + LOUE.MSG_MEMOIRE_BLOQUEE;
-          throw Object.assign(new Error(texte), { definitif: err.definitif, aConfirmer: !!err.aConfirmer });
+          // Le rangement venait d'être bloqué et le réseau manque : on dit quoi faire (message qui reste à l'écran)
+          var bloque = !err.aConfirmer && Date.now() - LOUE.stockageBloqueLe < 120000 && erreurReseau(err);
+          if (bloque) texte = 'pas de réseau pour l’envoyer directement, et ' + LOUE.MSG_MEMOIRE_BLOQUEE;
+          throw Object.assign(new Error(texte), { definitif: err.definitif, aConfirmer: !!err.aConfirmer, stockageBloque: bloque });
         }
         return new Promise(function (ok) { setTimeout(ok, 5000); }).then(function () { return tenter(n + 1); });
       });
     }
-    return tenter(1);
+    var essai = tenter(1);
+    if (Date.now() - LOUE.stockageBloqueLe > 120000) return essai;
+    // Juste après un rangement bloqué, avec un réseau faible : pas plus de 2 min sur « Envoi direct… »
+    // (même numéro au prochain appui : « déjà reçue » si elle était arrivée)
+    return Promise.race([essai, new Promise(function (ok, ko) {
+      setTimeout(function () { ko(Object.assign(new Error(LOUE.MSG_DIRECT_A_CONFIRMER), { aConfirmer: true })); }, 120000);
+    })]);
   };
 
   // ── Annonces aux pages (indicateur « en attente / envoyée ») ──

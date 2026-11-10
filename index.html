@@ -6,7 +6,7 @@
 <title>Loué App</title>
 <link rel="icon" type="image/png" href="apple-touch-icon.png">
 <link rel="manifest" href="manifest.json">
-<link rel="stylesheet" href="commun/style.css?v=a5ffceb8c1">
+<link rel="stylesheet" href="commun/style.css?v=26927a2b9a">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -499,10 +499,10 @@ body.loue-test .installer{padding-top:calc(56px + env(safe-area-inset-top,0px));
 </div>
 
 
-<script src="commun/config.js?v=a5ffceb8c1"></script>
-<script src="commun/api.js?v=a5ffceb8c1"></script>
-<script src="commun/ui.js?v=a5ffceb8c1"></script>
-<script src="commun/hors-ligne.js?v=a5ffceb8c1"></script>
+<script src="commun/config.js?v=26927a2b9a"></script>
+<script src="commun/api.js?v=26927a2b9a"></script>
+<script src="commun/ui.js?v=26927a2b9a"></script>
+<script src="commun/hors-ligne.js?v=26927a2b9a"></script>
 <script>
 // ── Accueil (lot 2) : connexion, « Mes chantiers », fiches du chantier avec le chantier pré-rempli ──
 // Rien ici n'empêche de remplir une fiche : « Remplir une fiche sans être connecté » est toujours proposé,
@@ -910,7 +910,8 @@ function lignesIncidents() {
   const inc = LOUE.incidents ? LOUE.incidents() : [];
   if (!inc.length) return [];
   return [['Incidents récents (à transmettre au bureau)', inc.slice(0, 5).map(i => esc(new Date(i.t).toLocaleString('fr-FR'))
-    + ' — ' + esc(i.page) + ' — ' + esc(i.texte) + (i.enLigne === false ? ' (sans réseau)' : '')).join('<br>')]];
+    + ' — ' + esc(i.page) + ' — ' + esc(i.texte) + (i.enLigne === false ? ' (sans réseau)' : '')
+    + (i.version ? ' — appli ' + esc(i.version) + (i.installee ? ', installée' : ', pas installée') : '')).join('<br>')]];
 }
 function verifierMiseAJour() {
   if (!navigator.serviceWorker) { location.reload(); return; }

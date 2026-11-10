@@ -75,6 +75,7 @@ function scenario(verrou) {
   r.texteGarde = await page.evaluate(() => Object.keys(localStorage).some(k => /brouillon/.test(k) && /Client hors ligne/.test(localStorage.getItem(k))));
   if (autre) { await autre.evaluate(() => { window.__liberer = true; }); await page.waitForTimeout(3000); await autre.close(); }
   r.fiches = await page.evaluate(() => LOUE.stockage.tout('file').then(l => l.length));
+  r.photos = await page.evaluate(() => LOUE.stockage.tout('photos').then(l => l.length));
   await ctx.setOffline(false);
   return JSON.stringify(r);
 }`;
@@ -103,7 +104,7 @@ setTimeout(() => {
     const b = lancer(true);
     verifier('mémoire occupée par un autre onglet : bouton libéré, message clair', !/Rangement|Envoi direct/.test(b.bouton) && /n’arrive pas à ranger/.test(b.message), JSON.stringify(b));
     verifier('… le texte de la fiche reste dans le brouillon', b.texteGarde === true, JSON.stringify(b));
-    verifier('… l’écriture arrivée en retard est défaite (pas de doublon)', b.fiches === 0, JSON.stringify(b));
+    verifier('… rien n’est rangé en retard (pas de doublon, pas de photo orpheline)', b.fiches === 0 && b.photos === 0, JSON.stringify(b));
   } catch (e) { echecs++; console.log('  ✗ ' + e.message); }
   spawnSync('playwright-cli', ['-s=loue-hl', 'close'], { shell: true });
   site.kill(); faux.kill();
