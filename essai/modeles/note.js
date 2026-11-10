@@ -7,43 +7,25 @@
 // d : données de la fiche (textes bruts ; images déjà contrôlées) ; esc : fonction d'échappement
 // ═══════════════════════════════════════════════════════════════
 function modele_note(d, esc) {
-  var photos = (d.photosBase64 || []).filter(function (p) { return p && p.data; });
   var TEXTE = 'white-space:pre-wrap;word-break:break-word;overflow-wrap:break-word;';
   var ETIQ = 'font-size:7.5px;font-weight:700;text-transform:uppercase;color:#6A6460;margin-bottom:2px';
 
-  function src(p) { return 'data:' + (p.mimeType || p.mime || 'image/jpeg') + ';base64,' + p.data; }
-  function legende(p) {
-    return p.label ? '<div style="margin-top:4px;font-size:10px;color:#6A6460;' + TEXTE + '">' + esc(p.label) + '</div>' : '';
-  }
-
-  // Une seule photo : sous les notes, page 1. Deux ou plus : deux par page, à partir de la page 2.
-  var photosHtml = '';
-  if (photos.length === 1) {
-    var p = photos[0];
-    photosHtml = '<div style="margin-top:10px;border:1.5px solid #0D7A6B;border-radius:5px;overflow:hidden;page-break-inside:avoid">'
-      + '<div style="background:#E0F5F2;padding:5px 10px;border-bottom:1px solid #0D7A6B;font-size:9px;font-weight:700;color:#0D7A6B;text-transform:uppercase">'
-      + 'Photo / Croquis' + (p.label ? ' — <span style="text-transform:none">' + esc(p.label) + '</span>' : '') + '</div>'
-      + '<div style="padding:8px;text-align:center"><img src="' + src(p) + '" style="max-width:100%;max-height:130mm;display:block;margin:0 auto;"></div></div>';
-  } else {
-    for (var i = 0; i < photos.length; i += 2) {
-      var p1 = photos[i], p2 = photos[i + 1];
-      var cellule2 = p2
-        ? '<td style="width:50%;padding-left:8px;text-align:center;vertical-align:top"><img src="' + src(p2) + '" style="max-width:100%;max-height:120mm;display:block;margin:0 auto;border:1px solid #ddd;">' + legende(p2) + '</td>'
-        : '<td style="width:50%"></td>';
-      photosHtml += '<div style="page-break-before:always;padding:12px 10px">'
-        + '<div style="font-size:9px;font-weight:700;color:#0D7A6B;margin-bottom:8px;border-bottom:2px solid #0D7A6B;padding-bottom:4px;text-transform:uppercase">'
-        + 'Photos / Croquis ' + (i + 1) + (p2 ? ' &amp; ' + (i + 2) : '') + '</div>'
-        + '<table style="width:100%;border-collapse:collapse"><tr>'
-        + '<td style="width:50%;padding-right:8px;text-align:center;vertical-align:top"><img src="' + src(p1) + '" style="max-width:100%;max-height:120mm;display:block;margin:0 auto;border:1px solid #ddd;">' + legende(p1) + '</td>'
-        + cellule2 + '</tr></table></div>';
-    }
-  }
 
   var commentaires = d.commentaires
     ? '<div style="padding:10px 12px;background:#F0F5F4;border:1.5px solid #0D7A6B;border-radius:5px;margin-bottom:10px">'
       + '<div style="font-size:8px;font-weight:700;text-transform:uppercase;color:#0D7A6B;margin-bottom:6px;letter-spacing:.5px">Notes &amp; commentaires</div>'
       + '<div style="font-size:11px;line-height:1.7;' + TEXTE + '">' + esc(d.commentaires) + '</div></div>'
     : '';
+
+  // ── Photos (modeles/mise-en-page.js) : la 1re sous les notes si elles tiennent sur la page 1, dans toute la place
+  // restante ; les autres en pleine page (deux par page si elles y gardent leur taille). Hauteur mesurée dans Chrome :
+  // en-tête 36 mm (chantier long : 4,5 par ligne en plus, rédacteur : 3,2 ; objet long : 4,2) ; notes 12,5 + 4,94 par ligne.
+  var estime = 36 + Math.max(4.5 * (mep_lignes(d.chantier || '—', 35, 12) - 1) + 3.2 * (mep_lignes(d.auteur || '—', 39, 11) - 1),
+    4.2 * (d.objet ? mep_lignes(d.objet, 100, 11) - 1 : 0))
+    + (d.commentaires ? 12.5 + 4.94 * mep_lignes(d.commentaires, 168, 11) : 0);
+  var zone = mep_zone(d, 210, 297, 15);
+  var photosHtml = mep_photos(d.photosBase64, { largeur: zone.largeur, hauteur: zone.hauteur, reste: mep_reste(zone, estime), estime: estime, esc: esc,
+    pagesContenu: mep_pages(zone, estime) });
 
   return '<html><head><meta charset="utf-8"><style>@page{size:A4;margin:1.5cm}body{font-family:Arial,sans-serif;font-size:10px;margin:0}*{box-sizing:border-box}</style></head><body>'
     + '<table style="width:100%;border-collapse:collapse;margin-bottom:12px;border-bottom:3px solid #0D7A6B"><tr>'

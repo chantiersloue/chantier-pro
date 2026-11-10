@@ -25,21 +25,17 @@ function modele_reception(d, esc) {
       + '<td style="' + CASE + 'font-size:10px;color:#6A6460;' + TEXTE + '">' + esc(p.comment || '') + '</td></tr>';
   }).join('');
 
-  // Photos de chaque point : une page par point, deux photos par ligne
-  var photosHtml = points.map(function (p) {
-    var ph = (p.photos || []).filter(function (x) { return x && x.data; });
-    if (!ph.length) return '';
-    var rangs = '';
-    for (var i = 0; i < ph.length; i += 2) {
-      var cellule = function (x) {
-        return '<td style="text-align:center;vertical-align:top;width:50%;padding:4px">'
-          + (x ? '<img src="data:' + (x.mimeType || x.mime || 'image/jpeg') + ';base64,' + x.data + '" style="max-width:100%;max-height:100mm;border:1px solid #ddd;">' : '') + '</td>';
-      };
-      rangs += '<table style="width:100%;border-collapse:collapse;page-break-inside:avoid"><tr>' + cellule(ph[i]) + cellule(ph[i + 1]) + '</tr></table>';
-    }
-    return '<div style="page-break-before:always;padding-top:10px">'
-      + '<div style="font-weight:700;font-size:11px;color:#0D7A6B;border-bottom:2px solid #0D7A6B;padding-bottom:4px;margin-bottom:8px">Photos — ' + esc(p.label || '') + '</div>'
-      + rangs + '</div>';
+  // Photos de chaque point (modeles/mise-en-page.js) : pages à part, titre du point en haut de chaque page,
+  // chaque photo en pleine page (deux par page si elles y gardent leur taille)
+  var zone = mep_zone(d, 210, 297, 15);
+  // Pages du contenu (contrôle du serveur) : estimation basse (en-tête et signature 60 mm, 7 mm par point)
+  var pagesContenu = mep_pages(zone, 60 + 7 * points.length);
+  var photosHtml = points.map(function (p, n) {
+    var titre = function (n, total) {
+      return '<div style="font-weight:700;font-size:11px;color:#0D7A6B;border-bottom:2px solid #0D7A6B;padding-bottom:4px;margin-bottom:2mm;height:7mm;overflow:hidden">'
+        + 'Photos — ' + esc(p.label || '') + (total > 1 ? ' (' + (n + 1) + '/' + total + ')' : '') + '</div>';
+    };
+    return mep_photos(p.photos, { largeur: zone.largeur, hauteur: zone.hauteur, reste: 0, esc: esc, titre: titre, pagesContenu: pagesContenu });
   }).join('');
 
   return '<html><head><meta charset="utf-8"><style>@page{size:A4;margin:1.5cm}body{font-family:Arial,sans-serif;font-size:10px;margin:0}*{box-sizing:border-box}</style></head><body>'
