@@ -1,0 +1,37 @@
+{
+  "name": "Loué App ESSAI",
+  "short_name": "Loué ESSAI",
+  "description": "Loué Menuiserie — Fiches chantier",
+  "start_url": "/chantier-pro/essai/",
+  "display": "standalone",
+  "background_color": "#F2F0EC",
+  "theme_color": "#1A2B4A",
+  "icons": [
+    {
+      "src": "apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icone-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icone-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icone-512-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "id": "/chantier-pro/essai/",
+  "scope": "/chantier-pro/essai/"
+}
