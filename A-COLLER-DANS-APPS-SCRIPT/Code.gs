@@ -1,7 +1,7 @@
 // ═══════════════════════════════════════════════════════════════
 // LOUÉ APP — SERVEUR COMPLET, À COLLER DANS APPS SCRIPT (fichier « Code.gs », tout remplacer)
 // FICHIER GÉNÉRÉ AUTOMATIQUEMENT par « node outils/construire.js » — NE PAS MODIFIER À LA MAIN :
-// les sources sont dans le dossier apps-script/ du dépôt. Version du serveur e0b1dcc793 (pages f4f1eb74ae)
+// les sources sont dans le dossier apps-script/ du dépôt. Version du serveur e5716b61ea (pages c473100f27)
 // ═══════════════════════════════════════════════════════════════
 
 // ████ Config.gs ████
@@ -3474,10 +3474,11 @@ function mep_zone(d, l, h, marge) {
   if (f && f.l > 50 && f.h > 50) { l = paysage ? Math.max(f.l, f.h) : Math.min(f.l, f.h); h = paysage ? Math.min(f.l, f.h) : Math.max(f.l, f.h); }
   // d._mepMargeEnPlus : le serveur a trouvé une page de trop → pages de photos un peu moins hautes
   var enPlus = d && d._mepMargeEnPlus > 0 ? Math.min(40, Number(d._mepMargeEnPlus)) : 0;
-  return { largeur: l - 2 * marge, hauteur: h - 2 * marge - enPlus, sansPage1: !!(d && d._mepSansPage1) };
+  // hauteurContenu : sans la marge en plus (sert seulement à compter les pages du contenu)
+  return { largeur: l - 2 * marge, hauteur: h - 2 * marge - enPlus, hauteurContenu: h - 2 * marge, sansPage1: !!(d && d._mepSansPage1) };
 }
 // Nombre de pages estimé d'un contenu (contrôle du serveur)
-function mep_pages(zone, estime) { return Math.max(1, Math.ceil((estime || 0) / zone.hauteur)); }
+function mep_pages(zone, estime) { return Math.max(1, Math.ceil((estime || 0) / (zone.hauteurContenu || zone.hauteur))); }
 // Place libre sous un contenu estimé (marge de sécurité de 6 mm), 0 si le contenu ne tient pas sur la page 1
 function mep_reste(zone, estime) {
   if (zone.sansPage1) return 0;

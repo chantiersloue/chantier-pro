@@ -5,9 +5,13 @@
 // Les échanges avec Apps Script ne passent JAMAIS par ce cache (fiches, listes : gérés par commun/api.js).
 // ═══════════════════════════════════════════════════════════════
 <<<<<<< HEAD
-const VERSION = 'loue-f4f1eb74ae';
+<<<<<<< HEAD
+const VERSION = 'loue-c473100f27';
 =======
 const VERSION = 'loue-c376b086ee';
+>>>>>>> refonte
+=======
+const VERSION = 'loue-5a61f72be6';
 >>>>>>> refonte
 const A_GARDER = [
   './', 'index.html', 'quitus.html', 'bordereau.html',
@@ -16,9 +20,13 @@ const A_GARDER = [
   'manifest.json', 'logo.png', 'apple-touch-icon.png', 'icone-192.png', 'icone-512.png', 'icone-512-maskable.png',
   // Fichiers communs et modèles, avec leur numéro de version (liste fabriquée par outils/construire.js)
 <<<<<<< HEAD
-  /*COMMUNS*/ 'commun/adresses.js?v=f4f1eb74ae', 'commun/api.js?v=f4f1eb74ae', 'commun/brouillon.js?v=f4f1eb74ae', 'commun/config.js?v=f4f1eb74ae', 'commun/destinataires.js?v=f4f1eb74ae', 'commun/hors-ligne.js?v=f4f1eb74ae', 'commun/photos.js?v=f4f1eb74ae', 'commun/signature.js?v=f4f1eb74ae', 'commun/ui.js?v=f4f1eb74ae', 'commun/fiche.css?v=f4f1eb74ae', 'commun/style.css?v=f4f1eb74ae', 'modeles/absence.js?v=f4f1eb74ae', 'modeles/attestation.js?v=f4f1eb74ae', 'modeles/bordereau.js?v=f4f1eb74ae', 'modeles/cotes.js?v=f4f1eb74ae', 'modeles/fabrication.js?v=f4f1eb74ae', 'modeles/mise-en-page.js?v=f4f1eb74ae', 'modeles/note.js?v=f4f1eb74ae', 'modeles/quitus.js?v=f4f1eb74ae', 'modeles/reception.js?v=f4f1eb74ae',
+<<<<<<< HEAD
+  /*COMMUNS*/ 'commun/adresses.js?v=c473100f27', 'commun/api.js?v=c473100f27', 'commun/brouillon.js?v=c473100f27', 'commun/config.js?v=c473100f27', 'commun/destinataires.js?v=c473100f27', 'commun/hors-ligne.js?v=c473100f27', 'commun/photos.js?v=c473100f27', 'commun/signature.js?v=c473100f27', 'commun/ui.js?v=c473100f27', 'commun/fiche.css?v=c473100f27', 'commun/style.css?v=c473100f27', 'modeles/absence.js?v=c473100f27', 'modeles/attestation.js?v=c473100f27', 'modeles/bordereau.js?v=c473100f27', 'modeles/cotes.js?v=c473100f27', 'modeles/fabrication.js?v=c473100f27', 'modeles/mise-en-page.js?v=c473100f27', 'modeles/note.js?v=c473100f27', 'modeles/quitus.js?v=c473100f27', 'modeles/reception.js?v=c473100f27',
 =======
   /*COMMUNS*/ 'commun/adresses.js?v=c376b086ee', 'commun/api.js?v=c376b086ee', 'commun/brouillon.js?v=c376b086ee', 'commun/config.js?v=c376b086ee', 'commun/destinataires.js?v=c376b086ee', 'commun/hors-ligne.js?v=c376b086ee', 'commun/photos.js?v=c376b086ee', 'commun/signature.js?v=c376b086ee', 'commun/ui.js?v=c376b086ee', 'commun/fiche.css?v=c376b086ee', 'commun/style.css?v=c376b086ee', 'modeles/absence.js?v=c376b086ee', 'modeles/attestation.js?v=c376b086ee', 'modeles/bordereau.js?v=c376b086ee', 'modeles/cotes.js?v=c376b086ee', 'modeles/fabrication.js?v=c376b086ee', 'modeles/mise-en-page.js?v=c376b086ee', 'modeles/note.js?v=c376b086ee', 'modeles/quitus.js?v=c376b086ee', 'modeles/reception.js?v=c376b086ee',
+>>>>>>> refonte
+=======
+  /*COMMUNS*/ 'commun/adresses.js?v=5a61f72be6', 'commun/api.js?v=5a61f72be6', 'commun/brouillon.js?v=5a61f72be6', 'commun/config.js?v=5a61f72be6', 'commun/destinataires.js?v=5a61f72be6', 'commun/hors-ligne.js?v=5a61f72be6', 'commun/photos.js?v=5a61f72be6', 'commun/signature.js?v=5a61f72be6', 'commun/ui.js?v=5a61f72be6', 'commun/fiche.css?v=5a61f72be6', 'commun/style.css?v=5a61f72be6', 'modeles/absence.js?v=5a61f72be6', 'modeles/attestation.js?v=5a61f72be6', 'modeles/bordereau.js?v=5a61f72be6', 'modeles/cotes.js?v=5a61f72be6', 'modeles/fabrication.js?v=5a61f72be6', 'modeles/mise-en-page.js?v=5a61f72be6', 'modeles/note.js?v=5a61f72be6', 'modeles/quitus.js?v=5a61f72be6', 'modeles/reception.js?v=5a61f72be6',
 >>>>>>> refonte
 ];
 
