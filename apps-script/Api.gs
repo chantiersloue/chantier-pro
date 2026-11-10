@@ -61,6 +61,12 @@ function donneesListes_() {
   })) : [];
 
   function getList(n){ const s=ss.getSheetByName(n); return s?s.getDataRange().getValues().slice(1).map(r=>String(r[0]||'')).filter(v=>v):[]; }
+  // Bordereau matériaux (lot 1 R2) : types et matériaux proposés par défaut — une ligne par matériau, le type répété
+  const smb = ss.getSheetByName(SHEET_MAT_BORDEREAU);
+  // Texte affiché par Sheets (getDisplayValues) : une quantité 2,5 reste « 2,5 » (et pas « 2.5 » ou une date)
+  const materiauxBordereau = smb && smb.getLastRow() > 1 ? smb.getRange(2, 1, smb.getLastRow() - 1, 3).getDisplayValues()
+    .map(r => ({ type: String(r[0]||'').trim(), materiau: String(r[1]||'').trim(), quantite: String(r[2]||'').trim() }))
+    .filter(x => x.type) : [];
 
   return {
     contacts, chantiers, contactNotes,
@@ -69,6 +75,7 @@ function donneesListes_() {
     quincaille : getList(SHEET_QUINCAILLE),
     fonctions  : getList(SHEET_FONCTIONS),
     types      : getList(SHEET_TYPES),
+    materiauxBordereau,
   };
 }
 

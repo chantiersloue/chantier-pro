@@ -56,27 +56,21 @@ function modele_attestation(d, esc) {
       + '<div style="font-size:11px;line-height:1.7;white-space:pre-wrap;word-break:break-word;overflow-wrap:break-word">' + esc(d.objet || '—') + '</div></div>';
   }
 
-  // ── Photos : toutes, deux par ligne (avant la refonte, le PDF envoyé n'en gardait que deux) ──
-  var photosHtml = '';
-  if (photos.length) {
-    var haut = photos.length === 1 ? '90mm' : '68mm';
-    var img = function (p) {
-      return '<img src="data:' + (p.mimeType || p.mime || 'image/jpeg') + ';base64,' + p.data + '" style="max-width:100%;max-height:' + haut + ';border:1px solid #ddd;">';
-    };
-    var rangs = '';
-    for (var i = 0; i < photos.length; i += 2) {
-      var deux = photos[i + 1];
-      rangs += '<table style="width:100%;border-collapse:collapse;page-break-inside:avoid"><tr>'
-        + '<td style="width:' + (photos.length === 1 ? '100%' : '50%') + ';padding:4px;text-align:center;vertical-align:top">' + img(photos[i]) + '</td>'
-        + (photos.length === 1 ? '' : '<td style="width:50%;padding:4px;text-align:center;vertical-align:top">' + (deux ? img(deux) : '') + '</td>')
-        + '</tr></table>';
-    }
-    photosHtml = '<div style="margin-top:10px">'
-      + '<div style="font-size:9px;font-weight:700;text-transform:uppercase;color:#6A6460;margin-bottom:6px;border-bottom:2px solid ' + couleur + ';padding-bottom:3px">Photo' + (photos.length > 1 ? 's' : '') + '</div>'
-      + rangs + '</div>';
-  }
-
   var qualite = d.qualite ? ', en qualité de ' + esc(d.qualite) : '';
+
+  // ── Photos (modeles/mise-en-page.js) : la 1re sous la signature, dans toute la place restante de la page 1,
+  // les autres en pleine page (deux par page si elles y gardent leur taille). Hauteur du contenu mesurée dans Chrome :
+  // 87,9 mm + 4,94 par ligne d'objet ; contrôle DAS 129,9 + 7,2 par point ; référence 3,7 ; chantier long 4,2 par ligne.
+  var estime;
+  if (type === 'das') {
+    estime = 129.9;
+    (d.dasPoints || []).forEach(function (p) { estime += 7.17 + 3.5 * (mep_lignes(p && p.label, 120, 10) - 1); });
+    estime += 3.5 * (mep_lignes(d.dasLocalisation, 110, 10) + mep_lignes(d.asservissements, 110, 10) - 2);
+  } else estime = 87.9 + 4.94 * mep_lignes(d.objet || '—', 168, 11);
+  estime += (d.ref ? 3.7 : 0) + 4.2 * (mep_lignes(chantier, 110, 10) - 1)
+    + 5 * (mep_lignes('Je soussigné ' + (d.signataire || '') + (d.qualite ? ', en qualité de ' + d.qualite : '') + ', certifie que :', 175, 12) - 1);
+  var zone = mep_zone(d, 210, 297, 15);
+  var photosHtml = mep_photos(photos, { largeur: zone.largeur, hauteur: zone.hauteur, reste: mep_reste(zone, estime), estime: estime, esc: esc });
   return '<html><head><meta charset="utf-8"><style>@page{size:A4;margin:1.5cm}body{font-family:Arial,sans-serif;font-size:10px;margin:0;color:#1A1A1A}*{box-sizing:border-box}</style></head><body>'
     + '<div style="border-bottom:3px solid ' + couleur + ';padding-bottom:10px;margin-bottom:14px">'
     + '<table style="width:100%;border-collapse:collapse"><tr>'
@@ -94,7 +88,6 @@ function modele_attestation(d, esc) {
     + '</table>'
     + '<div style="margin:0 0 12px;font-size:12px;line-height:1.55">Je soussigné <strong>' + esc(d.signataire || '—') + '</strong>' + qualite + ', certifie que&nbsp;:</div>'
     + corps
-    + photosHtml
     + '<table style="width:100%;border-collapse:collapse;margin-top:14px;page-break-inside:avoid"><tr>'
     + '<td style="width:50%;padding-right:8px;vertical-align:top">'
     + '<div style="font-size:9px;font-weight:700;text-transform:uppercase;color:#6A6460;margin-bottom:4px">Signature</div>'
@@ -102,5 +95,6 @@ function modele_attestation(d, esc) {
     + (d.signature ? '<img src="' + d.signature + '" style="max-width:100%;max-height:72px;">' : '') + '</div>'
     + '<div style="font-size:9px;color:#6A6460;margin-top:3px">' + esc(d.signataire || '') + ' — ' + esc(d.date || '') + '</div>'
     + '</td><td style="width:50%"></td></tr></table>'
+    + photosHtml
     + '</body></html>';
 }

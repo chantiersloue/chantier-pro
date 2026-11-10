@@ -125,27 +125,21 @@ function modele_attestation(d, esc) {
       + '<div style="font-size:11px;line-height:1.7;white-space:pre-wrap;word-break:break-word;overflow-wrap:break-word">' + esc(d.objet || '—') + '</div></div>';
   }
 
-  // ── Photos : toutes, deux par ligne (avant la refonte, le PDF envoyé n'en gardait que deux) ──
-  var photosHtml = '';
-  if (photos.length) {
-    var haut = photos.length === 1 ? '90mm' : '68mm';
-    var img = function (p) {
-      return '<img src="data:' + (p.mimeType || p.mime || 'image/jpeg') + ';base64,' + p.data + '" style="max-width:100%;max-height:' + haut + ';border:1px solid #ddd;">';
-    };
-    var rangs = '';
-    for (var i = 0; i < photos.length; i += 2) {
-      var deux = photos[i + 1];
-      rangs += '<table style="width:100%;border-collapse:collapse;page-break-inside:avoid"><tr>'
-        + '<td style="width:' + (photos.length === 1 ? '100%' : '50%') + ';padding:4px;text-align:center;vertical-align:top">' + img(photos[i]) + '</td>'
-        + (photos.length === 1 ? '' : '<td style="width:50%;padding:4px;text-align:center;vertical-align:top">' + (deux ? img(deux) : '') + '</td>')
-        + '</tr></table>';
-    }
-    photosHtml = '<div style="margin-top:10px">'
-      + '<div style="font-size:9px;font-weight:700;text-transform:uppercase;color:#6A6460;margin-bottom:6px;border-bottom:2px solid ' + couleur + ';padding-bottom:3px">Photo' + (photos.length > 1 ? 's' : '') + '</div>'
-      + rangs + '</div>';
-  }
-
   var qualite = d.qualite ? ', en qualité de ' + esc(d.qualite) : '';
+
+  // ── Photos (modeles/mise-en-page.js) : la 1re sous la signature, dans toute la place restante de la page 1,
+  // les autres en pleine page (deux par page si elles y gardent leur taille). Hauteur du contenu mesurée dans Chrome :
+  // 87,9 mm + 4,94 par ligne d'objet ; contrôle DAS 129,9 + 7,2 par point ; référence 3,7 ; chantier long 4,2 par ligne.
+  var estime;
+  if (type === 'das') {
+    estime = 129.9;
+    (d.dasPoints || []).forEach(function (p) { estime += 7.17 + 3.5 * (mep_lignes(p && p.label, 120, 10) - 1); });
+    estime += 3.5 * (mep_lignes(d.dasLocalisation, 110, 10) + mep_lignes(d.asservissements, 110, 10) - 2);
+  } else estime = 87.9 + 4.94 * mep_lignes(d.objet || '—', 168, 11);
+  estime += (d.ref ? 3.7 : 0) + 4.2 * (mep_lignes(chantier, 110, 10) - 1)
+    + 5 * (mep_lignes('Je soussigné ' + (d.signataire || '') + (d.qualite ? ', en qualité de ' + d.qualite : '') + ', certifie que :', 175, 12) - 1);
+  var zone = mep_zone(d, 210, 297, 15);
+  var photosHtml = mep_photos(photos, { largeur: zone.largeur, hauteur: zone.hauteur, reste: mep_reste(zone, estime), estime: estime, esc: esc });
   return '<html><head><meta charset="utf-8"><style>@page{size:A4;margin:1.5cm}body{font-family:Arial,sans-serif;font-size:10px;margin:0;color:#1A1A1A}*{box-sizing:border-box}</style></head><body>'
     + '<div style="border-bottom:3px solid ' + couleur + ';padding-bottom:10px;margin-bottom:14px">'
     + '<table style="width:100%;border-collapse:collapse"><tr>'
@@ -163,7 +157,6 @@ function modele_attestation(d, esc) {
     + '</table>'
     + '<div style="margin:0 0 12px;font-size:12px;line-height:1.55">Je soussigné <strong>' + esc(d.signataire || '—') + '</strong>' + qualite + ', certifie que&nbsp;:</div>'
     + corps
-    + photosHtml
     + '<table style="width:100%;border-collapse:collapse;margin-top:14px;page-break-inside:avoid"><tr>'
     + '<td style="width:50%;padding-right:8px;vertical-align:top">'
     + '<div style="font-size:9px;font-weight:700;text-transform:uppercase;color:#6A6460;margin-bottom:4px">Signature</div>'
@@ -171,6 +164,7 @@ function modele_attestation(d, esc) {
     + (d.signature ? '<img src="' + d.signature + '" style="max-width:100%;max-height:72px;">' : '') + '</div>'
     + '<div style="font-size:9px;color:#6A6460;margin-top:3px">' + esc(d.signataire || '') + ' — ' + esc(d.date || '') + '</div>'
     + '</td><td style="width:50%"></td></tr></table>'
+    + photosHtml
     + '</body></html>';
 }
 
@@ -185,29 +179,6 @@ function modele_attestation(d, esc) {
 function modele_bordereau(d, esc) {
   var orga = d.type === 'bordereau-orga';
   var titre = orga ? 'BORDEREAU DE REMISE — ORGANIGRAMME' : 'BORDEREAU DE REMISE — MATÉRIAUX';
-  var photos = (d.photosBase64 || []).filter(function (p) { return p && p.data; });
-
-  function img(p, hauteur) {
-    return '<img src="data:' + (p.mimeType || 'image/jpeg') + ';base64,' + p.data + '" style="max-width:100%;max-height:' + hauteur + ';display:block;margin:0 auto;">';
-  }
-  function legende(p) { return p.label ? '<div style="font-size:9px;margin-top:3px;color:#6A6460">' + esc(p.label) + '</div>' : ''; }
-  var photosHtml = '';
-  if (photos.length === 1) {
-    photosHtml = '<div style="margin-top:10px;border:1px solid #D8D4CE;border-radius:5px;overflow:hidden">'
-      + '<div style="background:#FAFAF8;padding:5px 10px;border-bottom:1px solid #D8D4CE;font-size:9px;font-weight:700;color:#7A4200">Photo'
-      + (photos[0].label ? ' — ' + esc(photos[0].label) : '') + '</div>'
-      + '<div style="padding:8px;text-align:center">' + img(photos[0], '100mm') + '</div></div>';
-  } else {
-    for (var i = 0; i < photos.length; i += 2) {
-      var p2 = photos[i + 1];
-      var cellule2 = p2 ? '<td style="width:50%;padding-left:6px;text-align:center">' + img(p2, '110mm') + legende(p2) + '</td>' : '<td></td>';
-      photosHtml += '<div style="page-break-before:always;padding:10px">'
-        + '<div style="font-size:9px;font-weight:700;color:#7A4200;margin-bottom:6px;border-bottom:2px solid #C8860A;padding-bottom:3px">Photos ' + (i + 1) + (p2 ? ' & ' + (i + 2) : '') + '</div>'
-        + '<table style="width:100%;border-collapse:collapse"><tr>'
-        + '<td style="width:50%;padding-right:6px;text-align:center">' + img(photos[i], '110mm') + legende(photos[i]) + '</td>' + cellule2
-        + '</tr></table></div>';
-    }
-  }
   function signature(titreSig, src) {
     return '<td style="width:50%;padding:0 4px;vertical-align:top">'
       + '<div style="font-size:9px;font-weight:700;text-transform:uppercase;color:#6A6460;margin-bottom:4px">' + titreSig + '</div>'
@@ -221,6 +192,21 @@ function modele_bordereau(d, esc) {
     : '';
   var preneur = '<strong>' + esc(d.preneur || '—') + '</strong>' + (d.fonction ? ' (' + esc(d.fonction) + ')' : '') + (d.entreprise ? ' — ' + esc(d.entreprise) : '');
   var commentaires = d.commentaires ? '<br><span style="color:#6A6460;word-break:break-word;white-space:pre-wrap">' + esc(d.commentaires) + '</span>' : '';
+  // Matériaux remis (bordereau matériaux, lot 1 R2) : proposés d'après le Type (onglet « Matériaux bordereau »), modifiables
+  var liste = !orga && d.listeMateriaux ? String(d.listeMateriaux).replace(/\s+$/, '') : '';
+  var listeHtml = liste ? '<br><span style="font-weight:700">Matériaux remis :</span><br><span style="word-break:break-word;white-space:pre-wrap">' + esc(liste) + '</span>' : '';
+
+  // ── Photos (modeles/mise-en-page.js) : la 1re sous les signatures, dans toute la place restante de la page 1,
+  // les autres en pleine page (deux par page si elles y gardent leur taille). Hauteur du contenu mesurée dans Chrome :
+  // 72,4 mm ; mention de l'organigramme 22,5 ; chaque ligne de commentaire ou de matériau 5,5 ; ligne du preneur ou
+  // du type trop longue : 5,5 par ligne en plus ; chantier long dans l'en-tête : 3 par ligne en plus.
+  var estime = 72.4 + (orga ? 22.5 : 0) + 5.53 * ((d.commentaires ? mep_lignes(d.commentaires, 168, 11) : 0) + (liste ? 1 + mep_lignes(liste, 168, 11) : 0))
+    + 5.53 * (mep_lignes('déclare par la présente avoir remis en main propre à ' + (d.preneur || '—') + ' (' + (d.fonction || '') + ') — ' + (d.entreprise || '') + ' :', 168, 11) - 1)
+    + 5.53 * (mep_lignes((d.nombre || '—') + ' × ' + (d.typeDoc || '—'), 168, 11) - 1)
+    + 5.53 * (mep_lignes('Je soussigné(e) ' + (d.soussigne || '—') + ', Entreprise Loué Menuiserie,', 168, 11) - 1)
+    + 3 * (mep_lignes('Chantier : ' + (d.chantier || '—'), 70, 10) - 1);
+  var zone = mep_zone(d, 210, 297, 15);
+  var photosHtml = mep_photos(d.photosBase64, { largeur: zone.largeur, hauteur: zone.hauteur, reste: mep_reste(zone, estime), estime: estime, esc: esc });
 
   return '<html><head><meta charset="utf-8"><style>@page{size:A4;margin:1.5cm}body{font-family:Arial,sans-serif;font-size:10px;margin:0}*{box-sizing:border-box}</style></head><body>'
     + '<table style="width:100%;border-collapse:collapse;margin-bottom:14px;border-bottom:3px solid #7A4200;padding-bottom:10px"><tr>'
@@ -235,13 +221,13 @@ function modele_bordereau(d, esc) {
     + '<div style="padding:10px 12px;background:#FDF0D6;border:1.5px solid #C8860A;border-radius:5px;margin-bottom:10px;font-size:11px;line-height:1.9">'
     + 'Je soussigné(e) <strong>' + esc(d.soussigne || '—') + '</strong>, Entreprise Loué Menuiserie,<br>'
     + 'déclare par la présente avoir remis en main propre à ' + preneur + ' :<br>'
-    + '<strong>' + esc(d.nombre || '—') + ' × ' + esc(d.typeDoc || '—') + '</strong>' + commentaires
+    + '<strong>' + esc(d.nombre || '—') + ' × ' + esc(d.typeDoc || '—') + '</strong>' + listeHtml + commentaires
     + '</div>'
-    + photosHtml
     + '<table style="width:100%;border-collapse:collapse;margin-top:14px;page-break-inside:avoid"><tr>'
     + signature('Signature Entreprise Loué', d.sigLoue) + signature('Signature Preneur', d.sigPreneur)
     + '</tr></table>'
     + mention
+    + photosHtml
     + '</body></html>';
 }
 
@@ -458,20 +444,244 @@ function modele_fabrication(d, esc) {
       + '<div style="font-size:10px;line-height:1.5">' + commentaires + '</div></div>'
     : '';
 
-  // ── Photos et croquis : 1 seule → sous les blocs ; 2 et plus → une par page ──
-  var photos = (d.photosBase64 || []).filter(function (p) { return p && p.data; });
-  var photosSection = photos.map(function (p) {
-    var seule = photos.length === 1;
-    var mh = seule ? '95mm' : '135mm';
-    return '<div style="' + (seule ? 'margin-top:8px;page-break-inside:avoid;' : 'page-break-before:always;padding:10px;') + 'text-align:center">'
-      + '<img src="data:' + (p.mimeType || 'image/jpeg') + ';base64,' + p.data + '" style="max-width:100%;max-height:' + mh + ';width:auto;height:auto;border:1px solid #ddd;display:block;margin:0 auto">'
-      + (p.label ? '<div style="font-size:9px;color:#666;margin-top:3px">' + esc(p.label) + '</div>' : '')
-      + '</div>';
-  }).join('');
+  // ── Photos et croquis (modeles/mise-en-page.js) : la 1re photo sous les blocs, en page 1, dans toute la place
+  // restante ; chaque croquis sur une page entière ; les autres photos en pleine page (ou deux par page) ──
+  // Hauteur estimée du contenu de la page 1 (mm), mesurée dans Chrome : en-tête 44 (tableau des temps), ou le cartouche
+  // de gauche + 4 s'il est plus haut (31,2 ; chantier : 4,5 par ligne en plus ; zone 8,8 + 2,9 par ligne en plus ;
+  // précision du délai 3,5 + 3,1 par ligne en plus) ; bloc 26 (porte 25,7) + 5,3 par ligne en plus ; bloc vide 17,2 ;
+  // commentaires 8,2 + 1,5 × la taille de la police par ligne (4 mm en taille normale, 5,6 « agrandi »).
+  // Les blocs ne se coupent pas d'une page à l'autre.
+  var cartouche = 31.2 + 4.5 * (mep_lignes(String(d.chantier || '—') + (d.refChantier ? ' / ' + d.refChantier : ''), 68, 12) - 1)
+    + (d.zone ? 8.8 + 2.9 * (mep_lignes(d.zone, 80, 10) - 1) : 0)
+    + (d.delaiPrecision ? 3.5 + 3.1 * (mep_lignes(d.delaiPrecision, 40, 10) - 1) : 0);
+  var estime = Math.max(44, cartouche + 4);
+  (d.blocs || []).forEach(function (b) {
+    if (b.type === 'photo') return;
+    var rows = b.rows || [];
+    if (!rows.length) { estime += 17.2; return; }
+    estime += (b.type === 'porte' ? 25.7 : 26.2) + 5.3 * (rows.length - 1);
+    rows.forEach(function (r) {   // texte long dans une case : lignes en plus
+      var plusLong = 0;
+      Object.keys(r).forEach(function (k) { if (typeof r[k] === 'string' || typeof r[k] === 'number') plusLong = Math.max(plusLong, String(r[k]).length); });
+      if (plusLong > 40) estime += 3.4 * Math.ceil((plusLong - 40) / 40);
+    });
+  });
+  if (commentaireSection) {
+    estime += 8.2;
+    String(commentaires).split(/<br\s*\/?>|<\/div>|<\/p>/i).forEach(function (ligne) {
+      var tailles = [10];   // taille de police la plus grande de la ligne (px), « agrandi » = 1,4 em
+      (ligne.match(/font-size:\s*[\d.]+(em|px|%)/gi) || []).forEach(function (t) {
+        var n = parseFloat(t.replace(/font-size:\s*/i, ''));
+        tailles.push(/em/i.test(t) ? n * 10 : /%/.test(t) ? n / 10 : n);
+      });
+      var px = Math.min(40, Math.max.apply(null, tailles));
+      var texte = mep_texteBrut(ligne);
+      if (!texte && !/<span|<b|<i|<u/i.test(ligne)) return;
+      estime += mep_lignes(texte, 260, px) * px * 1.5 * MEP_PX_MM;
+    });
+  }
+  var zone = mep_zone(d, 297, 210, 10);
+  var photosSection = mep_photos(d.photosBase64, { largeur: zone.largeur, hauteur: zone.hauteur, reste: mep_reste(zone, estime), estime: estime, esc: esc });
 
   return '<html><head><meta charset="utf-8"><style>@page{size:landscape;margin:1cm}body{font-family:Arial,sans-serif;font-size:10px;margin:0}*{box-sizing:border-box}</style></head><body>'
     + enTete + blocsHtml + commentaireSection + photosSection
     + '</body></html>';
+}
+
+// ── modeles/mise-en-page.js ──
+// ═══════════════════════════════════════════════════════════════
+// MISE EN PAGE COMMUNE des photos et croquis dans les PDF (retouche R1 du lot 1)
+// Utilisée par tous les modèles de modeles/ : par la page (aperçu, impression sur PC) ET par le serveur
+// (apps-script/Modeles.gs en est une COPIE générée par « node outils/construire.js »).
+// Le PDF du serveur est fabriqué sans JavaScript : tout est calculé ici, en millimètres.
+// Règles :
+//  1. la première photo se place sous le contenu de la page 1 et prend toute la place restante
+//     (s'il reste trop peu de place, elle part sur une page à elle) ;
+//  2. un croquis (image PNG dessinée dans l'appli) a toujours une page entière ;
+//  3. les autres photos : une par page, ou deux si elles y gardent presque leur taille (90 % de leurs côtés).
+// Les tailles sont calculées à partir de la taille réelle de l'image (lue dans ses premiers octets) :
+// une petite image est AGRANDIE (max-width / max-height ne le font jamais).
+// ═══════════════════════════════════════════════════════════════
+var MEP_PX_MM = 25.4 / 96;          // 1 pixel CSS = 0,2646 mm
+var MEP_LEGENDE_MM = 6;             // place d'une légende sous la photo
+var MEP_ECART_MM = 4;               // espace entre deux photos d'une même page
+var MEP_MIN_PAGE1_MM = 60;          // en dessous, la première photo ne reste pas en page 1
+var MEP_PAIRE = 0.8;                // deux photos par page seulement si chacune garde 80 % de sa surface seule (90 % de ses côtés)
+var MEP_MARGE_PAGE_MM = 8;          // place gardée libre sur une page de photos (moteur PDF de Google pas mesuré)
+
+// Largeur et hauteur (pixels) d'une image en base64, lues dans ses premiers octets ; null si inconnues
+function mep_taille(p) {
+  if (p && p.mepTaille !== undefined) return p.mepTaille;   // déjà lue (une photo est mesurée plusieurs fois)
+  var t = mep_lireTaille(p);
+  try { if (p) p.mepTaille = t; } catch (e) {}
+  return t;
+}
+function mep_lireTaille(p) {
+  var b64 = p && typeof p.data === 'string' ? p.data.replace(/\s/g, '') : '';
+  if (!b64) return null;
+  var ALPHA = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+  // Décode seulement le début (un JPEG produit par l'appli a sa taille dans les 1 000 premiers octets)
+  function octets(n) {
+    var sortie = [], tampon = 0, bits = 0, fin = Math.min(b64.length, Math.ceil(n / 3) * 4);
+    for (var i = 0; i < fin; i++) {
+      var c = b64.charAt(i);
+      if (c === '=') break;
+      var v = ALPHA.indexOf(c);
+      if (v < 0) return sortie;
+      tampon = (tampon << 6) | v; bits += 6;
+      if (bits >= 8) { bits -= 8; sortie.push((tampon >> bits) & 255); }
+    }
+    return sortie;
+  }
+  var o = octets(24);
+  if (o.length >= 24 && o[0] === 0x89 && o[1] === 0x50 && o[2] === 0x4E && o[3] === 0x47) {   // PNG : bloc IHDR
+    var w = ((o[16] << 24) | (o[17] << 16) | (o[18] << 8) | o[19]) >>> 0;
+    var h = ((o[20] << 24) | (o[21] << 16) | (o[22] << 8) | o[23]) >>> 0;
+    return w && h ? { w: w, h: h } : null;
+  }
+  if (o.length >= 4 && o[0] === 0xFF && o[1] === 0xD8) {                                       // JPEG : marqueur SOF
+    o = octets(65536);
+    var i = 2;
+    while (i + 9 < o.length) {
+      if (o[i] !== 0xFF) { i++; continue; }
+      var m = o[i + 1];
+      if (m === 0xFF) { i++; continue; }
+      if (m === 0xD8 || m === 0x01 || (m >= 0xD0 && m <= 0xD7)) { i += 2; continue; }
+      var long = (o[i + 2] << 8) | o[i + 3];
+      if (m >= 0xC0 && m <= 0xCF && m !== 0xC4 && m !== 0xC8 && m !== 0xCC) {
+        var hj = (o[i + 5] << 8) | o[i + 6], wj = (o[i + 7] << 8) | o[i + 8];
+        return wj && hj ? { w: wj, h: hj } : null;
+      }
+      if (m === 0xDA || long < 2) return null;   // début de l'image sans taille trouvée
+      i += 2 + long;
+    }
+  }
+  return null;
+}
+
+// Croquis = image PNG (croquis dessiné dans l'appli ; les photos sont toujours en JPEG) ou photo dont la légende
+// contient « croquis » (photo d'un croquis sur papier)
+function mep_estCroquis(p) {
+  return !!(p && (p.croquis === true || /png/i.test(p.mimeType || p.mime || '') || /croquis/i.test(p.label || '')));
+}
+
+// Taille (mm) d'une image qui tient dans une boîte l * h en gardant ses proportions ; null si taille inconnue
+function mep_ajuster(p, l, h) {
+  var t = mep_taille(p);
+  if (!t) return null;
+  var r = Math.min(l / t.w, h / t.h);
+  return { l: Math.floor(t.w * r * 10) / 10, h: Math.floor(t.h * r * 10) / 10 };
+}
+
+// Balise <img> d'une photo qui tient dans une boîte l * h (mm), avec sa légende.
+// Seule la LARGEUR est imposée (hauteur automatique) : les proportions sont toujours gardées, et
+// max-width:100% évite tout débordement dans l'aperçu d'un petit écran.
+function mep_image(p, l, h, esc) {
+  var src = 'data:' + (p.mimeType || p.mime || 'image/jpeg') + ';base64,' + p.data;
+  var t = mep_ajuster(p, l, h);
+  var style = t ? 'width:' + t.l + 'mm;max-width:100%;height:auto'
+                : 'max-width:100%;max-height:' + Math.floor(h) + 'mm;width:auto;height:auto';
+  return '<img src="' + src + '" style="' + style + ';display:block;margin:0 auto;border:1px solid #ddd">'
+    + (p.label ? '<div style="font-size:9px;color:#666;margin-top:2px;text-align:center">' + esc(p.label) + '</div>' : '');
+}
+
+// Surface (mm²) qu'occupe une photo dans une boîte : sert à décider si deux photos partagent une page
+function mep_surface(p, l, h) {
+  var t = mep_ajuster(p, l, h);
+  return t ? t.l * t.h : 0;
+}
+
+// Tout le bloc « photos » d'un document.
+// photos : [{ data, mimeType, label, croquis? }] ; o : {
+//   largeur, hauteur : zone utile d'une page (mm, sans les marges),
+//   reste            : place libre (mm) sous le contenu de la page 1 (0 ou moins = la page 1 est pleine),
+//   estime           : hauteur estimée du contenu de la page 1 (mm), notée dans le document (contrôles),
+//   esc              : fonction d'échappement,
+//   titre(i, n)      : (facultatif) titre affiché en haut de chaque page de photos,
+//   page1Titre       : (facultatif) titre au-dessus de la photo de la page 1 }
+function mep_photos(photos, o) {
+  photos = (photos || []).filter(function (p) { return p && p.data; });
+  if (!photos.length) return '';
+  var esc = o.esc, L = o.largeur, H = o.hauteur;
+  var titreH = o.titre ? 9 : 0;                         // hauteur du titre d'une page de photos
+  var html = '';
+  var reste = photos.slice();
+
+  // 1. Première photo (pas un croquis) sous le contenu de la page 1
+  var place = (o.reste || 0) - (o.page1Titre ? 9 : 0) - 3;
+  var premiere = -1;
+  for (var i = 0; i < reste.length; i++) if (!mep_estCroquis(reste[i])) { premiere = i; break; }
+  if (premiere > -1 && place >= MEP_MIN_PAGE1_MM) {
+    var p0 = reste.splice(premiere, 1)[0];
+    var h0 = place - (p0.label ? MEP_LEGENDE_MM : 0);
+    html += '<div data-mep="page1" data-estime="' + Math.round(o.estime || 0) + '" style="margin-top:3mm;page-break-inside:avoid">' + (o.page1Titre || '') + mep_image(p0, L, h0, esc) + '</div>';
+  }
+
+  // 2 et 3. Pages de photos : croquis seul, photos par une ou par deux
+  var hPage = H - titreH - MEP_MARGE_PAGE_MM;
+  var pages = [];
+  while (reste.length) {
+    var a = reste.shift();
+    var hA = hPage - (a.label ? MEP_LEGENDE_MM : 0);
+    if (!mep_estCroquis(a) && reste.length && !mep_estCroquis(reste[0])) {
+      var b = reste[0];
+      // Deux photos : l'une sous l'autre (page debout) ou côte à côte (page couchée)
+      var debout = H >= L;
+      var lD = debout ? L : (L - MEP_ECART_MM) / 2;
+      var hD = debout ? (hPage - MEP_ECART_MM) / 2 : hPage;
+      var hDa = hD - (a.label ? MEP_LEGENDE_MM : 0), hDb = hD - (b.label ? MEP_LEGENDE_MM : 0);
+      var seuleA = mep_surface(a, L, hA), seuleB = mep_surface(b, L, hPage - (b.label ? MEP_LEGENDE_MM : 0));
+      if (seuleA && seuleB && mep_surface(a, lD, hDa) >= MEP_PAIRE * seuleA && mep_surface(b, lD, hDb) >= MEP_PAIRE * seuleB) {
+        reste.shift();
+        pages.push(debout
+          ? mep_image(a, lD, hDa, esc) + '<div style="height:' + MEP_ECART_MM + 'mm"></div>' + mep_image(b, lD, hDb, esc)
+          : '<table style="width:100%;border-collapse:collapse"><tr>'
+            + '<td style="width:50%;vertical-align:top;text-align:center;padding:0">' + mep_image(a, lD, hDa, esc) + '</td>'
+            + '<td style="width:50%;vertical-align:top;text-align:center;padding:0">' + mep_image(b, lD, hDb, esc) + '</td></tr></table>');
+        continue;
+      }
+    }
+    pages.push(mep_image(a, L, hA, esc));
+  }
+  pages.forEach(function (contenu, n) {
+    html += '<div data-mep="photos" style="page-break-before:always;page-break-inside:avoid">'
+      + (o.titre ? o.titre(n, pages.length) : '') + contenu + '</div>';
+  });
+  return html;
+}
+
+// Nombre de lignes d'un texte dans une largeur (mm) pour une taille de police (px) — estimation prudente (Arial)
+function mep_lignes(texte, largeurMm, policePx) {
+  var parLigne = Math.max(1, Math.floor(largeurMm / (policePx * MEP_PX_MM * 0.56)));
+  return String(texte === undefined || texte === null ? '' : texte).split('\n').reduce(function (n, l) {
+    return n + Math.max(1, Math.ceil(l.length / parLigne));
+  }, 0);
+}
+// Hauteur (mm) d'un texte : lignes × police × interligne
+function mep_hauteurTexte(texte, largeurMm, policePx, interligne) {
+  return mep_lignes(texte, largeurMm, policePx) * policePx * (interligne || 1.2) * MEP_PX_MM;
+}
+
+// Zone utile d'une page (mm) : format prévu par le modèle, ou format réel du PDF mesuré par le serveur
+// (d._mepFormat = { l, h } en mm) quand le premier PDF a débordé ; d._mepSansPage1 : photo de la page 1 interdite.
+function mep_zone(d, l, h, marge) {
+  var f = d && d._mepFormat;
+  var paysage = l > h;
+  if (f && f.l > 50 && f.h > 50) { l = paysage ? Math.max(f.l, f.h) : Math.min(f.l, f.h); h = paysage ? Math.min(f.l, f.h) : Math.max(f.l, f.h); }
+  // d._mepMargeEnPlus : le serveur a trouvé une page de trop → pages de photos un peu moins hautes
+  var enPlus = d && d._mepMargeEnPlus > 0 ? Math.min(40, Number(d._mepMargeEnPlus)) : 0;
+  return { largeur: l - 2 * marge, hauteur: h - 2 * marge - enPlus, sansPage1: !!(d && d._mepSansPage1) };
+}
+// Place libre sous un contenu estimé (marge de sécurité de 6 mm), 0 si le contenu ne tient pas sur la page 1
+function mep_reste(zone, estime) {
+  if (zone.sansPage1) return 0;
+  var reste = zone.hauteur - estime - 6;
+  return reste > 0 ? reste : 0;
+}
+// Texte d'un champ mis en forme (commentaires de la fabrication) : retours à la ligne gardés, balises retirées
+function mep_texteBrut(html) {
+  return String(html || '').replace(/<br\s*\/?>|<\/(div|p)>/gi, '\n').replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ')
+    .replace(/&[a-z]+;|&#\d+;/gi, 'x').replace(/\n+$/, '');
 }
 
 // ── modeles/note.js ──
@@ -484,43 +694,24 @@ function modele_fabrication(d, esc) {
 // d : données de la fiche (textes bruts ; images déjà contrôlées) ; esc : fonction d'échappement
 // ═══════════════════════════════════════════════════════════════
 function modele_note(d, esc) {
-  var photos = (d.photosBase64 || []).filter(function (p) { return p && p.data; });
   var TEXTE = 'white-space:pre-wrap;word-break:break-word;overflow-wrap:break-word;';
   var ETIQ = 'font-size:7.5px;font-weight:700;text-transform:uppercase;color:#6A6460;margin-bottom:2px';
 
-  function src(p) { return 'data:' + (p.mimeType || p.mime || 'image/jpeg') + ';base64,' + p.data; }
-  function legende(p) {
-    return p.label ? '<div style="margin-top:4px;font-size:10px;color:#6A6460;' + TEXTE + '">' + esc(p.label) + '</div>' : '';
-  }
-
-  // Une seule photo : sous les notes, page 1. Deux ou plus : deux par page, à partir de la page 2.
-  var photosHtml = '';
-  if (photos.length === 1) {
-    var p = photos[0];
-    photosHtml = '<div style="margin-top:10px;border:1.5px solid #0D7A6B;border-radius:5px;overflow:hidden;page-break-inside:avoid">'
-      + '<div style="background:#E0F5F2;padding:5px 10px;border-bottom:1px solid #0D7A6B;font-size:9px;font-weight:700;color:#0D7A6B;text-transform:uppercase">'
-      + 'Photo / Croquis' + (p.label ? ' — <span style="text-transform:none">' + esc(p.label) + '</span>' : '') + '</div>'
-      + '<div style="padding:8px;text-align:center"><img src="' + src(p) + '" style="max-width:100%;max-height:130mm;display:block;margin:0 auto;"></div></div>';
-  } else {
-    for (var i = 0; i < photos.length; i += 2) {
-      var p1 = photos[i], p2 = photos[i + 1];
-      var cellule2 = p2
-        ? '<td style="width:50%;padding-left:8px;text-align:center;vertical-align:top"><img src="' + src(p2) + '" style="max-width:100%;max-height:120mm;display:block;margin:0 auto;border:1px solid #ddd;">' + legende(p2) + '</td>'
-        : '<td style="width:50%"></td>';
-      photosHtml += '<div style="page-break-before:always;padding:12px 10px">'
-        + '<div style="font-size:9px;font-weight:700;color:#0D7A6B;margin-bottom:8px;border-bottom:2px solid #0D7A6B;padding-bottom:4px;text-transform:uppercase">'
-        + 'Photos / Croquis ' + (i + 1) + (p2 ? ' &amp; ' + (i + 2) : '') + '</div>'
-        + '<table style="width:100%;border-collapse:collapse"><tr>'
-        + '<td style="width:50%;padding-right:8px;text-align:center;vertical-align:top"><img src="' + src(p1) + '" style="max-width:100%;max-height:120mm;display:block;margin:0 auto;border:1px solid #ddd;">' + legende(p1) + '</td>'
-        + cellule2 + '</tr></table></div>';
-    }
-  }
 
   var commentaires = d.commentaires
     ? '<div style="padding:10px 12px;background:#F0F5F4;border:1.5px solid #0D7A6B;border-radius:5px;margin-bottom:10px">'
       + '<div style="font-size:8px;font-weight:700;text-transform:uppercase;color:#0D7A6B;margin-bottom:6px;letter-spacing:.5px">Notes &amp; commentaires</div>'
       + '<div style="font-size:11px;line-height:1.7;' + TEXTE + '">' + esc(d.commentaires) + '</div></div>'
     : '';
+
+  // ── Photos (modeles/mise-en-page.js) : la 1re sous les notes si elles tiennent sur la page 1, dans toute la place
+  // restante ; les autres en pleine page (deux par page si elles y gardent leur taille). Hauteur mesurée dans Chrome :
+  // en-tête 36 mm (chantier long : 4,5 par ligne en plus, rédacteur : 3,2 ; objet long : 4,2) ; notes 12,5 + 4,94 par ligne.
+  var estime = 36 + Math.max(4.5 * (mep_lignes(d.chantier || '—', 35, 12) - 1) + 3.2 * (mep_lignes(d.auteur || '—', 39, 11) - 1),
+    4.2 * (d.objet ? mep_lignes(d.objet, 100, 11) - 1 : 0))
+    + (d.commentaires ? 12.5 + 4.94 * mep_lignes(d.commentaires, 168, 11) : 0);
+  var zone = mep_zone(d, 210, 297, 15);
+  var photosHtml = mep_photos(d.photosBase64, { largeur: zone.largeur, hauteur: zone.hauteur, reste: mep_reste(zone, estime), estime: estime, esc: esc });
 
   return '<html><head><meta charset="utf-8"><style>@page{size:A4;margin:1.5cm}body{font-family:Arial,sans-serif;font-size:10px;margin:0}*{box-sizing:border-box}</style></head><body>'
     + '<table style="width:100%;border-collapse:collapse;margin-bottom:12px;border-bottom:3px solid #0D7A6B"><tr>'
@@ -558,26 +749,6 @@ function modele_quitus(d, esc) {
   var solde = d.solde || '—';
   var couleur = solde === 'OUI' ? '#196B3B' : solde === 'NON' ? '#B32E2E' : '#6A6460';
   var fond = solde === 'OUI' ? '#E1F2E9' : solde === 'NON' ? '#FAE8E8' : '#F2F0EC';
-  var photos = (d.photosBase64 || []).filter(function (p) { return p && p.data; });
-
-  function img(p, hauteur) {
-    return '<img src="data:' + (p.mimeType || 'image/jpeg') + ';base64,' + p.data + '" style="max-width:100%;max-height:' + hauteur + ';display:block;margin:0 auto;">'
-      + (p.label ? '<div style="font-size:9px;color:#6A6460;margin-top:3px">' + esc(p.label) + '</div>' : '');
-  }
-  var photosHtml = '';
-  if (photos.length === 1) {
-    photosHtml = '<div style="margin-top:10px;border:1px solid #D8D4CE;border-radius:5px;overflow:hidden">'
-      + '<div style="background:#E1F2E9;padding:5px 10px;border-bottom:1px solid #196B3B;font-size:9px;font-weight:700;color:#196B3B">Photo</div>'
-      + '<div style="padding:8px;text-align:center">' + img(photos[0], '100mm') + '</div></div>';
-  } else {
-    for (var i = 0; i < photos.length; i += 2) {
-      var deuxieme = photos[i + 1]
-        ? '<td style="width:50%;padding-left:6px;text-align:center">' + img(photos[i + 1], '110mm') + '</td>' : '<td></td>';
-      photosHtml += '<div style="page-break-before:always;padding:10px"><table style="width:100%;border-collapse:collapse"><tr>'
-        + '<td style="width:50%;padding-right:6px;text-align:center">' + img(photos[i], '110mm') + '</td>' + deuxieme
-        + '</tr></table></div>';
-    }
-  }
   function signature(titre, src) {
     return '<td style="width:50%;padding:0 4px;vertical-align:top">'
       + '<div style="font-size:9px;font-weight:700;text-transform:uppercase;color:#6A6460;margin-bottom:4px">' + titre + '</div>'
@@ -589,6 +760,14 @@ function modele_quitus(d, esc) {
       + '<div style="font-size:8px;font-weight:700;text-transform:uppercase;color:#6A6460;margin-bottom:5px">Description de l’intervention</div>'
       + '<div style="font-size:11px;line-height:1.7;white-space:pre-wrap;word-break:break-word;overflow-wrap:break-word">' + esc(d.description) + '</div></div>'
     : '';
+
+  // ── Photos (modeles/mise-en-page.js) : la 1re sous les signatures, dans toute la place restante de la page 1,
+  // les autres en pleine page (deux par page si elles y gardent leur taille). Hauteur du contenu mesurée dans Chrome :
+  // 66,4 mm sans description ; description 12,2 + 5 mm par ligne ; chantier long : 4,2 mm par ligne en plus.
+  var estime = 66.4 + (d.description ? 12.2 + 4.95 * mep_lignes(d.description, 168, 11) : 0)
+    + 4.2 * (mep_lignes(chantier, 70, 11) - 1);
+  var zone = mep_zone(d, 210, 297, 15);
+  var photosHtml = mep_photos(d.photosBase64, { largeur: zone.largeur, hauteur: zone.hauteur, reste: mep_reste(zone, estime), estime: estime, esc: esc });
 
   return '<html><head><meta charset="utf-8"><style>@page{size:A4;margin:1.5cm}body{font-family:Arial,sans-serif;font-size:10px;margin:0}*{box-sizing:border-box}</style></head><body>'
     + '<table style="width:100%;border-collapse:collapse;margin-bottom:14px;border-bottom:3px solid #196B3B;padding-bottom:10px"><tr>'
@@ -604,10 +783,10 @@ function modele_quitus(d, esc) {
     + description
     + '<table style="border-collapse:collapse;margin-bottom:12px"><tr><td style="padding:8px 14px;background:' + fond + ';border:1.5px solid ' + couleur + ';border-radius:8px">'
     + '<span style="font-size:11px;font-weight:700;color:' + couleur + '">SOLDÉ : ' + esc(solde) + '</span></td></tr></table>'
-    + photosHtml
     + '<table style="width:100%;border-collapse:collapse;margin-top:14px;page-break-inside:avoid"><tr>'
     + signature('Signature Entreprise Loué', d.sigLoue) + signature('Signature Client', d.sigIntervenant)
     + '</tr></table>'
+    + photosHtml
     + '</body></html>';
 }
 
@@ -639,21 +818,15 @@ function modele_reception(d, esc) {
       + '<td style="' + CASE + 'font-size:10px;color:#6A6460;' + TEXTE + '">' + esc(p.comment || '') + '</td></tr>';
   }).join('');
 
-  // Photos de chaque point : une page par point, deux photos par ligne
+  // Photos de chaque point (modeles/mise-en-page.js) : pages à part, titre du point en haut de chaque page,
+  // chaque photo en pleine page (deux par page si elles y gardent leur taille)
+  var zone = mep_zone(d, 210, 297, 15);
   var photosHtml = points.map(function (p) {
-    var ph = (p.photos || []).filter(function (x) { return x && x.data; });
-    if (!ph.length) return '';
-    var rangs = '';
-    for (var i = 0; i < ph.length; i += 2) {
-      var cellule = function (x) {
-        return '<td style="text-align:center;vertical-align:top;width:50%;padding:4px">'
-          + (x ? '<img src="data:' + (x.mimeType || x.mime || 'image/jpeg') + ';base64,' + x.data + '" style="max-width:100%;max-height:100mm;border:1px solid #ddd;">' : '') + '</td>';
-      };
-      rangs += '<table style="width:100%;border-collapse:collapse;page-break-inside:avoid"><tr>' + cellule(ph[i]) + cellule(ph[i + 1]) + '</tr></table>';
-    }
-    return '<div style="page-break-before:always;padding-top:10px">'
-      + '<div style="font-weight:700;font-size:11px;color:#0D7A6B;border-bottom:2px solid #0D7A6B;padding-bottom:4px;margin-bottom:8px">Photos — ' + esc(p.label || '') + '</div>'
-      + rangs + '</div>';
+    var titre = function (n, total) {
+      return '<div style="font-weight:700;font-size:11px;color:#0D7A6B;border-bottom:2px solid #0D7A6B;padding-bottom:4px;margin-bottom:2mm;height:7mm;overflow:hidden">'
+        + 'Photos — ' + esc(p.label || '') + (total > 1 ? ' (' + (n + 1) + '/' + total + ')' : '') + '</div>';
+    };
+    return mep_photos(p.photos, { largeur: zone.largeur, hauteur: zone.hauteur, reste: 0, esc: esc, titre: titre });
   }).join('');
 
   return '<html><head><meta charset="utf-8"><style>@page{size:A4;margin:1.5cm}body{font-family:Arial,sans-serif;font-size:10px;margin:0}*{box-sizing:border-box}</style></head><body>'
