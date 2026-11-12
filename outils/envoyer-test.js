@@ -58,7 +58,9 @@ function lireProjet(dossier) {
   let p;
   try { p = JSON.parse(fs.readFileSync(f, 'utf8')); } catch (e) { throw new Error('.clasp.json illisible'); }
   if (!p.scriptId || typeof p.scriptId !== 'string') throw new Error('.clasp.json sans identifiant de script');
-  if (p.rootDir && p.rootDir !== '.' && p.rootDir !== './') throw new Error('.clasp.json désigne un autre dossier (rootDir) : refusé, préviens Claude');
+  ['rootDir', 'srcDir'].forEach(k => {
+    if (p[k] && p[k] !== '.' && p[k] !== './') throw new Error('.clasp.json désigne un autre dossier (' + k + ') : refusé, préviens Claude');
+  });
   if (fs.existsSync(path.join(dossier, '.claspignore'))) throw new Error('Un fichier .claspignore est présent dans le dossier clasp : refusé, préviens Claude');
   return p.scriptId;
 }
@@ -107,7 +109,8 @@ function lancerClasp(etat, args, options) {
 async function attendreEmpreinte(url, attendue, o) {
   o = o || {};
   const appeler = o.appeler || (async u => {
-    const r = await fetch(u, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action: 'ping', v: 5 }) });
+    const r = await fetch(u, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action: 'ping', v: 5 }),
+      signal: AbortSignal.timeout(20000) });   // une connexion figée ne bloque pas la commande
     return r.json();
   });
   const fin = Date.now() + (o.maxMs || 90000);
@@ -122,7 +125,9 @@ async function attendreEmpreinte(url, attendue, o) {
 function demanderAuClavier(question) {
   return new Promise(r => {
     const rl = require('readline').createInterface({ input: process.stdin, output: process.stdout });
-    rl.question(question, rep => { rl.close(); r(rep); });
+    let repondu = false;
+    rl.question(question, rep => { repondu = true; rl.close(); r(rep); });
+    rl.on('close', () => { if (!repondu) r(''); });   // Ctrl+C pendant la question : réponse vide, donc refus
   });
 }
 
@@ -134,14 +139,20 @@ async function envoyer(o) {
   const prive = o.dossierPrive || path.join(racine, '_prive');
   const memoire = path.join(prive, 'script-test-id.txt');
   const jetonHabituel = path.join(o.dossierJeton || os.homedir(), '.clasprc.json');
-  const dossierTemp = fs.mkdtempSync(path.join(os.tmpdir(), 'loue-clasp-'));
+  // Restes d'un envoi précédent interrompu brutalement : effacés avant tout
+  const PREFIXE = 'loue-clasp-';
+  try {
+    fs.readdirSync(os.tmpdir()).filter(d => d.indexOf(PREFIXE) === 0 && !o.garderRestes)
+      .forEach(d => { try { fs.rmSync(path.join(os.tmpdir(), d), { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }); } catch (e) {} });
+  } catch (e) {}
+  const dossierTemp = fs.mkdtempSync(path.join(os.tmpdir(), PREFIXE));
   const jetonTemp = path.join(dossierTemp, 'jeton.json');
   const dire = o.dire || (t => console.log(t));
   const rapport = [];
   let secret = '';   // l'identifiant du script n'est jamais écrit dans un message
   const noter = t => { if (secret) t = t.split(secret).join('<identifiant du script>'); rapport.push(t); dire(t); };
   const debut = new Date();
-  let connecte = false, envoiCommence = false, reussi = false, erreur = null;
+  let connecte = false, envoiCommence = false, reussi = false, erreur = null, jetonEfface = [];
 
   // Environnement donné à clasp : aucun réglage clasp_config_* hérité, et le jeton rangé dans NOTRE dossier temporaire
   const env = Object.assign({}, process.env, o.env || {});
@@ -151,14 +162,35 @@ async function envoyer(o) {
   const clasp = (args, options) => lancerClasp(etat, args, Object.assign({ maxMs: o.maxMsClasp }, options || {}));
 
   // Effacement du jeton : arrêt de clasp et de ses enfants, puis suppression des deux emplacements possibles
+  // Rend la liste des fichiers de jeton qui n'ont PAS pu être supprimés (vide = tout est effacé).
   const effacerJeton = () => {
     if (etat.enfant) tuerArbre(etat.enfant.pid);
-    try { fs.rmSync(dossierTemp, { recursive: true, force: true }); } catch (e) {}
-    try { fs.rmSync(jetonHabituel, { force: true }); } catch (e) {}
-    return !fs.existsSync(jetonTemp) && !fs.existsSync(jetonHabituel);
+    [jetonTemp, jetonHabituel].forEach(f => {
+      // d'abord vider le fichier : même s'il ne peut pas être supprimé (tenu par un antivirus), il ne contient plus rien
+      try { if (fs.existsSync(f)) fs.writeFileSync(f, ''); } catch (e) {}
+    });
+    try { fs.rmSync(dossierTemp, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 }); } catch (e) {}
+    try { fs.rmSync(jetonHabituel, { force: true, maxRetries: 10, retryDelay: 200 }); } catch (e) {}
+    return [jetonTemp, jetonHabituel].filter(f => { try { return fs.existsSync(f) && fs.statSync(f).size > 0; } catch (e) { return true; } });
   };
-  // Ctrl+C, fenêtre fermée : on efface AVANT de s'arrêter
-  const interruption = () => { effacerJeton(); console.error('\n❌ Commande interrompue. Jeton Google effacé du PC. Préviens Claude avant tout essai.'); process.exit(1); };
+  const ecrireRapport = suffixe => {   // compte rendu : ni jeton, ni clé, ni identifiant de script
+    try {
+      const dossier = path.join(prive, 'envois'); fs.mkdirSync(dossier, { recursive: true });
+      fs.writeFileSync(path.join(dossier, horodatage(debut) + suffixe + '.txt'), rapport.join('\n') + '\n');
+    } catch (e) { dire('(compte rendu non écrit : ' + e.message + ')'); }
+  };
+  const direJeton = restes => restes.length
+    ? '❌ LE JETON GOOGLE N’A PAS PU ÊTRE EFFACÉ : supprime à la main ' + restes.join(' et ') + ', puis préviens Claude.'
+    : 'Jeton Google effacé du PC.';
+  // Ctrl+C, fenêtre fermée : on arrête clasp, on efface, on écrit le compte rendu, PUIS on s'arrête
+  const interruption = () => {
+    const restes = effacerJeton();
+    noter('❌ Commande interrompue.' + (envoiCommence ? ' L’envoi avait commencé : le serveur TEST est peut-être dans un état intermédiaire.' : ' Rien n’a été envoyé.'));
+    noter(direJeton(restes));
+    noter('Préviens Claude avant tout essai.');
+    ecrireRapport('-INTERROMPU');
+    process.exit(1);
+  };
   const signaux = o.sansSignaux ? [] : ['SIGINT', 'SIGBREAK', 'SIGHUP', 'SIGTERM'];
   signaux.forEach(s => process.on(s, interruption));
 
@@ -174,7 +206,13 @@ async function envoyer(o) {
     const scriptId = lireProjet(etat.dossierClasp);
     secret = scriptId;
     const memePojet = () => { if (lireProjet(etat.dossierClasp) !== scriptId) throw new Error('Le fichier .clasp.json a changé pendant l’envoi : arrêt, préviens Claude'); };
-    if (fs.existsSync(jetonHabituel)) { fs.rmSync(jetonHabituel, { force: true }); noter('⚠ Un jeton Google était resté sur le PC : il a été effacé avant de commencer.'); }
+    if (fs.existsSync(jetonHabituel)) {
+      // « clasp logout » laisse un fichier vide de tout jeton : on n'alerte que s'il en contient vraiment un
+      let contenu = ''; try { contenu = fs.readFileSync(jetonHabituel, 'utf8'); } catch (e) {}
+      const vraiJeton = /refresh_token|access_token/.test(contenu) || !/^\s*\{/.test(contenu);
+      fs.rmSync(jetonHabituel, { force: true });
+      if (vraiJeton) noter('⚠ Un jeton Google était resté sur le PC : il a été effacé avant de commencer.');
+    }
 
     // ── 2. Premier envoi : l'identifiant vient de l'éditeur du Sheet TEST, collé par Franck ──
     let aMemoriser = false;
@@ -224,8 +262,13 @@ async function envoyer(o) {
     noter('4/6 Serveur envoyé.');
     memePojet();
     const description = String(o.description || ('Outillage ' + (o.avecPorte ? 'avec porte' : 'sans porte') + ' ' + serveur.empreinte)).replace(/[^A-Za-z0-9 ._-]/g, '').slice(0, 80);
-    await clasp(['update-deployment', cible.id, '--description', description]);
-    noter('5/6 Déploiement TEST mis à jour (même adresse).');
+    const redeploye = await clasp(['update-deployment', cible.id, '--description', description]);
+    noter('5/6 Déploiement TEST mis à jour (même adresse).' + (/redeployed/i.test(redeploye) ? '' : ' (clasp ne l’a pas confirmé en toutes lettres : la vérification en ligne tranchera)'));
+
+    // Le jeton ne sert plus : on l'efface AVANT la vérification en ligne (jusqu'à 90 s), pas après
+    try { await clasp(['logout'], { maxMs: 30000 }); } catch (e) {}
+    jetonEfface = effacerJeton();
+    connecte = false;
 
     // ── 7. Vérification en ligne ──
     const v = await attendreEmpreinte(cible.url, serveur.empreinte, o);
@@ -238,18 +281,14 @@ async function envoyer(o) {
     if (envoiCommence) noter('⚠ L’envoi avait commencé : le serveur TEST est peut-être dans un état intermédiaire. La sauvegarde est dans _prive/. Préviens Claude avant tout essai.');
   } finally {
     // ── 8. Arrêt de clasp, effacement du jeton, dans tous les cas ──
-    if (connecte && !etat.enfant) { try { await clasp(['logout'], { maxMs: 30000 }); } catch (e) {} }
-    const efface = effacerJeton();
+    if (connecte) { try { await clasp(['logout'], { maxMs: 30000 }); } catch (e) {} }
+    jetonEfface = effacerJeton();
     signaux.forEach(s => process.removeListener(s, interruption));
-    noter(efface ? 'Jeton Google effacé du PC.'
-      : '❌ LE JETON GOOGLE EST ENCORE SUR LE PC : supprime le fichier ' + jetonHabituel + ' à la main et préviens Claude.');
+    noter(direJeton(jetonEfface));
     noter(reussi ? '✅ Envoi réussi. Dis à Claude : « envoi fait ».' : '❌ Envoi NON réussi. Copie ce texte et envoie-le à Claude.');
-    try {   // compte rendu : ni jeton, ni clé, ni identifiant de script
-      const dossier = path.join(prive, 'envois'); fs.mkdirSync(dossier, { recursive: true });
-      fs.writeFileSync(path.join(dossier, horodatage(debut) + (reussi ? '-reussi' : '-ECHEC') + '.txt'), rapport.join('\n') + '\n');
-    } catch (e) { dire('(compte rendu non écrit : ' + e.message + ')'); }
+    ecrireRapport(reussi ? '-reussi' : '-ECHEC');
   }
-  return { ok: reussi, erreur: erreur ? erreur.message : '', rapport: rapport, jetonRestant: fs.existsSync(jetonTemp) || fs.existsSync(jetonHabituel) };
+  return { ok: reussi, erreur: erreur ? erreur.message : '', rapport: rapport, jetonRestant: jetonEfface.length > 0, restes: jetonEfface };
 }
 
 module.exports = { envoyer, deploiementTest, lireProjet, lireDeploiements, attendreEmpreinte, tuerArbre, FICHIERS_ATTENDUS };

@@ -286,6 +286,56 @@ test('envoi : une étape qui se fige est arrêtée à sa durée limite ; le jeto
   assert.ok(Date.now() - t0 < 2800, 'la commande n’attend pas la fin du programme figé');
   assert.ok(!r.jetonRestant && r.rapport.some(l => /état intermédiaire/.test(l)));
 });
+test('envoi : interruption (Ctrl+C) pendant la connexion puis pendant l’envoi — clasp arrêté, jeton effacé, compte rendu écrit', async () => {
+  // La commande tourne dans un programme à part, qui reçoit le signal d'interruption au bout d'une seconde
+  const lanceur = path.join(TMP, 'lanceur.js');
+  fs.writeFileSync(lanceur, [
+    "const envoi = require(" + JSON.stringify(path.join(RACINE, 'outils', 'envoyer-test.js')) + ");",
+    "const o = JSON.parse(process.argv[2]);",
+    "o.etatDepot = () => ({ propre: true, source: 'x' }); o.demander = async () => 'SCRIPT-TEST-123'; o.dire = () => {};",
+    "o.appeler = async () => ({ data: { empreinte: '' } });",
+    "setTimeout(() => process.emit('SIGINT'), 1000);",
+    "envoi.envoyer(o).then(() => process.exit(0));",
+  ].join('\n'));
+  for (const [reglages, attendu] of [[{ ignoreAuth: true, loginLent: 4000 }, /Rien n’a été envoyé/], [{ ignoreAuth: true, lent: { push: 4000 } }, /état intermédiaire/]]) {
+    const m = monde(reglages), o = m.options();
+    ['dire', 'appeler', 'etatDepot', 'demander', 'sansSignaux'].forEach(k => { delete o[k]; });
+    let code = 0;
+    try { execFileSync(process.execPath, [lanceur, JSON.stringify(o)], { stdio: 'pipe', timeout: 20000 }); } catch (e) { code = e.status; }
+    assert.strictEqual(code, 1, 'la commande interrompue sort en erreur');
+    await new Promise(x => setTimeout(x, 4500));   // un clasp encore vivant écrirait ou garderait le jeton
+    assert.ok(!fs.existsSync(m.lire().jeton), 'aucun jeton à l’endroit habituel');
+    const cr = fs.readdirSync(path.join(m.dossierPrive, 'envois'));
+    assert.ok(cr.length === 1 && /-INTERROMPU\.txt$/.test(cr[0]), cr.join());
+    const texte = fs.readFileSync(path.join(m.dossierPrive, 'envois', cr[0]), 'utf8');
+    assert.ok(/Commande interrompue/.test(texte) && attendu.test(texte) && /Jeton Google effacé du PC/.test(texte), texte);
+  }
+  assert.strictEqual(fs.readdirSync(os.tmpdir()).filter(d => /^loue-clasp-/.test(d)).length, 0, 'aucun dossier de jeton oublié');
+});
+test('envoi : le jeton est effacé AVANT la vérification en ligne ; un fichier vide laissé par « clasp logout » ne déclenche pas d’alerte', async () => {
+  const m = monde({ ignoreAuth: true });
+  fs.writeFileSync(m.lire().jeton, '{"tokens":{}}');   // ce que laisse « clasp logout » après l'installation
+  let pendantVerification = null;
+  const r = await envoi.envoyer(m.options({ appeler: async () => { pendantVerification = fs.existsSync(m.lire().jeton);
+    const e = /const EMPREINTE_SERVEUR = '([0-9a-f]+)'/.exec(m.lire().deploye); return { data: { version: 'v', empreinte: e[1] } }; } }));
+  assert.ok(r.ok, r.rapport.join('\n'));
+  assert.strictEqual(pendantVerification, false, 'plus de jeton pendant la vérification en ligne');
+  assert.ok(!r.rapport.some(l => /était resté sur le PC/.test(l)), 'pas de fausse alerte');
+  assert.strictEqual(m.lire().journal.filter(c => c === 'logout').length, 1);
+  // un vrai jeton oublié, lui, est signalé
+  const m2 = monde(); fs.writeFileSync(m2.lire().jeton, '{"tokens":{"default":{"refresh_token":"x"}}}');
+  assert.ok((await envoi.envoyer(m2.options())).rapport.some(l => /était resté sur le PC/.test(l)));
+});
+test('envoi : .clasp.json avec srcDir détourné = refus ; les champs écrits par clasp lui-même sont acceptés', async () => {
+  let m = monde();
+  fs.writeFileSync(path.join(m.dossierClasp, '.clasp.json'), JSON.stringify({ scriptId: 'SCRIPT-TEST-123', srcDir: 'sous-dossier' }));
+  let r = await envoi.envoyer(m.options());
+  assert.ok(!r.ok && /srcDir/.test(r.erreur) && (m.lire().journal || []).length === 0, r.erreur);
+  m = monde();
+  fs.writeFileSync(path.join(m.dossierClasp, '.clasp.json'), JSON.stringify({ scriptId: 'SCRIPT-TEST-123', rootDir: '', scriptExtensions: ['.js', '.gs'],
+    htmlExtensions: ['.html'], jsonExtensions: ['.json'], filePushOrder: [], skipSubdirectories: false }));
+  assert.ok((await envoi.envoyer(m.options())).ok);
+});
 test('envoi : .clasp.json modifié pendant l’envoi = arrêt avant le push', async () => {
   const m = monde();
   const r = await envoi.envoyer(m.options({ demander: undefined, etatDepot: () => ({ propre: true, source: 'x' }) , claspCmd: [process.execPath, path.join(__dirname, 'faux-clasp.js')] ,
