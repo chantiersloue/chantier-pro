@@ -190,15 +190,19 @@ function outilTestSession_(id) {
 // Annule côté serveur toutes les sessions des comptes d'essai (comme « Déconnecter ses téléphones ») et les désactive
 function outilTestFermerSessions_() {
   const fermees = [];
+  const erreurs = [];
   Object.keys(OUTIL_TEST_COMPTES).forEach(id => {
-    const x = outilTestLigne_(id, true);
-    if (!x) return;   // compte jamais créé : rien à fermer, rien à écrire
-    const c = lireCompte_(id);
-    c.ver = Number(c.ver || 1) + 1;
-    ecrireCompte_(id, c);
-    if (x.l.actif) outilTestCocher_(id, 'actif', false);
-    fermees.push(id);
+    try {
+      const x = outilTestLigne_(id, true);
+      if (!x) return;   // compte jamais créé : rien à fermer, rien à écrire
+      const c = lireCompte_(id);
+      c.ver = Number(c.ver || 1) + 1;
+      ecrireCompte_(id, c);
+      if (x.l.actif) outilTestCocher_(id, 'actif', false);
+      fermees.push(id);
+    } catch (e) { erreurs.push(id + ' : ' + e.message); }   // les autres comptes sont fermés quand même
   });
+  if (erreurs.length) throw new Error('sessions fermées pour ' + (fermees.join(', ') || 'aucun compte') + ' ; échec pour ' + erreurs.join(' ; '));
   return { comptes: fermees };
 }
 
@@ -217,7 +221,9 @@ function outilTestMemoriserTransition_(origine) {
 function outilTestRetablirTransition_() {
   const props = PropertiesService.getScriptProperties(), brut = props.getProperty('OUTIL_TEST_FIN_AVANT');
   if (!brut) return 'Rien à rétablir : la transition de TEST n’a pas été modifiée par les essais.';
-  const avant = JSON.parse(brut);
+  let avant;
+  try { avant = JSON.parse(brut); } catch (e) { avant = null; }
+  if (!avant || typeof avant !== 'object') avant = { fin: brut === 'absente' || !/^\d+$/.test(brut) ? '' : brut, alerte: '' };   // ancien format
   // Franck a-t-il changé la transition lui-même depuis le dernier essai ? On le dit (et on remet quand même l'état d'origine)
   const changeeAlaMain = (props.getProperty('FIN_TRANSITION') || '') !== (props.getProperty('OUTIL_TEST_FIN_POSEE') || '');
   if (avant.fin) props.setProperty('FIN_TRANSITION', avant.fin); else props.deleteProperty('FIN_TRANSITION');

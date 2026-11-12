@@ -273,8 +273,19 @@ test('porte : une ligne tapée à la main qui ressemble à un compte d’essai n
   });
   // en double : refusé aussi
   const g = serveurLot2(); geste(g, 'preparerComptes');
+  geste(g, 'session', { id: 'auto-poseur' }); geste(g, 'session', { id: 'auto-conducteur' });
   U(g)[10] = ['auto-admin', 'AUTO Admin', 'Admin', true, false, '', '', false, false, ''];
   assert.ok(!geste(g, 'session', { id: 'auto-admin' }).ok);
+  // un compte non conforme n'empêche pas de fermer les sessions des autres ; l'échec est dit
+  const fs1 = geste(g, 'fermerSessions');
+  assert.ok(!fs1.ok && /sessions fermées pour auto-poseur, auto-conducteur ; échec pour auto-admin/.test(fs1.message), JSON.stringify(fs1));
+  assert.deepStrictEqual(['auto-poseur', 'auto-conducteur'].map(id => geste(g, 'lireCompte', { id: id }).data.actif), [false, false]);
+  // mémoire de transition dans un ancien format : rétablie sans erreur
+  const h = serveurLot2();
+  h.proprietes.OUTIL_TEST_FIN_AVANT = 'absente'; h.proprietes.FIN_TRANSITION = '1899999999999';
+  assert.ok(geste(h, 'retablirTransition').ok && !h.proprietes.FIN_TRANSITION && !h.proprietes.OUTIL_TEST_FIN_AVANT);
+  h.proprietes.OUTIL_TEST_FIN_AVANT = '1794933622155'; h.proprietes.FIN_TRANSITION = '1';
+  assert.ok(geste(h, 'retablirTransition').ok && h.proprietes.FIN_TRANSITION === '1794933622155');
 });
 test('porte complète hors de TEST : tous les gestes sont refusés, rien n’est écrit', () => {
   const g = serveurLot2();
@@ -427,8 +438,24 @@ test('envoi --sans-porte : la copie TEST est d’abord remise en ordre par la po
   f = fausse({ declencheurs: [] });
   assert.ok((await envoi.envoyer(monde().options({ avecPorte: false, porte: f.porte }))).ok);
   assert.deepStrictEqual(f.appels, ['etat']);
-  assert.ok((await envoi.envoyer(monde().options({ avecPorte: false, porte: async () => ({ ok: false, code: 'ACTION_INCONNUE' }) }))).ok);
-  assert.ok((await envoi.envoyer(monde().options({ avecPorte: false, porte: async () => { throw new Error('réseau coupé'); } }))).ok);
+  assert.ok((await envoi.envoyer(monde().options({ avecPorte: false, porte: async () => ({ ok: false, code: 'ACTION_INCONNUE' }) }))).ok, 'serveur déjà sans porte');
+  // clé refusée ou absente du PC : rien n'est faisable à distance, on continue en demandant un contrôle à la main
+  for (const code of ['REFUSE', 'CLE_ABSENTE']) {
+    const r4 = await envoi.envoyer(monde().options({ avecPorte: false, porte: async () => ({ ok: false, code: code }) }));
+    assert.ok(r4.ok && r4.rapport.some(l => /À CONTRÔLER après l’envoi : ▶ verifierConfig/.test(l)), code);
+  }
+  // panne passagère (pas de réponse, réponse illisible, erreur de la porte) : on NE SAIT PAS, donc on n'envoie pas
+  for (const panne of [async () => { throw new Error('réseau coupé'); }, async () => null, async () => 'page d’erreur',
+    async () => ({ ok: false, code: 'ERREUR_OUTIL', message: 'quota illisible' }), async () => ({ ok: true })]) {
+    const m5 = monde(), r5 = await envoi.envoyer(m5.options({ avecPorte: false, porte: panne }));
+    assert.ok(!r5.ok && /Envoi « sans porte » annulé.*Relance la commande/i.test(r5.erreur), r5.erreur);
+    assert.strictEqual((m5.lire().journal || []).length, 0, 'clasp n’a pas été lancé');
+  }
+  // un déclencheur d'un autre nom (posé à la main, ancien lot) ne bloque pas, et il est cité
+  f = fausse({ declencheurs: ['autreChoseDeFranck'], transitionARetablir: false });
+  const r6 = await envoi.envoyer(monde().options({ avecPorte: false, porte: f.porte }));
+  assert.ok(r6.ok && r6.rapport.some(l => /autre\(s\) déclencheur\(s\) présent\(s\), non touché\(s\) : autreChoseDeFranck/.test(l)), r6.rapport.join('\n'));
+  assert.ok(f.appels.indexOf('retirerDeclencheurs') < 0);
   // 5. avec porte : la porte n'est pas consultée
   f = fausse({ declencheurs: ['traiterComptes'], transitionARetablir: true });
   assert.ok((await envoi.envoyer(monde().options({ avecPorte: true, porte: f.porte }))).ok);

@@ -123,30 +123,53 @@ async function attendreEmpreinte(url, attendue, o) {
   }
 }
 // Appel de la porte de service (chargé ici seulement : outils/porte.js charge lui-même ce fichier)
-function appelerPorte(geste) { return require('./porte.js').appeler(geste, null, { maxMs: 60000 }); }
+function appelerPorte(geste) {
+  const p = require('./porte.js');
+  if (!fs.existsSync(p.fichierCle())) return Promise.resolve({ ok: false, code: 'CLE_ABSENTE' });
+  return p.appeler(geste, null, { maxMs: 60000 });
+}
+const DECLENCHEURS_APPLI = ['renvoyerMailsEnAttente', 'traiterComptes', 'surModificationSheet'];
+const declencheursDEssai = liste => (liste || []).filter(d => DECLENCHEURS_APPLI.indexOf(d) > -1 || /^outilTest/.test(d));
 // Avant un envoi SANS porte : retirer les déclencheurs d'essai, fermer les sessions d'essai, rétablir la transition.
-// Si le serveur en ligne n'a déjà plus la porte (ou si la clé n'existe pas), il n'y a rien à ranger : on continue.
-// Si la porte répond mais qu'un rangement échoue, on S'ARRÊTE : sans la porte, plus rien ne pourrait le faire.
+// On ne continue SANS ranger que si l'on SAIT qu'il n'y a rien à faire à distance : le serveur en ligne n'a pas la porte
+// (action inconnue), ou elle refuse notre clé, ou la clé n'est pas sur ce PC.
+// Dans tous les autres cas (pas de réponse, réponse illisible, erreur de la porte, rangement raté) on S'ARRÊTE :
+// une fois la porte retirée, plus rien ne pourrait ranger. L'issue est toujours la même : relancer, ou envoyer d'abord
+// « --avec-porte », qui n'est jamais bloqué.
 async function rangerAvantSansPorte(porte) {
+  const ISSUE = ' Relance la commande ; si cela dure, préviens Claude (un envoi « --avec-porte » reste toujours possible).';
   let etat;
-  try { etat = await porte('etat'); } catch (e) { return 'la porte de service ne répond pas (' + e.message + ') : rien à ranger.'; }
-  if (!etat || !etat.ok || !etat.data) return 'le serveur en ligne n’a pas (ou plus) les outils d’essai : rien à ranger.';
+  try { etat = await porte('etat'); }
+  catch (e) { throw new Error('La porte de service de la copie TEST ne répond pas (' + e.message + ') : impossible de vérifier qu’aucun déclencheur d’essai ne reste. Envoi « sans porte » annulé.' + ISSUE); }
+  if (!etat || typeof etat !== 'object') throw new Error('Réponse illisible de la copie TEST : envoi « sans porte » annulé.' + ISSUE);
+  if (!etat.ok) {
+    if (etat.code === 'ACTION_INCONNUE') return 'le serveur en ligne n’a pas (ou plus) les outils d’essai : rien à ranger.';
+    if (etat.code === 'REFUSE') return 'les outils d’essai en ligne refusent la clé de ce PC : impossible de vérifier à distance. À CONTRÔLER après l’envoi : ▶ verifierConfig dans l’éditeur de la copie TEST.';
+    if (etat.code === 'CLE_ABSENTE') return 'la clé des outils d’essai n’est pas sur ce PC : impossible de vérifier à distance. À CONTRÔLER après l’envoi : ▶ verifierConfig dans l’éditeur de la copie TEST.';
+    throw new Error('La porte de service de la copie TEST répond par une erreur (' + (etat.message || etat.code || 'inconnue') + ') : envoi « sans porte » annulé.' + ISSUE);
+  }
+  if (!etat.data) throw new Error('Réponse incomplète de la copie TEST : envoi « sans porte » annulé.' + ISSUE);
   // Une porte ancienne (version minimale de l'essai de faisabilité) ne sait ni ouvrir de session ni toucher à la
   // transition : il n'y a alors que les déclencheurs à regarder
   const complete = Object.prototype.hasOwnProperty.call(etat.data, 'transitionARetablir');
-  if (!complete && !(etat.data.declencheurs || []).length) return 'outils d’essai en version minimale, aucun déclencheur : rien à ranger.';
+  if (!complete && !declencheursDEssai(etat.data.declencheurs).length) return 'outils d’essai en version minimale, aucun déclencheur d’essai : rien à ranger.';
   const faits = [];
   const exiger = async (geste, quoi) => {
     const r = await porte(geste);
     if (!r || !r.ok) throw new Error('Impossible de ' + quoi + ' sur la copie TEST (' + ((r && r.message) || 'pas de réponse') + ') : envoi « sans porte » annulé, préviens Claude');
     faits.push(quoi);
   };
-  if ((etat.data.declencheurs || []).length) await exiger('retirerDeclencheurs', 'retirer les déclencheurs d’essai');
+  if (declencheursDEssai(etat.data.declencheurs).length) await exiger('retirerDeclencheurs', 'retirer les déclencheurs d’essai');
   if (complete) await exiger('fermerSessions', 'fermer les sessions d’essai');
   if (etat.data.transitionARetablir) await exiger('retablirTransition', 'rétablir la période sans compte');
   const apres = await porte('etat');
-  if (!apres || !apres.ok || (apres.data.declencheurs || []).length || apres.data.transitionARetablir) throw new Error('La copie TEST n’est pas en ordre après le rangement : envoi « sans porte » annulé, préviens Claude');
-  return 'copie TEST en ordre (' + faits.join(' ; ') + ').';
+  if (!apres || !apres.ok || !apres.data) throw new Error('Impossible de relire l’état de la copie TEST après le rangement : envoi « sans porte » annulé.' + ISSUE);
+  // Seuls les déclencheurs de l'appli et des outils d'essai comptent : un déclencheur d'un autre nom n'est pas de notre fait
+  const restes = declencheursDEssai(apres.data.declencheurs);
+  if (restes.length) throw new Error('Des déclencheurs d’essai restent sur la copie TEST (' + restes.join(', ') + ') : envoi « sans porte » annulé, préviens Claude');
+  if (apres.data.transitionARetablir) throw new Error('La période sans compte de la copie TEST n’a pas été rétablie : envoi « sans porte » annulé, préviens Claude');
+  const autres = (apres.data.declencheurs || []).filter(d => restes.indexOf(d) < 0);
+  return 'copie TEST en ordre (' + faits.join(' ; ') + ')' + (autres.length ? ' — autre(s) déclencheur(s) présent(s), non touché(s) : ' + autres.join(', ') : '') + '.';
 }
 function demanderAuClavier(question) {
   return new Promise(r => {
