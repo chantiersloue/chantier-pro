@@ -2,9 +2,13 @@
 
 Chaque lot : **quoi**, **pourquoi**, **comment déployer**. Procédures détaillées dans `docs/lotN-procedure.md`.
 
-## Lot 2 — Comptes, rôles, accueil (avec 9a) — serveur v6.0.1, appli 6.0.1 — essais TEST validés, serveur en production le 12/11/2026, pages prêtes dans `livraison/lot-2`
+## Lot 2 — Comptes, rôles, accueil (avec 9a) — serveur v6.0.1, appli 6.0.1 — **en production depuis le 12/11/2026**
 
-**Livraison en production (12/11/2026)** : le serveur v6.0.1 tourne en production sous un nouveau déploiement « Lot 2 — production » ; `commun/config.js` porte sa nouvelle adresse ; la demande de fusion `livraison/lot-2` publie les vraies pages 6.0.1 et retire la copie d'essai `essai/`. L'ancien déploiement (lot 1) reste en service comme retour arrière jusqu'à la fin de la transition. Suite pour Franck : `docs/lot2-procedure.md`, étape D, points 6 à 10.
+**En production (12/11/2026)** : le serveur v6.0.1 tourne sous le déploiement « Lot 2 — production » ; la demande de fusion `livraison/lot-2` (n° 10) est fusionnée : vraies pages 6.0.1, copie d'essai `essai/` retirée. Vérifié par Franck : « À propos » affiche 6.0.1, connexion avec son compte, quitus réel envoyé et reçu. L'ancien déploiement (lot 1) reste en service comme retour arrière jusqu'à la fin de la transition ; d'ici là, les gars sans compte touchent « Continuer sans compte » et l'appli marche comme avant.
+
+**Reste à la charge de Franck** : 1. le jour où il voit les poseurs, installer l'appli sur chaque téléphone (iPhone surtout : c'est aussi l'étape D.11 du lot 1) et remettre à chacun son mot de passe provisoire ; 2. quand tout le monde est connecté et en 6.0.1, lancer `demarrerTransition` ; 3. à la fin de la transition, archiver les anciens déploiements (jamais « Lot 2 — production »). Détail : `docs/lot2-procedure.md`, étape D, points 8 à 10.
+
+**Lot suivant** : pas commencé. Franck répond d'abord aux six décisions de `docs/automatisation.md`.
 
 **Correctif 6.0.1 (après les essais sur TEST)** : essai 12, le bouton ne reste plus bloqué sur « Rangement dans le téléphone… » (même correctif que la 5.1.1 de production) ; essai 14, la colonne État dit « bloqué » dès le 5e essai raté ; journal des incidents dans « À propos » ; nouveau test `node tests/hors-ligne.test.js` (vrai Chrome hors-ligne, avec un autre onglet qui occupe la mémoire du téléphone). Procédure : `docs/lot2-procedure.md`, section « Correctif après tes essais ».
 

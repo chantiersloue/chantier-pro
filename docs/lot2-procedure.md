@@ -1,5 +1,7 @@
 # Lot 2 — Comptes, rôles, accueil : procédure de déploiement et de test
 
+> **État au 12/11/2026 : le lot 2 est en production** (serveur v6.0.1, déploiement « Lot 2 — production », demande de fusion n° 10 fusionnée, appli 6.0.1, connexion et quitus réel vérifiés). Étapes A, B, C et D.1 à D.7 faites. **Il te reste D.8, D.9 et D.10** (voir « Ce que tu dois faire, en résumé », tout en bas).
+>
 > Pour Franck. Le lot 1 est en production depuis le 10/11/2026 (serveur **v5.1**). Le lot 2 passe le serveur en **v6.0.1** et l'appli en **6.0.1** (6.0 + le correctif de l'essai 12).
 > Durée : environ 2 h sur TEST, puis 30 min en production, puis la distribution des mots de passe aux gars.
 > **Ne passe à l'étape suivante que si la précédente est verte.** Sinon : arrête-toi et envoie-moi une capture.
@@ -143,7 +145,7 @@ Puis **sors du mode test** sur le vrai site : `https://chantiersloue.github.io/c
 
 Enfin, dans l'éditeur Apps Script **de la copie TEST** : ▶ **`retirerDeclencheurs`**. Les 90 minutes de déclencheurs par jour sont partagées par tout le compte Google : la copie TEST ne doit pas en consommer pour rien (`installerDeclencheurs` les remet si besoin).
 
-## Étape D — Production (après ton feu vert sur l'étape C, 30 min)
+## Étape D — Production (points 1 à 7 faits le 12/11/2026 ; restent 8, 9 et 10)
 
 Le serveur du lot 2 a sa **propre adresse** : l'ancien déploiement (lot 1) continue de servir les téléphones tant que les pages ne sont pas fusionnées. C'est aussi le retour arrière.
 
@@ -174,7 +176,10 @@ Le serveur du lot 2 a sa **propre adresse** : l'ancien déploiement (lot 1) cont
 
 ## Ce que tu dois faire, en résumé
 
-0. **Où on en est (12/11/2026)** : étapes A, B, C validées ; D.1 à D.5 faites (serveur v6.0.1 en production, déploiement « Lot 2 — production ») ; la demande `livraison/lot-2` est prête avec la nouvelle adresse. **Il te reste D.6 à D.10.**
+0. **Où on en est (12/11/2026)** : tout est fait jusqu'à D.7. Le lot 2 est en production. **Il te reste, dans l'ordre :**
+   - **D.8** — le jour où tu vois les gars : installer l'appli sur chaque téléphone et remettre les mots de passe provisoires (valables 48 h : coche « Réinitialiser » le jour même, pas avant) ;
+   - **D.9** — quand tout le monde est connecté et en 6.0.1 : ▶ `demarrerTransition` ;
+   - **D.10** — à la fin de la transition : archiver les anciens déploiements (jamais « Lot 2 — production »).
 1. ~~Me dire quand le lot 1 est en production~~ : fait le 10/11/2026 ; `livraison/lot-2-essai` est prête.
 2. Étapes A, B, C sur TEST, et me dire le temps de l'essai B.3 (case cochée depuis l'appli Sheets du téléphone).
-3. Étape D en production (m'envoyer l'adresse du nouveau déploiement au point D.5), puis installer l'appli sur les iPhone et distribuer les mots de passe le même jour, puis lancer `demarrerTransition`.
+3. ~~Étape D en production (m'envoyer l'adresse du nouveau déploiement au point D.5)~~ : fait le 12/11/2026. Reste : installer l'appli sur les iPhone et distribuer les mots de passe le même jour, puis lancer `demarrerTransition`.

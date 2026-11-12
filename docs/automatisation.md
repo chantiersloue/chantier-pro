@@ -1,7 +1,7 @@
 # Automatisation : ce que Claude peut faire seul pour les prochains lots
 
 > Pour Franck. Étude faite le 12/11/2026, relue par un agent indépendant. **Rien n'est installé, rien n'a été touché** (ni la copie TEST, ni la production, ni GitHub).
-> Elle s'applique **après** la mise en production du lot 2, qui se fait encore à la main.
+> **État au 12/11/2026 : le lot 2 est en production.** Le lot suivant ne commence pas avant tes réponses aux six décisions de la fin de ce document.
 > Ce document est public (dépôt GitHub) : il ne contient aucun identifiant secret.
 
 ## Les mots utilisés
@@ -353,15 +353,15 @@ Rappel : d'après `PLAN.md`, le lot 7 (signalement) vient **avant** le lot 3 (no
 
 | Quand | Quoi |
 |---|---|
-| Maintenant | Rien : le lot 2 se termine à la main |
-| Après la production du lot 2 | Séance d'installation (35 min) ; je construis les outils et je fais les essais de faisabilité |
+| Maintenant (lot 2 en production depuis le 12/11/2026) | Tes six décisions |
+| Ensuite | Séance d'installation (35 min) ; je construis les outils et je fais les essais de faisabilité |
 | Lot 7 | Pistes 1, 3 et 4 complètes ; clasp sur TEST seulement ; production au copier-coller |
 | Lot 3 et suivants | Si le lot 7 s'est bien passé et si tu le décides : clasp aussi en production |
 
 ## Lot par lot : ce qu'il te restera à faire
 
 ### D'abord, la fin du lot 2 (à la main, hors de cette étude)
-L'étape D de `docs/lot2-procedure.md` : serveur en production, demande de fusion, installation de l'appli sur les téléphones des gars et distribution des mots de passe, `demarrerTransition` quand tout le monde est connecté, puis archivage des anciens déploiements à la fin de la transition.
+Le serveur et les pages sont en production depuis le 12/11/2026. Il te reste, dans `docs/lot2-procedure.md` (D.8 à D.10) : installation de l'appli sur les téléphones des gars et distribution des mots de passe, `demarrerTransition` quand tout le monde est connecté, puis archivage des anciens déploiements à la fin de la transition.
 
 ### Pour chaque lot suivant, le tronc commun
 

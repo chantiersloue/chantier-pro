@@ -1,7 +1,7 @@
 # clasp : envoyer le serveur sur la copie TEST sans copier-coller
 
 > Pour Franck. Étude faite le 10/11/2026, **rien n'est installé et aucun compte n'est connecté**.
-> À mettre en place **après la fin des essais du lot 2**, quand tu me le diras.
+> Les essais du lot 2 sont finis et le lot 2 est en production (12/11/2026). clasp reste **à installer quand tu me le diras** : la façon de s'en servir dépend de tes réponses aux décisions de `docs/automatisation.md` (qui précise et, sur deux points, remplace ce document : jeton effacé après chaque envoi, envoi sur TEST depuis la branche de travail).
 > Ce document est public (dépôt GitHub) : il ne contient aucun identifiant secret. Les identifiants iront dans `_prive/`.
 
 ## En bref
@@ -56,7 +56,7 @@ Autre option regardée et écartée : les extensions Chrome qui relient GitHub e
 
 ## Installation pas à pas (une seule fois, 15 min)
 
-> **Pas maintenant** : après les essais du lot 2, quand tu me dis « on installe clasp ». Je peux te guider en direct ce jour-là.
+> **Pas avant ton accord** : quand tu me dis « on installe clasp ». Je peux te guider en direct ce jour-là.
 > Toutes les commandes se tapent dans **PowerShell** (touche Windows, tape « PowerShell », Entrée ; **pas** en administrateur). Copie-colle chaque ligne, puis Entrée. Si une commande affiche une erreur en rouge : **arrête-toi** et envoie-moi une capture.
 
 1. **Vérifier Node.js** :
