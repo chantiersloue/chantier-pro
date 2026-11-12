@@ -8,7 +8,7 @@ Chaque lot : **quoi**, **pourquoi**, **comment déployer**. Procédures détaill
 
 **Pourquoi** : plus de copier-coller sur TEST, et des essais que Claude peut jouer seul contre le vrai serveur TEST (`docs/automatisation.md`, O-3 à O-5).
 
-**Vérifié en vrai le 12/11/2026** : deux envois par clasp réussis, jeton effacé à chaque fois ; déclencheur posé puis retiré par la porte ; démonstration complète (contrôle du lot 2, comptes d'essai, session d'essai acceptée puis annulée, lecture de l'onglet *Envois*, déclencheurs posés puis retirés, copie TEST remise en ordre).
+**Vérifié en vrai le 12/11/2026** : trois envois par clasp réussis (deux avec la porte, le dernier sans), jeton effacé à chaque fois ; après le dernier, la copie TEST exécute le serveur sans outils d'essai (la porte y répond « action inconnue ») ; déclencheur posé puis retiré par la porte ; démonstration complète (contrôle du lot 2, comptes d'essai, session d'essai acceptée puis annulée, lecture de l'onglet *Envois*, déclencheurs posés puis retirés, copie TEST remise en ordre).
 
 **Comment déployer** : rien en production. Le code est sur la branche `outillage` et entrera dans `main` avec le lot 7. Modes d'emploi : `docs/guide-outillage.md`, `docs/clasp.md`. Pas fait (reporté au lot 7, qui en aura besoin) : les gestes qui touchent à Drive, et l'envoi d'une fiche par un navigateur piloté avec une session d'essai.
 

@@ -1,7 +1,7 @@
 # Outillage : plan de mise en place
 
 > Pour Franck. Plan du 12/11/2026, d'après tes six réponses à `docs/automatisation.md`, corrigé après la critique d'un agent indépendant.
-> **Rien n'est encore construit ni installé.** Le lot 7 ne commence pas avant que cet outillage soit en place et vérifié.
+> **État au 12/11/2026 : l'outillage est en place et vérifié** (étapes A, B et C ; résultats à la fin de ce document). Ce plan est gardé comme trace de ce qui était prévu ; le mode d'emploi à jour est `docs/guide-outillage.md`.
 > Ce document est public : il ne contient aucun identifiant secret. Les mots techniques sont expliqués au début de `docs/automatisation.md`.
 
 ## La commande (tes six décisions)
@@ -219,3 +219,18 @@ Dans cet ordre, parce que la porte dépend d'un point non vérifié :
 6. Compte-rendu, `CHANGELOG.md` et `docs/guide-outillage.md` à jour.
 
 Alors seulement, le lot 7 peut commencer.
+
+## Résultat (12/11/2026)
+
+| Critère | Résultat |
+|---|---|
+| 1. `main` verrouillée, une demande de fusion passée par le lien pré-rempli | Fait : demande n° 11 |
+| 2. Copie d'essai publiée dans l'organisation, ouverte sur le téléphone, une fiche envoyée | Fait : `loue-essai.github.io/chantier-pro/`, quitus envoyé et reçu |
+| 3. Un envoi sur TEST par clasp réussi, jeton effacé, empreinte contrôlée | Fait trois fois |
+| 4. Test réel de démonstration, puis serveur TEST remis sans porte | Fait, avec un écart : la fiche envoyée par un navigateur piloté est reportée au lot 7 |
+| 5. Relecture indépendante, corrections faites (3 tours au plus) | Fait : 2 tours pour A et B, 2 tours pour la commande d'envoi, 3 tours pour la porte |
+| 6. Compte-rendu, `CHANGELOG.md` et `docs/guide-outillage.md` à jour | Fait |
+
+**Écarts avec ce plan** : aucun geste de la porte ne touche à Drive (reporté au lot 7, avec un contrôle du dossier visé) ; pas de bibliothèque `tests/reel.js` ni de fiche envoyée par un navigateur piloté (à construire avec le premier test réel, au lot 7) ; la clé est dans `_prive/cle-outils-test.txt` et non dans `_prive/ids-test.txt` ; le commentaire de `sw.js` sur `essai/` n'est pas corrigé (les pages ne bougent pas dans `main` avant le lot 7).
+
+**Où est le code** : outils du PC des étapes A et B dans `main` ; tout le reste (moteur d'installation, porte, commande d'envoi) sur la branche `outillage`, qui entrera dans `main` avec le lot 7.
