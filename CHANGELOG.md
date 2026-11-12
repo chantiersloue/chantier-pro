@@ -10,7 +10,7 @@ Chaque lot : **quoi**, **pourquoi**, **comment déployer**. Procédures détaill
 
 **Comment déployer** : rien dans l'appli. Franck colle les blocs A et B dans ses skills (lecture seule) et fait les trois essais du chapitre 9 quand il veut. Le bloc C attend le lot 4. Cinq questions lui sont posées au chapitre 10.
 
-**Pas vérifié** : aucun essai avec un vrai skill ni avec le vrai Sheet (hors de ma portée) ; le contrat a été relu deux fois par un agent indépendant.
+**Pas vérifié** : aucun essai avec un vrai skill ni avec le vrai Sheet (hors de ma portée). Le contrat a été relu par un agent indépendant (trois tours) : les corrections sont listées à son chapitre 11.
 
 ## Lot 7 — Signalement casse / manquant / à recommander — serveur v7.0, appli 7.0 — en test (rien en production)
 

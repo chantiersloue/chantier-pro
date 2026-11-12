@@ -95,7 +95,7 @@ Lot 3  Notes de chantier               │  dépend de 1 + 2
 Lot 9b Contrat skills (écrit)          │  AVANT 4, 5 et 8 : ils dépendent des skills mis à jour
 Lot 4  Carnet (4a dépôt, 4b lecture)   │  dépend de 1 + 2 + 9b + résultats de S1
 Lot 5  Stockage                        │  dépend de 4 (volumes réels)
-Lot 8  Note de réunion                 │  dépend de 1 + 2 + onglet Intervenants (9a + skill à jour)
+Lot 8  Note de réunion                 │  dépend de 1 + 2 + onglet Intervenants (9a + fichier du skill : D9b-1, donc du Drive connecté au lot 4)
 Lot 10 Idées                           ┘  au fil de l'eau, selon gain / effort
 ```
 
