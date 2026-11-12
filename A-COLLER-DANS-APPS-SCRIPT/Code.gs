@@ -1,10 +1,10 @@
 // ═══════════════════════════════════════════════════════════════
 // LOUÉ APP — SERVEUR COMPLET, À COLLER DANS APPS SCRIPT (fichier « Code.gs », tout remplacer)
 // FICHIER GÉNÉRÉ AUTOMATIQUEMENT par « node outils/construire.js » — NE PAS MODIFIER À LA MAIN :
-// les sources sont dans le dossier apps-script/ du dépôt. Version du serveur 9fcb211cc0 (pages bd3bcefc4a)
+// les sources sont dans le dossier apps-script/ du dépôt. Version du serveur 36e4c7a149 (pages bd3bcefc4a)
 // ═══════════════════════════════════════════════════════════════
 
-const EMPREINTE_SERVEUR = '9fcb211cc0';
+const EMPREINTE_SERVEUR = '36e4c7a149';
 
 // ████ Config.gs ████
 // ═══════════════════════════════════════════════════════════════
@@ -2600,6 +2600,9 @@ function verifierConfig() {
   if (ou.env === 'INCOHERENT') ok(false, 'Environnement incohérent : la propriété ENVIRONNEMENT et le nom du Sheet « ' + ou.sheet + ' » ne disent pas la même chose');
   if (ou.env !== 'TEST' && porte) ok(false, 'Ce serveur contient les OUTILS D’ESSAI (porte de service) : il ne doit tourner que sur la copie TEST. Recoller le Code.gs de production');
   if (ou.env !== 'TEST' && cleOutils) ok(false, 'La propriété CLE_OUTILS_TEST ne doit exister que sur la copie TEST : la supprimer ici');
+  // Un déclencheur des outils d'essai resté en place (son code n'existe plus après un envoi « sans porte ») échouerait en boucle
+  const restes = presents.filter(d => /^outilTest/.test(d));
+  if (restes.length) ok(false, 'Déclencheur d’essai resté en place (' + restes.join(', ') + ') : le supprimer (éditeur → icône réveil « Déclencheurs » → ⋮ → Supprimer)');
   if (ou.env === 'TEST' && (porte || cleOutils)) lignes.push('Outils d’essai (copie TEST) : porte ' + (porte ? 'présente' : 'absente') + ', clé ' + (cleOutils ? 'présente' : 'absente'));
   lignes.push("Mails encore possibles aujourd'hui : " + MailApp.getRemainingDailyQuota());
   Logger.log(lignes.join('\n'));

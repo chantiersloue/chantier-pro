@@ -81,8 +81,8 @@ Trois étapes, **chacune utilisable seule** : si l'étape B ou C prend du retard
 
 **C.1 — Installer clasp (15 min).** Je te guiderai en direct avec `docs/clasp.md` mis à jour : installer clasp, activer « API Google Apps Script », créer le dossier `clasp-loue\TEST`, le relier au script **TEST**, contrôler le manifeste (le fichier de réglages du projet) et l'identifiant du déploiement TEST, effacer le jeton. Tu laisses l'API **activée** jusqu'à la fin de la séance C ; je te dirai quand la désactiver.
 
-**C.2 — La clé de la porte de service (3 min).** Je la fabrique par une commande qui l'écrit dans ton fichier `_prive/ids-test.txt` (ligne `CLE_OUTILS_TEST=…`, ajoutée à la fin) sans l'afficher : elle n'apparaît ni dans notre conversation ni sur GitHub.
-1. Ouvre `_prive/ids-test.txt`, copie ce qui suit `CLE_OUTILS_TEST=` (sans espace avant ni après).
+**C.2 — La clé de la porte de service (3 min).** Je la fabrique par une commande qui l'écrit dans ton fichier `_prive/cle-outils-test.txt` sans l'afficher : elle n'apparaît ni dans notre conversation ni sur GitHub.
+1. Ouvre `_prive/cle-outils-test.txt`, sélectionne tout (Ctrl+A) et copie (Ctrl+C).
 2. Sheet **« ChantierPro TEST »** → Extensions → Apps Script → ⚙ **Paramètres du projet** → **Propriétés du script** → **Modifier les propriétés du script** → **Ajouter une propriété**.
 3. Nom : `CLE_OUTILS_TEST` ; valeur : la clé copiée → **Enregistrer**.
 4. Vérifie que tu es bien dans le projet **TEST** (la propriété `ENVIRONNEMENT` y vaut `TEST`). **Ne mets jamais cette clé dans le projet de production.**
@@ -152,7 +152,7 @@ Le lot 2 est en pleine transition (mots de passe à distribuer). Si un correctif
 Dans cet ordre, parce que la porte dépend d'un point non vérifié :
 
 0. **`docs/clasp.md` corrigé** avant ta séance C (jeton effacé après chaque envoi ; sur TEST, envoi depuis la branche de travail ; c'est toi qui lances la commande).
-1. **`outils/envoyer-test.js`** : la commande que tu lances. Elle vérifie qu'aucun jeton ne traîne, ouvre la connexion Google, vérifie l'identifiant du projet TEST et du déploiement (lus dans `_prive/ids-test.txt`), sauvegarde le serveur en ligne dans `_prive/`, assemble le serveur en **un seul fichier**, l'envoie, met à jour le déploiement, contrôle l'empreinte, **efface le jeton** (et supprime le fichier du jeton en secours si l'effacement échoue), puis écrit son compte rendu dans `_prive/envois/`. Chaque étape a une durée limite.
+1. **`outils/envoyer-test.js`** : la commande que tu lances. Elle vérifie qu'aucun jeton ne traîne, ouvre la connexion Google, vérifie que le projet relié est bien celui de la copie TEST (identifiant que tu colles au premier envoi, mémorisé dans `_prive/script-test-id.txt` ; présence du déploiement TEST ; absence du déploiement de production), sauvegarde le serveur en ligne dans `_prive/`, assemble le serveur en **un seul fichier**, l'envoie, met à jour le déploiement, contrôle l'empreinte, **efface le jeton** (et supprime le fichier du jeton en secours si l'effacement échoue), puis écrit son compte rendu dans `_prive/envois/`. Chaque étape a une durée limite.
    - *L'empreinte* : une suite de caractères calculée sur le code au moment de l'assemblage et écrite dedans. Le serveur la renvoie dans sa réponse de contrôle (`ping`). La commande compare celle du fichier qu'elle vient d'envoyer à celle que le serveur renvoie. Le texte « Loué App API v… OK » de l'adresse ne change pas.
    - *Solutions comparées* : toi qui lances la commande (retenu : le jeton n'entre jamais dans ma séance, durée bornée) contre « tu te connectes, puis je lance » (le jeton reste sur le PC tant que je n'ai pas fini, et si ma séance s'interrompt il y reste).
 2. **Essai de faisabilité n° 1** (ton premier envoi) : une porte minimale avec un seul geste, « poser puis retirer un déclencheur ». **Si Google refuse** : la porte est construite sans ce geste, et tu gardes 1 clic ▶ sur TEST pour les déclencheurs.

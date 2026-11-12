@@ -10,7 +10,8 @@
 //   1. propriété ENVIRONNEMENT = TEST et Sheet nommé « … TEST … » (environnementReel_) ;
 //   2. propriété CLE_OUTILS_TEST d'au moins 32 caractères, et la même clé dans le corps de l'appel ;
 //   3. un geste de la liste.
-// Tout autre appel reçoit la même réponse « Refusé », sans détail.
+// Tout autre appel reçoit la même réponse « Refusé », sans détail (même si une erreur survient avant le contrôle de la clé).
+// À FAIRE avant d'ajouter un geste qui touche à Drive : refuser aussi si le dossier racine ne s'appelle pas « … TEST … ».
 //
 // VERSION MINIMALE (essai de faisabilité n° 1) : deux gestes seulement, « etat » et « essaiDeclencheur ».
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
@@ -18,12 +19,14 @@ const OUTIL_TEST_CLE_MIN = 32;
 const OUTIL_TEST_REFUS = { ok: false, code: 'REFUSE', message: 'Refusé' };
 
 function outilTest_(corps) {
+  let autorise = false;
   try {
     const ou = environnementReel_();
     if (ou.env !== 'TEST') return OUTIL_TEST_REFUS;
     const cle = propriete_('CLE_OUTILS_TEST');
     if (!cle || cle.length < OUTIL_TEST_CLE_MIN) return OUTIL_TEST_REFUS;
     if (typeof corps.cle !== 'string' || !egaux_(corps.cle, cle)) return OUTIL_TEST_REFUS;
+    autorise = true;
 
     switch (corps.geste) {
       case 'etat':
@@ -38,6 +41,7 @@ function outilTest_(corps) {
         return OUTIL_TEST_REFUS;
     }
   } catch (e) {
+    if (!autorise) return OUTIL_TEST_REFUS;   // jamais de détail technique pour qui n'a pas la clé
     return { ok: false, code: 'ERREUR_OUTIL', message: 'Outil d’essai : ' + (e && e.message ? e.message : e) };
   }
 }

@@ -67,6 +67,17 @@ test('porte : hors de TEST (production, ou environnement incohérent) = « Refus
   refus(poster(g, appel('essaiDeclencheur')));
   assert.strictEqual(g.declencheurs.length, 0);
 });
+test('porte : une erreur interne AVANT le contrôle de la clé ne donne aucun détail à un inconnu', () => {
+  const g = serveur(TEST(), true);
+  g.ctx.environnementReel_ = () => { throw new Error('DÉTAIL INTERNE À NE PAS MONTRER'); };
+  [appel('etat'), appel('etat', 'mauvaise'), { action: 'outilTest', v: 5 }].forEach(c =>
+    assert.deepStrictEqual(poster(g, c), { ok: false, code: 'REFUSE', message: 'Refusé' }));
+  // après le contrôle de la clé, l'erreur est dite (à celui qui a la clé)
+  const g2 = serveur(TEST(), true);
+  g2.ctx.MailApp.getRemainingDailyQuota = () => { throw new Error('quota illisible'); };
+  const r = poster(g2, appel('etat'));
+  assert.ok(r.code === 'ERREUR_OUTIL' && /quota illisible/.test(r.message) && JSON.stringify(r).indexOf(CLE) < 0);
+});
 test('porte : seuls les gestes de la liste existent (aucune fonction du serveur n’est appelable par son nom)', () => {
   const g = serveur(TEST(), true);
   ['verifierConfig', 'changerCle', 'genererCle', 'installerDeclencheurs', 'retirerDeclencheurs', 'executerMigration', 'constructor', '__proto__', 'toString', '', null, undefined, 42]
@@ -104,6 +115,16 @@ test('verifierConfig : ❌ si la porte ou sa clé sont hors de TEST ; simple inf
   assert.ok(/^❌ La propriété CLE_OUTILS_TEST/.test(lignes(serveur(PROD, false))[0]));
   assert.deepStrictEqual(lignes(serveur(TEST(), true)), ['Outils d’essai (copie TEST) : porte présente, clé présente']);
   assert.ok(/^❌ Environnement incohérent/.test(lignes(serveur({ nomSheet: 'ChantierPro', proprietes: { ENVIRONNEMENT: 'TEST' } }, false))[0]));
+  // un déclencheur d'essai resté en place est signalé partout
+  const g = serveur({ nomSheet: 'ChantierPro', proprietes: {} }, false);
+  g.declencheurs.push('outilTestRien_');
+  assert.ok(g.ctx.verifierConfig().split('\n').some(l => /^❌ Déclencheur d’essai resté en place \(outilTestRien_\)/.test(l)));
+});
+test('construction : toute façon de définir la porte est reconnue ; la ligne d’accroche ne l’est pas', () => {
+  ['function outilTest_(c){}', 'function* outilTest_ (c){}', 'const outilTest_ = function(){}', 'outilTest_ = c => 1', 'globalThis.outilTest_ = 1',
+    'const OUTIL_TEST_REFUS = {}', 'function outilTestRien_(){}', 'this["outilTest_"] = 1'].forEach(c => assert.ok(construire.contientPorte(c), c));
+  ["if (corps.action === 'outilTest' && typeof outilTest_ === 'function') return outilTest_(corps);", '// outilTest_ en commentaire', 'x == outilTest_']
+    .forEach(c => assert.ok(!construire.contientPorte(c), c));
 });
 
 // ── Construction ─────────────────────────────────────────────────────────────────────────────────────────
@@ -150,14 +171,13 @@ function monde(reglages) {
   fs.writeFileSync(o.fichierMonde, JSON.stringify(m));
   o.lire = () => JSON.parse(fs.readFileSync(o.fichierMonde, 'utf8'));
   o.options = extra => Object.assign({ avecPorte: true, dossierClasp: o.dossierClasp, dossierJeton: o.dossierJeton, dossierPrive: o.dossierPrive,
-    claspCmd: [process.execPath, path.join(__dirname, 'faux-clasp.js')], env: { FAUX_CLASP_MONDE: o.fichierMonde }, dire: () => {}, pasMs: 5, maxMs: 300,
+    claspCmd: [process.execPath, path.join(__dirname, 'faux-clasp.js')], env: { FAUX_CLASP_MONDE: o.fichierMonde, clasp_config_project: 'C:/ailleurs/.clasp.json' }, dire: () => {}, pasMs: 5, maxMs: 300,
+    etatDepot: () => ({ propre: true, source: 'outillage abc1234' }), sansSignaux: true, demander: async () => ' SCRIPT-TEST-123\n',
     appeler: async () => { const c = o.lire().deploye, e = /const EMPREINTE_SERVEUR = '([0-9a-f]+)'/.exec(c); return { ok: true, data: { version: 'v-test', empreinte: e ? e[1] : '' } }; } }, extra || {});
   return o;
 }
-const propre = () => execFileSync('git', ['-C', RACINE, 'status', '--porcelain'], { encoding: 'utf8' }).trim() === '';
 
 test('envoi : le chemin normal envoie le serveur AVEC porte, met à jour le déploiement TEST, vérifie, efface le jeton', async () => {
-  if (!propre()) { console.log('    (dépôt avec des modifications en cours : test d’envoi sauté)'); return; }
   const m = monde(), r = await envoi.envoyer(m.options());
   assert.strictEqual(r.ok, true, r.rapport.join('\n'));
   const etat = m.lire(), attendu = construire.assembler(true);
@@ -179,14 +199,12 @@ test('envoi : le chemin normal envoie le serveur AVEC porte, met à jour le dép
   assert.ok(/✅ Envoi réussi/.test(texte) && /Jeton Google effacé/.test(texte) && texte.indexOf('FAUX-JETON') < 0 && texte.indexOf('SCRIPT-TEST-123') < 0, 'aucun secret dans le compte rendu');
 });
 test('envoi : --sans-porte envoie exactement le fichier de production', async () => {
-  if (!propre()) return;
   const m = monde(), r = await envoi.envoyer(m.options({ avecPorte: false }));
   assert.ok(r.ok, r.rapport.join('\n'));
   assert.strictEqual(m.lire().enLigne['Code.js'], construire.assembler(false).code);
   assert.ok(!construire.MARQUE_PORTE.test(m.lire().deploye));
 });
 test('envoi : un projet qui ne contient pas le déploiement TEST (la production, par exemple) = rien n’est envoyé', async () => {
-  if (!propre()) return;
   const m = monde({ deploiements: ['AKfycbHEAD', 'AKfycbPRODUCTION'] }), r = await envoi.envoyer(m.options());
   const etat = m.lire();
   assert.strictEqual(r.ok, false);
@@ -196,8 +214,86 @@ test('envoi : un projet qui ne contient pas le déploiement TEST (la production,
   assert.ok(!fs.existsSync(etat.jeton), 'jeton effacé malgré l’échec');
   assert.ok(!fs.existsSync(path.join(m.dossierPrive, 'script-test-id.txt')), 'un mauvais projet n’est pas mémorisé');
 });
+test('envoi : PREMIER envoi — l’identifiant collé par Franck doit être celui du dossier clasp, sinon refus AVANT toute connexion', async () => {
+  const m = monde();
+  const r = await envoi.envoyer(m.options({ demander: async () => 'ID-DU-VRAI-SHEET-DE-PRODUCTION' }));
+  assert.ok(!r.ok && /identifiant collé n’est pas celui du dossier clasp/.test(r.erreur), r.erreur);
+  assert.strictEqual((m.lire().journal || []).length, 0, 'clasp n’a pas été lancé');
+  assert.ok(!fs.existsSync(path.join(m.dossierPrive, 'script-test-id.txt')));
+  // 2e envoi : plus aucune question
+  const m2 = monde(); let demandes = 0;
+  assert.ok((await envoi.envoyer(m2.options({ demander: async () => { demandes++; return 'SCRIPT-TEST-123'; } }))).ok);
+  m2.lire(); fs.writeFileSync(m2.fichierMonde, JSON.stringify(Object.assign(m2.lire(), { journal: [] })));
+  assert.ok((await envoi.envoyer(m2.options({ avecPorte: false, demander: async () => { demandes++; return 'x'; } }))).ok);
+  assert.strictEqual(demandes, 1, 'la question n’est posée qu’au premier envoi');
+});
+test('envoi : le projet contient le déploiement de PRODUCTION = refus, même s’il contient aussi celui de TEST', async () => {
+  const m = monde({ deploiements: ['AKfycbHEAD', CIBLE.id, CIBLE.idProduction] }), r = await envoi.envoyer(m.options());
+  assert.ok(!r.ok && /contient le déploiement de PRODUCTION/.test(r.erreur), r.erreur);
+  assert.deepStrictEqual(m.lire().journal.map(c => c.split(' ')[0]), ['login', 'list-deployments', 'logout']);
+  assert.ok(!fs.existsSync(path.join(m.dossierPrive, 'script-test-id.txt')));
+});
+test('envoi : l’identifiant TEST cité dans la DESCRIPTION d’un déploiement d’un autre projet ne trompe pas le contrôle', async () => {
+  const m = monde({ deploiements: ['AKfycbHEAD', 'AKfycbAUTREPROJET'], descriptions: ['', 'copie de ' + CIBLE.id + ' @3'] });
+  const r = await envoi.envoyer(m.options());
+  assert.ok(!r.ok && /ne contient PAS le déploiement de la copie TEST/.test(r.erreur), r.erreur);
+  assert.deepStrictEqual(envoi.lireDeploiements('Found 2 deployments.\r\n- AKfycbA @HEAD \r\n- AKfycbB @12 - Lot 2 - AKfycbC @1\n'), ['AKfycbA', 'AKfycbB']);
+});
+test('envoi : URL_TEST identique à URL_PRODUCTION dans commun/config.js = refus avant tout', async () => {
+  const racine = path.join(TMP, 'config-fausse'); fs.mkdirSync(path.join(racine, 'commun'), { recursive: true });
+  const vraie = fs.readFileSync(path.join(RACINE, 'commun', 'config.js'), 'utf8');
+  const prod = /var URL_PRODUCTION = '([^']+)'/.exec(vraie)[1];
+  fs.writeFileSync(path.join(racine, 'commun', 'config.js'), vraie.replace(/var URL_TEST = '[^']+'/, "var URL_TEST = '" + prod + "'"));
+  assert.throws(() => envoi.deploiementTest(racine), /même adresse que URL_PRODUCTION : REFUSÉ/);
+  const m = monde(), r = await envoi.envoyer(m.options({ racine: racine }));
+  assert.ok(!r.ok && /REFUSÉ/.test(r.erreur) && (m.lire().journal || []).length === 0);
+});
+test('envoi : dossier clasp détourné (rootDir) ou fichier .claspignore = refus avant toute connexion', async () => {
+  let m = monde();
+  fs.writeFileSync(path.join(m.dossierClasp, '.clasp.json'), JSON.stringify({ scriptId: 'SCRIPT-TEST-123', rootDir: 'C:/ailleurs' }));
+  let r = await envoi.envoyer(m.options());
+  assert.ok(!r.ok && /rootDir/.test(r.erreur) && (m.lire().journal || []).length === 0, r.erreur);
+  m = monde(); fs.writeFileSync(path.join(m.dossierClasp, '.claspignore'), 'Code.js\n');
+  r = await envoi.envoyer(m.options());
+  assert.ok(!r.ok && /\.claspignore/.test(r.erreur) && (m.lire().journal || []).length === 0, r.erreur);
+});
+test('envoi : le jeton est rangé dans un dossier temporaire de la commande, jamais à l’endroit habituel ; les réglages clasp_config_* hérités sont retirés', async () => {
+  const m = monde();
+  let pendant = null;
+  const r = await envoi.envoyer(m.options({ appeler: async () => { pendant = fs.existsSync(m.lire().jeton); const c = m.lire().deploye, e = /const EMPREINTE_SERVEUR = '([0-9a-f]+)'/.exec(c); return { data: { version: 'v', empreinte: e[1] } }; } }));
+  assert.ok(r.ok, r.rapport.join('\n'));
+  assert.strictEqual(pendant, false, 'pendant l’envoi, rien à l’endroit habituel');
+  assert.ok(!r.jetonRestant && !fs.existsSync(m.lire().jeton));
+  assert.strictEqual(fs.readdirSync(os.tmpdir()).filter(d => /^loue-clasp-/.test(d)).length, 0, 'le dossier temporaire du jeton est supprimé');
+});
+test('envoi : un clasp qui range quand même le jeton à l’endroit habituel est rattrapé (filet de sécurité)', async () => {
+  const m = monde({ ignoreAuth: true, logoutSansEffet: true }), r = await envoi.envoyer(m.options());
+  assert.ok(r.ok, r.rapport.join('\n'));
+  assert.ok(!fs.existsSync(m.lire().jeton) && !r.jetonRestant);
+});
+test('envoi : connexion trop longue — clasp est ARRÊTÉ, il ne peut plus écrire le jeton après « Jeton effacé »', async () => {
+  const m = monde({ ignoreAuth: true, loginLent: 2500 });
+  const r = await envoi.envoyer(m.options({ maxMsClasp: 400 }));
+  assert.ok(!r.ok && /clasp login : trop long/.test(r.erreur), r.erreur);
+  assert.ok(r.rapport.some(l => /Jeton Google effacé du PC/.test(l)) && !r.jetonRestant);
+  await new Promise(x => setTimeout(x, 3500));   // le faux clasp, s'il vivait encore, écrirait le jeton maintenant
+  assert.ok(!fs.existsSync(m.lire().jeton), 'aucun jeton écrit après coup');
+});
+test('envoi : une étape qui se fige est arrêtée à sa durée limite ; le jeton est effacé', async () => {
+  const m = monde({ lent: { push: 3000 } });
+  const t0 = Date.now(), r = await envoi.envoyer(m.options({ maxMsClasp: 500 }));
+  assert.ok(!r.ok && /clasp push : trop long/.test(r.erreur), r.erreur);
+  assert.ok(Date.now() - t0 < 2800, 'la commande n’attend pas la fin du programme figé');
+  assert.ok(!r.jetonRestant && r.rapport.some(l => /état intermédiaire/.test(l)));
+});
+test('envoi : .clasp.json modifié pendant l’envoi = arrêt avant le push', async () => {
+  const m = monde();
+  const r = await envoi.envoyer(m.options({ demander: undefined, etatDepot: () => ({ propre: true, source: 'x' }) , claspCmd: [process.execPath, path.join(__dirname, 'faux-clasp.js')] ,
+    env: { FAUX_CLASP_MONDE: m.fichierMonde, FAUX_CLASP_CHANGE_PROJET: '1' } , demander: async () => 'SCRIPT-TEST-123' }));
+  assert.ok(!r.ok && /a changé pendant l’envoi/.test(r.erreur), r.erreur);
+  assert.ok(m.lire().journal.every(c => c.indexOf('push') !== 0), 'aucun push');
+});
 test('envoi : dossier clasp relié à un autre projet que celui mémorisé = refus AVANT toute connexion', async () => {
-  if (!propre()) return;
   const m = monde();
   fs.writeFileSync(path.join(m.dossierPrive, 'script-test-id.txt'), 'UN-AUTRE-SCRIPT\n');
   const r = await envoi.envoyer(m.options());
@@ -205,7 +301,6 @@ test('envoi : dossier clasp relié à un autre projet que celui mémorisé = ref
   assert.strictEqual((m.lire().journal || []).length, 0, 'clasp n’a même pas été lancé');
 });
 test('envoi : un fichier en trop dans le dossier clasp, ou un manifeste inattendu = rien n’est envoyé', async () => {
-  if (!propre()) return;
   let m = monde(); fs.writeFileSync(path.join(m.dossierClasp, 'Autre.js'), '// intrus');
   let r = await envoi.envoyer(m.options());
   assert.ok(!r.ok && /en trop : Autre\.js/.test(r.erreur), r.erreur);
@@ -217,22 +312,19 @@ test('envoi : un fichier en trop dans le dossier clasp, ou un manifeste inattend
   r = await envoi.envoyer(m.options());
   assert.ok(!r.ok && /en trop : Vieux\.js/.test(r.erreur));
 });
-test('envoi : si clasp pose une question sur le manifeste, la réponse est NON et l’envoi est annulé', async () => {
-  if (!propre()) return;
+test('envoi : si le manifeste devait changer, clasp n’envoie rien et la commande s’arrête', async () => {
   const m = monde({ question: true }), r = await envoi.envoyer(m.options());
-  assert.ok(!r.ok && /question sur le manifeste/.test(r.erreur), r.erreur);
+  assert.ok(!r.ok && /refusé d’envoyer \(le manifeste/.test(r.erreur), r.erreur);
   assert.strictEqual(m.lire().enLigne['Code.js'], '// ancien serveur TEST\n');
   assert.ok(m.lire().journal.every(c => c.indexOf('update-deployment') !== 0));
 });
 test('envoi : déploiement non pris en compte (règle 2 de CLAUDE.md) = échec signalé, jeton effacé', async () => {
-  if (!propre()) return;
   const m = monde({ deploiementFige: true }), r = await envoi.envoyer(m.options());
   assert.ok(!r.ok && /n’a pas été prise/.test(r.erreur), r.erreur);
   assert.ok(r.rapport.some(l => /état intermédiaire/.test(l)));
   assert.ok(!fs.existsSync(m.lire().jeton));
 });
 test('envoi : panne à chaque étape = le jeton est toujours effacé, même si « clasp logout » ne fait rien', async () => {
-  if (!propre()) return;
   for (const etape of ['login', 'list-deployments', 'pull', 'push', 'update-deployment']) {
     const m = monde({ pannes: { [etape]: true }, logoutSansEffet: true });
     if (etape !== 'login') fs.writeFileSync(m.lire().jeton, 'jeton oublié d’une séance précédente');

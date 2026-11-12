@@ -50,6 +50,10 @@ const ORDRE_GS = ['Config.gs', 'Securite.gs', 'Comptes.gs', 'Api.gs', 'Documents
 // de la copie TEST (hors du dépôt).
 const PORTE = 'apps-script-test/OutilsTest.gs';
 const MARQUE_PORTE = /function\s+outilTest_\s*\(/;
+// Toute façon de DÉFINIR la porte ou ses fonctions (function, function*, const/let/var, affectation, globalThis…).
+// La ligne d'accroche du serveur (« typeof outilTest_ === 'function' … return outilTest_(corps) ») n'en est pas une.
+const DEFINITION_PORTE = /function\s*\*?\s*outilTest\w*\s*\(|(?:const|let|var)\s+(?:outilTest\w*|OUTIL_TEST_\w*)\b|outilTest\w*\s*=(?!=)|OUTIL_TEST_\w*\s*=(?!=)|\[\s*['"]outilTest/;
+function contientPorte(code) { return DEFINITION_PORTE.test(code); }
 // Rend { code, empreinte }. avecPorte : seulement pour la copie TEST.
 function assembler(avecPorte) {
   const presents = fs.readdirSync(path.join(racine, 'apps-script')).filter(f => f.endsWith('.gs')).sort();
@@ -59,7 +63,7 @@ function assembler(avecPorte) {
   const sources = ORDRE_GS.filter(f => presents.indexOf(f) > -1).map(f => f === 'Modeles.gs' ? fabriquerModeles() : lire('apps-script/' + f));
   const porte = avecPorte ? lire(PORTE) : '';
   if (avecPorte && !MARQUE_PORTE.test(porte)) throw new Error(PORTE + ' ne contient pas la fonction outilTest_');
-  if (sources.some(s => MARQUE_PORTE.test(s))) throw new Error('La porte de service (outilTest_) ne doit JAMAIS être dans apps-script/ : elle partirait en production');
+  if (sources.some(contientPorte)) throw new Error('La porte de service (outilTest_) ne doit JAMAIS être dans apps-script/ : elle partirait en production');
   const versionServeur = crypto.createHash('sha1').update(sources.concat(avecPorte ? [porte] : []).join('\n')).digest('hex').slice(0, 10);
   const trait = '// ═══════════════════════════════════════════════════════════════\n';
   const entete = trait
@@ -75,7 +79,7 @@ function assembler(avecPorte) {
       return '// ████ ' + f + ' ████\n' + contenu.trim() + '\n';
     }).join('\n')
     + (avecPorte ? '\n// ████ OutilsTest.gs — COPIE TEST SEULEMENT, JAMAIS EN PRODUCTION ████\n' + porte.trim() + '\n' : '');
-  if (!avecPorte && MARQUE_PORTE.test(code)) throw new Error('Le Code.gs de production contient la porte de service : refusé');
+  if (!avecPorte && contientPorte(code)) throw new Error('Le Code.gs de production contient la porte de service : refusé');
   return { code: code, empreinte: versionServeur };
 }
 function codeUnique() { return assembler(false).code; }
@@ -84,7 +88,7 @@ const cibles = [['apps-script/Modeles.gs', () => fabriquerModeles()], ['sw.js', 
   ['A-COLLER-DANS-APPS-SCRIPT/Code.gs', () => codeUnique()]]
   .concat(fs.readdirSync(racine).filter(f => f.endsWith('.html')).map(f => [f, () => pageVersionnee(lire(f))]));
 
-module.exports = { assembler, PORTE, MARQUE_PORTE };
+module.exports = { assembler, contientPorte, PORTE, MARQUE_PORTE };
 if (require.main !== module) return;   // chargé par un autre outil (envoyer-test.js) : on ne fabrique rien
 
 const verifier = process.argv.includes('--verifier');
@@ -112,7 +116,7 @@ function garderFous() {
     try { new vm.Script(lire(f), { filename: f }); } catch (e) { erreurs.push('syntaxe : ' + f + ' — ' + e.message); }
   });
   // Le fichier à coller en production ne contient jamais la porte de service
-  if (MARQUE_PORTE.test(lire('A-COLLER-DANS-APPS-SCRIPT/Code.gs'))) erreurs.push('A-COLLER-DANS-APPS-SCRIPT/Code.gs contient la porte de service (outilTest_) : il ne doit JAMAIS aller en production');
+  if (contientPorte(lire('A-COLLER-DANS-APPS-SCRIPT/Code.gs'))) erreurs.push('A-COLLER-DANS-APPS-SCRIPT/Code.gs contient la porte de service (outilTest_) : il ne doit JAMAIS aller en production');
   return erreurs;
 }
 const fous = garderFous();

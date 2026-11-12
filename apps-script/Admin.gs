@@ -126,6 +126,9 @@ function verifierConfig() {
   if (ou.env === 'INCOHERENT') ok(false, 'Environnement incohérent : la propriété ENVIRONNEMENT et le nom du Sheet « ' + ou.sheet + ' » ne disent pas la même chose');
   if (ou.env !== 'TEST' && porte) ok(false, 'Ce serveur contient les OUTILS D’ESSAI (porte de service) : il ne doit tourner que sur la copie TEST. Recoller le Code.gs de production');
   if (ou.env !== 'TEST' && cleOutils) ok(false, 'La propriété CLE_OUTILS_TEST ne doit exister que sur la copie TEST : la supprimer ici');
+  // Un déclencheur des outils d'essai resté en place (son code n'existe plus après un envoi « sans porte ») échouerait en boucle
+  const restes = presents.filter(d => /^outilTest/.test(d));
+  if (restes.length) ok(false, 'Déclencheur d’essai resté en place (' + restes.join(', ') + ') : le supprimer (éditeur → icône réveil « Déclencheurs » → ⋮ → Supprimer)');
   if (ou.env === 'TEST' && (porte || cleOutils)) lignes.push('Outils d’essai (copie TEST) : porte ' + (porte ? 'présente' : 'absente') + ', clé ' + (cleOutils ? 'présente' : 'absente'));
   lignes.push("Mails encore possibles aujourd'hui : " + MailApp.getRemainingDailyQuota());
   Logger.log(lignes.join('\n'));
