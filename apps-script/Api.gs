@@ -244,8 +244,13 @@ function routerV5_(corps) {
       let fin = null;
       try { fin = finTransition_(); } catch (e) {}
       return { ok: true, code: 'OK', message: 'Loué App API ' + VERSION_API, data: { version: VERSION_API, comptes: true,
-        transitionJusquau: fin, transitionOuverte: !fin || maintenant_() < fin } };
+        transitionJusquau: fin, transitionOuverte: !fin || maintenant_() < fin,
+        // Empreinte du code réellement déployé (écrite par outils/construire.js) : sert à vérifier un envoi
+        empreinte: typeof EMPREINTE_SERVEUR === 'string' ? EMPREINTE_SERVEUR : '' } };
     }
+    // Outils d'essai de la copie TEST : la fonction n'existe QUE dans le serveur envoyé sur TEST
+    // (apps-script-test/OutilsTest.gs). En production, cette action est donc une action inconnue comme une autre.
+    if (corps.action === 'outilTest' && typeof outilTest_ === 'function') return outilTest_(corps);
     if (corps.action === 'connexion')  return connexion_(corps);
     if (corps.action === 'motDePasse') return motDePasse_(corps);
     if (['photo', 'fiche', 'moi', 'listes', 'dossiers'].indexOf(corps.action) < 0) return { ok: false, code: 'ACTION_INCONNUE', message: 'Action inconnue' };

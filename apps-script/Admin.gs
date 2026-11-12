@@ -121,6 +121,12 @@ function verifierConfig() {
   const presents = ScriptApp.getProjectTriggers().map(t => t.getHandlerFunction());
   DECLENCHEURS.forEach(d => ok(presents.indexOf(d) > -1, 'Déclencheur ' + d + ' (sinon lancer installerDeclencheurs)'));
   lignes.push(verifierComptes_());    // lot 2 : comptes, clé, partage du Sheet, transition
+  // Outillage : les outils d'essai (porte de service et sa clé) ne doivent exister que sur la copie TEST
+  const ou = environnementReel_(), porte = typeof outilTest_ === 'function', cleOutils = !!propriete_('CLE_OUTILS_TEST');
+  if (ou.env === 'INCOHERENT') ok(false, 'Environnement incohérent : la propriété ENVIRONNEMENT et le nom du Sheet « ' + ou.sheet + ' » ne disent pas la même chose');
+  if (ou.env !== 'TEST' && porte) ok(false, 'Ce serveur contient les OUTILS D’ESSAI (porte de service) : il ne doit tourner que sur la copie TEST. Recoller le Code.gs de production');
+  if (ou.env !== 'TEST' && cleOutils) ok(false, 'La propriété CLE_OUTILS_TEST ne doit exister que sur la copie TEST : la supprimer ici');
+  if (ou.env === 'TEST' && (porte || cleOutils)) lignes.push('Outils d’essai (copie TEST) : porte ' + (porte ? 'présente' : 'absente') + ', clé ' + (cleOutils ? 'présente' : 'absente'));
   lignes.push("Mails encore possibles aujourd'hui : " + MailApp.getRemainingDailyQuota());
   Logger.log(lignes.join('\n'));
   return lignes.join('\n');

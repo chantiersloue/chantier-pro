@@ -1,8 +1,10 @@
 // ═══════════════════════════════════════════════════════════════
 // LOUÉ APP — SERVEUR COMPLET, À COLLER DANS APPS SCRIPT (fichier « Code.gs », tout remplacer)
 // FICHIER GÉNÉRÉ AUTOMATIQUEMENT par « node outils/construire.js » — NE PAS MODIFIER À LA MAIN :
-// les sources sont dans le dossier apps-script/ du dépôt. Version du serveur 185f4747d5 (pages bd3bcefc4a)
+// les sources sont dans le dossier apps-script/ du dépôt. Version du serveur 9fcb211cc0 (pages bd3bcefc4a)
 // ═══════════════════════════════════════════════════════════════
+
+const EMPREINTE_SERVEUR = '9fcb211cc0';
 
 // ████ Config.gs ████
 // ═══════════════════════════════════════════════════════════════
@@ -1435,8 +1437,13 @@ function routerV5_(corps) {
       let fin = null;
       try { fin = finTransition_(); } catch (e) {}
       return { ok: true, code: 'OK', message: 'Loué App API ' + VERSION_API, data: { version: VERSION_API, comptes: true,
-        transitionJusquau: fin, transitionOuverte: !fin || maintenant_() < fin } };
+        transitionJusquau: fin, transitionOuverte: !fin || maintenant_() < fin,
+        // Empreinte du code réellement déployé (écrite par outils/construire.js) : sert à vérifier un envoi
+        empreinte: typeof EMPREINTE_SERVEUR === 'string' ? EMPREINTE_SERVEUR : '' } };
     }
+    // Outils d'essai de la copie TEST : la fonction n'existe QUE dans le serveur envoyé sur TEST
+    // (apps-script-test/OutilsTest.gs). En production, cette action est donc une action inconnue comme une autre.
+    if (corps.action === 'outilTest' && typeof outilTest_ === 'function') return outilTest_(corps);
     if (corps.action === 'connexion')  return connexion_(corps);
     if (corps.action === 'motDePasse') return motDePasse_(corps);
     if (['photo', 'fiche', 'moi', 'listes', 'dossiers'].indexOf(corps.action) < 0) return { ok: false, code: 'ACTION_INCONNUE', message: 'Action inconnue' };
@@ -2588,6 +2595,12 @@ function verifierConfig() {
   const presents = ScriptApp.getProjectTriggers().map(t => t.getHandlerFunction());
   DECLENCHEURS.forEach(d => ok(presents.indexOf(d) > -1, 'Déclencheur ' + d + ' (sinon lancer installerDeclencheurs)'));
   lignes.push(verifierComptes_());    // lot 2 : comptes, clé, partage du Sheet, transition
+  // Outillage : les outils d'essai (porte de service et sa clé) ne doivent exister que sur la copie TEST
+  const ou = environnementReel_(), porte = typeof outilTest_ === 'function', cleOutils = !!propriete_('CLE_OUTILS_TEST');
+  if (ou.env === 'INCOHERENT') ok(false, 'Environnement incohérent : la propriété ENVIRONNEMENT et le nom du Sheet « ' + ou.sheet + ' » ne disent pas la même chose');
+  if (ou.env !== 'TEST' && porte) ok(false, 'Ce serveur contient les OUTILS D’ESSAI (porte de service) : il ne doit tourner que sur la copie TEST. Recoller le Code.gs de production');
+  if (ou.env !== 'TEST' && cleOutils) ok(false, 'La propriété CLE_OUTILS_TEST ne doit exister que sur la copie TEST : la supprimer ici');
+  if (ou.env === 'TEST' && (porte || cleOutils)) lignes.push('Outils d’essai (copie TEST) : porte ' + (porte ? 'présente' : 'absente') + ', clé ' + (cleOutils ? 'présente' : 'absente'));
   lignes.push("Mails encore possibles aujourd'hui : " + MailApp.getRemainingDailyQuota());
   Logger.log(lignes.join('\n'));
   return lignes.join('\n');
