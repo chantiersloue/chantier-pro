@@ -12,7 +12,7 @@ Le principe retenu, le plus prudent : **un skill ne modifie jamais le Google She
 
 | # | Règle | Skill | Utilisable quand ? |
 |---|---|---|---|
-| 1 | L'identité d'un chantier (n°, nom, adresse, client, architecte, conducteur) se lit dans l'onglet *Chantiers* du Sheet. La FICHE INFO en est la copie : tout écart t'est signalé. | `gestion-documentaire` | **Dès maintenant** (lecture seule) |
+| 1 | L'identité d'un chantier (n°, nom, adresse, client, architecte) est **contrôlée** d'après l'onglet *Chantiers* du Sheet : tout écart avec la FICHE INFO t'est signalé. Les skills continuent de travailler avec la FICHE INFO. | `gestion-documentaire` | **Dès maintenant** (lecture seule) |
 | 2 | Les intervenants de la FICHE INFO sont déposés dans un fichier `intervenants.json` ; l'appli le recopie elle-même dans l'onglet *Intervenants*. | `gestion-documentaire` | Quand le Drive de l'appli est connecté à Claude **et** que le lot 8 est livré |
 | 3 | Les plans utiles aux poseurs sont déposés dans le carnet avec un seul script, `depot_carnet.py`. | les skills de plans | **Au lot 4** |
 | 4 | Les fiches produites par l'appli (PDF, photos) sont recopiées de Drive vers MEGA, dans les mêmes dossiers. | `gestion-documentaire` | Quand le Drive de l'appli est connecté à Claude |
@@ -74,8 +74,8 @@ C'est une exception voulue à la règle « la FICHE INFO est la source unique »
 
 1. **Trouver la ligne** : celle dont la colonne E (N°) est le numéro du dossier MEGA (comparé comme du texte : « 431 » et 431 sont le même numéro). À défaut, celle dont le Nom court (F) est celui de la FICHE INFO. Aucune ligne, ou plusieurs : le skill continue avec la FICHE INFO seule et te dit « ce chantier n'est pas (ou est deux fois) dans l'onglet Chantiers ».
 2. **Retenir le « nom dans l'appli »** (colonne A) pour la durée de son travail : les règles 2, 4 et 5 en ont besoin. Il est relu dans le Sheet à chaque intervention, jamais recopié de mémoire.
-3. **À la création d'une FICHE INFO** (nouveau chantier) : les valeurs du Sheet sont la **première source** pour le n°, le nom court et l'adresse, avec la source « Sheet ChantierPro, lu le JJ/MM/AAAA ». L'adresse du Sheet tient en une case, la fiche en a deux (« adresse du chantier », « code postal + ville ») : si le découpage n'est pas évident, case jaune et question, jamais au hasard. Client et architecte servent à contrôler les lignes MOA et ARCHI de la feuille INTERVENANTS (ils n'ont pas de rubrique dans la feuille FICHE). Un écart constaté à ce moment-là devient une ligne À VÉRIFIER de la fiche, comme toute autre question de création.
-4. **Sur une FICHE INFO qui existe déjà** : le skill **compare et signale dans son compte rendu ; il n'écrit rien, ni dans le Sheet, ni dans la fiche**. Il le fait à trois moments seulement : quand tu demandes l'état documentaire, avant un bordereau, et à la première intervention sur un chantier (pas à chaque fois qu'un fichier est lu).
+3. **À la création d'une FICHE INFO** (nouveau chantier) : les valeurs du Sheet sont la **première source** pour le n°, le nom court et l'adresse, avec la source « Sheet ChantierPro, lu le JJ/MM/AAAA ». L'adresse du Sheet tient en une case, la fiche en a deux (« adresse du chantier », « code postal + ville ») : si le découpage n'est pas évident, case jaune et question, jamais au hasard. Client et architecte servent à contrôler les lignes MOA et ARCHI de la feuille INTERVENANTS (ils n'ont pas de rubrique dans la feuille FICHE). Un écart constaté à ce moment-là devient une ligne À VÉRIFIER de la fiche, comme toute autre question de création. Sur un chantier ancien qui n'avait pas encore de fiche : si le registre utilise déjà un nom court différent de la colonne F, c'est celui du registre qui est gardé, et l'écart est signalé.
+4. **Sur une FICHE INFO qui existe déjà** : le skill **compare et signale dans son compte rendu ; il n'écrit rien, ni dans le Sheet, ni dans la fiche**. Il le fait à trois moments seulement : quand tu demandes l'état documentaire, avant un bordereau, et à la première intervention sur ce chantier dans une conversation (pas à chaque fois qu'un fichier est lu).
 
    | Sheet | Comparé à, dans la FICHE INFO | Comment |
    |---|---|---|
@@ -138,7 +138,7 @@ Je retiens **B** : l'onglet *Intervenants* ne sert à rien avant le lot 8, donc 
 ### Ce que fera l'appli (lot 8, pas avant)
 Elle lira ce fichier, contrôlera chaque champ, remplacera dans l'onglet *Intervenants* le bloc de ce chantier, et écrira la date dans la colonne « Mis à jour le ». D'ici là, le fichier peut exister : il est ignoré.
 
-**Confidentialité** : ce fichier et l'onglet contiennent des mails et des téléphones de personnes extérieures. Le Sheet n'est partagé avec personne. Dans le Drive de l'appli, seuls le planning et les dossiers `Plans` des chantiers sont partagés « par lien » pour les poseurs : `intervenants.json` se dépose **à la racine du dossier du chantier, jamais dans `Plans`**.
+**Confidentialité** : ce fichier et l'onglet contiennent des mails et des téléphones de personnes extérieures. Le Sheet n'est partagé avec personne. Dans le Drive de l'appli, seuls les fichiers du planning et des dossiers `Plans` des chantiers sont partagés « par lien » pour les poseurs : `intervenants.json` se dépose **à la racine du dossier du chantier, jamais dans `Plans`**.
 
 ---
 
@@ -351,9 +351,10 @@ la FICHE INFO : le Sheet ne sert qu'à comparer.
    (source « Sheet ChantierPro, lu le JJ/MM/AAAA ») ; adresse en une case dans le Sheet, deux rubriques dans
    la fiche : découpage douteux → case jaune, jamais au hasard. H et I servent à contrôler les lignes MOA et
    ARCHI. Un écart vu à la création devient une ligne À VÉRIFIER, comme toute question de création.
+   Nom court déjà utilisé au registre et différent de F : garder celui du registre, signaler l'écart.
 4. FICHE INFO existante : COMPARER ET SIGNALER DANS LE COMPTE RENDU DE LA CONVERSATION. Ne rien écrire,
    ni dans le Sheet, ni dans la fiche (pas de ligne À VÉRIFIER ajoutée). Seulement à la première intervention
-   sur le chantier, à l'état documentaire et avant un bordereau.
+   sur ce chantier dans la conversation, à l'état documentaire et avant un bordereau.
    E ↔ n° chantier ; F ↔ nom court ; G ↔ « adresse du chantier » + « code postal + ville » bout à bout ;
    H ↔ société de la ligne MOA ; I ↔ société de l'une des lignes d'architecte.
    Comparaison sans majuscules, sans accents, espaces et ponctuation réduits.
@@ -364,11 +365,11 @@ la FICHE INFO : le Sheet ne sert qu'à comparer.
      L'expéditeur des bordereaux (fiche) et le conducteur de l'appli (Sheet) peuvent différer exprès.
 ```
 
-**A.2 — Dans la table « 1 bis. Où les compétences métier lisent leurs entrées », remplacer la dernière ligne (« Infos du chantier : nom, adresse, lots, intervenants… ») par ces deux lignes :**
+**A.2 — Dans la table « 1 bis. Où les compétences métier lisent leurs entrées », remplacer la dernière ligne (« Infos du chantier : nom, adresse, lots, intervenants… ») par ces deux lignes. Les compétences continuent de lire l'identité dans la FICHE INFO :**
 
 ```
-| Identité du chantier : n°, nom court, adresse, client, architecte, conducteur, nom dans l'appli | onglet « Chantiers » du Sheet ChantierPro (connecteur Sheets, lecture seule — §3 bis, lien avec l'appli) ; la FICHE INFO en est la copie | le Sheet est la référence ; tout écart avec la fiche est signalé à Franck, jamais corrigé en silence |
-| Autres infos du chantier : lots, intervenants (société, interlocuteur, tél, mail), Loué, lien MEGA, documents déjà envoyés — **et l'identité elle-même tant qu'un écart avec le Sheet n'est pas tranché par Franck** (noms de fichiers, bordereaux, courriers) | `00 - FICHE INFO <NOM COURT>.xlsx` à la racine (§3 bis) ; ancien emplacement : feuille FICHE CHANTIER du registre | relire à chaque usage (Franck la corrige à la main) ; si elle n'existe pas, la créer d'abord (§3 bis) |
+| Nom du chantier dans l'appli ChantierPro (colonne A), et contrôle de l'identité (§3 bis, lien avec l'appli) | onglet « Chantiers » du Sheet ChantierPro (connecteur Sheets, lecture seule) | ligne retrouvée par le n° ; tout écart avec la fiche est signalé à Franck, jamais corrigé en silence |
+| Infos du chantier : **identité (n°, nom court, adresse, conducteur de travaux) toujours lue ici** — le Sheet ne sert qu'à la contrôler et à créer une fiche —, lots, intervenants (société, interlocuteur, tél, mail), Loué, lien MEGA, documents déjà envoyés | `00 - FICHE INFO <NOM COURT>.xlsx` à la racine (§3 bis) ; ancien emplacement : feuille FICHE CHANTIER du registre | relire à chaque usage (Franck la corrige à la main) ; si elle n'existe pas, la créer d'abord (§3 bis) |
 ```
 
 ### Bloc B — dans `metre-plinthes`, à la fin du § 0.2 (lecture du CCTP)
@@ -380,6 +381,7 @@ Seulement sur un chantier en cours. LECTURE SEULE du Sheet ChantierPro par le co
 ne JAMAIS y écrire ; identifiant et titre exact du classeur dans `claude/CHANTIERPRO - acces.md` (titre
 différent, ou contenant « TEST » : s'arrêter) ; ne lire que les onglets « Chantiers » et « Prise de Cote ».
 1. Nom du chantier dans l'appli : onglet « Chantiers », ligne dont la colonne E = n° du chantier, colonne A.
+   Aucune ou plusieurs lignes : l'écrire en une ligne et continuer sans ce contrôle.
 2. Onglet « Prise de Cote » : lignes dont la colonne B = ce nom (sans majuscules ni espaces de bord).
    Se fier à la POSITION des colonnes, pas aux titres : C bâtiment, F n° de logement, G pièce,
    N hauteur de plinthe (mm), O sol, Q commentaires ; A référence, D auteur, E date pour citer la source.
@@ -450,20 +452,20 @@ Drive du chantier (jamais si la liste est vide) et lister à Franck les adresses
    - le **titre exact** du classeur, tel qu'il s'affiche en haut de la page.
 
    Ne mets ces informations **nulle part ailleurs**, et surtout pas dans le dépôt GitHub.
-2. **Compléter la colonne E (N°)** de l'onglet *Chantiers* pour les chantiers en cours. Sans le N°, le skill ne retrouve pas la ligne. **Attention à la colonne F (Nom court)** : dès qu'elle est remplie, l'appli met ce nom court, à la place du nom du chantier, dans le nom des PDF qu'elle range. C'est voulu, mais sur un chantier déjà commencé les nouveaux PDF ne porteront plus le même nom que les anciens : remplis-la plutôt au démarrage d'un chantier.
+2. **Compléter la colonne E (N°)** de l'onglet *Chantiers* pour les chantiers en cours. Sans le N°, le skill ne retrouve pas la ligne. Si les titres « N° » et « Nom court » ne sont pas en ligne 1 de cet onglet, ne les crée pas à la main : dis-le-moi. **Attention à la colonne F (Nom court)** : dès qu'elle est remplie, l'appli met ce nom court, à la place du nom du chantier, dans le nom des PDF qu'elle range. C'est voulu, mais sur un chantier déjà commencé les nouveaux PDF ne porteront plus le même nom que les anciens : remplis-la plutôt au démarrage d'un chantier.
 3. **Coller les blocs A.1, A.2 et B** dans tes skills.
 
 ### Vérifier (sur un seul chantier ; rien n'est écrit dans le Sheet)
 
-Fais ces essais à un moment où aucun poseur n'envoie de fiche (le soir), et de préférence sur un chantier d'essai : une adresse modifiée dans le Sheet est visible tout de suite dans l'appli des poseurs.
+Fais ces essais sur un vrai chantier en cours (il faut sa FICHE INFO), de préférence le soir.
 
 | # | Essai | Attendu |
 |---|---|---|
 | 1 | Dans une conversation du projet LOUE TRAVAIL : « lis l'onglet Chantiers du Sheet ChantierPro et dis-moi ce que tu trouves pour le chantier NNN » | Claude cite la ligne (nom, adresse, conducteur). S'il dit qu'il n'a pas le connecteur Google Sheets : active-le dans les réglages de Claude, relié au **compte Google de Loué**, puis recommence. |
-| 2 | « Fais l'état documentaire du NNN » | Le compte rendu dit ce qui a été lu dans le Sheet et liste les écarts avec la FICHE INFO. **Ouvre l'historique des versions du Sheet** (Fichier → Historique des versions) et clique sur la version de l'heure de l'essai : les cases modifiées y sont surlignées. Des lignes ajoutées dans *Envois*, *Prise de Cote* ou *Signalements* viennent de l'appli (une fiche de poseur), pas de Claude. Aucune autre case ne doit avoir changé. |
-| 3 | Change exprès une lettre de l'adresse dans le Sheet, puis redemande l'état documentaire | L'écart t'est signalé dans la conversation ; ni le Sheet ni la fiche n'ont été modifiés par Claude (la date de modification de la FICHE INFO n'a pas bougé). Remets l'adresse. |
+| 2 | « Fais l'état documentaire du NNN » | Le compte rendu dit ce qui a été lu dans le Sheet et liste les écarts avec la FICHE INFO. **Ouvre l'historique des versions du Sheet** (Fichier → Historique des versions) et clique sur la version de l'heure de l'essai : les cases modifiées y sont surlignées. **Regarde seulement les onglets *Chantiers* et *Intervenants*** : rien ne doit y avoir changé. Tout changement dans un autre onglet vient de l'appli elle-même (une fiche, une connexion d'un poseur) : n'y touche pas. |
+| 3 | Change exprès une lettre du **Client** (colonne H : les poseurs ne la voient pas), puis redemande l'état documentaire | L'écart t'est signalé dans la conversation ; ni le Sheet ni la fiche n'ont été modifiés par Claude (la date de modification de la FICHE INFO n'a pas bougé). Remets la bonne valeur. |
 
-Si l'essai 2 montre une case modifiée par Claude : retire le bloc A, **corrige cette case à la main** d'après l'ancienne valeur montrée par l'historique, et dis-le-moi. **Ne clique jamais sur « Restaurer cette version »** : cela effacerait tout ce que l'appli a écrit depuis (fiches, comptes, signalements).
+Si une case de *Chantiers* ou d'*Intervenants* a changé sans toi : retire le bloc A, remets à la main la valeur d'avant dans cette case (l'historique la montre), **ne corrige rien dans les autres onglets**, et dis-le-moi. **Ne clique jamais sur « Restaurer cette version »** : cela effacerait tout ce que l'appli a écrit depuis (fiches, comptes, signalements).
 
 ---
 
@@ -485,6 +487,10 @@ Si l'essai 2 montre une case modifiée par Claude : retire le bloc A, **corrige 
 - **Règles 2, 3 et 4** : elles dépendent du dossier Drive connecté à Claude, jamais essayé, et de scripts qui restent à écrire et à tester (lot 4). Le bloc C n'est qu'une esquisse.
 - **`mega-index.json`** ne prouve que la présence sur le PC (chapitre 5).
 - **Gratuité** : rien de nouveau à payer ni à installer, tant que le connecteur Google Sheets reste compris dans ton abonnement Claude actuel.
+
+### Ce que la 3e relecture a fait changer (12/11/2026)
+- **Les compétences lisent toujours l'identité dans la FICHE INFO** ; le Sheet la contrôle (la version précédente laissait croire qu'elles pouvaient prendre le nom court ou le conducteur du Sheet).
+- **Essai 2** : ne regarder que les onglets *Chantiers* et *Intervenants* (l'appli écrit seule dans les autres : il ne faut surtout pas les « corriger »). Essai 3 sur la colonne Client, invisible des poseurs.
 
 ### Ce que la 2e relecture a fait changer (12/11/2026)
 - **Plus aucune écriture dans une FICHE INFO existante** : un écart est signalé dans la conversation (la version 2 faisait encore ajouter une ligne À VÉRIFIER, sans commande pour le faire).
