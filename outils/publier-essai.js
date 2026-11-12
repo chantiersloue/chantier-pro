@@ -3,8 +3,8 @@
 //   node outils/publier-essai.js              → fabrique, enregistre, pousse, attend la publication et la contrôle
 //   node outils/publier-essai.js --sans-attendre → idem, sans attendre la publication (1 à 3 min)
 // Garde-fous :
-//   - le dossier voisin doit être la copie de travail du dépôt réglé dans outils/essai-cible.json (sinon refus) :
-//     la copie d'essai ne peut donc jamais partir dans le dépôt de production ;
+//   - le dossier voisin doit être la copie de travail du dépôt réglé dans outils/essai-cible.json, en lecture comme
+//     en envoi, et ce dépôt ne peut pas être celui de production (refus sinon) ;
 //   - le dépôt de production doit être sans modification en cours et à jour (construire.js --verifier) :
 //     ce qui est publié correspond toujours à un état enregistré, noté dans le message de publication ;
 //   - jamais d'écrasement forcé (pas de « push --force ») : chaque publication s'ajoute à l'historique.
@@ -48,11 +48,12 @@ function publier(o) {
 
   // 2. Le dépôt d'essai : sur main, sans rien en cours, au même point que GitHub
   if (git(dossier, 'rev-parse', '--abbrev-ref', 'HEAD') !== 'main') throw new Error('Le dossier de la copie d’essai n’est pas sur sa branche main');
-  git(dossier, 'fetch', '--quiet', 'origin');
-  if (git(dossier, 'status', '--porcelain')) git(dossier, 'checkout', '--quiet', '--', '.');   // restes d'une fabrication non publiée
+  try { git(dossier, 'fetch', '--quiet', 'origin'); }
+  catch (e) { throw new Error('Impossible de joindre le dépôt d’essai sur GitHub (réseau ?) : rien n’a été publié'); }
+  // Ce dossier ne contient que des fichiers fabriqués : on le remet exactement au point de GitHub avant de refabriquer.
+  // Les restes d'une fabrication non publiée ou d'un envoi raté sont ainsi repris proprement ; rien n'est écrasé sur GitHub.
+  git(dossier, 'reset', '--quiet', '--hard', 'origin/main');
   git(dossier, 'clean', '-fdq');
-  git(dossier, 'merge', '--quiet', '--ff-only', 'origin/main');
-  if (git(dossier, 'rev-parse', 'HEAD') !== git(dossier, 'rev-parse', 'origin/main')) throw new Error('Le dossier de la copie d’essai n’est pas au même point que GitHub (publication précédente non poussée ?)');
 
   // 3. Fabrication + marque de version (sert à vérifier que la publication est bien arrivée)
   essai.fabriquer({ racine: racine, dossier: dossier, cible: cible });
@@ -62,7 +63,12 @@ function publier(o) {
   if (!git(dossier, 'status', '--porcelain')) return { publie: false, marque: marque, adresse: cible.adresseSite, dossier: dossier };
   git(dossier, '-c', 'user.name=' + (o.auteur || git(racine, 'config', 'user.name')), '-c', 'user.email=' + (o.email || git(racine, 'config', 'user.email')),
     'commit', '--quiet', '-m', 'Copie d’essai — ' + marque + '\n\nFabriquée par outils/publier-essai.js. Ne pas modifier ce dépôt à la main.\n\nCo-Authored-By: Claude Fable 5.2 <noreply@anthropic.com>');
-  git(dossier, 'push', '--quiet', 'origin', 'main');   // jamais --force
+  try { git(dossier, 'push', '--quiet', 'origin', 'main'); }   // jamais --force
+  catch (e) {
+    throw new Error('GitHub a refusé l’envoi de la copie d’essai. Rien n’est publié ; on peut relancer la commande sans risque. '
+      + 'Si c’est le premier envoi : dans l’organisation, Settings → Third-party Access → OAuth app policy → Remove restrictions. '
+      + 'Détail : ' + String(e.stderr || e.message).trim().split('\n').slice(-2).join(' / '));
+  }
   return { publie: true, marque: marque, adresse: cible.adresseSite, dossier: dossier };
 }
 

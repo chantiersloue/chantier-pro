@@ -31,7 +31,7 @@ Claude prépare la branche, la pousse, puis lance :
 node outils/lien-fusion.js livraison/lot-7 --titre "Lot 7 — production" --texte "Ce que contient la livraison" --procedure docs/lot7-procedure.md
 ```
 
-La commande affiche un lien. **Elle ne crée rien et ne fusionne rien.** Elle refuse de donner un lien si la branche n'est pas sur GitHub à l'identique, si elle est en conflit avec `main`, ou si la livraison n'est pas à jour.
+La commande affiche un lien. **Elle ne crée rien et ne fusionne rien.** Elle refuse de donner un lien si la branche n'est pas sur GitHub à l'identique, si elle ne contient pas le dernier état de `main` (aucun conflit possible ensuite), ou si la livraison n'est pas à jour.
 
 Franck ouvre le lien. La demande est déjà remplie, avec :
 - le nombre de fichiers modifiés ;

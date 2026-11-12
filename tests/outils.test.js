@@ -65,7 +65,8 @@ test('lien : le dépôt est lu dans l’adresse de GitHub (https ou ssh)', () =>
   assert.strictEqual(lien.depotDepuisAdresse('https://github.com/chantiersloue/chantier-pro.git'), 'chantiersloue/chantier-pro');
   assert.strictEqual(lien.depotDepuisAdresse('git@github.com:chantiersloue/chantier-pro.git\n'), 'chantiersloue/chantier-pro');
   assert.strictEqual(lien.depotDepuisAdresse('https://github.com/chantiersloue/chantier-pro'), 'chantiersloue/chantier-pro');
-  assert.throws(() => lien.depotDepuisAdresse('https://exemple.test/x/y.git'), /non reconnue/);
+  ['https://exemple.test/x/y.git', 'https://pasgithub.com/a/b', 'C:/tmp/github.com/a/b.git', 'https://github.com/a/b?x=1', 'https://github.com/a/b/c']
+    .forEach(a => assert.throws(() => lien.depotDepuisAdresse(a), /non reconnue/, a));
 });
 test('lien : accents, guillemets, retours à la ligne et « & » survivent à l’adresse', () => {
   const titre = 'Lot 7 — Signalement : casse / manquant & « à recommander »';
@@ -117,6 +118,11 @@ test('essai : la cible est lue et contrôlée (nom d’organisation mal écrit =
   [{ organisation: '', depot: 'x' }, { organisation: 'a/b', depot: 'x' }, { organisation: 'a', depot: '..' }, { organisation: 'a b', depot: 'x' }, {}]
     .forEach(o => { ecrire(f, JSON.stringify(o)); assert.throws(() => essai.lireCible(f), /mal écrit/); });
   assert.throws(() => essai.lireCible(TMP + '/absent.json'), /pas encore réglée/);
+  [['chantiersloue', 'chantier-pro'], ['ChantiersLoue', 'Chantier-Pro']].forEach(([o, d]) => {
+    ecrire(f, JSON.stringify({ organisation: o, depot: d }));
+    assert.throws(() => essai.lireCible(f), /dépôt de PRODUCTION/, 'la cible ne peut pas être le dépôt de production');
+  });
+  assert.strictEqual(essai.adresseNormale('git@github.com:Loue-Essai/Chantier-Pro.git'), essai.adresseNormale('https://github.com/loue-essai/chantier-pro/'));
 });
 test('essai : dossier absent, mal nommé, dans le dépôt, ou sans Git = refus, et rien n’est effacé', () => {
   assert.throws(() => essai.fabriquer({ racine: PROD, cible: CIBLE, dossier: VOISIN }), /Dossier absent/);
@@ -133,7 +139,7 @@ test('essai : dossier relié au dépôt de PRODUCTION = refus, et rien n’est e
   const d = TMP + '/relie-prod/chantier-pro-essai';
   execFileSync('git', ['clone', '--quiet', NU_PROD, d]);
   ecrire(d + '/precieux.txt', 'x');
-  assert.throws(() => essai.fabriquer({ racine: PROD, cible: CIBLE, dossier: d }), /relié à « chantiersloue\/chantier-pro » et non à « org-essai\/chantier-pro »/);
+  assert.throws(() => essai.fabriquer({ racine: PROD, cible: CIBLE, dossier: d }), /Dossier refusé : il est relié à « .*chantiersloue\/chantier-pro\.git » et non à « .*org-essai\/chantier-pro\.git »/);
   assert.throws(() => pub.publier({ racine: PROD, cible: CIBLE, dossier: d, sansVerifier: true }), /relié à/);
   assert.ok(fs.existsSync(d + '/precieux.txt') && fs.existsSync(d + '/README.md'));
 });
@@ -199,7 +205,7 @@ test('publier : refus si le dépôt a des modifications non enregistrées ; une 
   assert.throws(() => git(NU_ESSAI, 'show', 'main:reste.txt'), 'le reste d’une fabrication non publiée ne part pas');
   assert.strictEqual(git(NU_ESSAI, 'rev-list', '--count', 'main'), '3');
 });
-test('publier : si GitHub a avancé sans nous (historique différent), refus sans écrasement', () => {
+test('publier : si GitHub a avancé sans nous, on repart de son état ; rien n’est écrasé', () => {
   const autre = TMP + '/autre-clone';
   execFileSync('git', ['clone', '--quiet', NU_ESSAI, autre]);
   ecrire(autre + '/ailleurs.txt', 'x'); git(autre, 'add', '-A');
@@ -207,9 +213,123 @@ test('publier : si GitHub a avancé sans nous (historique différent), refus san
   // notre dossier a un enregistrement local jamais poussé : l'avance rapide est impossible
   ecrire(VOISIN + '/local.txt', 'x'); git(VOISIN, 'add', '-A');
   git(VOISIN, '-c', 'user.name=t', '-c', 'user.email=t@loue.test', 'commit', '--quiet', '-m', 'local');
+  const avant = git(NU_ESSAI, 'rev-parse', 'main'), n = Number(git(NU_ESSAI, 'rev-list', '--count', 'main'));
+  const r = pub.publier({ racine: PROD, cible: CIBLE, dossier: VOISIN, sansVerifier: true });
+  assert.strictEqual(r.publie, true);
+  assert.strictEqual(Number(git(NU_ESSAI, 'rev-list', '--count', 'main')), n + 1, 'un enregistrement de plus');
+  git(NU_ESSAI, 'merge-base', '--is-ancestor', avant, 'main');   // lève une erreur si l'état de « GitHub » avait été écrasé
+  assert.throws(() => git(NU_ESSAI, 'show', 'main:local.txt'), 'l’enregistrement local jamais poussé ne part pas');
+});
+test('publier : un envoi refusé par GitHub donne un message clair, et la relance réussit', () => {
+  ecrire(PROD + '/index.html', fs.readFileSync(PROD + '/index.html', 'utf8').replace('Loué 2', 'Loué 3'));
+  git(PROD, 'add', '-A'); git(PROD, 'commit', '--quiet', '-m', 'page modifiée 3');
+  const crochet = NU_ESSAI + '/hooks/pre-receive';
+  ecrire(crochet, '#!/bin/sh\necho "refus de test" >&2\nexit 1\n'); fs.chmodSync(crochet, 0o755);
   const avant = git(NU_ESSAI, 'rev-parse', 'main');
-  assert.throws(() => pub.publier({ racine: PROD, cible: CIBLE, dossier: VOISIN, sansVerifier: true }));
-  assert.strictEqual(git(NU_ESSAI, 'rev-parse', 'main'), avant, 'rien n’a été écrasé sur « GitHub »');
+  assert.throws(() => pub.publier({ racine: PROD, cible: CIBLE, dossier: VOISIN, sansVerifier: true }), /GitHub a refusé l’envoi.*relancer la commande sans risque.*Remove restrictions/);
+  assert.strictEqual(git(NU_ESSAI, 'rev-parse', 'main'), avant);
+  fs.rmSync(crochet);
+  const r = pub.publier({ racine: PROD, cible: CIBLE, dossier: VOISIN, sansVerifier: true });
+  assert.strictEqual(r.publie, true, 'la relance n’est pas bloquée par l’envoi raté');
+  assert.ok(/Loué 3/.test(git(NU_ESSAI, 'show', 'main:index.html')));
+});
+test('essai : adresse d’ENVOI réglée vers un autre dépôt = refus (rien ne part ailleurs)', () => {
+  git(VOISIN, 'remote', 'set-url', '--push', 'origin', NU_PROD);
+  const prodAvant = git(NU_PROD, 'rev-parse', 'main');
+  try {
+    assert.throws(() => pub.publier({ racine: PROD, cible: CIBLE, dossier: VOISIN, sansVerifier: true }), /Dossier refusé : il est relié à/);
+    assert.throws(() => essai.fabriquer({ racine: PROD, cible: CIBLE, dossier: VOISIN }), /Dossier refusé : il est relié à/);
+  } finally { git(VOISIN, 'config', '--unset', 'remote.origin.pushurl'); }
+  assert.strictEqual(git(NU_PROD, 'rev-parse', 'main'), prodAvant);
+  essai.controlerDossier(VOISIN, CIBLE, PROD);   // de nouveau accepté
+});
+test('essai : cible = le dépôt d’où l’on fabrique (la production) = refus, même avec un dossier voisin « correct »', () => {
+  const monde = TMP + '/monde2', prod = monde + '/chantier-pro', voisin = monde + '/chantier-pro-essai';
+  execFileSync('git', ['clone', '--quiet', NU_PROD, prod]);
+  execFileSync('git', ['clone', '--quiet', NU_PROD, voisin]);
+  ecrire(voisin + '/precieux.txt', 'x');
+  const cibleProd = Object.assign({}, CIBLE, { nom: 'x/y', adresseGit: NU_PROD });
+  assert.throws(() => essai.fabriquer({ racine: prod, cible: cibleProd, dossier: voisin }), /cible de la copie d’essai est le dépôt de PRODUCTION/);
+  assert.throws(() => pub.publier({ racine: prod, cible: cibleProd, dossier: voisin, sansVerifier: true }), /dépôt de PRODUCTION/);
+  assert.ok(fs.existsSync(voisin + '/precieux.txt') && fs.existsSync(voisin + '/README.md'), 'rien n’est effacé');
+  // et par son nom, quelle que soit l'adresse du dépôt d'où l'on fabrique
+  const parNom = Object.assign({}, CIBLE, { adresseGit: 'git@github.com:ChantiersLoue/Chantier-Pro.git' });
+  assert.throws(() => essai.controlerDossier(VOISIN, parNom, PROD), /dépôt de PRODUCTION/);
+});
+
+// ══ Lien pré-rempli : la commande entière, dans un faux dépôt (aucun appel à GitHub) ══════════════════════
+function fauxDepotLien() {
+  const nu = TMP + '/lien/nu.git', r = TMP + '/lien/chantier-pro';
+  fs.mkdirSync(nu, { recursive: true });
+  execFileSync('git', ['init', '--quiet', '--bare', '--initial-branch=main', nu]);
+  ecrire(r + '/A-COLLER-DANS-APPS-SCRIPT/Code.gs', '// serveur v1\n');
+  ecrire(r + '/commun/config.js', "var VERSION_APPLI = '6.0.1';\n");
+  ecrire(r + '/index.html', '<html></html>\n');
+  ecrire(r + '/docs/lot7-procedure.md', '# procédure\n');
+  execFileSync('git', ['init', '--quiet', '--initial-branch=main', r]);
+  git(r, 'config', 'user.name', 'Essai'); git(r, 'config', 'user.email', 'essai@loue.test'); git(r, 'config', 'core.autocrlf', 'false');
+  // l'adresse affichée est celle de GitHub ; les échanges vont en réalité vers le dépôt nu local
+  git(r, 'remote', 'add', 'origin', 'https://github.com/chantiersloue/chantier-pro.git');
+  git(r, 'config', 'url.' + nu + '.insteadOf', 'https://github.com/chantiersloue/chantier-pro.git');
+  git(r, 'add', '-A'); git(r, 'commit', '--quiet', '-m', 'départ'); git(r, 'push', '--quiet', 'origin', 'main');
+  return r;
+}
+const LIEN = fauxDepotLien();
+function demander(args) {   // lance la commande sans rien afficher ; rend le lien ou lève l'erreur
+  const log = console.log; console.log = () => {};
+  try { return lien.principal(args, { racine: LIEN, sansVerifier: true }); } finally { console.log = log; }
+}
+test('lien (commande) : branche de documents seuls → lien donné, « serveur inchangé », « pages inchangées »', () => {
+  git(LIEN, 'checkout', '--quiet', '-b', 'livraison/docs');
+  ecrire(LIEN + '/docs/note.md', 'été\n'); git(LIEN, 'add', '-A'); git(LIEN, 'commit', '--quiet', '-m', 'docs');
+  assert.throws(() => demander(['livraison/docs', '--titre', 'Docs']), /n’est pas sur GitHub/);
+  git(LIEN, 'push', '--quiet', 'origin', 'livraison/docs');
+  const u = new URL(demander(['livraison/docs', '--titre', 'Outillage — documents', '--texte', 'Ligne 1\nLigne 2', '--procedure', 'docs/lot7-procedure.md']));
+  assert.strictEqual(u.pathname, '/chantiersloue/chantier-pro/compare/main...livraison/docs');
+  const corps = u.searchParams.get('body');
+  assert.ok(/^Ligne 1\nLigne 2\n\n\*\*Fichiers modifiés\*\* : 1\n/.test(corps), corps);
+  assert.ok(/Serveur\*\* : inchangé/.test(corps) && /Pages de l’appli\*\* : inchangées/.test(corps) && /`docs\/lot7-procedure\.md`/.test(corps), corps);
+  assert.ok(corps.indexOf('empreinte `' + lien.empreinte('// serveur v1\n') + '`') > -1, 'empreinte du serveur qui sera dans main');
+});
+test('lien (commande) : serveur et pages modifiés → la description le dit, avec la nouvelle version', () => {
+  git(LIEN, 'checkout', '--quiet', '-b', 'livraison/lot-7', 'main');
+  ecrire(LIEN + '/A-COLLER-DANS-APPS-SCRIPT/Code.gs', '// serveur v2\n');
+  ecrire(LIEN + '/commun/config.js', "var VERSION_APPLI = '7.0';\n");
+  git(LIEN, 'add', '-A'); git(LIEN, 'commit', '--quiet', '-m', 'lot 7'); git(LIEN, 'push', '--quiet', 'origin', 'livraison/lot-7');
+  const corps = new URL(demander(['livraison/lot-7', '--titre', 'Lot 7'])).searchParams.get('body');
+  assert.ok(/`Code.gs` MODIFIÉ, à mettre dans Apps Script avant de fusionner/.test(corps) && /version 7\.0 dans « À propos »/.test(corps), corps);
+  assert.ok(corps.indexOf(lien.empreinte('// serveur v2\n')) > -1);
+});
+test('lien (commande) : refus si la branche du PC a avancé, si des modifications traînent, si on n’est pas dessus', () => {
+  ecrire(LIEN + '/index.html', '<html>x</html>\n');
+  assert.throws(() => demander(['livraison/lot-7', '--titre', 'Lot 7']), /ne sont pas enregistrées/);
+  git(LIEN, 'add', '-A'); git(LIEN, 'commit', '--quiet', '-m', 'suite');
+  assert.throws(() => demander(['livraison/lot-7', '--titre', 'Lot 7']), /sont différentes : pousser d’abord/);
+  git(LIEN, 'push', '--quiet', 'origin', 'livraison/lot-7');
+  git(LIEN, 'checkout', '--quiet', 'livraison/docs');
+  assert.throws(() => demander(['livraison/lot-7', '--titre', 'Lot 7']), /Se placer d’abord sur la branche/);
+  assert.throws(() => demander(['main', '--titre', 'x']), /ne peut pas être main/);
+});
+test('lien (commande) : main a avancé sans la branche (même sans conflit) → refus, il faut d’abord amener main', () => {
+  // un correctif du serveur entre dans main ; la branche de documents ne l'a pas
+  git(LIEN, 'checkout', '--quiet', 'main');
+  ecrire(LIEN + '/A-COLLER-DANS-APPS-SCRIPT/Code.gs', '// serveur v1 corrigé\n');
+  git(LIEN, 'add', '-A'); git(LIEN, 'commit', '--quiet', '-m', 'correctif'); git(LIEN, 'push', '--quiet', 'origin', 'main');
+  git(LIEN, 'checkout', '--quiet', 'livraison/docs');
+  assert.throws(() => demander(['livraison/docs', '--titre', 'Docs']), /main a avancé.*amener main dans la branche/);
+  git(LIEN, 'merge', '--quiet', '--no-edit', 'origin/main'); git(LIEN, 'push', '--quiet', 'origin', 'livraison/docs');
+  const corps = new URL(demander(['livraison/docs', '--titre', 'Docs'])).searchParams.get('body');
+  assert.ok(/Serveur\*\* : inchangé/.test(corps) && corps.indexOf(lien.empreinte('// serveur v1 corrigé\n')) > -1, 'l’empreinte annoncée est celle du serveur de main');
+  // une fois fusionnée, plus rien à demander
+  git(LIEN, 'checkout', '--quiet', 'main'); git(LIEN, 'merge', '--quiet', '--ff-only', 'livraison/docs'); git(LIEN, 'push', '--quiet', 'origin', 'main');
+  git(LIEN, 'checkout', '--quiet', 'livraison/docs');
+  assert.throws(() => demander(['livraison/docs', '--titre', 'Docs']), /Rien à fusionner/);
+});
+test('lien (commande) : une option sans valeur est refusée clairement', () => {
+  assert.throws(() => lien.lireArguments(['b', '--titre', '--texte', 'x']), /Il manque la valeur de --titre/);
+  assert.throws(() => lien.lireArguments(['b', '--titre']), /Il manque la valeur de --titre/);
+  assert.throws(() => lien.lireArguments(['b', '--force']), /Option inconnue/);
+  assert.throws(() => lien.lireArguments(['a', 'b']), /Un seul nom de branche/);
 });
 test('publier : l’attente de publication reconnaît la bonne version et abandonne sinon', async () => {
   let n = 0; const vues = [];
