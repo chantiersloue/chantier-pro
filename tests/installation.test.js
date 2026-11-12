@@ -113,8 +113,9 @@ test('le bilan est écrit dans l’onglet « Installation », qui ne garde que l
   const g = environnement(TEST), t = [];
   g.ctx.installer_('Lot X', 'TEST', etapes(g, t));
   let b = bilan(g);
-  assert.strictEqual(b.length, 4);
-  memes(b[0].slice(1), ['Lot X', 'TEST', 'installation', '✅ 1/3 Étape A : fait — posée']);
+  assert.strictEqual(b.length, 5);
+  assert.ok(/^Lot X — installation — environnement : TEST — Sheet « ChantierPro TEST » — serveur v/.test(b[0][4]), 'la 1re ligne dit où l’on est');
+  memes(b[1].slice(1), ['Lot X', 'TEST', 'installation', '✅ 1/3 Étape A : fait — posée']);
   for (let i = 0; i < 20; i++) g.ctx.installer_('Lot ' + i, 'TEST', etapes(g, t));
   b = bilan(g).filter(l => l.some(v => v !== '' && v !== undefined));
   assert.strictEqual(b.length, 50);

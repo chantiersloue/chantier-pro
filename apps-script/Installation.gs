@@ -35,7 +35,7 @@ function installer_(lot, attendu, etapes, options) {
   const finir = (reussi) => {
     const texte = lignes.join('\n');
     Logger.log(texte);
-    try { ecrireBilanInstallation_(lot, ou.env, mode, lignes.slice(1)); }
+    try { ecrireBilanInstallation_(lot, ou.env, mode, lignes); }
     catch (e) { Logger.log('(bilan non écrit dans l’onglet « ' + SHEET_INSTALLATION + ' » : ' + e.message + ')'); }
     return { ok: reussi, texte: texte, lignes: lignes };
   };
@@ -78,7 +78,9 @@ function ecrireBilanInstallation_(lot, env, mode, lignes) {
   const sh = feuille_(SHEET_INSTALLATION, ['Date', 'Lot', 'Environnement', 'Mode', 'Bilan']);
   const date = new Date();
   // Écrit juste sous la dernière ligne remplie (appendRow se placerait sous des lignes vidées plus bas)
-  if (lignes.length) sh.getRange(sh.getLastRow() + 1, 1, lignes.length, 5).setValues(lignes.map(l => [date, lot, env, mode, l]));
+  const debut = sh.getLastRow() + 1, manque = debut + lignes.length - 1 - sh.getMaxRows();
+  if (manque > 0) sh.insertRowsAfter(sh.getMaxRows(), manque);
+  if (lignes.length) sh.getRange(debut, 1, lignes.length, 5).setValues(lignes.map(l => [date, lot, env, mode, l]));
   const derniere = sh.getLastRow(), enTrop = derniere - 1 - INSTALLATION_LIGNES_GARDEES;
   if (enTrop > 0) {
     const gardees = sh.getRange(2 + enTrop, 1, INSTALLATION_LIGNES_GARDEES, 5).getValues();
