@@ -84,7 +84,7 @@ if (require.main === module) {
       console.log((r.cree ? 'Clé fabriquée et écrite' : 'La clé existe déjà') + ' dans _prive/cle-outils-test.txt (elle n’est pas affichée).');
       return;
     }
-    if (!a[0] || !/^[A-Za-z]+$/.test(a[0])) throw new Error('Usage : node outils/porte.js --creer-cle | <geste> [nom=valeur …]');
+    if (!a[0] || !/^[A-Za-z][A-Za-z0-9]*$/.test(a[0])) throw new Error('Usage : node outils/porte.js --creer-cle | <geste> [nom=valeur …]');
     const rep = await appeler(a[0], lireParametres(a.slice(1)));
     console.log(JSON.stringify(rep, null, 2));
     if (!rep || !rep.ok) process.exitCode = 1;

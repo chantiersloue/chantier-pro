@@ -2,6 +2,16 @@
 
 Chaque lot : **quoi**, **pourquoi**, **comment déployer**. Procédures détaillées dans `docs/lotN-procedure.md`.
 
+## Outillage — étape C (12/11/2026) — copie TEST seulement, aucun changement pour les téléphones ni pour la production
+
+**Quoi** : 1. `node outils\envoyer-test.js` envoie le serveur sur la copie TEST avec clasp : c'est Franck qui la lance (2 lignes, 1 clic « Autoriser »), elle vérifie que le projet visé est bien celui de TEST, sauvegarde, envoie, contrôle en ligne par l'empreinte du serveur, et efface le jeton Google dans tous les cas. 2. Une « porte de service », présente seulement dans le serveur envoyé sur TEST, permet à Claude de lancer depuis le PC une liste fermée de gestes d'essai (`node outils/porte.js`). 3. Le serveur renvoie son empreinte (`ping`). 4. `verifierConfig` signale par un ❌ tout reste des outils d'essai hors de TEST.
+
+**Pourquoi** : plus de copier-coller sur TEST, et des essais que Claude peut jouer seul contre le vrai serveur TEST (`docs/automatisation.md`, O-3 à O-5).
+
+**Vérifié en vrai le 12/11/2026** : deux envois par clasp réussis, jeton effacé à chaque fois ; déclencheur posé puis retiré par la porte ; démonstration complète (contrôle du lot 2, comptes d'essai, session d'essai acceptée puis annulée, lecture de l'onglet *Envois*, déclencheurs posés puis retirés, copie TEST remise en ordre).
+
+**Comment déployer** : rien en production. Le code est sur la branche `outillage` et entrera dans `main` avec le lot 7. Modes d'emploi : `docs/guide-outillage.md`, `docs/clasp.md`. Pas fait (reporté au lot 7, qui en aura besoin) : les gestes qui touchent à Drive, et l'envoi d'une fiche par un navigateur piloté avec une session d'essai.
+
 ## Outillage — étapes A et B (12/11/2026) — outils du PC seulement, aucun changement pour les téléphones
 
 **Quoi** : 1. `main` est verrouillée sur GitHub : plus rien n'y entre sans demande de fusion. 2. `node outils/lien-fusion.js` prépare le lien qui ouvre une demande de fusion déjà remplie (serveur changé ou non, pages changées ou non, empreinte du `Code.gs`) : il reste 3 clics à Franck. 3. La copie d'essai sort de ce dépôt : `node outils/publier-essai.js` la fabrique dans un dossier voisin et la publie dans un dépôt à part (organisation GitHub gratuite), à sa propre adresse, toujours en mode TEST. 4. Prêt mais pas encore en service (branche `outillage`) : l'installation d'un lot en une seule fonction Apps Script.

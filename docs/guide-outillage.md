@@ -2,7 +2,7 @@
 
 > Pour Franck et pour Claude. Ce guide décrit les outils qui servent à préparer, essayer et livrer un lot.
 > Le pourquoi est dans `docs/automatisation.md`, le plan de mise en place dans `docs/outillage-plan.md`.
-> **État au 12/11/2026** : étapes A et B en place et vérifiées (la copie d'essai est installée sur le téléphone de Franck, un quitus est parti et arrivé) ; étape C en cours (clasp installé, premier envoi sur TEST réussi, porte de service en relecture sur la branche `outillage`).
+> **État au 12/11/2026** : étapes A, B et C en place et vérifiées en vrai (lien pré-rempli et verrouillage de `main` ; copie d'essai sur le téléphone de Franck ; envois sur TEST par clasp ; porte de service et sa démonstration). Les outils du serveur (étape C) sont sur la branche `outillage` : ils entreront dans `main` avec le lot 7.
 
 ## Qui fait quoi
 
@@ -11,7 +11,9 @@
 | Publier la copie d'essai | Claude, seul |
 | Préparer la demande de fusion de production (lien pré-rempli) | Claude |
 | Cliquer « Create pull request », « Merge pull request », « Confirm merge » | **Franck** |
-| Lancer l'installation d'un lot dans Apps Script (1 clic ▶) | **Franck** en production ; sur TEST, Claude à partir de l'étape C |
+| Envoyer le serveur sur la copie TEST | **Franck** lance la commande (2 lignes, 1 clic « Autoriser ») ; elle fait tout le reste |
+| Lancer l'installation d'un lot dans Apps Script | **Franck** en production (1 clic ▶) ; sur TEST, Claude par la porte de service |
+| Jouer les essais sur la copie TEST | Claude, par la porte de service ; Franck garde les essais sur téléphone |
 | Tout réglage des comptes GitHub et Google | **Franck** |
 
 ## 1. `main` est verrouillée
@@ -91,7 +93,42 @@ Chacune refuse de tourner dans le mauvais projet.
 - `controlerInstallationLot2` vérifie que le lot 2 est bien en place. Elle ne modifie rien : elle écrit seulement son bilan.
 - L'onglet *Installation* garde les 50 dernières lignes. On peut le supprimer sans risque : il est recréé à l'installation suivante.
 
-## 5. Les tests des outils
+## 5. Envoyer le serveur sur la copie TEST
+
+C'est Franck qui lance la commande, quand Claude le demande (détail et sécurité : `docs/clasp.md`) :
+
+```
+cd $HOME\Documents\GitHub\chantier-pro
+```
+
+```
+node outils\envoyer-test.js --avec-porte
+```
+
+- `--avec-porte` : pendant les essais (le serveur contient les outils d'essai de Claude) ; `--sans-porte` : avant le feu vert (le fichier qui partira en production).
+- Une page Google s'ouvre : compte de Loué, **Autoriser**. La commande affiche 6 étapes et finit par `✅ Envoi réussi` ou `❌ …`.
+- Elle n'envoie que vers le projet de la copie TEST, sauvegarde l'ancien serveur dans `_prive/`, vérifie en ligne par l'empreinte, et efface le jeton Google dans tous les cas.
+- Avant un envoi `--sans-porte`, elle fait d'abord ranger la copie TEST (déclencheurs d'essai retirés, sessions d'essai fermées, période sans compte remise comme avant). Si elle n'y arrive pas, elle s'arrête : il suffit de relancer.
+
+## 6. La porte de service de la copie TEST
+
+Pendant les essais, le serveur de la copie TEST contient des **outils d'essai** que Claude appelle depuis le PC avec `node outils/porte.js <geste>`. Ils n'existent pas dans le serveur de production (l'outil de construction le refuse, et `verifierConfig` le signalerait).
+
+| Geste | Ce qu'il fait |
+|---|---|
+| `etat` | Version, empreinte, déclencheurs en place, période sans compte, mails encore possibles |
+| `lireEnvois`, `lireBilan` | Les dernières lignes des onglets *Envois* (numéro, date, type, statut) et *Installation* |
+| `controlerLot2` | Vérifie que le lot 2 est en place, sans rien modifier |
+| `poserDeclencheurs`, `retirerDeclencheurs` | Les déclencheurs de l'appli, le temps d'un essai (retirés tout seuls au bout de 2 h) |
+| `traiterComptes`, `finirTransition`, `prolongerTransition`, `retablirTransition` | Les fonctions d'essai du lot 2 ; la période sans compte d'origine est mémorisée et remise |
+| `preparerComptes`, `session`, `fermerSessions`, `cocher`, `lireCompte` | Trois comptes d'essai (`auto-poseur`, `auto-conducteur`, `auto-admin`), activés seulement pendant un essai |
+| `preparerChantier` | Une ligne « CHANTIER TEST AUTO » dans l'onglet *Chantiers* de TEST |
+
+Ce que tu verras dans le Sheet « ChantierPro TEST » : trois lignes `auto-…` dans *Utilisateurs* (décochées hors essai), un onglet *Installation*, et peut-être une colonne `auto-poseur` dans *Accès chantiers*. Tu peux les laisser : ils servent aux essais suivants.
+
+La clé de la porte est dans `_prive/cle-outils-test.txt` et dans la propriété `CLE_OUTILS_TEST` du projet TEST. Si elle fuit, elle ne donne accès qu'aux gestes ci-dessus, sur la copie TEST. Pour la changer : supprimer le fichier, relancer `node outils/porte.js --creer-cle`, recopier la nouvelle valeur dans la propriété.
+
+## 7. Les tests des outils
 
 ```
 node tests/outils.test.js
@@ -101,11 +138,15 @@ node tests/outils.test.js
 node tests/installation.test.js
 ```
 
-Le premier vérifie le lien et la copie d'essai dans un dossier temporaire, sans toucher à GitHub. Le second vérifie le moteur d'installation dans le faux Apps Script des tests (branche `outillage`).
+```
+node tests/porte.test.js
+```
+
+Le premier vérifie le lien et la copie d'essai dans un dossier temporaire, sans toucher à GitHub. Les deux autres (branche `outillage`) vérifient le moteur d'installation, la porte de service et la commande d'envoi, avec un faux Apps Script et un faux clasp : aucun appel à Google.
 
 ## Où est le code
 
 | Quoi | Où | Dans `main` ? |
 |---|---|---|
 | Outils du PC (`outils/`, `tests/outils.test.js`) et documents | branche `livraison/outillage` | Oui, dès la première demande de fusion |
-| Moteur d'installation (`apps-script/Installation.gs`) et, plus tard, la porte de service | branche `outillage` | **Non, pas avant le lot 7** : tant que la transition du lot 2 est en cours, le serveur de `main` reste exactement celui qui tourne (v6.0.1) |
+| Moteur d'installation (`apps-script/Installation.gs`), porte de service (`apps-script-test/`), commande d'envoi (`outils/envoyer-test.js`, `outils/porte.js`) | branche `outillage` | **Non, pas avant le lot 7** : tant que la transition du lot 2 est en cours, le serveur de `main` reste exactement celui qui tourne (v6.0.1) |
