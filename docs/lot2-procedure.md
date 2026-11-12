@@ -174,6 +174,7 @@ Le serveur du lot 2 a sa **propre adresse** : l'ancien déploiement (lot 1) cont
 
 ## Ce que tu dois faire, en résumé
 
+0. **Où on en est (12/11/2026)** : étapes A, B, C validées ; D.1 à D.5 faites (serveur v6.0.1 en production, déploiement « Lot 2 — production ») ; la demande `livraison/lot-2` est prête avec la nouvelle adresse. **Il te reste D.6 à D.10.**
 1. ~~Me dire quand le lot 1 est en production~~ : fait le 10/11/2026 ; `livraison/lot-2-essai` est prête.
 2. Étapes A, B, C sur TEST, et me dire le temps de l'essai B.3 (case cochée depuis l'appli Sheets du téléphone).
 3. Étape D en production (m'envoyer l'adresse du nouveau déploiement au point D.5), puis installer l'appli sur les iPhone et distribuer les mots de passe le même jour, puis lancer `demarrerTransition`.
