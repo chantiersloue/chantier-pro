@@ -22,6 +22,14 @@ Chaque lot : **quoi**, **pourquoi**, **comment déployer**. Procédures détaill
 
 **Tests** : `node tests/lot2-comptes.test.js` (44 tests) + tests des lots 0 et 1 ; pages essayées dans le navigateur avec le faux serveur (comptes d'essai), en 375 px.
 
+## Lot 1 — Correctif 5.1.1 : bouton bloqué sur « Rangement dans le téléphone… » — prêt pour la production
+
+**Quoi** : la fiche et ses photos sont rangées dans le téléphone en une seule opération, annulée net au bout de 12 s si la mémoire est bloquée (rien n'est écrit en retard). La fiche part alors directement si le réseau est là ; sinon un message qui **reste à l'écran** dit quoi faire (garder la page ouverte, fermer les autres fenêtres de l'appli et ses onglets dans Chrome, toucher Envoyer de nouveau sans rien changer) et le texte reste en brouillon. Le 2e appui garde le même numéro de fiche : pas de 2e mail. Le brouillon d'une fiche rangée n'est plus jamais reproposé, même si son effacement tarde. La sauvegarde automatique du brouillon a aussi une limite (8 s, puis bandeau rouge). Nouveau : un journal des incidents dans « À propos » (30 jours : rangement bloqué ou lent, sauvegarde bloquée, file occupée), à transmettre au bureau.
+
+**Pourquoi** : essai 12 du lot 2 (Motorola, appli installée, mode avion) : le bouton restait bloqué plus de 2 min sans message. Reproduit sur PC quand un AUTRE onglet de l'appli garde la mémoire du téléphone occupée (Android fige les onglets en arrière-plan) : la page attendait sans limite. Même défaut dans l'appli 5.1 en production (même code de rangement).
+
+**Comment déployer** : fusionner la demande `livraison/lot-1-correctif-file`. Rien à changer dans Apps Script. « À propos » affiche ensuite **5.1.1**.
+
 ## Lot 1 — Retouches après les essais (serveur v5.1, appli 5.1) — en production depuis le 10/11/2026
 
 **Quoi**

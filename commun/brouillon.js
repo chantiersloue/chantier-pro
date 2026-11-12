@@ -122,7 +122,8 @@
       var bar = document.getElementById('loue-brouillon-alerte');
       if (!niveau) {
         if (bar) bar.remove();
-        if (ancien && LOUE.message) LOUE.message('✓ Brouillon de nouveau enregistré dans le téléphone');
+        var durable = document.querySelector('#loue-message.visible[data-durable]');
+        if (ancien && LOUE.message && !durable) LOUE.message('✓ Brouillon de nouveau enregistré dans le téléphone');
         return;
       }
       if (!bar) {
@@ -147,11 +148,25 @@
     function sauver() {
       if (!actif) return Promise.resolve();
       var e = etat();
+      var m = marqueEnvoye(); if (m && e.t <= m) e.t = m + 1;
       var emp = empreinte(e);
       if (emp === derniere) return Promise.resolve();          // rien de neuf depuis la dernière sauvegarde
       derniere = emp;
       var okLocal = ecrireLocal(cleLocale, e);
-      return mettreDeCote().then(function () { return LOUE.stockage.ecrire('brouillons', e); })
+      // Limite de 8 s : une mémoire bloquée (autre fenêtre figée) fait apparaître le bandeau rouge au lieu de rien
+      var sauvegarde = new Promise(function (ok, ko) {
+        var fini = false;
+        var minuteur = setTimeout(function () {
+          if (fini) return;
+          fini = true; derniere = null;   // nouvel essai à la prochaine sauvegarde
+          if (LOUE.noterIncident) LOUE.noterIncident('Sauvegarde du brouillon bloquée (plus de 8 s)');
+          ko(new Error('mémoire bloquée'));
+        }, 8000);
+        mettreDeCote().then(function () { return LOUE.stockage.ecrire('brouillons', e); })
+          .then(function (v) { if (!fini) { fini = true; clearTimeout(minuteur); ok(v); } },
+                function (err) { if (!fini) { fini = true; clearTimeout(minuteur); ko(err); } });
+      });
+      return sauvegarde
         .then(function () { return true; }, function () { return false; })
         .then(function (okBase) {
           // La copie complète (IndexedDB) suffit ; la copie texte (localStorage) n'est qu'une sécurité de plus
@@ -182,8 +197,11 @@
     // Brouillon courant : la copie la PLUS RÉCENTE ; si c'est celle de localStorage (sans photos),
     // on y rattache les photos de la copie IndexedDB
     function lireCourant() {
+      var envoye = marqueEnvoye();
       return lireBase(cle).then(function (base) {
+        if (base && envoye && (base.t || 0) <= envoye) base = null;     // fiche déjà envoyée (effacement pas terminé)
         var local = lireLocal(cleLocale);
+        if (local && envoye && (local.t || 0) <= envoye) local = null;
         if (local && local.champs && (!base || (local.t || 0) > (base.t || 0))) {
           if (base && base.extra && local.extra) rattacherPhotos(local.extra, photosParId(base.extra, {}));
           return local;
@@ -223,10 +241,19 @@
       var texte = function (x) { return JSON.stringify(x || {}, function (k, y) { return y instanceof Blob ? 'blob' : y; }); };
       return saisi || texte(e.extra) !== texte(v.extra);
     }
-    function effacerCourant() {
-      anciennes.concat([cleLocale]).forEach(function (k) { try { localStorage.removeItem(k); } catch (e) {} });
-      return LOUE.stockage.supprimer('brouillons', cle).catch(function () {});
+    // jusqua (facultatif) : n'efface que les copies au plus aussi récentes (une saisie plus récente, celle de la
+    // fiche suivante, n'est jamais effacée par un effacement en retard)
+    function effacerCourant(jusqua) {
+      anciennes.forEach(function (k) { try { localStorage.removeItem(k); } catch (e) {} });
+      var l = lireLocal(cleLocale);
+      if (!jusqua || !l || (l.t || 0) <= jusqua) { try { localStorage.removeItem(cleLocale); } catch (e) {} }
+      if (!jusqua) return LOUE.stockage.supprimer('brouillons', cle).catch(function () {});
+      // Une seule transaction : une sauvegarde de la fiche suivante, mise en attente entre-temps, n'est jamais effacée
+      return LOUE.stockage.supprimerSi('brouillons', cle, function (b) { return (b.t || 0) > jusqua; }).catch(function () {});
     }
+    // Marque « fiche envoyée » : tant que l'effacement n'a pas abouti, une copie plus ancienne n'est plus proposée
+    var cleEnvoye = cleLocale + '_envoye';
+    function marqueEnvoye() { try { return Number(localStorage.getItem(cleEnvoye) || 0); } catch (e) { return 0; } }
 
     function banniere(proposition) {
       enAttente = proposition;
@@ -290,7 +317,17 @@
       effacer: function () {
         actif = false; clearTimeout(minuteur);
         var b = document.querySelector('.loue-brouillon:not(.loue-maj)'); if (b) b.remove();   // pas le bandeau « Nouvelle version »
-        return mettreDeCote().then(function () { enAttente = null; return effacerCourant(); });
+        // La fiche est à l'abri dans la file : son brouillon ne doit plus être proposé, même si la mémoire tarde
+        var marque = Date.now();
+        try { localStorage.setItem(cleEnvoye, String(marque)); } catch (e) {}
+        var fin = mettreDeCote().then(function () { return effacerCourant(marque); })
+          .then(function () { if (marqueEnvoye() === marque) { try { localStorage.removeItem(cleEnvoye); } catch (e) {} } });
+        enAttente = null;
+        // Mémoire lente (autre fenêtre figée) : la page n'attend pas plus de 3 s
+        var minuteur3 = null;
+        return Promise.race([fin, new Promise(function (ok) {
+          minuteur3 = setTimeout(function () { if (LOUE.noterIncident) LOUE.noterIncident('Effacement du brouillon lent (plus de 3 s)'); ok(); }, 3000);
+        })]).then(function () { clearTimeout(minuteur3); });
       },
       reprendre: function () { actif = true; deCote = false; derniere = empreinte(etat()); },
     };
