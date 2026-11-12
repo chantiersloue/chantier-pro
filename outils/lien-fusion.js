@@ -29,12 +29,17 @@ function brancheSure(b) {
   if (!/^[A-Za-z0-9._\/-]+$/.test(b) || /\.\./.test(b) || /^[\/-]/.test(b)) throw new Error('Nom de branche refusé : ' + b);
   return b;
 }
+// Comme encodeURIComponent, plus les signes ! ' ( ) * : une parenthèse ou une apostrophe dans l'adresse
+// la couperait dès qu'on la colle dans un message ou un document
+function coder(t) {
+  return encodeURIComponent(t).replace(/[!'()*]/g, c => '%' + c.charCodeAt(0).toString(16).toUpperCase());
+}
 function construireLien(o) {
   if (!o.titre || !String(o.titre).trim()) throw new Error('Il faut un titre (--titre "…")');
   const base = brancheSure(o.base || 'main'), branche = brancheSure(o.branche);
   const lien = 'https://github.com/' + o.depot + '/compare/' + base + '...' + branche
-    + '?quick_pull=1&title=' + encodeURIComponent(String(o.titre).trim())
-    + '&body=' + encodeURIComponent(String(o.corps || '').trim());
+    + '?quick_pull=1&title=' + coder(String(o.titre).trim())
+    + '&body=' + coder(String(o.corps || '').trim());
   if (lien.length > LONGUEUR_MAX) throw new Error('Lien trop long (' + lien.length + ' caractères, ' + LONGUEUR_MAX + ' au plus) : raccourcir --texte');
   return lien;
 }
