@@ -80,7 +80,8 @@ function controlerDossier(dossier, cible, racine) {
 }
 
 // Les fichiers qui composent le site : pages, manifeste, images et sw.js à la racine, plus commun/ et modeles/
-const estPublie = f => /^[^/]+\.(html|json|png)$/.test(f) || f === 'sw.js' || /^(commun|modeles)\//.test(f);
+// (jamais un fichier dont le nom commence par un point : .clasprc.json, .clasp.json…)
+const estPublie = f => /^[^/.][^/]*\.(html|json|png)$/.test(f) || f === 'sw.js' || /^(commun|modeles)\/(?!\.)/.test(f);
 function fichiersSuivis(racine) {
   return execFileSync('git', ['-C', racine, 'ls-files', '-z'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], maxBuffer: 64 * 1024 * 1024 })
     .split('\0').filter(Boolean);
