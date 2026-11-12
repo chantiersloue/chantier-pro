@@ -114,14 +114,14 @@ test('porte : preparerComptes crée les trois comptes d’essai une seule fois, 
   const g = serveurLot2(), avant = JSON.stringify(U(g)[1]);
   const r = geste(g, 'preparerComptes');
   assert.ok(r.ok, JSON.stringify(r));
-  assert.deepStrictEqual(Array.from(r.data.crees), ['auto-poseur', 'auto-conducteur', 'auto-admin']);
+  assert.deepStrictEqual(Array.from(r.data.crees), ['auto-poseur', 'auto-conducteur', 'auto-admin', 'auto-atelier']);
   assert.strictEqual(JSON.stringify(U(g)[1]), avant, 'la ligne du vrai compte de TEST n’est pas modifiée');
   const lignes = U(g).filter(l => /^auto-/.test(String(l[0])));
-  assert.deepStrictEqual(lignes.map(l => [l[0], l[2], l[3]]), [['auto-poseur', 'Poseur', false], ['auto-conducteur', 'Conducteur', false], ['auto-admin', 'Admin', false]], 'créés désactivés');
-  assert.deepStrictEqual([3, 4, 5].map(n => U(g)[n - 1][0]), ['auto-poseur', 'auto-conducteur', 'auto-admin'], 'juste sous les comptes existants, là où il y a des cases à cocher');
+  assert.deepStrictEqual(lignes.map(l => [l[0], l[2], l[3]]), [['auto-poseur', 'Poseur', false], ['auto-conducteur', 'Conducteur', false], ['auto-admin', 'Admin', false], ['auto-atelier', 'Atelier', false]], 'créés désactivés');
+  assert.deepStrictEqual([3, 4, 5, 6].map(n => U(g)[n - 1][0]), ['auto-poseur', 'auto-conducteur', 'auto-admin', 'auto-atelier'], 'juste sous les comptes existants, là où il y a des cases à cocher');
   const r2 = geste(g, 'preparerComptes');
-  assert.deepStrictEqual([Array.from(r2.data.crees), Array.from(r2.data.dejaPresents).length], [[], 3]);
-  assert.strictEqual(U(g).filter(l => /^auto-/.test(String(l[0]))).length, 3, 'pas de doublon');
+  assert.deepStrictEqual([Array.from(r2.data.crees), Array.from(r2.data.dejaPresents).length], [[], 4]);
+  assert.strictEqual(U(g).filter(l => /^auto-/.test(String(l[0]))).length, 4, 'pas de doublon');
 });
 test('porte : session d’essai — le jeton marche sur ce serveur, puis fermerSessions l’annule', () => {
   const g = serveurLot2(); geste(g, 'preparerComptes');
@@ -133,7 +133,7 @@ test('porte : session d’essai — le jeton marche sur ce serveur, puis fermerS
   assert.ok(poster(g, { action: 'moi', v: 5, jeton: s1.data.jeton }).ok);
   assert.strictEqual(geste(g, 'lireCompte', { id: 'auto-admin' }).data.actif, true, 'le compte est activé le temps de la session');
   const f1 = geste(g, 'fermerSessions');
-  assert.deepStrictEqual(Array.from(f1.data.comptes), ['auto-poseur', 'auto-conducteur', 'auto-admin']);
+  assert.deepStrictEqual(Array.from(f1.data.comptes), ['auto-poseur', 'auto-conducteur', 'auto-admin', 'auto-atelier']);
   assert.strictEqual(poster(g, { action: 'moi', v: 5, jeton: s1.data.jeton }).code, 'JETON_INVALIDE');
   assert.strictEqual(geste(g, 'lireCompte', { id: 'auto-admin' }).data.actif, false, 'puis désactivé');
   // sans compte créé, fermerSessions n'écrit rien
@@ -278,7 +278,7 @@ test('porte : une ligne tapée à la main qui ressemble à un compte d’essai n
   assert.ok(!geste(g, 'session', { id: 'auto-admin' }).ok);
   // un compte non conforme n'empêche pas de fermer les sessions des autres ; l'échec est dit
   const fs1 = geste(g, 'fermerSessions');
-  assert.ok(!fs1.ok && /sessions fermées pour auto-poseur, auto-conducteur ; échec pour auto-admin/.test(fs1.message), JSON.stringify(fs1));
+  assert.ok(!fs1.ok && /sessions fermées pour auto-poseur, auto-conducteur, auto-atelier ; échec pour auto-admin/.test(fs1.message), JSON.stringify(fs1));
   assert.deepStrictEqual(['auto-poseur', 'auto-conducteur'].map(id => geste(g, 'lireCompte', { id: id }).data.actif), [false, false]);
   // mémoire de transition dans un ancien format : rétablie sans erreur
   const h = serveurLot2();
@@ -287,12 +287,41 @@ test('porte : une ligne tapée à la main qui ressemble à un compte d’essai n
   h.proprietes.OUTIL_TEST_FIN_AVANT = '1794933622155'; h.proprietes.FIN_TRANSITION = '1';
   assert.ok(geste(h, 'retablirTransition').ok && h.proprietes.FIN_TRANSITION === '1794933622155');
 });
+test('porte, lot 7 : installation, lecture des signalements sans texte saisi, destinataires d’un essai sans aucune adresse', () => {
+  const g = serveurLot2();
+  g.feuilles['Contacts'].lignes.push(['Vrai Chef', 'Chef atelier', 'vrai.chef@loue.test', 'N', 'N', 'N', 'O', 'N']);
+  const i = geste(g, 'installerLot7');
+  assert.ok(i.ok && /Lot 7 — installation — environnement : TEST/.test(i.message) && /installation terminée/.test(i.message), i.message);
+  assert.ok(g.feuilles['Signalements'], 'onglet créé');
+  assert.ok(geste(g, 'installerLot7').ok, 'relançable');
+  // un signalement envoyé par un compte d'essai, puis lu par la porte
+  geste(g, 'preparerComptes'); geste(g, 'preparerChantier');
+  const jeton = geste(g, 'session', { id: 'auto-poseur' }).data.jeton;
+  const r = poster(g, { action: 'fiche', id: 'fiche-auto-porte-0001', jeton: jeton, donnees: { type: 'signalement', chantier: 'CHANTIER TEST AUTO', date: '12/11/2026', heure: '10h00',
+    type_signalement: 'Casse', urgence: 'Pas urgent', repere: 'REPÈRE SECRET', commentaire: 'COMMENTAIRE SECRET', atelier: false, photosBase64: [] } });
+  assert.ok(r.ok, JSON.stringify(r));
+  const l = geste(g, 'lireSignalements', { n: 1 });
+  assert.deepStrictEqual(Array.from(l.data.lignes[0]), ['Numéro', 'Reçu le', 'Auteur (identifiant)', 'Type', 'Urgence', 'Photos', 'Atelier prévenu', 'Statut', 'Mail à la réception']);
+  const ligne = Array.from(l.data.lignes[1]);
+  assert.deepStrictEqual([ligne[0], ligne[2], ligne[3], ligne[4], ligne[6], ligne[7], ligne[8]], ['fiche-auto-porte-0001', 'auto-poseur', 'Casse', 'Pas urgent', 'Non', 'À traiter', 'envoyé']);
+  assert.ok(!/SECRET|CHANTIER TEST AUTO|AUTO Poseur/.test(JSON.stringify(l)), 'ni texte saisi, ni chantier, ni nom dans la réponse');
+  // destinataires : la copie TEST a un « vrai » chef d'atelier → l'essai avec atelier ne doit pas être joué
+  const d = geste(g, 'destinatairesEssai');
+  assert.deepStrictEqual([d.data.chefsAtelier, d.data.chefsAtelierSontFranck, d.data.conducteurChantierEssai, d.data.chantierEssaiPresent], [1, false, 'aucun (le mail part à Franck)', true]);
+  assert.ok(!/@/.test(JSON.stringify(d)), 'aucune adresse dans la réponse');
+  g.feuilles['Contacts'].lignes.pop();
+  g.feuilles['Contacts'].lignes.push(['Franck', 'Chef atelier (essai)', 'FRANCK@loue.test', 'N', 'N', 'N', 'O', 'N']);
+  assert.strictEqual(geste(g, 'destinatairesEssai').data.chefsAtelierSontFranck, true, 'le chef d’atelier de TEST porte l’adresse de Franck : essai possible');
+  g.feuilles['Contacts'].lignes.pop();
+  assert.deepStrictEqual([geste(g, 'destinatairesEssai').data.chefsAtelier, geste(g, 'destinatairesEssai').data.chefsAtelierSontFranck], [0, false]);
+});
 test('porte complète hors de TEST : tous les gestes sont refusés, rien n’est écrit', () => {
   const g = serveurLot2();
   g.proprietes.ENVIRONNEMENT = '';   // même projet, mais plus « TEST » : environnement incohérent
   const avant = JSON.stringify([U(g), g.proprietes, g.declencheurs]);
   ['etat', 'preparerComptes', 'session', 'fermerSessions', 'cocher', 'poserDeclencheurs', 'retirerDeclencheurs', 'traiterComptes', 'finirTransition', 'prolongerTransition',
-    'lireEnvois', 'lireBilan', 'lireChantiers', 'lireCompte', 'controlerLot2', 'essaiDeclencheur', 'retablirTransition', 'preparerChantier'].forEach(nom =>
+    'lireEnvois', 'lireBilan', 'lireChantiers', 'lireCompte', 'controlerLot2', 'essaiDeclencheur', 'retablirTransition', 'preparerChantier',
+    'installerLot7', 'lireSignalements', 'destinatairesEssai'].forEach(nom =>
     assert.deepStrictEqual(geste(g, nom, { id: 'auto-admin', case: 'actif', valeur: true }), { ok: false, code: 'REFUSE', message: 'Refusé' }, nom));
   assert.strictEqual(JSON.stringify([U(g), g.proprietes, g.declencheurs]), avant);
 });

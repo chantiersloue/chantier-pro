@@ -14,7 +14,7 @@
 // Tout autre appel reçoit la même réponse « Refusé », sans détail (même si une erreur survient avant le contrôle de la clé).
 //
 // Règles des gestes :
-//   - ils n'écrivent que sur TROIS COMPTES D'ESSAI FIXES (auto-poseur, auto-conducteur, auto-admin), un chantier
+//   - ils n'écrivent que sur QUATRE COMPTES D'ESSAI FIXES (auto-poseur, auto-conducteur, auto-admin, auto-atelier), un chantier
 //     d'essai (« CHANTIER TEST AUTO ») et les réglages d'essai de TEST (déclencheurs, transition) ;
 //   - un geste qui n'a pas eu son effet répond ok:false (jamais « fait » à tort) ;
 //   - ce qui est changé pour un essai peut être remis : la transition d'origine est mémorisée (retablirTransition),
@@ -23,7 +23,7 @@
 //   - aucun geste ne touche à Drive : avant d'en ajouter un, refuser aussi si le dossier racine ne s'appelle pas « … TEST … ».
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 const OUTIL_TEST_CLE_MIN = 32;
-const OUTIL_TEST_COMPTES = { 'auto-poseur': 'Poseur', 'auto-conducteur': 'Conducteur', 'auto-admin': 'Admin' };
+const OUTIL_TEST_COMPTES = { 'auto-poseur': 'Poseur', 'auto-conducteur': 'Conducteur', 'auto-admin': 'Admin', 'auto-atelier': 'Atelier' };
 const OUTIL_TEST_CASES = { reinit: 'reinit', deconnecter: 'deconnecter', actif: 'actif' };   // nom reçu → colonne de COL_U
 const OUTIL_TEST_CHANTIER = 'CHANTIER TEST AUTO';
 const OUTIL_TEST_RETRAIT_AUTO_H = 2;
@@ -55,9 +55,14 @@ function outilTest_(corps) {
       case 'lireChantiers': { const noms = lignesChantiers_().map(r => String(r[0]).trim());
         return ok('Chantiers de la copie TEST', { nombre: noms.length, chantierEssai: OUTIL_TEST_CHANTIER, chantierEssaiPresent: noms.indexOf(OUTIL_TEST_CHANTIER) > -1 }); }
       case 'lireCompte':    return ok('Compte d’essai', outilTestLireCompte_(outilTestIdFixe_(corps.id)));
+      // Lot 7 : numéro, reçu le, auteur (identifiant), type, urgence, photos, atelier, statut, mail — ni chantier, ni nom, ni texte saisi
+      case 'lireSignalements': return ok('Dernières lignes de l’onglet Signalements', { lignes: outilTestDernieresLignes_(SHEET_SIGNALEMENTS, corps.n,
+        [COL_S.id, COL_S.recu, COL_S.auteurId, COL_S.type, COL_S.urgence, COL_S.photos, COL_S.atelier, COL_S.statut, COL_S.mail]) });
+      case 'destinatairesEssai': return ok('À qui partiraient les mails d’un essai (aucune adresse n’est donnée)', outilTestDestinataires_());
 
       // ── Lancer (fonctions existantes, sans paramètre) : ok seulement si l'effet est constaté ──
       case 'controlerLot2':        return ok(controlerInstallationLot2());
+      case 'installerLot7': { const m = installerLot7Test(); if (!/installation terminée/.test(m)) throw new Error('installation du lot 7 non terminée : ' + m); return ok(m); }
       case 'poserDeclencheurs':    return ok(outilTestPoserDeclencheurs_());
       case 'retirerDeclencheurs':  return ok(outilTestRetirerDeclencheurs_());
       case 'traiterComptes': { const r = traiterComptes(); if (r !== 'ok') throw new Error('traiterComptes n’a pas tourné : ' + r); return ok('traiterComptes : fait'); }
@@ -106,6 +111,22 @@ function outilTestLigne_(id, facultative) {
   if (!l) { if (facultative) return null; throw new Error('compte d’essai absent : geste preparerComptes d’abord'); }
   if (u.doublons[id] || l.brut !== id || l.role !== OUTIL_TEST_COMPTES[id]) throw new Error('la ligne « ' + id + ' » de l’onglet Utilisateurs n’est pas un compte d’essai conforme (identifiant, rôle ou doublon) : refusé');
   return { u: u, l: l };
+}
+// Avant un essai qui envoie des mails ou range un PDF : à qui cela irait-il ? Répond sans donner aucune adresse.
+// Sur une copie du vrai Sheet, le chef d'atelier ou le conducteur pourraient être de vraies personnes.
+function outilTestDestinataires_() {
+  const admin = String(emailAdmin_() || '').toLowerCase();
+  const chefs = chefsAtelier_().map(a => a.toLowerCase());
+  const conducteur = String(emailConducteurChantier_(OUTIL_TEST_CHANTIER) || '').toLowerCase();
+  let racine = '';
+  try { racine = DriveApp.getFolderById(driveRootId_()).getName(); } catch (e) {}
+  return {
+    chefsAtelier: chefs.length,
+    chefsAtelierSontFranck: chefs.length > 0 && chefs.every(a => a === admin),      // tous les chefs d'atelier ont l'adresse de l'admin
+    conducteurChantierEssai: !conducteur ? 'aucun (le mail part à Franck)' : conducteur === admin ? 'Franck' : 'AUTRE PERSONNE',
+    racineDriveNommeeTest: /TEST/i.test(racine),                                    // le PDF sera rangé dans le Drive de TEST
+    chantierEssaiPresent: lignesChantiers_().some(r => String(r[0]).trim() === OUTIL_TEST_CHANTIER),
+  };
 }
 // Les n dernières lignes d'un onglet (20 au plus), telles qu'affichées, titres en premier ; seulement les colonnes demandées
 function outilTestDernieresLignes_(nomOnglet, n, colonnes) {
