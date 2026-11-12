@@ -171,7 +171,8 @@ test('données invalides : refus DÉFINITIF avant tout (ni ligne dans Envois, ni
     { repere: '', commentaire: '', photosBase64: ['abc', null, 42] }, { photosBase64: [null] }, { photosBase64: [['photo-lot7-cccc0001']] },
     { photosBase64: [{ data: '/9j/4AAQSkZJRg==', mimeType: 'image/jpeg' }] }, { photosBase64: [{ photoRef: 'photo-lot7-cccc0001', data: '/9j/4AAQSkZJRg==' }] },
     { photosBase64: [{ photoRef: '../x' }] }, { photosBase64: [{ photoRef: 'photo-lot7-cccc0001', label: 'l'.repeat(81) }] }, { photosBase64: [{ photoRef: 'photo-lot7-cccc0001', label: 7 }] },
-    { chantier: 'CHANTIER TEST 1\nBcc: x@y.fr' }, { chantier: 'CHANTIER\tTEST' }, { repere: 'P12\r\nSubject: x' }, { commentaire: 'a\u0000b' }].forEach(extra => {
+    { chantier: 'CHANTIER TEST 1\nBcc: x@y.fr' }, { chantier: 'CHANTIER\tTEST' }, { repere: 'P12\r\nSubject: x' }, { commentaire: 'a\u0000b' },
+    { chantier: 'CHANTIER\u0085TEST' }, { repere: 'P12\u2028Bcc: x' }, { repere: 'P12\u2029x' }, { commentaire: 'a\u2028b' }].forEach(extra => {
     const r = envoyer(g, 'thomas27', sig(extra));
     assert.deepStrictEqual([r.ok, r.code], [false, 'DONNEES_INVALIDES'], JSON.stringify(extra) + ' → ' + JSON.stringify(r));
   });

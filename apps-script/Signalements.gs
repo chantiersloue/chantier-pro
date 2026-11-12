@@ -27,7 +27,8 @@ const COL_S = { id: 1, recu: 2, chantier: 3, auteurId: 4, auteur: 5, type: 6, ur
 function validerSignalement_(d, photosJointes) {
   d = d || {};
   const texte = v => (typeof v === 'string' ? v.trim() : '');
-  const CONTROLE = /[\u0000-\u001f\u007f]/, CONTROLE_SAUF_LIGNES = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/;
+  // Caractères de contrôle et séparateurs de ligne Unicode (la page les remplace par une espace avant l'envoi)
+  const CONTROLE = /[\u0000-\u001f\u007f-\u009f\u2028\u2029]/, CONTROLE_SAUF_LIGNES = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f-\u009f\u2028\u2029]/;
   if (typeof d.date !== 'string' || !/^\d{2}\/\d{2}\/\d{4}$/.test(d.date)) return 'Date invalide';
   if (typeof d.heure !== 'string' || !/^\d{2}h\d{2}$/.test(d.heure)) return 'Heure invalide';
   if (SIG_TYPES.indexOf(d.type_signalement) < 0) return 'Type de signalement inconnu';

@@ -195,14 +195,18 @@ majLienSuivi();
 function donneesFiche() {
   if (!saisiLe) saisiLe = Date.now();
   const now = new Date(saisiLe), p = n => String(n).padStart(2, '0');
+  // Une tabulation ou un caractère invisible collé depuis un tableur devient une espace : le serveur les refuse
+  // (un retour à la ligne dans le chantier ou le repère n'a rien à faire dans le sujet d'un mail)
+  const net = t => String(t || '').replace(/[\u0000-\u001f\u007f-\u009f\u2028\u2029]+/g, ' ').trim();
+  const netCommentaire = t => String(t || '').replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f-\u009f\u2028\u2029]+/g, ' ').trim();
   return {
-    chantier: champ('meta-chantier').value.trim(),
+    chantier: net(champ('meta-chantier').value),
     date: p(now.getDate()) + '/' + p(now.getMonth() + 1) + '/' + now.getFullYear(),   // moment de la saisie (l'envoi peut avoir lieu des heures après)
     heure: p(now.getHours()) + 'h' + p(now.getMinutes()),
     type_signalement: choisi('type'), urgence: choisi('urgence'),
-    repere: champ('meta-repere').value.trim(), commentaire: champ('meta-commentaire').value.trim(),
+    repere: net(champ('meta-repere').value), commentaire: netCommentaire(champ('meta-commentaire').value),
     atelier: champ('atelier').checked,
-    photosBase64: photos.map(p2 => ({ photoRef: p2.id, label: p2.label })),
+    photosBase64: photos.map(p2 => ({ photoRef: p2.id, label: net(p2.label).slice(0, 80) })),
   };
 }
 
