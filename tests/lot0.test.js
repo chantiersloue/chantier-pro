@@ -32,7 +32,8 @@ function environnement(options = {}) {
 function poster(g, payload) {
   return JSON.parse(g.ctx.doPost({ postData: { contents: JSON.stringify(payload) } }).contenu);
 }
-const destinatairesDe = g => g.mails.map(m => m.to).sort();
+// Lot 2 : l'alerte à Franck « Document à classer » (chantier inconnu → _À CLASSER) n'est pas un destinataire de la fiche
+const destinatairesDe = g => g.mails.filter(m => !/^\[Loué App\] Document à classer/.test(m.sujet)).map(m => m.to).sort();
 const journal = g => (g.feuilles['Journal'] ? g.feuilles['Journal'].lignes.slice(1) : []);
 const pdfHtml = g => g.mails.length ? g.mails[0].opts.attachments[0].contenu : '';
 
@@ -268,7 +269,7 @@ console.log('Lot 0 — consultation et partages Drive');
 
 test('doGet : version, callback JSONP contrôlé', () => {
   const g = environnement();
-  assert.strictEqual(g.ctx.doGet({ parameter: {} }).contenu, 'Loué App API v5.1 OK');
+  assert.strictEqual(g.ctx.doGet({ parameter: {} }).contenu, 'Loué App API v6.0.1 OK');
   const r = g.ctx.doGet({ parameter: { action: 'getContacts', callback: 'alert(1);x' } });
   assert.ok(r.contenu.charAt(0) === '{', 'callback invalide ignoré : JSON simple');
 });
@@ -331,7 +332,9 @@ test('installerDeclencheurs + verifierConfig', () => {
   const g = environnement();
   g.ctx.installerDeclencheurs();
   g.ctx.installerDeclencheurs();
-  assert.deepStrictEqual(g.declencheurs, ['renvoyerMailsEnAttente']);
+  assert.deepStrictEqual(g.declencheurs, ['renvoyerMailsEnAttente', 'traiterComptes', 'surModificationSheet']);   // lot 2 : 3 déclencheurs
+  assert.ok(g.ctx.verifierConfig().indexOf('❌ Clé des jetons') > -1, 'lot 2 pas mis en place : signalé');
+  g.ctx.genererCle(); g.ctx.preparerOngletsLot2();
   const rapport = g.ctx.verifierConfig();
   assert.ok(rapport.indexOf('❌') < 0, rapport);
 });

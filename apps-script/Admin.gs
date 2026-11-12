@@ -75,13 +75,30 @@ function renvoyerMailsEnAttente() {
   }
 }
 
-// À lancer UNE fois après le déploiement : programme renvoyerMailsEnAttente toutes les 2 h
+// À lancer après le déploiement (le relancer ne crée pas de doublon : chaque déclencheur est supprimé puis recréé)
+//  - renvoyerMailsEnAttente toutes les 2 h (lot 0)
+//  - traiterComptes toutes les 10 min, et surModificationSheet à chaque modification du Sheet (lot 2 : cases
+//    « Réinitialiser » et « Déconnecter », onglet « Accès chantiers »)
+const DECLENCHEURS = ['renvoyerMailsEnAttente', 'traiterComptes', 'surModificationSheet'];
 function installerDeclencheurs() {
   ScriptApp.getProjectTriggers()
-    .filter(t => t.getHandlerFunction() === 'renvoyerMailsEnAttente')
+    .filter(t => DECLENCHEURS.indexOf(t.getHandlerFunction()) > -1)
     .forEach(t => ScriptApp.deleteTrigger(t));
   ScriptApp.newTrigger('renvoyerMailsEnAttente').timeBased().everyHours(2).create();
-  Logger.log('Déclencheur installé : renvoyerMailsEnAttente toutes les 2 heures.');
+  ScriptApp.newTrigger('traiterComptes').timeBased().everyMinutes(10).create();
+  ScriptApp.newTrigger('surModificationSheet').forSpreadsheet(SpreadsheetApp.getActiveSpreadsheet()).onEdit().create();
+  const m = 'Déclencheurs installés : renvoyerMailsEnAttente (2 h), traiterComptes (10 min), surModificationSheet (à chaque modification).';
+  Logger.log(m); return m;
+}
+
+// Retire les 3 déclencheurs (à lancer sur la copie TEST après les essais : les 90 min de déclencheurs par jour
+// sont partagées par tout le compte Google, production comprise)
+function retirerDeclencheurs() {
+  let n = 0;
+  ScriptApp.getProjectTriggers().filter(t => DECLENCHEURS.indexOf(t.getHandlerFunction()) > -1)
+    .forEach(t => { ScriptApp.deleteTrigger(t); n++; });
+  const m = n + ' déclencheur(s) retiré(s). (installerDeclencheurs pour les remettre.)';
+  Logger.log(m); return m;
 }
 
 // À lancer après chaque modification des Propriétés du script : vérifie que tout est en place
@@ -101,8 +118,9 @@ function verifierConfig() {
     feuille_(SHEET_MAT_BORDEREAU, ['Type', 'Matériau', 'Quantité']);
     lignes.push('✅ Onglet « ' + SHEET_MAT_BORDEREAU + ' » créé (vide) : une ligne par matériau — A le type, B le matériau, C la quantité');
   } else ok(true, 'Onglet « ' + SHEET_MAT_BORDEREAU + ' »');
-  ok(ScriptApp.getProjectTriggers().some(t => t.getHandlerFunction() === 'renvoyerMailsEnAttente'),
-     'Déclencheur des mails reportés (sinon lancer installerDeclencheurs)');
+  const presents = ScriptApp.getProjectTriggers().map(t => t.getHandlerFunction());
+  DECLENCHEURS.forEach(d => ok(presents.indexOf(d) > -1, 'Déclencheur ' + d + ' (sinon lancer installerDeclencheurs)'));
+  lignes.push(verifierComptes_());    // lot 2 : comptes, clé, partage du Sheet, transition
   lignes.push("Mails encore possibles aujourd'hui : " + MailApp.getRemainingDailyQuota());
   Logger.log(lignes.join('\n'));
   return lignes.join('\n');

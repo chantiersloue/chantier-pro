@@ -320,6 +320,10 @@ function alerte_(texte, sorte) {
       photos : "[Loué App] Trop de photos aujourd'hui",
       dossiers : '[Loué App] dossiers.json illisible',
       rangement: '[Loué App] Document non rangé dans Drive',
+      aclasser : '[Loué App] Document à classer (chantier inconnu)',
+      connexions: '[Loué App] Beaucoup de connexions ratées',
+      transition: '[Loué App] Fin de la période sans compte dans 3 jours',
+      demarrage : '[Loué App] Période de transition pas démarrée',
     }[sorte] || "[Loué App] Envoi refusé — voir l'onglet Journal";
     GmailApp.sendEmail(emailAdmin_(), sujet,
       texte + "\n\nLes cas suivants de la journée sont notés dans l'onglet « Journal » du Sheet, sans autre mail.\n\nLoué App",

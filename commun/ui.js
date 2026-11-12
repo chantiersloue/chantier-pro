@@ -101,6 +101,58 @@
     document.body.appendChild(f);
   }
 
+  // ── Connexion SANS quitter la page (envoi direct : le téléphone n'a pas pu garder la fiche, la quitter la perdrait) ──
+  // Renvoie une promesse : true si la personne est connectée, false si elle a annulé.
+  LOUE.demanderConnexion = function (raison) {
+    return new Promise(function (fini) {
+      var ancien = document.getElementById('loue-connexion'); if (ancien) ancien.remove();
+      var f = document.createElement('div'); f.id = 'loue-connexion'; f.className = 'loue-file';
+      var champ = 'style="display:block;width:100%;box-sizing:border-box;padding:12px;font-size:16px;margin:6px 0;border:1px solid #bbb;border-radius:8px"';
+      f.innerHTML = '<div class="loue-file-tete"><b>Connexion</b></div>'
+        + '<p data-raison style="margin:8px 0"></p>'
+        + '<div data-etape1><input data-id ' + champ + ' placeholder="Identifiant" autocomplete="username" autocapitalize="none">'
+        + '<input data-mdp type="password" ' + champ + ' placeholder="Mot de passe" autocomplete="current-password"></div>'
+        + '<div data-etape2 hidden><p style="margin:8px 0">Mot de passe provisoire : choisissez le vôtre (8 caractères au moins).</p>'
+        + '<input data-n1 type="password" ' + champ + ' placeholder="Nouveau mot de passe" autocomplete="new-password">'
+        + '<input data-n2 type="password" ' + champ + ' placeholder="Le même, une 2e fois" autocomplete="new-password"></div>'
+        + '<p data-erreur style="color:#B32E2E;margin:6px 0"></p>'
+        + '<button type="button" class="loue-btn" data-ok>Se connecter et envoyer</button> '
+        + '<button type="button" data-annuler>Annuler</button>';
+      var $ = function (s) { return f.querySelector('[' + s + ']'); };
+      $('data-raison').textContent = raison || 'Connectez-vous ici, sans quitter la page : la fiche partira juste après.';
+      $('data-id').value = LOUE.dernierIdentifiant ? LOUE.dernierIdentifiant() : '';
+      var provisoire = null;
+      var fermer = function (ok) { f.remove(); fini(ok); };
+      $('data-annuler').onclick = function () { fermer(false); };
+      $('data-ok').onclick = function () {
+        var id = $('data-id').value.trim().toLowerCase(), b = $('data-ok');
+        var erreur = function (t) { $('data-erreur').textContent = t; };
+        var apres = function (rep) {
+          if (rep.ok) { fermer(true); return; }
+          if (rep.code === 'NOUVEAU_MDP') { provisoire = $('data-mdp').value; $('data-etape1').hidden = true; $('data-etape2').hidden = false; erreur(''); return; }
+          erreur(rep.message || 'Connexion refusée.');
+        };
+        b.disabled = true;
+        var envoi;
+        if (provisoire === null) {
+          if (!id || !$('data-mdp').value) { erreur('Tapez votre identifiant et votre mot de passe.'); b.disabled = false; return; }
+          envoi = LOUE.connexion(id, $('data-mdp').value);
+        } else {
+          var n1 = $('data-n1').value;
+          if (n1.length < 8) { erreur('Le mot de passe doit faire au moins 8 caractères.'); b.disabled = false; return; }
+          if (n1 !== $('data-n2').value) { erreur('Les deux mots de passe ne sont pas pareils.'); b.disabled = false; return; }
+          envoi = LOUE.changerMotDePasse(id, provisoire, n1);
+        }
+        envoi.then(apres).catch(function () { erreur('Pas de réseau : réessayez quand le téléphone capte (gardez la page ouverte).'); })
+          .then(function () { b.disabled = false; });
+      };
+      // Touche « OK » / « Entrée » du clavier du téléphone : comme le bouton
+      f.addEventListener('keydown', function (e) { if (e.key === 'Enter' && e.target.tagName === 'INPUT') { e.preventDefault(); $('data-ok').click(); } });
+      document.body.appendChild(f);
+      ($('data-id').value ? $('data-mdp') : $('data-id')).focus();
+    });
+  };
+
   if (LOUE.surEvenement) {
     LOUE.surEvenement(function (ev) {
       if (ev.type === 'file') majIndicateur(ev.liste);

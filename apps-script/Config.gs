@@ -3,7 +3,7 @@
 // Loué Menuiserie
 // ═══════════════════════════════════════════════════════════════
 
-const VERSION_API = 'v5.1';
+const VERSION_API = 'v6.0.1';   // lot 2 (comptes) ; 6.0.1 : état « bloqué » écrit tout de suite
 
 // ── CONFIGURATION ──
 const SHEET_CONTACTS      = 'Contacts';

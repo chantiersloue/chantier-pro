@@ -9,8 +9,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Loué App">
 <meta name="theme-color" content="#1A2B4A">
-<link rel="stylesheet" href="commun/style.css?v=e25b306a74">
-<link rel="stylesheet" href="commun/fiche.css?v=e25b306a74">
+<link rel="stylesheet" href="commun/style.css?v=bd3bcefc4a">
+<link rel="stylesheet" href="commun/fiche.css?v=bd3bcefc4a">
 </head>
 <body>
 
@@ -137,17 +137,17 @@
   </div>
 </div>
 
-<script src="commun/config.js?v=e25b306a74"></script>
-<script src="commun/api.js?v=e25b306a74"></script>
-<script src="commun/ui.js?v=e25b306a74"></script>
-<script src="commun/photos.js?v=e25b306a74"></script>
-<script src="commun/signature.js?v=e25b306a74"></script>
-<script src="commun/brouillon.js?v=e25b306a74"></script>
-<script src="commun/hors-ligne.js?v=e25b306a74"></script>
-<script src="commun/adresses.js?v=e25b306a74"></script>
-<script src="commun/destinataires.js?v=e25b306a74"></script>
-<script src="modeles/mise-en-page.js?v=e25b306a74"></script>
-<script src="modeles/quitus.js?v=e25b306a74"></script>
+<script src="commun/config.js?v=bd3bcefc4a"></script>
+<script src="commun/api.js?v=bd3bcefc4a"></script>
+<script src="commun/ui.js?v=bd3bcefc4a"></script>
+<script src="commun/photos.js?v=bd3bcefc4a"></script>
+<script src="commun/signature.js?v=bd3bcefc4a"></script>
+<script src="commun/brouillon.js?v=bd3bcefc4a"></script>
+<script src="commun/hors-ligne.js?v=bd3bcefc4a"></script>
+<script src="commun/adresses.js?v=bd3bcefc4a"></script>
+<script src="commun/destinataires.js?v=bd3bcefc4a"></script>
+<script src="modeles/mise-en-page.js?v=bd3bcefc4a"></script>
+<script src="modeles/quitus.js?v=bd3bcefc4a"></script>
 <script>
 'use strict';
 // ── État de la fiche ──
@@ -170,7 +170,7 @@ dateHeure();
 // ── Listes (chantiers, contacts) : réseau, sinon dernière liste gardée dans le téléphone ──
 let listesDuTelephone = false;
 const listesPretes = LOUE.chargerListes().then(r => {
-  listesDuTelephone = !!r.depuisLeTelephone;
+  listesDuTelephone = !!r.depuisLeTelephone || !!r.partiel;   // lot 2 : liste ancienne, ou limitée à « mes chantiers » → on demande confirmation
   LISTES = Object.assign(LISTES, r.donnees || {});
   document.getElementById('liste-chantiers').innerHTML = (LISTES.chantiers || [])
     .map(c => '<option value="' + LOUE.esc(c.nom) + '">' + LOUE.esc(c.reference || '') + '</option>').join('');
@@ -218,7 +218,9 @@ function afficherPhotos() {
 }
 
 // ── Brouillon automatique : champs + destinataires + soldé + photos + signatures ──
+LOUE.preRemplirChantier('meta-chantier');   // lot 2 : chantier choisi à l'accueil (avant la photo de la page vierge)
 const BROUILLON = LOUE.brouillon({
+  champChantier: 'meta-chantier',
   cle: 'quitus',
   anciennesCles: ['brouillon_quitus'],
   capturer: () => ({
@@ -290,7 +292,7 @@ async function envoyer() {
   // Liste chargée : le chantier doit en faire partie (une faute de frappe créerait un nouveau dossier dans Drive)
   else if (listeChantiers.length && listeChantiers.indexOf(nomChantier.toLowerCase()) < 0) {
     // Liste ancienne gardée dans le téléphone : un chantier récent peut manquer → on demande confirmation
-    if (!(listesDuTelephone && confirm('« ' + nomChantier + ' » n’est pas dans la liste gardée dans le téléphone (pas de réseau). Envoyer quand même avec ce nom ?'))) {
+    if (!(listesDuTelephone && confirm(LOUE.questionHorsListe(nomChantier)))) {
       champ('meta-chantier').classList.add('error'); erreurs.push('choisissez le chantier dans la liste');
     }
   }
@@ -333,7 +335,7 @@ async function envoyer() {
       LOUE.message('✓ Quitus envoyé — ' + (rep.message || ''), 8000);
       viderFiche(); BROUILLON.reprendre();
     } catch (err2) {
-      LOUE.message(err2.stockageBloque ? '⚠ Le quitus n’est pas parti : ' + err2.message + '.' : err2.aConfirmer ? LOUE.MSG_DIRECT_A_CONFIRMER : '⚠ Le quitus n’est pas parti : ' + err2.message + '. Gardez la page ouverte et réessayez quand il y aura du réseau.', err2.stockageBloque ? 0 : 12000);
+      LOUE.message(err2.stockageBloque ? '⚠ Le quitus n’est pas parti : ' + err2.message + '.' : err2.aConfirmer ? LOUE.MSG_DIRECT_A_CONFIRMER : err2.connexion ? LOUE.MSG_DIRECT_CONNEXION : '⚠ Le quitus n’est pas parti : ' + err2.message + '. Gardez la page ouverte et réessayez quand il y aura du réseau.', err2.stockageBloque ? 0 : 12000);
     }
     bouton.disabled = false; bouton.textContent = 'Envoyer le quitus';
     envoiEnCours = false;

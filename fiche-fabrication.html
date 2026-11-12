@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="ChantierPro Fab">
 <meta name="theme-color" content="#1A2B4A">
-<link rel="stylesheet" href="commun/style.css?v=e25b306a74">
+<link rel="stylesheet" href="commun/style.css?v=bd3bcefc4a">
 <style>
 :root{--orange:#D95818;--orange-l:#F8ECE4;--orange-d:#AA4110;--bg:#F2F0EC;--card:#FFF;--text:#141210;--muted:#6A6460;--border:#D8D4CE;--border2:#B8B4AE;--blue:#1454A0;--blue-l:#DCE8F8;--blue-d:#0D3D7A;--green:#196B3B;--green-l:#E1F2E9;--amber:#9A5600;--amber-l:#FDF0D8;--red:#B32E2E;--red-l:#FAE8E8;--purple:#6B3FA0;--purple-l:#EDE8F8;--header-bg:#1A2B4A;--r:8px;--rl:12px;}
 *{margin:0;padding:0;box-sizing:border-box;}
@@ -491,14 +491,14 @@ input,select,textarea,[contenteditable="true"]{font-size:16px!important;}
   </div>
 </div>
 
-<script src="commun/config.js?v=e25b306a74"></script>
-<script src="commun/api.js?v=e25b306a74"></script>
-<script src="commun/ui.js?v=e25b306a74"></script>
-<script src="commun/photos.js?v=e25b306a74"></script>
-<script src="commun/brouillon.js?v=e25b306a74"></script>
-<script src="commun/hors-ligne.js?v=e25b306a74"></script>
-<script src="modeles/mise-en-page.js?v=e25b306a74"></script>
-<script src="modeles/fabrication.js?v=e25b306a74"></script>
+<script src="commun/config.js?v=bd3bcefc4a"></script>
+<script src="commun/api.js?v=bd3bcefc4a"></script>
+<script src="commun/ui.js?v=bd3bcefc4a"></script>
+<script src="commun/photos.js?v=bd3bcefc4a"></script>
+<script src="commun/brouillon.js?v=bd3bcefc4a"></script>
+<script src="commun/hors-ligne.js?v=bd3bcefc4a"></script>
+<script src="modeles/mise-en-page.js?v=bd3bcefc4a"></script>
+<script src="modeles/fabrication.js?v=bd3bcefc4a"></script>
 <script>
 'use strict';
 // Listes locales par défaut — enrichies depuis Google Sheets
@@ -525,7 +525,7 @@ function onChantierFabChange(val) {
 // ── Listes (chantiers, rédacteurs, conducteurs, matériaux…) : réseau, sinon dernière liste gardée dans le téléphone ──
 let listesDuTelephone = false;
 LOUE.chargerListes().then(r => {
-  listesDuTelephone = !!r.depuisLeTelephone;
+  listesDuTelephone = !!r.depuisLeTelephone || !!r.partiel;   // lot 2 : liste ancienne, ou limitée à « mes chantiers » → on demande confirmation
   const data = r.donnees || {};
   ALL_USERS = (data.contacts || []).map((c, i) => ({
     id: i + 1, name: c.nom, role: c.role || '',
@@ -1114,7 +1114,9 @@ function imprimer(enPdf) {
 }
 
 // ── Brouillon automatique : champs + délai + blocs (lignes, photos, croquis) ──
+LOUE.preRemplirChantier('meta-chantier');   // lot 2 : chantier choisi à l'accueil (avant la photo de la page vierge)
 const BROUILLON = LOUE.brouillon({
+  champChantier: 'meta-chantier',
   cle: 'fabrication',
   capturer: () => ({
     delaiType, blocCounter, rowCounter,
@@ -1182,7 +1184,7 @@ async function sendDoc() {
     b.scrollIntoView({ behavior: 'smooth', block: 'center' });
     return;
   }
-  if (chantierHorsListe && !confirm('« ' + nomChantier + ' » n’est pas dans la liste gardée dans le téléphone (pas de réseau). Envoyer quand même avec ce nom ?')) {
+  if (chantierHorsListe && !confirm(LOUE.questionHorsListe(nomChantier))) {
     ci.classList.add('field-error'); ci.focus();
     return;
   }
@@ -1214,7 +1216,7 @@ async function sendDoc() {
         LOUE.message('✓ Fiche de fabrication envoyée — ' + (rep.message || ''), 8000);
         viderFiche(); BROUILLON.reprendre();
       } catch (err2) {
-        LOUE.message(err2.stockageBloque ? '⚠ La fiche n’est pas partie : ' + err2.message + '.' : err2.aConfirmer ? LOUE.MSG_DIRECT_A_CONFIRMER : '⚠ La fiche n’est pas partie : ' + err2.message + '. Gardez la page ouverte et réessayez quand il y aura du réseau.', err2.stockageBloque ? 0 : 12000);
+        LOUE.message(err2.stockageBloque ? '⚠ La fiche n’est pas partie : ' + err2.message + '.' : err2.aConfirmer ? LOUE.MSG_DIRECT_A_CONFIRMER : err2.connexion ? LOUE.MSG_DIRECT_CONNEXION : '⚠ La fiche n’est pas partie : ' + err2.message + '. Gardez la page ouverte et réessayez quand il y aura du réseau.', err2.stockageBloque ? 0 : 12000);
       }
     }
   }

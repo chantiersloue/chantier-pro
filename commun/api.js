@@ -32,8 +32,52 @@
   LOUE.messageClair = messageClair;
 
   // ── Appel au serveur : POST en texte simple (pas de « pré-vol » CORS), réponse lue, délai maximal ──
+  // ── Compte (lot 2) : jeton de connexion + profil, gardés dans le téléphone (un par mode : production, test, local) ──
+  // Le jeton n'est JAMAIS mis dans une adresse : il voyage dans le corps des requêtes POST.
+  var CLE_COMPTE = 'loue_compte_' + CONFIG.env;
+  function lireCompteLocal() { try { return JSON.parse(localStorage.getItem(CLE_COMPTE) || 'null'); } catch (e) { return null; } }
+  function ecrireCompteLocal(c) { try { if (c) localStorage.setItem(CLE_COMPTE, JSON.stringify(c)); else localStorage.removeItem(CLE_COMPTE); } catch (e) {} }
+  // { jeton, profil: { id, nom, role, tous, conducteur }, chantiers } ou null si personne n'est connecté
+  LOUE.compte = function () { var c = lireCompteLocal(); return c && c.jeton && c.profil ? c : null; };
+  // Dernière personne connectée (même déconnectée : son identifiant est proposé à l'écran de connexion)
+  LOUE.dernierIdentifiant = function () { var c = lireCompteLocal(); return c && c.profil ? c.profil.id : ''; };
+  LOUE.enregistrerCompte = function (jeton, profil, chantiers) {
+    var c = lireCompteLocal() || {};
+    if (c.profil && profil && c.profil.id !== profil.id) c = {};            // autre personne : rien de l'ancienne
+    c.jeton = jeton; if (profil) c.profil = profil; if (chantiers) c.chantiers = chantiers;
+    ecrireCompteLocal(c);
+  };
+  function oublierJeton(raison) {
+    var c = lireCompteLocal();
+    if (!c || !c.jeton) return;
+    delete c.jeton; ecrireCompteLocal(c);
+    LOUE.signaler({ type: 'compte', etat: 'deconnecte', message: raison || '' });
+  }
+  // Se déconnecter : le jeton, le profil et les listes de la personne sont effacés du téléphone (pas les fiches en attente)
+  LOUE.deconnecter = function () {
+    var c = lireCompteLocal();
+    try { if (c && c.profil) localStorage.removeItem(CLE_LISTES + '_' + c.profil.id); } catch (e) {}
+    ecrireCompteLocal(null);
+    LOUE.signaler({ type: 'compte', etat: 'deconnecte' });
+  };
+  var CODES_CONNEXION = ['CONNEXION_REQUISE', 'JETON_INVALIDE', 'COMPTE_REFUSE'];
+  LOUE.estRefusDeConnexion = function (rep) { return !!rep && CODES_CONNEXION.indexOf(rep.code) > -1; };
+
   var fichesEnVol = [];   // envois de fiches en cours (pour les relancer au retour dans l'appli)
   LOUE.appeler = function (corps, delaiMs) {
+    var c = LOUE.compte();
+    if (c && corps && !corps.jeton && corps.action !== 'connexion' && corps.action !== 'motDePasse' && corps.action !== 'ping') {
+      corps = Object.assign({}, corps, { jeton: c.jeton });
+    }
+    return appelerBrut(corps, delaiMs).then(function (rep) {
+      // Jeton prolongé de 90 jours, seulement s'il est bien celui de la personne connectée maintenant
+      // (une réponse peut arriver après une déconnexion et la connexion de quelqu'un d'autre)
+      if (rep && rep.jeton && LOUE.compte() && String(rep.jeton).split('.')[0] === LOUE.compte().profil.id) LOUE.enregistrerCompte(rep.jeton);
+      if (rep && (rep.code === 'JETON_INVALIDE' || rep.jetonInvalide)) oublierJeton(rep.message);
+      return rep;
+    });
+  };
+  function appelerBrut(corps, delaiMs) {
     var ctrl = window.AbortController ? new AbortController() : null;
     var minuteur = setTimeout(function () { if (ctrl) ctrl.abort(); }, delaiMs || 30000);
     if (ctrl && corps && corps.action === 'fiche') { ctrl.debut = Date.now(); fichesEnVol.push(ctrl); }
@@ -48,7 +92,7 @@
       clearTimeout(minuteur);
       fichesEnVol = fichesEnVol.filter(function (c) { return c !== ctrl; });
     });
-  };
+  }
   // Retour dans l'appli après plus de 5 s en arrière-plan : un envoi de fiche encore « en cours » est souvent
   // une connexion coupée par le téléphone (iPhone surtout) dont la réponse n'arrivera jamais. On l'abandonne :
   // la file redemande aussitôt, et le serveur, qui ne traite qu'une fois un même numéro, répond « déjà reçue ».
@@ -63,6 +107,28 @@
     }
     cacheeDepuis = 0;
   });
+
+  // ── Connexion, choix du mot de passe, profil (lot 2) ──
+  LOUE.connexion = function (identifiant, motDePasse) {
+    return LOUE.appeler({ action: 'connexion', identifiant: identifiant, motDePasse: motDePasse }, 30000).then(function (rep) {
+      if (rep.ok) { LOUE.enregistrerCompte(rep.data.jeton, rep.data.profil); LOUE.signaler({ type: 'compte', etat: 'connecte' }); LOUE.viderFile(true); }
+      return rep;
+    });
+  };
+  LOUE.changerMotDePasse = function (identifiant, ancien, nouveau) {
+    return LOUE.appeler({ action: 'motDePasse', identifiant: identifiant, ancien: ancien, nouveau: nouveau }, 30000).then(function (rep) {
+      if (rep.ok) { LOUE.enregistrerCompte(rep.data.jeton, rep.data.profil); LOUE.signaler({ type: 'compte', etat: 'connecte' }); LOUE.viderFile(true); }
+      return rep;
+    });
+  };
+  // Profil + chantiers à jour (et jeton prolongé) ; garde la liste des chantiers pour l'accueil hors réseau
+  LOUE.moi = function () {
+    return LOUE.appeler({ action: 'moi' }, 20000).then(function (rep) {
+      if (rep.ok && LOUE.compte()) LOUE.enregistrerCompte(LOUE.compte().jeton, rep.data.profil, rep.data.chantiers);
+      return rep;
+    });
+  };
+  LOUE.ping = function () { return appelerBrut({ action: 'ping' }, 10000); };
 
   // ── Base IndexedDB (une par mode) : file d'envoi, photos, brouillons ──
   var NOM_BASE = CONFIG.env === 'prod' ? 'loue' : 'loue_' + CONFIG.env;
@@ -172,6 +238,7 @@
       : renumeroter(Object.assign({}, donnees, { type: type }), photos);
     var element = {
       id: direct ? direct.id : LOUE.nouvelId('fiche'), type: type, libelle: libelle || type, cree: Date.now(), env: CONFIG.env,
+      saisiPar: (LOUE.compte() || { profil: {} }).profil.id || '',   // qui était connecté quand la fiche a été rangée
       donnees: r.donnees, photos: r.photos.map(function (p) { return p.id; }),
       photosEnvoyees: direct ? direct.photosEnvoyees.slice() : [], etat: 'en attente', message: '', essais: 0, prochainEssai: 0,
     };
@@ -237,6 +304,8 @@
         return blobEnBase64(blob).then(function (b64) {
           return LOUE.appeler({ action: 'photo', id: idPhoto, fiche: el.id, mime: blob.type || 'image/jpeg', data: b64 }, 90000);
         }).then(function (rep) {
+          if (LOUE.estRefusDeConnexion(rep)) throw Object.assign(new Error(messageConnexion(rep)), { connexion: true });
+          if (rep.code === 'COMPTES_INDISPONIBLES') throw Object.assign(new Error(rep.message), { indisponible: true });
           if (!rep.ok) throw Object.assign(new Error(rep.message || 'Photo refusée'), { definitif: rep.code === 'DONNEES_INVALIDES' || rep.code === 'TROP_GROS' || rep.code === 'LIMITE' });
           el.photosEnvoyees.push(idPhoto);
           return noter ? noter() : null;
@@ -246,7 +315,7 @@
     return chaine.then(function () {
       return avantFiche ? avantFiche() : null;
     }).then(function () {
-      return LOUE.appeler({ action: 'fiche', id: el.id, donnees: el.donnees }, 120000).catch(function (err) {
+      return LOUE.appeler({ action: 'fiche', id: el.id, donnees: el.donnees, saisiPar: el.saisiPar || '' }, 120000).catch(function (err) {
         // Réseau présent mais pas de réponse : la fiche est peut-être arrivée (réponse perdue) → à confirmer vite
         // (page de Google à la place de la réponse : la fiche a pu être traitée aussi)
         if ((erreurReseau(err) || /réponse illisible/.test(err.message || '')) && navigator.onLine !== false) err.aConfirmer = true;
@@ -254,6 +323,9 @@
       });
     }).then(function (rep) {
       if (rep.ok) return rep;                                   // ENREGISTRE ou DEJA_RECU
+      if (LOUE.estRefusDeConnexion(rep)) throw Object.assign(new Error(messageConnexion(rep)), { connexion: true });
+      // Comptes momentanément illisibles côté serveur : traité comme une coupure de réseau (jamais « à vérifier »)
+      if (rep.code === 'COMPTES_INDISPONIBLES') throw Object.assign(new Error(rep.message), { indisponible: true });
       // Le serveur fabrique encore le PDF de cette fiche (envoi précédent) : ce n'est pas un refus
       if (rep.code === 'EN_COURS') throw Object.assign(new Error(rep.message || 'Fiche en cours de traitement'), { aConfirmer: true });
       if (rep.code === 'PHOTOS_MANQUANTES') {                   // le serveur a perdu des photos : on les renverra
@@ -265,6 +337,10 @@
     });
   }
 
+  function messageConnexion(rep) {
+    return rep.code === 'COMPTE_REFUSE' ? rep.message : 'En attente : connectez-vous depuis l’accueil pour l’envoyer (la fiche est gardée)';
+  }
+
   // Essais espacés : tout de suite, puis 1, 5, 15, 60 min.
   // Seules les réponses du SERVEUR comptent : après 12 refus du serveur, la fiche passe « à vérifier ».
   // Une coupure de réseau ne la fait jamais passer « à vérifier » (elle est retentée sans fin, au plus toutes les 5 min).
@@ -273,6 +349,7 @@
   var DELAIS_CONFIRMER_S = [15, 30, 60, 300];   // fiche peut-être déjà reçue : on redemande vite
   var ESSAIS_MAX = 12;
   function erreurReseau(err) {
+    if (err && err.indisponible) return true;
     // 404, 403… : l'adresse du serveur est fausse ou périmée, ce n'est pas une coupure de réseau
     if (err && err.statut && err.statut < 500 && err.statut !== 408 && err.statut !== 429) return false;
     return err && (err.name === 'AbortError' || err.name === 'TypeError' || /^Serveur : erreur|fetch|network|load failed/i.test(err.message || ''));
@@ -324,6 +401,15 @@
             return Promise.all(supp).then(function () { return LOUE.stockage.supprimer('file', el.id); })
               .then(function () { LOUE.signaler({ type: 'envoyee', element: el, reponse: rep }); });
           }).catch(function (err) {
+            if (err && err.connexion) {
+              // Pas connecté, session terminée, compte refusé : la fiche attend la connexion (elle repart dès qu'elle a lieu)
+              el.etat = 'en attente'; el.message = err.message; el.attendConnexion = true;
+              el.aConfirmer = false; el.attenteReseau = false;   // refusée faute de connexion : pas traitée par le serveur
+              el.refusServeur = 0;                                 // les refus « connexion » de l'appli 5.1 ne comptent plus
+              el.prochainEssai = Date.now() + 15 * 60000;
+              return ecrireSiPresente(el).then(function (encore) { if (encore) LOUE.signaler({ type: el.etat, element: el }); });
+            }
+            el.attendConnexion = false;
             var reseau = erreurReseau(err), aConfirmer = !!err.aConfirmer;
             if (!reseau && !aConfirmer) el.refusServeur = (el.refusServeur || 0) + 1;
             var definitif = err.definitif || (el.refusServeur || 0) >= ESSAIS_MAX;
@@ -407,6 +493,7 @@
   // déjà parties : le serveur répond « déjà reçue » au lieu d'envoyer un 2e mail.
   var directs = {};
   // Message des pages quand la fiche est peut-être arrivée mais pas encore confirmée (même numéro tant que rien ne change)
+  LOUE.MSG_DIRECT_CONNEXION = '⚠ Fiche pas envoyée : il faut se connecter, et le téléphone n’a PAS pu la garder. Ne quittez pas cette page : touchez Envoyer de nouveau, une fenêtre de connexion s’ouvrira ici.';
   LOUE.MSG_DIRECT_A_CONFIRMER = '⏳ Pas encore confirmé par le bureau (la fiche est peut-être déjà arrivée). Touchez Envoyer de nouveau, SANS RIEN CHANGER : il n’y aura pas de 2e mail.';
   LOUE.envoyerDirect = function (type, donnees, photos) {
     var empreinte = empreinteFiche(type, donnees, photos);
@@ -417,6 +504,7 @@
       r.photos.forEach(function (p) { el.blobs[p.id] = p.blob; });
       directs[empreinte] = el;
     }
+    var connexionDemandee = false;
     function tenter(n) {
       return envoyerPhotosPuisFiche(el, function (id) { return Promise.resolve(el.blobs[id] || null); }).then(function (rep) {
         // Réussite après le plafond de 2 min : la page a dit « touchez Envoyer de nouveau » ; on garde le numéro,
@@ -424,6 +512,15 @@
         if (!el.plafonne) delete directs[empreinte];
         return rep;
       }).catch(function (err) {
+        // Connexion nécessaire, et la fiche n'est PAS gardée dans le téléphone : connexion DANS la page (une fois),
+        // puis nouvel essai avec le même numéro
+        if (err.connexion) {
+          var echec = function () { throw Object.assign(new Error(LOUE.MSG_DIRECT_CONNEXION), { connexion: true, definitif: true }); };
+          if (connexionDemandee || !LOUE.demanderConnexion) echec();
+          connexionDemandee = true;
+          return LOUE.demanderConnexion('Connexion nécessaire pour envoyer cette fiche. Le téléphone n’a pas pu la garder : connectez-vous ici, sans quitter la page.')
+            .then(function (ok) { if (!ok) echec(); return tenter(n + 1); });
+        }
         if (err.definitif || n >= (err.aConfirmer ? 6 : 3)) {
           var texte = err.aConfirmer ? LOUE.MSG_DIRECT_A_CONFIRMER : messageClair(err);
           // Le rangement venait d'être bloqué et le réseau manque : on dit quoi faire (message qui reste à l'écran)
@@ -456,6 +553,22 @@
   LOUE.annoncerFile = function () { annoncer(); };
   if (canal) canal.onmessage = function () { annoncer(true); };   // une autre page a envoyé ou rangé une fiche
 
+  // Fiches passées « à vérifier » sur l'appli 5.1 parce que le serveur demandait une connexion (fin de la période de
+  // transition avant la mise à jour du téléphone) : la 6.0 les remet « en attente de connexion », elles repartent seules
+  function reprendreFichesConnexion() {
+    LOUE.stockage.tout('file').then(function (liste) {
+      var a = liste.filter(function (e) {
+        return e.etat === 'erreur' && (!e.env || e.env === CONFIG.env) && /Appli à mettre à jour|connexion nécessaire/i.test(e.message || '');
+      });
+      return Promise.all(a.map(function (e) {
+        e.etat = 'en attente'; e.attendConnexion = true; e.refusServeur = 0; e.essais = 0; e.prochainEssai = 0;
+        e.message = 'En attente : connectez-vous depuis l’accueil pour l’envoyer (la fiche est gardée)';
+        return LOUE.stockage.ecrire('file', e);
+      })).then(function () { if (a.length) annoncer(); });
+    }).catch(function () {});
+  }
+  window.addEventListener('load', reprendreFichesConnexion);
+
   // Déclencheurs du renvoi automatique (pas de « synchronisation en arrière-plan » : elle n'existe pas sur iPhone)
   // Au retour du réseau et dans l'appli : les fiches qui attendaient le réseau (ou une confirmation) partent tout de suite
   window.addEventListener('online', function () { LOUE.viderFile(true); });
@@ -466,9 +579,12 @@
 
   // ── Listes (contacts, chantiers…) : réseau d'abord, sinon la dernière liste gardée dans le téléphone ──
   var CLE_LISTES = 'loue_listes_' + CONFIG.env;
+  // Une liste gardée par personne (et une pour « sans compte »), effacée à la déconnexion
+  function cleListes() { var c = LOUE.compte(); return c ? CLE_LISTES + '_' + c.profil.id : CLE_LISTES; }
   LOUE.listesGardees = function () {
-    try { var v = JSON.parse(localStorage.getItem(CLE_LISTES) || 'null'); return v && v.donnees ? v : null; } catch (e) { return null; }
+    try { var v = JSON.parse(localStorage.getItem(cleListes()) || 'null'); return v && v.donnees ? v : null; } catch (e) { return null; }
   };
+  function listesValables(d) { return !!d && Array.isArray(d.chantiers); }
   var compteurJsonp = 0;
   function jsonp(url, delaiMs) {
     return new Promise(function (ok, ko) {
@@ -482,7 +598,42 @@
       document.head.appendChild(s);
     });
   }
+  // Question posée quand le chantier tapé n'est pas dans la liste (liste ancienne, ou limitée à « mes chantiers »)
+  var listesPartielles = false;
+  LOUE.questionHorsListe = function (nom) {
+    return listesPartielles
+      ? '« ' + nom + ' » ne fait pas partie de vos chantiers dans l’appli. Envoyer quand même avec ce nom ? (le bureau rangera la fiche)'
+      : '« ' + nom + ' » n’est pas dans la liste gardée dans le téléphone (pas de réseau). Envoyer quand même avec ce nom ?';
+  };
   LOUE.chargerListes = function () {
+    if (!LOUE.compte()) return chargerListesSansCompte();
+    var cle = cleListes();
+    return LOUE.appeler({ action: 'listes' }, 15000).then(function (rep) {
+      if (rep && rep.code === 'ACTION_INCONNUE') return chargerListesSansCompte();   // serveur pas encore à jour (lot 1)
+      if (!rep || !rep.ok || !listesValables(rep.data)) throw new Error((rep && rep.message) || 'Listes indisponibles');
+      try {
+        localStorage.setItem(cle, JSON.stringify({ date: Date.now(), donnees: rep.data }));
+        // La liste de la personne est gardée : l'ancienne liste « sans compte » (tous les chantiers) ne sert plus
+        if (!rep.data.partiel) localStorage.removeItem(CLE_LISTES);
+      } catch (e) {}
+      listesPartielles = !!rep.data.partiel;
+      return { donnees: rep.data, date: Date.now(), depuisLeTelephone: false, partiel: !!rep.data.partiel };
+    }).catch(function () {
+      var g = LOUE.listesGardees();
+      if (!g) {
+        // Jeton refusé pendant la transition : la lecture sans compte marche encore
+        if (!LOUE.compte()) return chargerListesSansCompte();
+        // Première fois sans réseau depuis la connexion : la liste gardée avant (sans compte) sert de secours
+        var s = null;
+        try { s = JSON.parse(localStorage.getItem(CLE_LISTES) || 'null'); } catch (e) {}
+        if (s && s.donnees) return { donnees: s.donnees, date: s.date, depuisLeTelephone: true };
+        throw new Error('Listes indisponibles : pas de réseau et rien de gardé dans le téléphone');
+      }
+      listesPartielles = !!g.donnees.partiel;
+      return { donnees: g.donnees, date: g.date, depuisLeTelephone: true, partiel: !!g.donnees.partiel };
+    });
+  };
+  function chargerListesSansCompte() {
     var url = URL_API() + '?action=getContacts&t=' + Date.now();
     var ctrl = window.AbortController ? new AbortController() : null;
     var minuteur = setTimeout(function () { if (ctrl) ctrl.abort(); }, 10000);
@@ -494,15 +645,47 @@
         return jsonp(URL_API() + '?action=getContacts&t=' + Date.now(), 8000);
       })
       .then(function (d) {
+        // Une réponse d'erreur (« connexion requise » après la transition) ne remplace JAMAIS la liste gardée
+        if (!listesValables(d)) throw new Error((d && d.message) || 'Listes refusées par le serveur');
         try { localStorage.setItem(CLE_LISTES, JSON.stringify({ date: Date.now(), donnees: d })); } catch (e) {}
+        listesPartielles = false;
         return { donnees: d, date: Date.now(), depuisLeTelephone: false };
       })
       .catch(function () {
-        var g = LOUE.listesGardees();
-        if (g) return { donnees: g.donnees, date: g.date, depuisLeTelephone: true };
+        var g = null;
+        try { g = JSON.parse(localStorage.getItem(CLE_LISTES) || 'null'); } catch (e) {}
+        if (g && g.donnees) return { donnees: g.donnees, date: g.date, depuisLeTelephone: true };
         throw new Error('Listes indisponibles : pas de réseau et rien de gardé dans le téléphone');
       })
       .finally(function () { clearTimeout(minuteur); });
+  }
+
+  // Documents d'un chantier (Plans) ou planning (chantier = '__PLANNING__') : avec le compte, sinon lecture sans compte
+  LOUE.lireDossiers = function (chantier) {
+    var sansCompte = function () {
+      return LOUE.lire('action=getDossiers&chantier=' + encodeURIComponent(chantier)).then(function (d) {
+        if (d && d.erreur === 'CONNEXION_REQUISE') throw new Error('Connectez-vous pour voir les documents');
+        return (d && d.dossiers) || {};
+      });
+    };
+    if (!LOUE.compte()) return sansCompte();
+    return LOUE.appeler({ action: 'dossiers', chantier: chantier }, 20000).then(function (rep) {
+      if (rep.code === 'ACTION_INCONNUE' || (!LOUE.compte() && rep.code === 'JETON_INVALIDE')) return sansCompte();
+      if (!rep.ok) throw new Error(rep.message || 'Documents indisponibles');
+      return rep.data.dossiers || {};
+    });
+  };
+
+  // Chantier choisi à l'accueil (adresse « …?chantier=… ») : rempli AVANT que le brouillon prenne la photo de la page vierge,
+  // et marqué « automatique » (il ne compte pas comme une saisie). Un brouillon restauré garde SON chantier.
+  LOUE.preRemplirChantier = function (idChamp) {
+    var nom = '';
+    try { nom = (new URLSearchParams(location.search).get('chantier') || '').trim().slice(0, 150); } catch (e) {}
+    var el = document.getElementById(idChamp);
+    if (!nom || !el || el.value.trim()) return;
+    el.value = nom; el.dataset.auto = nom;
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+    el.dispatchEvent(new Event('change', { bubbles: true }));
   };
 
   // ── Lecture simple (planning, documents d'un chantier…) : fetch anonyme d'abord, JSONP de secours (règle 3) ──

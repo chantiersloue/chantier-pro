@@ -17,6 +17,8 @@
     document.querySelectorAll('input[id], select[id], textarea[id]').forEach(function (el) {
       if (el.type === 'file' || el.type === 'password' || el.readOnly || el.disabled || el.dataset.brouillon === 'non') return;
       champs[el.id] = (el.type === 'checkbox' || el.type === 'radio') ? { c: el.checked } : { v: el.value };
+      // Lot 2 : valeur mise par l'appli (chantier choisi à l'accueil, conducteur du chantier) et pas modifiée : pas une saisie
+      if (el.dataset.auto !== undefined && el.dataset.auto !== '' && el.value === el.dataset.auto) champs[el.id].a = 1;
     });
     document.querySelectorAll('[contenteditable="true"][id]').forEach(function (el) { champs[el.id] = { h: el.innerHTML }; });
     return champs;
@@ -234,6 +236,7 @@
       var champs = e.champs || {};
       var saisi = Object.keys(champs).some(function (id) {
         var o = champs[id] || {}, ref = v.champs[id] || {};
+        if (o.a) return false;                                   // rempli automatiquement, pas touché
         if (o.c !== undefined) return o.c !== (ref.c === undefined ? false : ref.c);
         if (o.h !== undefined) return String(o.h).replace(/<[^>]*>|&nbsp;|\s/g, '') !== '' && o.h !== ref.h;
         return String(o.v || '').trim() !== '' && o.v !== ref.v;
@@ -260,7 +263,13 @@
       var sauve = proposition.etat;
       var bar = document.createElement('div');
       bar.className = 'loue-brouillon no-print';
-      bar.innerHTML = '<span>📝 ' + (proposition.source === 'liste' ? 'Brouillon mis de côté' : 'Brouillon retrouvé') + ' (' + quand(sauve.t) + '). Le restaurer ?</span>'
+      // Lot 2 : le chantier du brouillon est affiché (la page a pu être ouverte depuis un AUTRE chantier)
+      var chantierSauve = options.champChantier && sauve.champs && sauve.champs[options.champChantier] ? String(sauve.champs[options.champChantier].v || '').trim() : '';
+      var chantierIci = options.champChantier && document.getElementById(options.champChantier) ? document.getElementById(options.champChantier).value.trim() : '';
+      var autre = chantierSauve && chantierIci && chantierSauve.toLowerCase() !== chantierIci.toLowerCase();
+      bar.innerHTML = '<span>📝 ' + (proposition.source === 'liste' ? 'Brouillon mis de côté' : 'Brouillon retrouvé') + ' (' + quand(sauve.t) + ')'
+        + (chantierSauve ? ' — chantier <strong>' + LOUE.esc(chantierSauve) + '</strong>' + (autre ? ' (pas celui ouvert : ' + LOUE.esc(chantierIci) + ')' : '') : '')
+        + '. Le restaurer ?</span>'
         + '<button type="button" data-oui>Restaurer</button><button type="button" data-non>Repartir à zéro</button>';
       bar.querySelector('[data-oui]').onclick = function () {
         bar.remove();

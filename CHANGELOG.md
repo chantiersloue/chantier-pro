@@ -2,7 +2,9 @@
 
 Chaque lot : **quoi**, **pourquoi**, **comment déployer**. Procédures détaillées dans `docs/lotN-procedure.md`.
 
-## Lot 2 — Comptes, rôles, accueil (avec 9a) — serveur v6.0.1, appli 6.0.1 — en test (rien en production)
+## Lot 2 — Comptes, rôles, accueil (avec 9a) — serveur v6.0.1, appli 6.0.1 — essais TEST validés, serveur en production le 12/11/2026, pages prêtes dans `livraison/lot-2`
+
+**Livraison en production (12/11/2026)** : le serveur v6.0.1 tourne en production sous un nouveau déploiement « Lot 2 — production » ; `commun/config.js` porte sa nouvelle adresse ; la demande de fusion `livraison/lot-2` publie les vraies pages 6.0.1 et retire la copie d'essai `essai/`. L'ancien déploiement (lot 1) reste en service comme retour arrière jusqu'à la fin de la transition. Suite pour Franck : `docs/lot2-procedure.md`, étape D, points 6 à 10.
 
 **Correctif 6.0.1 (après les essais sur TEST)** : essai 12, le bouton ne reste plus bloqué sur « Rangement dans le téléphone… » (même correctif que la 5.1.1 de production) ; essai 14, la colonne État dit « bloqué » dès le 5e essai raté ; journal des incidents dans « À propos » ; nouveau test `node tests/hors-ligne.test.js` (vrai Chrome hors-ligne, avec un autre onglet qui occupe la mémoire du téléphone). Procédure : `docs/lot2-procedure.md`, section « Correctif après tes essais ».
 

@@ -38,7 +38,7 @@ console.log('Lot 1.1 — API v5');
 
 test('ping : version lisible', () => {
   const r = poster(environnement(), { action: 'ping' });
-  assert.ok(r.ok && /v5/.test(r.data.version));
+  assert.ok(r.ok && /^v[5-9]\.\d/.test(r.data.version), r.data && r.data.version);
 });
 
 test('fiche : réponse « ENREGISTRE » avec le bilan des mails', () => {
@@ -374,7 +374,7 @@ test('chantier tapé à la main (hors Sheet) : copie à Franck ; date absente : 
   const g = environnement();
   const r = poster(g, { action: 'fiche', id: 'fiche-0902-abcd', donnees: note({ chantier: 'CHANTIER INCONNU', date: '' }) });
   assert.strictEqual(r.code, 'ENREGISTRE', JSON.stringify(r));
-  assert.deepStrictEqual(g.mails.map(m => m.to), [FRANCK]);
+  assert.deepStrictEqual(g.mails.filter(m => !/^\[Loué App\] Document à classer/.test(m.sujet)).map(m => m.to), [FRANCK]);   // + l'alerte « à classer » (lot 2)
   assert.ok(/\d{2}\/\d{2}\/\d{4}/.test(pdfDe(g)), 'date du jour dans le PDF');
 });
 
