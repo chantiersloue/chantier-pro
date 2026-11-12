@@ -2,7 +2,7 @@
 
 > Pour Franck et pour Claude. Ce guide décrit les outils qui servent à préparer, essayer et livrer un lot.
 > Le pourquoi est dans `docs/automatisation.md`, le plan de mise en place dans `docs/outillage-plan.md`.
-> **État au 12/11/2026** : étapes A et B en place ; étape C en cours (clasp installé, premier envoi sur TEST réussi, porte de service en construction sur la branche `outillage`).
+> **État au 12/11/2026** : étapes A et B en place et vérifiées (la copie d'essai est installée sur le téléphone de Franck, un quitus est parti et arrivé) ; étape C en cours (clasp installé, premier envoi sur TEST réussi, porte de service en relecture sur la branche `outillage`).
 
 ## Qui fait quoi
 

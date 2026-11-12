@@ -430,7 +430,7 @@ Si un lot comporte une migration de données réelles (aucune n'est prévue à c
 Rien n'a été installé : ces points reposent sur la documentation ou sur mon expérience, et seront essayés pendant ou juste après la séance d'installation, **avant** de compter dessus.
 
 1. ~~Un appel de l'appli peut-il créer et retirer des déclencheurs sur TEST (porte de service) ?~~ **Oui, essayé le 12/11/2026** sur la copie TEST : déclencheur posé puis retiré.
-2. ~~La copie d'essai marche-t-elle à l'identique à une autre adresse ?~~ **Oui pour les pages et les appels au serveur TEST** (contrôlé dans un navigateur le 12/11/2026 à `loue-essai.github.io/chantier-pro/`). Reste à confirmer par Franck : installation sur le téléphone et envoi d'une fiche.
+2. ~~La copie d'essai marche-t-elle à l'identique à une autre adresse ?~~ **Oui**, le 12/11/2026 à `loue-essai.github.io/chantier-pro/` : contrôlée dans un navigateur (pages, appels au serveur TEST), puis par Franck sur son téléphone (icône installée, bandeau rouge, connexion, quitus envoyé et reçu).
 3. ~~Le lien pré-rempli de demande de fusion ; le premier envoi vers le dépôt de l'organisation.~~ **Oui, les deux**, le 12/11/2026 (demande de fusion n° 11, accents compris ; copie d'essai publiée).
 4. ~~Le verrouillage de `main` se règle-t-il comme décrit, et le bouton « Merge » marche-t-il ensuite ?~~ **Oui**, le 12/11/2026.
 5. Les durées annoncées sont des estimations tirées de la procédure du lot 2.

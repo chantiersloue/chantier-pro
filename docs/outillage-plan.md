@@ -184,7 +184,7 @@ Dans cet ordre, parce que la porte dépend d'un point non vérifié :
 | # | Point | Vérifié quand | Si ça échoue |
 |---|---|---|---|
 | 1 | La porte peut poser et retirer des déclencheurs | **Réussi le 12/11/2026** (premier envoi par clasp : réussi aussi) | — |
-| 2 | La copie d'essai marche à la nouvelle adresse, appels au serveur TEST compris | **Réussi dans un navigateur le 12/11/2026** ; téléphone de Franck : à confirmer | Retour à `essai/` dans `main` |
+| 2 | La copie d'essai marche à la nouvelle adresse, appels au serveur TEST compris | **Réussi le 12/11/2026** : navigateur, puis téléphone de Franck (icône, connexion, quitus envoyé et reçu) | — |
 | 3 | Le lien pré-rempli (accents, retours à la ligne) ; le premier envoi vers l'organisation | **Réussi le 12/11/2026** | — |
 | 4 | Le verrouillage de `main` laisse marcher ton bouton « Merge » | **Réussi le 12/11/2026** | — |
 
