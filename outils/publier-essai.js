@@ -50,6 +50,8 @@ function publier(o) {
   if (git(dossier, 'rev-parse', '--abbrev-ref', 'HEAD') !== 'main') throw new Error('Le dossier de la copie d’essai n’est pas sur sa branche main');
   try { git(dossier, 'fetch', '--quiet', 'origin'); }
   catch (e) { throw new Error('Impossible de joindre le dépôt d’essai sur GitHub (réseau ?) : rien n’a été publié'); }
+  try { git(dossier, 'rev-parse', '--verify', '--quiet', 'refs/remotes/origin/main'); }
+  catch (e) { throw new Error('Le dépôt d’essai n’a pas de branche main sur GitHub (dépôt vide ?) : le créer avec un fichier README'); }
   // Ce dossier ne contient que des fichiers fabriqués : on le remet exactement au point de GitHub avant de refabriquer.
   // Les restes d'une fabrication non publiée ou d'un envoi raté sont ainsi repris proprement ; rien n'est écrasé sur GitHub.
   git(dossier, 'reset', '--quiet', '--hard', 'origin/main');
@@ -61,7 +63,10 @@ function publier(o) {
   fs.writeFileSync(path.join(dossier, essai.MARQUE), marque + '\n');
   git(dossier, 'add', '-A');
   if (!git(dossier, 'status', '--porcelain')) return { publie: false, marque: marque, adresse: cible.adresseSite, dossier: dossier };
-  git(dossier, '-c', 'user.name=' + (o.auteur || git(racine, 'config', 'user.name')), '-c', 'user.email=' + (o.email || git(racine, 'config', 'user.email')),
+  const reglage = cle => { try { return git(racine, 'config', cle); } catch (e) { return ''; } };
+  const auteur = o.auteur || reglage('user.name'), email = o.email || reglage('user.email');
+  if (!auteur || !email) throw new Error('Git ne connaît pas l’auteur (réglages user.name et user.email) : rien n’a été publié');
+  git(dossier, '-c', 'user.name=' + auteur, '-c', 'user.email=' + email,
     'commit', '--quiet', '-m', 'Copie d’essai — ' + marque + '\n\nFabriquée par outils/publier-essai.js. Ne pas modifier ce dépôt à la main.\n\nCo-Authored-By: Claude Fable 5.2 <noreply@anthropic.com>');
   try { git(dossier, 'push', '--quiet', 'origin', 'main'); }   // jamais --force
   catch (e) {

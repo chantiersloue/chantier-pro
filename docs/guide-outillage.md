@@ -39,6 +39,8 @@ Franck ouvre le lien. La demande est déjà remplie, avec :
 - **Pages de l'appli** : modifiées ou non, avec la version qui s'affichera dans « À propos » ;
 - la procédure à suivre.
 
+L'empreinte sert de repère : la même sera affichée par la commande d'envoi du serveur (étape C), ce qui permettra de vérifier que le serveur en ligne est bien celui de la demande. Tant que l'étape C n'est pas en place, il n'y a rien à comparer à la main.
+
 Il clique **Create pull request**, **Merge pull request**, **Confirm merge**.
 
 ## 3. La copie d'essai

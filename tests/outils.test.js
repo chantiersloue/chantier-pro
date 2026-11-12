@@ -48,6 +48,7 @@ function fauxDepotProd() {
   fs.cpSync(RACINE + '/commun', r + '/commun', { recursive: true });   // le VRAI commun/config.js : la transformation est testée dessus
   ecrire(r + '/modeles/quitus.js', '// modèle\n');
   ecrire(r + '/apps-script/Code.gs', '// serveur : ne doit PAS être copié\n');
+  ecrire(r + '/.gitignore', '.clasprc.json\ncreds*.json\nThumbs.db\n');
   ecrire(r + '/_prive/secret.txt', 'ne doit PAS être copié\n');
   execFileSync('git', ['init', '--quiet', '--initial-branch=main', r]);
   git(r, 'config', 'user.name', 'Essai'); git(r, 'config', 'user.email', 'essai@loue.test');
@@ -100,7 +101,7 @@ test('lien : l’empreinte ne dépend pas des fins de ligne ; les pages sont bie
   ['index.html', 'sw.js', 'manifest.json', 'commun/api.js', 'modeles/quitus.js', 'logo.png'].forEach(f => assert.ok(lien.estPage(f), f));
   ['docs/x.md', 'outils/essai.js', 'apps-script/Api.gs', 'A-COLLER-DANS-APPS-SCRIPT/Code.gs', 'tests/a.html', 'CHANGELOG.md'].forEach(f => assert.ok(!lien.estPage(f), f));
 });
-test('lien : la commande refuse une branche absente de GitHub (rien n’est créé)', () => {
+test('lien : la commande refuse une branche absente du PC, sans interroger GitHub', () => {
   let sortie = '';
   try { execFileSync(process.execPath, [RACINE + '/outils/lien-fusion.js', 'branche-qui-n-existe-pas', '--titre', 'x'], { encoding: 'utf8', stdio: 'pipe' }); }
   catch (e) { sortie = String(e.stderr) + e.status; }
@@ -179,6 +180,19 @@ test('essai : la copie est en mode TEST forcé, sans adresse de production, et .
   assert.ok(!fs.existsSync(VOISIN + '/apps-script') && !fs.existsSync(VOISIN + '/_prive'), 'ni le serveur ni _prive ne sont copiés');
   assert.strictEqual(r.dossier.replace(/\\/g, '/'), VOISIN);
   assert.strictEqual(git(PROD, 'status', '--porcelain'), '', 'le dépôt de production n’est pas modifié');
+});
+test('essai : un fichier ignoré par Git (jeton clasp, Thumbs.db) n’est JAMAIS copié ni publié', () => {
+  ecrire(PROD + '/.clasprc.json', '{"jeton":"SECRET-DE-TEST"}');
+  ecrire(PROD + '/creds-loue.json', '{"cle":"SECRET-DE-TEST"}');
+  ecrire(PROD + '/commun/Thumbs.db', 'x');
+  try {
+    assert.strictEqual(git(PROD, 'status', '--porcelain'), '', 'Git ne voit pas ces fichiers : la garde « modifications non enregistrées » ne suffit pas');
+    essai.fabriquer({ racine: PROD, cible: CIBLE, dossier: VOISIN });
+    ['.clasprc.json', 'creds-loue.json', 'commun/Thumbs.db', '.gitignore'].forEach(f => assert.ok(!fs.existsSync(VOISIN + '/' + f), f + ' ne doit pas être copié'));
+    assert.ok(fs.existsSync(VOISIN + '/commun/config.js') && fs.existsSync(VOISIN + '/manifest.json'));
+  } finally { ['.clasprc.json', 'creds-loue.json', 'commun/Thumbs.db'].forEach(f => fs.rmSync(PROD + '/' + f, { force: true })); }
+  ['index.html', 'sw.js', 'manifest.json', 'icone-192.png', 'commun/api.js', 'modeles/quitus.js'].forEach(f => assert.ok(essai.estPublie(f), f));
+  ['.clasprc.json', 'docs/x.json', 'apps-script/Code.gs', '_prive/a.png', 'outils/essai-cible.json', 'tests/e2e-file.html', 'CHANGELOG.md'].forEach(f => assert.ok(!essai.estPublie(f), f));
 });
 test('publier : enregistre et pousse dans le dépôt d’essai, jamais ailleurs ; 2e fois = rien à publier', () => {
   const prodAvant = git(NU_PROD, 'rev-parse', 'main');

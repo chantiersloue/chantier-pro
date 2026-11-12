@@ -79,6 +79,13 @@ function controlerDossier(dossier, cible, racine) {
   return d;
 }
 
+// Les fichiers qui composent le site : pages, manifeste, images et sw.js à la racine, plus commun/ et modeles/
+const estPublie = f => /^[^/]+\.(html|json|png)$/.test(f) || f === 'sw.js' || /^(commun|modeles)\//.test(f);
+function fichiersSuivis(racine) {
+  return execFileSync('git', ['-C', racine, 'ls-files', '-z'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], maxBuffer: 64 * 1024 * 1024 })
+    .split('\0').filter(Boolean);
+}
+
 // Vide le dossier SAUF .git (jamais touché), puis y fabrique la copie d'essai
 function fabriquer(o) {
   o = o || {};
@@ -86,8 +93,15 @@ function fabriquer(o) {
   const dossier = controlerDossier(o.dossier || dossierVoisin(racine), cible, racine);
 
   fs.readdirSync(dossier).filter(f => f !== '.git').forEach(f => fs.rmSync(path.join(dossier, f), { recursive: true, force: true }));
-  const aCopier = fs.readdirSync(racine).filter(f => /\.(html|json|png)$/.test(f) || f === 'sw.js').concat(['commun', 'modeles']);
-  aCopier.forEach(f => fs.cpSync(path.join(racine, f), path.join(dossier, f), { recursive: true }));
+  // Seuls les fichiers SUIVIS par Git sont copiés : la copie d'essai est publique, un fichier ignoré par Git
+  // (jeton clasp .clasprc.json, creds*.json, Thumbs.db…) posé là par erreur ne doit jamais partir
+  const aCopier = fichiersSuivis(racine).filter(estPublie);
+  if (!aCopier.length) throw new Error('Aucun fichier à copier (le dépôt n’a pas de fichiers suivis par Git ?)');
+  aCopier.forEach(f => {
+    const vers = path.join(dossier, f);
+    fs.mkdirSync(path.dirname(vers), { recursive: true });
+    fs.copyFileSync(path.join(racine, f), vers);
+  });
 
   // Mode TEST forcé : l'adresse de production est retirée de la copie
   const config = path.join(dossier, 'commun', 'config.js');
@@ -131,7 +145,7 @@ function fabriquer(o) {
   return { dossier: dossier, cible: cible, elements: aCopier.length };
 }
 
-module.exports = { lireCible, dossierVoisin, controlerDossier, adresseNormale, fabriquer, NOM_DOSSIER, MARQUE, DEPOT_PRODUCTION };
+module.exports = { lireCible, dossierVoisin, controlerDossier, adresseNormale, estPublie, fabriquer, NOM_DOSSIER, MARQUE, DEPOT_PRODUCTION };
 if (require.main === module) {
   try {
     const r = fabriquer();
