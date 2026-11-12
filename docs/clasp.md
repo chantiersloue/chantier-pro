@@ -7,9 +7,10 @@
 ## En bref
 
 - **clasp** est un petit programme de Google, gratuit et libre, qui envoie le code du serveur dans le projet Apps Script depuis le PC, en quelques commandes, au lieu du copier-coller dans l'éditeur.
-- **Ma recommandation** : l'utiliser **pour la copie TEST seulement** au début, et garder le copier-coller pour la production, au moins jusqu'à ce qu'il ait servi sans souci pendant un lot entier.
-- **Le prix à payer** : un **jeton de connexion** reste sur le PC, dans ton dossier personnel Windows. Il permet de modifier **tous** les projets Apps Script du compte Google, **production comprise**. Il doit donc être protégé (section « Sécurité ») et effacé à la fin de chaque séance (`clasp logout`).
-- **Ce qui ne change pas** : on lance toujours les fonctions (`verifierConfig`…) dans l'éditeur Apps Script, et on vérifie toujours la version affichée par l'adresse du serveur.
+- **Ce qui est décidé** (12/11/2026, `docs/automatisation.md`) : clasp **pour la copie TEST seulement** ; la production reste au copier-coller, on en reparle après le lot 7.
+- **Comment** : une seule commande, **que tu lances toi-même** : `node outils\envoyer-test.js`. Elle ouvre la connexion Google, vérifie que le projet visé est bien celui de la copie TEST, sauvegarde, envoie, met à jour le déploiement, vérifie en ligne, puis **efface le jeton**.
+- **Le prix à payer** : un **jeton de connexion** existe sur le PC pendant ces 2 à 3 minutes. Il permettrait de modifier **tous** les projets Apps Script du compte Google, **production comprise** : c'est pour cela qu'il ne reste jamais plus longtemps, et qu'il n'est jamais dans la séance de travail de Claude.
+- **Ce qui ne change pas** : en production, tout se fait à la main comme aujourd'hui.
 
 ## Ce que j'ai vérifié (documentation officielle et code source de clasp)
 
@@ -32,9 +33,9 @@
 
 | | **A. Copier-coller (aujourd'hui)** | **B. clasp depuis le PC (recommandé, TEST)** | **C. Envoi automatique par GitHub (GitHub Actions + clasp)** |
 |---|---|---|---|
-| Ce que tu fais | Copy raw file → Ctrl+A, Ctrl+V dans l'éditeur → disquette → Gérer les déploiements → Nouvelle version | Télécharger le fichier, puis quelques commandes dans PowerShell (contrôle, `clasp push`, `clasp update-deployment …`) | Rien : chaque fusion sur GitHub envoie le serveur sur TEST |
+| Ce que tu fais | Copy raw file → Ctrl+A, Ctrl+V dans l'éditeur → disquette → Gérer les déploiements → Nouvelle version | Une commande dans PowerShell (`node outilsenvoyer-test.js`) et un clic « Autoriser » | Rien : chaque fusion sur GitHub envoie le serveur sur TEST |
 | Installation | Aucune | clasp sur le PC (une fois), activer l'API Apps Script, `clasp login` | clasp + le jeton enregistré comme « secret » dans GitHub |
-| Où est le jeton ? | Nulle part | Sur le PC (`.clasprc.json`), effacé à chaque fin de séance | **Dans GitHub**, en permanence, sur un dépôt **public** |
+| Où est le jeton ? | Nulle part | Sur le PC (`.clasprc.json`), effacé après chaque envoi | **Dans GitHub**, en permanence, sur un dépôt **public** |
 | Risques | Coller dans le mauvais projet ; collage incomplet (rare, visible) | Jeton volé si le PC l'est ; envoi vers le mauvais projet (protégé par une vérification de l'identifiant à chaque séance) | Un jeton qui peut toucher la **production** stocké chez un tiers ; une erreur de configuration et tout part tout seul ; difficile à comprendre et à réparer pour un débutant |
 | Temps par livraison | 2 à 3 min | 2 min | 0 min |
 | Coût | 0 € | 0 € | 0 € (minutes GitHub gratuites pour un dépôt public) |
@@ -47,12 +48,12 @@ Autre option regardée et écartée : les extensions Chrome qui relient GitHub e
 ## Sécurité : les règles
 
 1. **Le jeton (`.clasprc.json`) ne quitte jamais ton dossier personnel Windows** (`C:\Users\<toi>\`). Vérifie que ce dossier n'est **pas** synchronisé par MEGA ni par Google Drive (`G:\`). Ta session Windows doit avoir un mot de passe et se verrouiller (Windows + L quand tu quittes le PC).
-2. **Fin de séance = `clasp logout`** : le jeton est effacé du PC. Attention, cela ne le désactive pas chez Google : une copie faite avant (sauvegarde, vol) resterait valable jusqu'à la règle 3. La séance suivante, `clasp login` (une fenêtre Google, 30 secondes).
+2. **Le jeton ne vit que le temps d'un envoi** : la commande `envoyer-test.js` l'efface à la fin, même en cas d'échec (`clasp logout`, puis suppression du fichier s'il est encore là). Attention, l'effacer du PC ne le désactive pas chez Google : une copie faite avant (sauvegarde, vol) resterait valable jusqu'à la règle 3. Si la commande se fige plus de 5 minutes : ferme la fenêtre, rouvre PowerShell, tape `clasp logout`, et préviens Claude.
 3. **Si le PC est perdu ou volé** (ou au moindre doute) : sur [myaccount.google.com/connections](https://myaccount.google.com/connections) (compte de Loué) → retire l'accès de clasp (le nom affiché peut varier : cherche « clasp » ou « Apps Script »). Le jeton ne marche alors plus nulle part.
 4. **Le dossier de travail clasp est HORS du dépôt GitHub** et hors de MEGA et Google Drive : `C:\Users\<toi>\clasp-loue\TEST\`. Il contient l'identifiant du script TEST (`.clasp.json`) : rien de tout cela ne va sur GitHub. Par sécurité, le `.gitignore` du dépôt refuse aussi ces fichiers (`.clasp.json`, `.clasprc.json`, `creds*.json`) s'ils y arrivaient par erreur.
-5. **Un seul dossier, le TEST**, et **son identifiant est vérifié au début de chaque séance** (étape 2 de l'envoi) : le jeton ouvre aussi la production, le nom du dossier ne suffit pas. Ne crée pas de dossier clasp pour la production tant qu'on n'en a pas décidé ensemble.
+5. **Un seul dossier, le TEST**, et **le projet visé est vérifié à chaque envoi**, de deux façons : il doit contenir le déploiement dont l'adresse est celle de la copie TEST, et son identifiant doit être celui mémorisé au premier envoi (`_prive/script-test-id.txt`). Le jeton ouvre aussi la production : le nom du dossier ne suffit pas. Ne crée pas de dossier clasp pour la production tant qu'on n'en a pas décidé ensemble.
 6. **Jamais `clasp push --force`** (il écrase le manifeste sans rien demander), et jamais `clasp push` lancé dans un autre dossier que `clasp-loue\TEST`.
-7. **Désactive l'API Apps Script** sur [script.google.com/home/usersettings](https://script.google.com/home/usersettings) entre deux périodes d'essais (un clic). Aucune application ne peut alors toucher tes scripts, même avec un jeton.
+7. **Désactive l'API Apps Script** sur [script.google.com/home/usersettings](https://script.google.com/home/usersettings) entre deux lots (un clic), **pas entre deux envois d'un même lot** : sans elle, la commande d'envoi échoue. Aucune application ne peut alors toucher tes scripts, même avec un jeton.
 
 ## Installation pas à pas (une seule fois, 15 min)
 
@@ -84,7 +85,7 @@ Autre option regardée et écartée : les extensions Chrome qui relient GitHub e
    clasp login
    ```
    Une page Google s'ouvre. Choisis **le compte de Loué**, lis la liste des autorisations, puis **Autoriser**. PowerShell affiche un message de réussite (« Authorization successful » ou proche). Le jeton est maintenant dans `C:\Users\<toi>\.clasprc.json`.
-6. **Trouver l'identifiant du script TEST** : Sheet « ChantierPro TEST » → Extensions → Apps Script → ⚙ **Paramètres du projet** → **ID du script** → Copier. Note-le dans `_prive/ids-test.txt` (ligne « ID du script TEST »).
+6. **Trouver l'identifiant du script TEST** : Sheet **« ChantierPro TEST »** (vérifie le nom : pas le vrai Sheet) → Extensions → Apps Script → ⚙ **Paramètres du projet** → **ID du script** → Copier. Tu n'as pas à le noter : la commande d'envoi le mémorisera elle-même au premier envoi, après avoir vérifié que c'est bien le projet de la copie TEST.
 7. **Relier le dossier au script TEST** (remplace `ID_DU_SCRIPT` par l'identifiant copié) :
    ```
    clasp clone-script ID_DU_SCRIPT
@@ -99,71 +100,56 @@ Autre option regardée et écartée : les extensions Chrome qui relient GitHub e
    ```
    clasp list-deployments
    ```
-   Il y a une ligne `@HEAD` (à ignorer) et une ou plusieurs lignes avec un identifiant : **celui de `URL_TEST` doit y être**. Note-le dans `_prive/ids-test.txt` (ligne « ID du déploiement TEST »). S'il n'y est pas : arrête-toi et préviens-moi.
-10. **Fin de séance** :
+   Il y a une ligne `@HEAD` (à ignorer) et une ou plusieurs lignes avec un identifiant : **celui de `URL_TEST` doit y être**. S'il n'y est pas : arrête-toi et préviens-moi (le dossier serait relié à un autre projet que la copie TEST). Tu n'as rien à noter : la commande d'envoi refait ce contrôle à chaque fois.
+10. **Effacer le jeton** :
     ```
     clasp logout
     ```
-    (Et, si tu veux, désactive l'API : règle 7.)
+    **Laisse l'API activée** jusqu'à la fin des envois du lot en cours (règle 7).
 
-## À chaque nouveau serveur sur TEST (au lieu des étapes « colle le Code.gs » et « Nouvelle version »)
+## À chaque nouveau serveur sur TEST : une seule commande
 
-1. **Préparer le fichier** : après la fusion sur GitHub, sur github.com, branche **`main`**, ouvre `A-COLLER-DANS-APPS-SCRIPT/Code.gs` → icône **« Download raw file »**. Le fichier arrive dans ton dossier **Téléchargements**. Vérifie qu'il s'appelle bien **`Code.gs`** (et pas `Code (1).gs` : sinon, supprime les anciens `Code…gs` des Téléchargements et recommence).
-2. **Ouvrir la séance et vérifier qu'on vise bien TEST** :
-   ```
-   cd $HOME\clasp-loue\TEST
-   clasp login
-   type .clasp.json
-   ```
-   Compare le `scriptId` affiché avec la ligne « ID du script TEST » de `_prive/ids-test.txt`. **S'ils ne sont pas identiques : arrête-toi**, `clasp logout`, et préviens-moi.
-3. **Sauvegarde** de la version en ligne (c'est le retour arrière), avec la date **et l'heure** (deux envois le même jour ne s'écrasent pas) :
-   ```
-   clasp pull
-   copy Code.js "$HOME\Documents\GitHub\chantier-pro\_prive\Code-TEST-avant-$(Get-Date -Format yyyyMMdd-HHmm).gs"
-   ```
-4. **Mettre le nouveau serveur à la place** :
-   ```
-   copy $HOME\Downloads\Code.gs Code.js
-   ```
-5. **Contrôler ce qui va partir** :
-   ```
-   clasp show-file-status
-   ```
-   Doit lister **exactement** `appsscript.json` et `Code.js`. Autre chose (un `Code.gs` en plus, par exemple) : arrête-toi et préviens-moi.
-6. **Envoyer** :
-   ```
-   clasp push
-   ```
-   Si clasp demande « Manifest file has been updated. Do you want to push and overwrite? » : réponds **`n`**, **arrête-toi** et préviens-moi (le manifeste ne devait pas avoir changé ; répondre `n` annule tout l'envoi, rien n'est modifié en ligne).
-7. Dans l'éditeur Apps Script (recharge la page) : il n'y a qu'un fichier **`Code.gs`** à gauche. Lance les fonctions demandées par la procédure du lot (`verifierConfig`, etc.), **comme aujourd'hui**.
-8. **Mettre à jour le déploiement TEST** (même adresse ; tirets simples dans la description) :
-   ```
-   clasp update-deployment ID_DU_DEPLOIEMENT_TEST --description "Lot 2 - v6.0"
-   ```
-9. **Vérifier** : ouvre l'adresse TEST → elle doit afficher la nouvelle version (« Loué App API v6.0 OK »). Sinon : règle 2 de CLAUDE.md, préviens-moi.
-10. **Fin de séance** :
-    ```
-    clasp logout
-    ```
+C'est **toi qui la lances**, quand Claude te le demande. Claude te donne les deux lignes à copier dans **PowerShell** (pas en administrateur). Elles ressemblent à ceci :
 
-**Retour arrière** (même séance, ou une autre en refaisant l'étape 2) : recopie la sauvegarde voulue à la place de `Code.js` (regarde les noms dans `_prive/` : date puis heure), par exemple :
 ```
-copy "$HOME\Documents\GitHub\chantier-pro\_prive\Code-TEST-avant-20261120-0930.gs" Code.js
+cd $HOME\Documents\GitHub\chantier-pro
 ```
-puis refais les étapes 5, 6, 8 et 9. Pense aussi aux déclencheurs, comme dans la procédure du lot concerné (`retirerDeclencheurs` **avant** de revenir à un serveur plus ancien).
+
+```
+node outils\envoyer-test.js --avec-porte
+```
+
+(`--avec-porte` pendant les essais : le serveur contient alors les outils d'essai de Claude. `--sans-porte` avant ton feu vert : c'est le fichier de production exact.)
+
+Ce qui se passe :
+
+1. Une page Google s'ouvre : choisis **le compte de Loué**, puis **Autoriser**.
+2. La commande affiche ses 6 étapes, une ligne chacune :
+   - elle vérifie que le projet relié est bien celui de la copie TEST (sinon elle s'arrête sans rien envoyer) ;
+   - elle sauvegarde le serveur en ligne dans `_prive/Code-TEST-avant-<date>-<heure>.gs` ;
+   - elle envoie le nouveau serveur et met à jour le déploiement TEST (même adresse) ;
+   - elle vérifie en ligne que l'adresse TEST exécute bien ce fichier-là, grâce à son **empreinte** (une suite de 10 caractères calculée sur le code : si un seul caractère change, elle change).
+3. Elle efface le jeton et finit par **`✅ Envoi réussi`** ou **`❌ …`**. Moins de 3 minutes en tout.
+4. Dis à Claude « envoi fait ». Si tu vois ❌ : copie-colle-lui le texte affiché, ne relance rien.
+
+Son compte rendu est aussi écrit dans `_prive/envois/` (Claude le lit là).
+
+**Ce que la commande refuse de faire** : envoyer vers un autre projet que la copie TEST ; envoyer si le dossier clasp contient autre chose que `appsscript.json` et `Code.js` ; modifier le manifeste (le fichier de réglages du projet) ; envoyer avec `--force` ; partir d'un dépôt qui a des modifications non enregistrées.
+
+**Retour arrière** : les sauvegardes sont dans `_prive/` (date puis heure dans le nom). Le plus simple reste le copier-coller : ouvre la sauvegarde voulue, copie tout, colle dans `Code.gs` de l'éditeur Apps Script de la copie TEST, enregistre, puis **Gérer les déploiements → Modifier → Nouvelle version**. Pense aux déclencheurs, comme dans la procédure du lot concerné (`retirerDeclencheurs` **avant** de revenir à un serveur plus ancien).
 
 **Une fois par an environ** : Apps Script garde 200 versions au plus. Dans l'éditeur, **Historique du projet** → **suppression groupée** des vieilles versions (celles d'un déploiement actif ne sont pas proposées).
 
 ## À ne jamais faire
 
-- Lancer `clasp clone-script` avec l'identifiant du **script de production** (tant que nous n'avons pas décidé ensemble de l'utiliser en production).
-- `clasp push --force`, ou répondre « oui » à la question sur le manifeste.
+- Lancer `clasp clone-script` avec l'identifiant du **script de production**.
+- Taper toi-même `clasp push` : passe toujours par `node outils\envoyer-test.js`, qui fait les contrôles avant.
+- `clasp push --force`, ou répondre « oui » à une question sur le manifeste.
 - Lancer clasp depuis le dossier du dépôt GitHub, ou copier `.clasp.json` / `.clasprc.json` dans le dépôt, MEGA ou Google Drive.
-- Prendre le `Code.gs` d'une autre branche que **`main`** (les autres branches contiennent des lots pas encore validés).
-- Envoyer le manifeste du dépôt (`apps-script/appscript.json`) : il n'est pas utilisé. Son nom a d'ailleurs une faute (il manque un « s »), clasp l'ignorerait. Le bon manifeste est celui du projet, récupéré par `clasp clone-script`.
+- Mettre la propriété `CLE_OUTILS_TEST` dans le projet Apps Script de production.
+- Coller en production un serveur pris ailleurs que dans `A-COLLER-DANS-APPS-SCRIPT/Code.gs` de la branche `main`. (Sur la copie TEST, la commande d'envoi part de la branche de travail de Claude : c'est voulu, et réservé à TEST.)
+- Envoyer le manifeste du dépôt (`apps-script/appscript.json`) : il n'est pas utilisé. Le bon manifeste est celui du projet, récupéré par `clasp clone-script`.
 
-## Ce que je ferai, quand tu me le diras
+## Désinstaller
 
-- Ajouter dans chaque procédure de lot une variante « avec clasp » à côté du copier-coller.
-- Te guider en direct pour l'installation (15 min), puis faire le premier envoi sur TEST ensemble.
-- Rien en production sans une nouvelle décision de ta part.
+`npm uninstall -g @google/clasp` ; désactiver « API Google Apps Script » ; retirer l'accès de clasp sur [myaccount.google.com/connections](https://myaccount.google.com/connections) ; supprimer le dossier `clasp-loue` ; supprimer la propriété `CLE_OUTILS_TEST` du projet TEST.
