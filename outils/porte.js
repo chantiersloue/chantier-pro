@@ -52,10 +52,15 @@ async function appeler(geste, donnees, o) {
   if (rep && rep.data && typeof rep.data.jeton === 'string') {
     fs.mkdirSync(dossierPrive(o.prive), { recursive: true });
     fs.writeFileSync(fichierSession(o.prive), JSON.stringify({ id: rep.data.id, jeton: rep.data.jeton, profil: rep.data.profil, ouverteLe: new Date().toISOString() }));
-    rep.data.jeton = '(rangé dans _prive/session-essai.json, jamais affiché)';
   }
   if (geste === 'fermerSessions' && rep && rep.ok) { try { fs.rmSync(fichierSession(o.prive), { force: true }); } catch (e) {} }
-  return rep;
+  return masquerJetons(rep);
+}
+// Remplace, partout dans une réponse, toute chaîne qui a la forme d'un jeton de session (identifiant.p|t.version.expiration.signature)
+const FORME_JETON = /[a-z0-9_-]{2,30}\.[pt]\.\d{1,9}\.\d{10,16}\.[A-Za-z0-9_-]{20,}/g;
+function masquerJetons(rep) {
+  if (rep === undefined) return rep;
+  return JSON.parse(JSON.stringify(rep).replace(FORME_JETON, '(jeton rangé dans _prive/session-essai.json, jamais affiché)'));
 }
 // « n=3 », « valeur=true », « id=auto-poseur » → { n: 3, valeur: true, id: 'auto-poseur' }
 function lireParametres(args) {
@@ -70,7 +75,7 @@ function lireParametres(args) {
   return d;
 }
 
-module.exports = { creerCle, lireCle, lireSession, appeler, lireParametres, fichierCle, fichierSession };
+module.exports = { creerCle, lireCle, lireSession, appeler, lireParametres, masquerJetons, fichierCle, fichierSession };
 if (require.main === module) {
   (async () => {
     const a = process.argv.slice(2);

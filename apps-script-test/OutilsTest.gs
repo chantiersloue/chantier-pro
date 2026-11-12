@@ -18,7 +18,7 @@
 //     d'essai (« CHANTIER TEST AUTO ») et les réglages d'essai de TEST (déclencheurs, transition) ;
 //   - un geste qui n'a pas eu son effet répond ok:false (jamais « fait » à tort) ;
 //   - ce qui est changé pour un essai peut être remis : la transition d'origine est mémorisée (retablirTransition),
-//     les déclencheurs posés se retirent tout seuls au bout de 2 h, les sessions d'essai s'annulent (fermerSessions) ;
+//     au bout de 2 h, les déclencheurs posés se retirent et les sessions d'essai se ferment tout seuls ;
 //   - les réponses ne contiennent ni mot de passe provisoire, ni nom de personne, ni nom de vrai chantier ;
 //   - aucun geste ne touche à Drive : avant d'en ajouter un, refuser aussi si le dossier racine ne s'appelle pas « … TEST … ».
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
@@ -61,10 +61,12 @@ function outilTest_(corps) {
       case 'poserDeclencheurs':    return ok(outilTestPoserDeclencheurs_());
       case 'retirerDeclencheurs':  return ok(outilTestRetirerDeclencheurs_());
       case 'traiterComptes': { const r = traiterComptes(); if (r !== 'ok') throw new Error('traiterComptes n’a pas tourné : ' + r); return ok('traiterComptes : fait'); }
-      case 'finirTransition': { outilTestMemoriserTransition_(); const m = finirTransitionMaintenant();
-        if (transitionOuverte_()) throw new Error('la transition est encore ouverte : ' + m); return ok(m); }
-      case 'prolongerTransition': { outilTestMemoriserTransition_(); const avant = finTransition_(), m = prolongerTransition();
-        if (!transitionOuverte_() || !finTransition_() || finTransition_() === avant) throw new Error('rien n’a été prolongé : ' + m); return ok(m); }
+      case 'finirTransition': { const origine = outilTestEtatTransition_(), m = finirTransitionMaintenant();
+        if (transitionOuverte_()) throw new Error('la transition est encore ouverte : ' + m);
+        outilTestMemoriserTransition_(origine); return ok(m); }
+      case 'prolongerTransition': { const origine = outilTestEtatTransition_(), avant = finTransition_(), m = prolongerTransition();
+        if (!transitionOuverte_() || !finTransition_() || finTransition_() === avant) throw new Error('rien n’a été prolongé : ' + m);
+        outilTestMemoriserTransition_(origine); return ok(m); }
       case 'retablirTransition':   return ok(outilTestRetablirTransition_());
       case 'essaiDeclencheur':     return outilTestEssaiDeclencheur_();
 
@@ -126,12 +128,13 @@ function outilTestLireCompte_(id) {
     aProvisoire: String(l.valeurs[COL_U.provisoire - 1] || '') !== '',   // le mot de passe provisoire lui-même n'est jamais renvoyé
     versionSession: Number(lireCompte_(id).ver || 1) };
 }
-// Première ligne libre d'un onglet (colonnes A à C vides) à partir de la ligne 2 ; en ajoute une s'il n'y en a pas
+// Première ligne libre d'un onglet à partir de la ligne 2 (ses 10 premières colonnes vides, ou des cases décochées :
+// rien de ce que Franck aurait laissé sur une ligne sans identifiant n'est écrasé) ; en ajoute une s'il n'y en a pas
 function outilTestLigneLibre_(sh) {
   const max = sh.getMaxRows();
   if (max >= 2) {
-    const v = sh.getRange(2, 1, max - 1, 3).getValues();
-    for (let i = 0; i < v.length; i++) if (v[i].every(c => String(c).trim() === '')) return i + 2;
+    const v = sh.getRange(2, 1, max - 1, Math.min(10, sh.getMaxColumns ? sh.getMaxColumns() : 10)).getValues();
+    for (let i = 0; i < v.length; i++) if (v[i].every(c => c === false || String(c).trim() === '')) return i + 2;
   }
   sh.insertRowsAfter(max, 1);
   return max + 1;
@@ -181,6 +184,7 @@ function outilTestSession_(id) {
   if (!compteUtilisable_(x.u, id)) throw new Error('compte d’essai inutilisable');
   const c = lireCompte_(id);
   if (c.inactifDepuis) { delete c.inactifDepuis; ecrireCompte_(id, c); }
+  outilTestPoserFinEssai_();   // la session sera fermée toute seule dans 2 h si fermerSessions n'est pas appelé
   return { id: id, profil: profil_(x.l), jeton: fabriquerJeton_(id, Number(c.ver || 1)) };
 }
 // Annule côté serveur toutes les sessions des comptes d'essai (comme « Déconnecter ses téléphones ») et les désactive
@@ -199,18 +203,29 @@ function outilTestFermerSessions_() {
 }
 
 // ── Transition : l'état d'origine de TEST est mémorisé au premier geste, et remis par retablirTransition ──
-function outilTestMemoriserTransition_() {
+// (la date de fin ET le drapeau « alerte déjà envoyée » : sans lui, un mail d'alerte pourrait repartir après un essai)
+function outilTestEtatTransition_() {
   const props = PropertiesService.getScriptProperties();
-  if (props.getProperty('OUTIL_TEST_FIN_AVANT')) return;
-  props.setProperty('OUTIL_TEST_FIN_AVANT', props.getProperty('FIN_TRANSITION') || 'absente');
+  return { fin: props.getProperty('FIN_TRANSITION') || '', alerte: props.getProperty('ALERTE_TRANSITION_FAITE') || '' };
+}
+// origine : l'état lu AVANT le geste ; n'est mémorisé qu'une fois, et seulement si le geste a réussi
+function outilTestMemoriserTransition_(origine) {
+  const props = PropertiesService.getScriptProperties();
+  if (!props.getProperty('OUTIL_TEST_FIN_AVANT')) props.setProperty('OUTIL_TEST_FIN_AVANT', JSON.stringify(origine));
+  props.setProperty('OUTIL_TEST_FIN_POSEE', props.getProperty('FIN_TRANSITION') || '');   // dernière valeur posée par les essais
 }
 function outilTestRetablirTransition_() {
-  const props = PropertiesService.getScriptProperties(), avant = props.getProperty('OUTIL_TEST_FIN_AVANT');
-  if (!avant) return 'Rien à rétablir : la transition de TEST n’a pas été modifiée par les essais.';
-  if (avant === 'absente') props.deleteProperty('FIN_TRANSITION'); else props.setProperty('FIN_TRANSITION', avant);
-  props.deleteProperty('OUTIL_TEST_FIN_AVANT');
+  const props = PropertiesService.getScriptProperties(), brut = props.getProperty('OUTIL_TEST_FIN_AVANT');
+  if (!brut) return 'Rien à rétablir : la transition de TEST n’a pas été modifiée par les essais.';
+  const avant = JSON.parse(brut);
+  // Franck a-t-il changé la transition lui-même depuis le dernier essai ? On le dit (et on remet quand même l'état d'origine)
+  const changeeAlaMain = (props.getProperty('FIN_TRANSITION') || '') !== (props.getProperty('OUTIL_TEST_FIN_POSEE') || '');
+  if (avant.fin) props.setProperty('FIN_TRANSITION', avant.fin); else props.deleteProperty('FIN_TRANSITION');
+  if (avant.alerte) props.setProperty('ALERTE_TRANSITION_FAITE', avant.alerte); else props.deleteProperty('ALERTE_TRANSITION_FAITE');
+  props.deleteProperty('OUTIL_TEST_FIN_AVANT'); props.deleteProperty('OUTIL_TEST_FIN_POSEE');
   const fin = finTransition_();
-  return 'Transition de TEST remise comme avant les essais : ' + (fin ? 'fin le ' + texteDate_(fin) : 'pas commencée') + '.';
+  return 'Transition de TEST remise comme avant les essais : ' + (fin ? 'fin le ' + texteDate_(fin) : 'pas commencée') + '.'
+    + (changeeAlaMain ? ' ATTENTION : elle avait été modifiée à la main depuis le dernier essai ; ce changement est annulé.' : '');
 }
 
 // ── Déclencheurs : posés pour un essai, ils se retirent tout seuls au bout de 2 h (quota partagé avec la production) ──
@@ -218,8 +233,7 @@ function outilTestPoserDeclencheurs_() {
   const m = installerDeclencheurs();
   const presents = ScriptApp.getProjectTriggers().map(t => t.getHandlerFunction());
   if (!DECLENCHEURS.every(d => presents.indexOf(d) > -1)) throw new Error('les déclencheurs ne sont pas tous posés : ' + m);
-  ScriptApp.getProjectTriggers().filter(t => t.getHandlerFunction() === 'outilTestRetraitAuto_').forEach(t => ScriptApp.deleteTrigger(t));
-  ScriptApp.newTrigger('outilTestRetraitAuto_').timeBased().after(OUTIL_TEST_RETRAIT_AUTO_H * 3600 * 1000).create();
+  outilTestPoserFinEssai_();
   return m + ' Ils seront retirés automatiquement dans ' + OUTIL_TEST_RETRAIT_AUTO_H + ' h.';
 }
 function outilTestRetirerDeclencheurs_() {
@@ -229,8 +243,17 @@ function outilTestRetirerDeclencheurs_() {
   if (restes.length) throw new Error('déclencheurs encore en place : ' + restes.join(', '));
   return m;
 }
-// Appelée par le déclencheur de retrait automatique (2 h après poserDeclencheurs)
-function outilTestRetraitAuto_() { try { outilTestRetirerDeclencheurs_(); } catch (e) { console.error('outilTestRetraitAuto_ :', e.message); } }
+// Fin d'essai automatique : un déclencheur unique, 2 h après le dernier « poserDeclencheurs » ou « session », retire les
+// déclencheurs et ferme les sessions d'essai, même si la séance de Claude s'est interrompue.
+// (Nom SANS « _ » final : une fonction appelée par un déclencheur doit être visible de l'éditeur.)
+function outilTestPoserFinEssai_() {
+  ScriptApp.getProjectTriggers().filter(t => t.getHandlerFunction() === 'outilTestFinEssaiAuto').forEach(t => ScriptApp.deleteTrigger(t));
+  ScriptApp.newTrigger('outilTestFinEssaiAuto').timeBased().after(OUTIL_TEST_RETRAIT_AUTO_H * 3600 * 1000).create();
+}
+function outilTestFinEssaiAuto() {
+  try { outilTestSousVerrou_(outilTestFermerSessions_); } catch (e) { console.error('outilTestFinEssaiAuto (sessions) :', e.message); }
+  try { outilTestRetirerDeclencheurs_(); } catch (e) { console.error('outilTestFinEssaiAuto (déclencheurs) :', e.message); }
+}
 
 // Essai de faisabilité n° 1 (réussi le 12/11/2026) : un appel de l'appli peut poser PUIS retirer un déclencheur.
 // Le déclencheur posé appelle une fonction qui ne fait rien, et il est retiré dans le même appel.

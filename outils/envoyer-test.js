@@ -122,6 +122,32 @@ async function attendreEmpreinte(url, attendue, o) {
     await pause(o.pasMs || 5000);
   }
 }
+// Appel de la porte de service (chargé ici seulement : outils/porte.js charge lui-même ce fichier)
+function appelerPorte(geste) { return require('./porte.js').appeler(geste, null, { maxMs: 60000 }); }
+// Avant un envoi SANS porte : retirer les déclencheurs d'essai, fermer les sessions d'essai, rétablir la transition.
+// Si le serveur en ligne n'a déjà plus la porte (ou si la clé n'existe pas), il n'y a rien à ranger : on continue.
+// Si la porte répond mais qu'un rangement échoue, on S'ARRÊTE : sans la porte, plus rien ne pourrait le faire.
+async function rangerAvantSansPorte(porte) {
+  let etat;
+  try { etat = await porte('etat'); } catch (e) { return 'la porte de service ne répond pas (' + e.message + ') : rien à ranger.'; }
+  if (!etat || !etat.ok || !etat.data) return 'le serveur en ligne n’a pas (ou plus) les outils d’essai : rien à ranger.';
+  // Une porte ancienne (version minimale de l'essai de faisabilité) ne sait ni ouvrir de session ni toucher à la
+  // transition : il n'y a alors que les déclencheurs à regarder
+  const complete = Object.prototype.hasOwnProperty.call(etat.data, 'transitionARetablir');
+  if (!complete && !(etat.data.declencheurs || []).length) return 'outils d’essai en version minimale, aucun déclencheur : rien à ranger.';
+  const faits = [];
+  const exiger = async (geste, quoi) => {
+    const r = await porte(geste);
+    if (!r || !r.ok) throw new Error('Impossible de ' + quoi + ' sur la copie TEST (' + ((r && r.message) || 'pas de réponse') + ') : envoi « sans porte » annulé, préviens Claude');
+    faits.push(quoi);
+  };
+  if ((etat.data.declencheurs || []).length) await exiger('retirerDeclencheurs', 'retirer les déclencheurs d’essai');
+  if (complete) await exiger('fermerSessions', 'fermer les sessions d’essai');
+  if (etat.data.transitionARetablir) await exiger('retablirTransition', 'rétablir la période sans compte');
+  const apres = await porte('etat');
+  if (!apres || !apres.ok || (apres.data.declencheurs || []).length || apres.data.transitionARetablir) throw new Error('La copie TEST n’est pas en ordre après le rangement : envoi « sans porte » annulé, préviens Claude');
+  return 'copie TEST en ordre (' + faits.join(' ; ') + ').';
+}
 function demanderAuClavier(question) {
   return new Promise(r => {
     const rl = require('readline').createInterface({ input: process.stdin, output: process.stdout });
@@ -214,6 +240,14 @@ async function envoyer(o) {
       if (vraiJeton) noter('⚠ Un jeton Google était resté sur le PC : il a été effacé avant de commencer.');
     }
 
+    // ── 1 bis. Avant de retirer la porte : remettre la copie TEST en ordre tant qu'elle est encore là pour le faire ──
+    // (des déclencheurs d'essai laissés en place tourneraient sans fin sur le quota partagé avec la production)
+    if (!o.avecPorte) {
+      if (o.claspCmd && !o.porte) throw new Error('test mal monté : avec un faux clasp, il faut aussi une fausse porte (option « porte »)');
+      const bilan = await rangerAvantSansPorte(o.porte || appelerPorte);
+      noter('Avant de retirer les outils d’essai : ' + bilan);
+    }
+
     // ── 2. Premier envoi : l'identifiant vient de l'éditeur du Sheet TEST, collé par Franck ──
     let aMemoriser = false;
     if (fs.existsSync(memoire)) {
@@ -291,7 +325,7 @@ async function envoyer(o) {
   return { ok: reussi, erreur: erreur ? erreur.message : '', rapport: rapport, jetonRestant: jetonEfface.length > 0, restes: jetonEfface };
 }
 
-module.exports = { envoyer, deploiementTest, lireProjet, lireDeploiements, attendreEmpreinte, tuerArbre, FICHIERS_ATTENDUS };
+module.exports = { envoyer, rangerAvantSansPorte, deploiementTest, lireProjet, lireDeploiements, attendreEmpreinte, tuerArbre, FICHIERS_ATTENDUS };
 if (require.main === module) {
   const args = process.argv.slice(2);
   const o = {};

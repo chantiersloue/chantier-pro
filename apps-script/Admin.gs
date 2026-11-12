@@ -119,7 +119,14 @@ function verifierConfig() {
     lignes.push('✅ Onglet « ' + SHEET_MAT_BORDEREAU + ' » créé (vide) : une ligne par matériau — A le type, B le matériau, C la quantité');
   } else ok(true, 'Onglet « ' + SHEET_MAT_BORDEREAU + ' »');
   const presents = ScriptApp.getProjectTriggers().map(t => t.getHandlerFunction());
-  DECLENCHEURS.forEach(d => ok(presents.indexOf(d) > -1, 'Déclencheur ' + d + ' (sinon lancer installerDeclencheurs)'));
+  // Sur la copie TEST, les déclencheurs ne sont posés que pendant les essais (quota partagé avec la production) :
+  // leur absence n'y est pas une erreur
+  const surTest = environnementReel_().env === 'TEST';
+  DECLENCHEURS.forEach(d => {
+    if (presents.indexOf(d) > -1) ok(true, 'Déclencheur ' + d + (surTest ? ' (copie TEST : à retirer après les essais, retirerDeclencheurs)' : ''));
+    else if (surTest) lignes.push('➖ Déclencheur ' + d + ' : absent (normal sur la copie TEST hors essais)');
+    else ok(false, 'Déclencheur ' + d + ' (sinon lancer installerDeclencheurs)');
+  });
   lignes.push(verifierComptes_());    // lot 2 : comptes, clé, partage du Sheet, transition
   // Outillage : les outils d'essai (porte de service et sa clé) ne doivent exister que sur la copie TEST
   const ou = environnementReel_(), porte = typeof outilTest_ === 'function', cleOutils = !!propriete_('CLE_OUTILS_TEST');

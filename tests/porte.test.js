@@ -198,11 +198,18 @@ test('porte : lectures bornées (20 lignes au plus), déclencheurs, transition, 
   assert.strictEqual(g.feuilles['Chantiers'].lignes[1][0], 'CHANTIER TEST 1', 'la ligne existante n’est pas touchée');
   assert.strictEqual(geste(g, 'lireChantiers').data.chantierEssaiPresent, true);
   assert.ok(geste(g, 'poserDeclencheurs').ok);
-  assert.deepStrictEqual(Array.from(geste(g, 'etat').data.declencheurs), ['outilTestRetraitAuto_', 'renvoyerMailsEnAttente', 'surModificationSheet', 'traiterComptes'], 'avec le retrait automatique dans 2 h');
+  assert.deepStrictEqual(Array.from(geste(g, 'etat').data.declencheurs), ['outilTestFinEssaiAuto', 'renvoyerMailsEnAttente', 'surModificationSheet', 'traiterComptes'], 'avec la fin d’essai automatique dans 2 h');
   geste(g, 'poserDeclencheurs');
   assert.strictEqual(geste(g, 'etat').data.declencheurs.length, 4, 'reposer ne les double pas');
-  g.ctx.outilTestRetraitAuto_();   // ce que fait le déclencheur de retrait automatique
-  assert.strictEqual(geste(g, 'etat').data.declencheurs.length, 0, 'le retrait automatique retire tout, lui compris');
+  geste(g, 'preparerComptes'); const jeton = geste(g, 'session', { id: 'auto-admin' }).data.jeton;
+  assert.strictEqual(geste(g, 'etat').data.declencheurs.filter(d => d === 'outilTestFinEssaiAuto').length, 1, 'une seule fin d’essai programmée');
+  g.ctx.outilTestFinEssaiAuto();   // ce que fait le déclencheur de fin d'essai
+  assert.strictEqual(geste(g, 'etat').data.declencheurs.length, 0, 'la fin d’essai automatique retire tout, elle comprise');
+  assert.strictEqual(geste(g, 'lireCompte', { id: 'auto-admin' }).data.actif, false, 'et ferme les sessions d’essai');
+  g.ctx.finirTransitionMaintenant();
+  assert.strictEqual(poster(g, { action: 'moi', v: 5, jeton: jeton }).code, 'JETON_INVALIDE');
+  delete g.proprietes.FIN_TRANSITION;
+  assert.ok(/^function outilTestFinEssaiAuto\(\)/m.test(fs.readFileSync(path.join(RACINE, construire.PORTE), 'utf8')), 'nom sans « _ » final : appelable par un déclencheur');
   geste(g, 'poserDeclencheurs');
   assert.ok(geste(g, 'retirerDeclencheurs').ok);
   assert.strictEqual(geste(g, 'etat').data.declencheurs.length, 0);
@@ -211,6 +218,7 @@ test('porte : lectures bornées (20 lignes au plus), déclencheurs, transition, 
   assert.deepStrictEqual([e.transitionOuverte, e.transitionJusquau, e.transitionARetablir], [true, null, false]);
   const pas = geste(g, 'prolongerTransition');
   assert.ok(!pas.ok && /rien n’a été prolongé/.test(pas.message), 'prolonger une transition pas commencée n’est pas annoncé comme réussi');
+  assert.strictEqual(geste(g, 'etat').data.transitionARetablir, false, 'un geste raté ne laisse rien à rétablir');
   assert.ok(geste(g, 'finirTransition').ok);
   e = geste(g, 'etat').data;
   assert.deepStrictEqual([e.transitionOuverte, e.transitionARetablir], [false, true]);
@@ -220,13 +228,20 @@ test('porte : lectures bornées (20 lignes au plus), déclencheurs, transition, 
   assert.ok(ret.ok && /pas commencée/.test(ret.message), ret.message);
   e = geste(g, 'etat').data;
   assert.deepStrictEqual([e.transitionOuverte, e.transitionJusquau, e.transitionARetablir], [true, null, false]);
-  assert.ok(!g.proprietes.FIN_TRANSITION && !g.proprietes.OUTIL_TEST_FIN_AVANT);
+  assert.ok(!g.proprietes.FIN_TRANSITION && !g.proprietes.OUTIL_TEST_FIN_AVANT && !g.proprietes.OUTIL_TEST_FIN_POSEE);
   assert.ok(/Rien à rétablir/.test(geste(g, 'retablirTransition').message));
   // une transition déjà commencée (cas de la vraie copie TEST) retrouve exactement sa date
   g.proprietes.FIN_TRANSITION = '1794933622155';
-  geste(g, 'finirTransition'); geste(g, 'prolongerTransition'); geste(g, 'retablirTransition');
+  g.proprietes.ALERTE_TRANSITION_FAITE = '1';   // l'alerte « fin dans 3 jours » était déjà partie
+  geste(g, 'finirTransition'); geste(g, 'prolongerTransition');
+  assert.ok(!g.proprietes.ALERTE_TRANSITION_FAITE, 'prolonger efface le drapeau d’alerte…');
+  assert.ok(!/ATTENTION/.test(geste(g, 'retablirTransition').message));
+  assert.deepStrictEqual([g.proprietes.FIN_TRANSITION, g.proprietes.ALERTE_TRANSITION_FAITE], ['1794933622155', '1'], '… et rétablir le remet : aucun mail d’alerte en double');
+  // Franck a modifié la transition à la main entre un essai et le rétablissement : c'est dit
+  geste(g, 'finirTransition'); g.proprietes.FIN_TRANSITION = '1899999999999';
+  assert.ok(/ATTENTION : elle avait été modifiée à la main/.test(geste(g, 'retablirTransition').message));
   assert.strictEqual(g.proprietes.FIN_TRANSITION, '1794933622155');
-  delete g.proprietes.FIN_TRANSITION;
+  delete g.proprietes.FIN_TRANSITION; delete g.proprietes.ALERTE_TRANSITION_FAITE;
   const c = geste(g, 'controlerLot2');
   assert.ok(c.ok && /Lot 2 — contrôle seul — environnement : TEST/.test(c.message) && /HACHAGE_ITERATIONS.* : déjà fait/.test(c.message), c.message);
   assert.ok(geste(g, 'lireBilan').data.lignes.length >= 2);
@@ -352,6 +367,7 @@ function monde(reglages) {
   o.options = extra => Object.assign({ avecPorte: true, dossierClasp: o.dossierClasp, dossierJeton: o.dossierJeton, dossierPrive: o.dossierPrive,
     claspCmd: [process.execPath, path.join(__dirname, 'faux-clasp.js')], env: { FAUX_CLASP_MONDE: o.fichierMonde, clasp_config_project: 'C:/ailleurs/.clasp.json' }, dire: () => {}, pasMs: 5, maxMs: 300,
     etatDepot: () => ({ propre: true, source: 'outillage abc1234' }), sansSignaux: true, demander: async () => ' SCRIPT-TEST-123\n',
+    porte: async () => ({ ok: false, code: 'ACTION_INCONNUE' }),   // JAMAIS la vraie porte dans les tests
     appeler: async () => { const c = o.lire().deploye, e = /const EMPREINTE_SERVEUR = '([0-9a-f]+)'/.exec(c); return { ok: true, data: { version: 'v-test', empreinte: e ? e[1] : '' } }; } }, extra || {});
   return o;
 }
@@ -382,6 +398,44 @@ test('envoi : --sans-porte envoie exactement le fichier de production', async ()
   assert.ok(r.ok, r.rapport.join('\n'));
   assert.strictEqual(m.lire().enLigne['Code.js'], construire.assembler(false).code);
   assert.ok(!construire.MARQUE_PORTE.test(m.lire().deploye));
+});
+test('envoi --sans-porte : la copie TEST est d’abord remise en ordre par la porte encore en place ; sinon l’envoi est annulé', async () => {
+  // une fausse porte, avec son état
+  const fausse = (etat, pannes) => { const appels = []; return { appels: appels, porte: async g => { appels.push(g);
+    if (pannes && pannes[g]) return { ok: false, code: 'ERREUR_OUTIL', message: 'panne de ' + g };
+    if (g === 'etat') return { ok: true, data: JSON.parse(JSON.stringify(etat)) };
+    if (g === 'retirerDeclencheurs') etat.declencheurs = [];
+    if (g === 'retablirTransition') etat.transitionARetablir = false;
+    return { ok: true, data: {} }; } }; };
+  // 1. déclencheurs posés + transition modifiée : tout est rangé AVANT la connexion Google, puis l'envoi se fait
+  let f = fausse({ declencheurs: ['traiterComptes', 'outilTestFinEssaiAuto'], transitionARetablir: true });
+  let m = monde(), r = await envoi.envoyer(m.options({ avecPorte: false, porte: f.porte }));
+  assert.ok(r.ok, r.rapport.join('\n'));
+  assert.deepStrictEqual(f.appels, ['etat', 'retirerDeclencheurs', 'fermerSessions', 'retablirTransition', 'etat']);
+  assert.ok(r.rapport.some(l => /copie TEST en ordre \(retirer les déclencheurs d’essai ; fermer les sessions d’essai ; rétablir la période sans compte\)/.test(l)), r.rapport.join('\n'));
+  assert.ok(r.rapport.findIndex(l => /copie TEST en ordre/.test(l)) < r.rapport.findIndex(l => /1\/6 Connexion Google/.test(l)), 'rangé avant la connexion');
+  // 2. le retrait des déclencheurs échoue : envoi annulé, clasp jamais lancé
+  f = fausse({ declencheurs: ['traiterComptes'], transitionARetablir: false }, { retirerDeclencheurs: true });
+  m = monde(); r = await envoi.envoyer(m.options({ avecPorte: false, porte: f.porte }));
+  assert.ok(!r.ok && /Impossible de retirer les déclencheurs d’essai.*envoi « sans porte » annulé/.test(r.erreur), r.erreur);
+  assert.strictEqual((m.lire().journal || []).length, 0);
+  // 3. rien à ranger : seules les sessions sont fermées par précaution
+  f = fausse({ declencheurs: [], transitionARetablir: false });
+  assert.ok((await envoi.envoyer(monde().options({ avecPorte: false, porte: f.porte }))).ok);
+  assert.deepStrictEqual(f.appels, ['etat', 'fermerSessions', 'etat']);
+  // 4. porte en version minimale (sans session ni transition), ou déjà absente, ou injoignable : on continue
+  f = fausse({ declencheurs: [] });
+  assert.ok((await envoi.envoyer(monde().options({ avecPorte: false, porte: f.porte }))).ok);
+  assert.deepStrictEqual(f.appels, ['etat']);
+  assert.ok((await envoi.envoyer(monde().options({ avecPorte: false, porte: async () => ({ ok: false, code: 'ACTION_INCONNUE' }) }))).ok);
+  assert.ok((await envoi.envoyer(monde().options({ avecPorte: false, porte: async () => { throw new Error('réseau coupé'); } }))).ok);
+  // 5. avec porte : la porte n'est pas consultée
+  f = fausse({ declencheurs: ['traiterComptes'], transitionARetablir: true });
+  assert.ok((await envoi.envoyer(monde().options({ avecPorte: true, porte: f.porte }))).ok);
+  assert.deepStrictEqual(f.appels, []);
+  // 6. un test qui oublierait la fausse porte est refusé, au lieu d'appeler la vraie
+  const o = monde().options({ avecPorte: false }); delete o.porte;
+  assert.ok(/test mal monté/.test((await envoi.envoyer(o)).erreur));
 });
 test('envoi : un projet qui ne contient pas le déploiement TEST (la production, par exemple) = rien n’est envoyé', async () => {
   const m = monde({ deploiements: ['AKfycbHEAD', 'AKfycbPRODUCTION'] }), r = await envoi.envoyer(m.options());
@@ -599,6 +653,9 @@ test('clé : fabriquée une fois (48 caractères), jamais refaite, jamais affich
   assert.strictEqual(porte.lireSession(prive).jeton, JETON);
   await porte.appeler('fermerSessions', null, { prive: prive, url: 'https://exemple.test/exec', envoyer: async () => ({ ok: true, data: {} }) });
   assert.strictEqual(porte.lireSession(prive), null, 'le jeton rangé est effacé à la fermeture des sessions');
+  // un jeton placé ailleurs dans une réponse (message d'erreur, objet imbriqué) est masqué aussi
+  const ailleurs = porte.masquerJetons({ ok: false, message: 'refus de ' + JETON, data: { liste: [{ j: JETON }], profil: { id: 'auto-admin' } } });
+  assert.ok(JSON.stringify(ailleurs).indexOf('SIGNATURE-SECRETE') < 0 && ailleurs.data.profil.id === 'auto-admin');
   assert.deepStrictEqual(porte.lireParametres(['n=3', 'valeur=true', 'id=auto-poseur', 'case=reinit']), { n: 3, valeur: true, id: 'auto-poseur', case: 'reinit' });
   ['cle=x', 'geste=etat', 'action=ping', 'sansegal'].forEach(a => assert.throws(() => porte.lireParametres([a]), /réservé|mal écrit/));
   const sortie = execFileSync(process.execPath, ['-e', "const p=require(process.argv[1]);const r=p.creerCle(process.argv[2]);console.log(r.cree)", path.join(RACINE, 'outils', 'porte.js'), path.join(TMP, 'cle2')], { encoding: 'utf8' });
