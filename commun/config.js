@@ -10,7 +10,7 @@
   // Copie de test (Sheet « ChantierPro TEST ») : s'active en ouvrant l'appli avec ?env=test, se coupe avec ?env=prod
   var URL_TEST = 'https://script.google.com/macros/s/AKfycby2f8c3dSG8ZNHNFOf3xFmd-75jytlBBK-Ji87YpqhDU8V8nMjYSB66VhnRGepRykMZTg/exec';
 
-  var VERSION_APPLI = '6.0.1';   // lot 2 (comptes) ; 6.0.1 : rangement jamais bloqué (comme la 5.1.1)
+  var VERSION_APPLI = '7.0';   // lot 2 (comptes) ; 6.0.1 : rangement jamais bloqué (comme la 5.1.1)
 
   function lire(cle) { try { return localStorage.getItem(cle); } catch (e) { return null; } }
   function ecrire(cle, v) { try { if (v === null) localStorage.removeItem(cle); else localStorage.setItem(cle, v); } catch (e) {} }

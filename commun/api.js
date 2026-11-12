@@ -57,6 +57,7 @@
   LOUE.deconnecter = function () {
     var c = lireCompteLocal();
     try { if (c && c.profil) localStorage.removeItem(CLE_LISTES + '_' + c.profil.id); } catch (e) {}
+    oublierSignalements('');   // lot 7 : les listes de signalements gardées dans le téléphone
     ecrireCompteLocal(null);
     LOUE.signaler({ type: 'compte', etat: 'deconnecte' });
   };
@@ -673,6 +674,48 @@
       if (rep.code === 'ACTION_INCONNUE' || (!LOUE.compte() && rep.code === 'JETON_INVALIDE')) return sansCompte();
       if (!rep.ok) throw new Error(rep.message || 'Documents indisponibles');
       return rep.data.dossiers || {};
+    });
+  };
+
+  // ── Signalements (lot 7) : suivi ──
+  // La dernière liste reçue est gardée dans le téléphone PAR COMPTE et par vue, effacée à la déconnexion,
+  // et jamais rendue sans compte connecté : la personne suivante sur le même téléphone ne voit pas la liste de la précédente.
+  var CLE_SIGNALEMENTS = 'loue_signalements_' + CONFIG.env + '_';
+  function cleSignalements(vue) { var c = LOUE.compte(); return c ? CLE_SIGNALEMENTS + c.profil.id + '_' + vue : ''; }
+  function oublierSignalements(id) {
+    var debut = CLE_SIGNALEMENTS + (id ? id + '_' : '');
+    try {
+      for (var i = localStorage.length - 1; i >= 0; i--) { var k = localStorage.key(i); if (k && k.indexOf(debut) === 0) localStorage.removeItem(k); }
+    } catch (e) {}
+  }
+  // o : { chantier, tout } → promesse de { donnees: { signalements, peutChanger, statuts, plein }, date, depuisLeTelephone }
+  LOUE.lireSignalements = function (o) {
+    o = o || {};
+    if (!LOUE.compte()) return Promise.reject(Object.assign(new Error('Connectez-vous pour voir les signalements'), { connexion: true }));
+    var vue = (o.tout ? 'tout' : 'encours') + '_' + String(o.chantier || '').toLowerCase();
+    var cle = cleSignalements(vue);
+    return LOUE.appeler({ action: 'signalements', chantier: o.chantier || '', tout: !!o.tout }, 20000).then(function (rep) {
+      if (LOUE.estRefusDeConnexion(rep)) throw Object.assign(new Error(rep.message || 'Connexion nécessaire'), { connexion: true });
+      if (!rep.ok) throw new Error(rep.code === 'ACTION_INCONNUE' ? 'le serveur n’est pas encore à jour' : (rep.message || 'Signalements indisponibles'));
+      // gardée seulement si c'est toujours le même compte qui est connecté
+      if (cle && cle === cleSignalements(vue)) { try { localStorage.setItem(cle, JSON.stringify({ donnees: rep.data, date: Date.now() })); } catch (e) {} }
+      return { donnees: rep.data, date: Date.now(), depuisLeTelephone: false };
+    }, function (err) {
+      // Pas de réseau : la dernière liste de CE compte pour cette vue, si elle existe
+      var g = null;
+      try { if (cle && cle === cleSignalements(vue)) g = JSON.parse(localStorage.getItem(cle) || 'null'); } catch (e) {}
+      if (g && g.donnees) return { donnees: g.donnees, date: g.date, depuisLeTelephone: true };
+      throw err;
+    });
+  };
+  // Changement de statut (Conducteur, Admin, Atelier) : demande du réseau
+  LOUE.changerStatutSignalement = function (id, statut) {
+    return LOUE.appeler({ action: 'signalementStatut', id: id, statut: statut }, 20000).then(function (rep) {
+      if (LOUE.estRefusDeConnexion(rep)) throw Object.assign(new Error(rep.message || 'Connexion nécessaire'), { connexion: true });
+      if (!rep.ok) throw new Error(rep.message || 'Statut non enregistré');
+      var c = LOUE.compte();
+      oublierSignalements(c ? c.profil.id : '');   // les listes gardées ne sont plus à jour
+      return rep.data;
     });
   };
 

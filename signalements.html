@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Loué App — Signalements</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Loué App">
+<meta name="theme-color" content="#1A2B4A">
+<link rel="stylesheet" href="commun/style.css?v=8b8822e115">
+<link rel="stylesheet" href="commun/fiche.css?v=8b8822e115">
+<style>
+.sig-carte{background:var(--card);border:1px solid var(--border);border-left:6px solid var(--header-bg);border-radius:var(--rl);margin-bottom:12px;padding:12px 14px;}
+.sig-carte.bloquant{border-left-color:var(--red);}
+.sig-carte.clos{opacity:.7;border-left-color:var(--border2);}
+.sig-tete{display:flex;flex-wrap:wrap;gap:6px 8px;align-items:center;margin-bottom:6px;}
+.sig-type{font-size:18px;font-weight:800;}
+.pastille{display:inline-block;padding:3px 9px;border-radius:999px;font-size:13px;font-weight:700;background:#E8EDF5;color:var(--header-bg);}
+.pastille.rouge{background:var(--red-l);color:var(--red);}
+.pastille.vert{background:var(--green-l);color:var(--green);}
+.pastille.gris{background:#EFECE8;color:var(--muted);}
+.sig-ligne{font-size:16px;line-height:1.45;margin:2px 0;overflow-wrap:anywhere;white-space:pre-wrap;}
+.sig-ligne b{font-weight:700;}
+.sig-pied{font-size:14px;color:var(--muted);margin-top:6px;line-height:1.4;}
+.statuts{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:10px;}
+@media(max-width:420px){.statuts{grid-template-columns:repeat(2,1fr);}}
+.statut-btn{min-height:52px;border-radius:var(--r);border:2px solid var(--border2);background:#fff;font:inherit;font-size:15px;font-weight:800;cursor:pointer;padding:4px;}
+.statut-btn.active{background:var(--header-bg);border-color:var(--header-bg);color:#fff;}
+.statut-btn:disabled{opacity:.5;cursor:default;}
+.filtres{display:flex;gap:8px;margin-bottom:12px;}
+.filtres .btn{flex:1;}
+.filtres .btn.active{background:var(--header-bg);color:#fff;border-color:var(--header-bg);}
+.vide{text-align:center;color:var(--muted);padding:28px 10px;font-size:17px;line-height:1.5;}
+</style>
+</head>
+<body>
+
+<div class="topbar no-print">
+  <a class="btn btn-secondary btn-petit" href="index.html" aria-label="Retour à l'accueil">‹ Retour</a>
+  <span class="tb-name">Signalements</span>
+  <span id="loue-envoi-place"></span>
+  <button class="btn btn-secondary btn-petit" type="button" id="btn-actualiser" onclick="charger()">↻ Actualiser</button>
+</div>
+
+<div class="main">
+  <div class="aide" id="entete"></div>
+  <div class="filtres" id="filtres" hidden>
+    <button class="btn btn-secondary active" type="button" id="filtre-encours" onclick="choisirFiltre(false)">En cours</button>
+    <button class="btn btn-secondary" type="button" id="filtre-tout" onclick="choisirFiltre(true)">Tout (avec les clos)</button>
+  </div>
+  <div class="listes-info" id="info" role="status"></div>
+  <div id="liste"></div>
+</div>
+
+<div class="bottom-bar no-print">
+  <a class="btn btn-secondary" href="index.html">‹ Retour</a>
+  <a class="btn btn-green" id="btn-signaler" href="signaler.html" style="flex:1;text-decoration:none">+ Nouveau signalement</a>
+</div>
+
+<script src="commun/config.js?v=8b8822e115"></script>
+<script src="commun/api.js?v=8b8822e115"></script>
+<script src="commun/ui.js?v=8b8822e115"></script>
+<script src="commun/hors-ligne.js?v=8b8822e115"></script>
+<script>
+'use strict';
+// Suivi des signalements (lot 7). Tout ce qui vient du serveur a été saisi par quelqu'un d'autre : il n'est JAMAIS
+// inséré comme du code de page. La liste est construite élément par élément, le texte posé par textContent.
+const $ = id => document.getElementById(id);
+let CHANTIER = '';
+try { CHANTIER = (new URLSearchParams(location.search).get('chantier') || '').trim().slice(0, 150); } catch (e) {}
+let TOUT = false;
+let DONNEES = null;          // { signalements, peutChanger, statuts, plein }
+let enCours = 0;             // numéro de la dernière demande : une réponse en retard n'écrase pas la plus récente
+const STATUTS_DEFAUT = ['À traiter', 'Commandé', 'Livré', 'Clos'];
+
+function el(balise, classe, texte) {
+  const e = document.createElement(balise);
+  if (classe) e.className = classe;
+  if (texte !== undefined && texte !== null) e.textContent = String(texte);
+  return e;
+}
+function ligne(titre, texte) {
+  const p = el('div', 'sig-ligne');
+  p.appendChild(el('b', '', titre + ' : '));
+  p.appendChild(document.createTextNode(String(texte)));
+  return p;
+}
+
+function entete() {
+  const e = $('entete');
+  e.textContent = '';
+  if (CHANTIER) {
+    e.appendChild(document.createTextNode('Chantier : '));
+    e.appendChild(el('b', '', CHANTIER));
+    e.appendChild(document.createTextNode(' — '));
+    const a = el('a', '', 'voir tous les chantiers'); a.href = 'signalements.html'; e.appendChild(a);
+    $('btn-signaler').href = 'signaler.html?chantier=' + encodeURIComponent(CHANTIER);
+  } else e.textContent = 'Tous les chantiers.';
+}
+
+function carte(s) {
+  const peut = !!(DONNEES && DONNEES.peutChanger);
+  const statuts = (DONNEES && Array.isArray(DONNEES.statuts) && DONNEES.statuts.length ? DONNEES.statuts : STATUTS_DEFAUT).map(String);
+  const c = el('div', 'sig-carte' + (s.urgence === 'Bloquant' ? ' bloquant' : '') + (s.statut === 'Clos' ? ' clos' : ''));
+  const tete = el('div', 'sig-tete');
+  tete.appendChild(el('span', 'sig-type', s.type || 'Signalement'));
+  tete.appendChild(el('span', 'pastille' + (s.urgence === 'Bloquant' ? ' rouge' : ''), s.urgence || ''));
+  tete.appendChild(el('span', 'pastille ' + (s.statut === 'Clos' ? 'gris' : s.statut === 'À traiter' ? '' : 'vert'), s.statut || ''));
+  if (s.atelier) tete.appendChild(el('span', 'pastille gris', 'atelier prévenu'));
+  if (s.mien) tete.appendChild(el('span', 'pastille gris', 'le mien'));
+  c.appendChild(tete);
+  if (!CHANTIER) c.appendChild(ligne('Chantier', s.chantier || '—'));
+  if (s.repere) c.appendChild(ligne('Repère', s.repere));
+  if (s.commentaire) c.appendChild(ligne('Commentaire', s.commentaire));
+  const pied = [];
+  pied.push('Signalé par ' + (s.auteur || '—') + (s.saisi ? ', le ' + s.saisi : s.recu ? ', reçu le ' + s.recu : ''));
+  if (s.photos) pied.push(s.photos + ' photo' + (s.photos > 1 ? 's' : '') + ' (dans le PDF reçu par mail)');
+  if (s.mailReporte) pied.push('⚠ mail parti en retard (trop de mails ce jour-là)');
+  if (s.modifPar) pied.push('Statut changé par ' + s.modifPar + (s.modifLe ? ' le ' + s.modifLe : ''));
+  c.appendChild(el('div', 'sig-pied', pied.join(' · ')));
+  if (peut) {
+    const rangee = el('div', 'statuts');
+    statuts.forEach(st => {
+      const b = el('button', 'statut-btn' + (st === s.statut ? ' active' : ''), st);
+      b.type = 'button';
+      b.setAttribute('aria-pressed', st === s.statut ? 'true' : 'false');
+      b.addEventListener('click', () => changerStatut(s, st, rangee));
+      rangee.appendChild(b);
+    });
+    c.appendChild(rangee);
+  }
+  return c;
+}
+
+function afficher(r) {
+  DONNEES = r.donnees || { signalements: [] };
+  const liste = $('liste');
+  liste.textContent = '';
+  const sigs = Array.isArray(DONNEES.signalements) ? DONNEES.signalements : [];
+  $('info').textContent = r.depuisLeTelephone
+    ? 'Pas de réseau : liste du ' + new Date(r.date).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) + ' gardée dans le téléphone. Les statuts ne peuvent pas être changés hors réseau.'
+    : (DONNEES.plein ? 'Seuls les 100 plus récents sont affichés.' : '');
+  if (!sigs.length) {
+    liste.appendChild(el('div', 'vide', TOUT ? 'Aucun signalement.' : 'Aucun signalement en cours.'
+      + (DONNEES.peutChanger ? '' : ' Vous voyez ici les signalements que vous avez envoyés avec votre compte.')));
+    return;
+  }
+  sigs.forEach(s => liste.appendChild(carte(s)));
+  if (r.depuisLeTelephone) liste.querySelectorAll('.statut-btn').forEach(b => { b.disabled = true; });
+}
+
+function charger() {
+  const moi = ++enCours;
+  const compte = LOUE.compte();
+  $('filtres').hidden = !compte;
+  if (!compte) {
+    $('liste').textContent = '';
+    $('info').textContent = '';
+    const v = el('div', 'vide', 'Connectez-vous pour voir les signalements. ');
+    const a = el('a', '', 'Aller à l’accueil'); a.href = 'index.html'; v.appendChild(a);
+    $('liste').appendChild(v);
+    return;
+  }
+  $('info').textContent = 'Chargement…';
+  $('btn-actualiser').disabled = true;
+  LOUE.lireSignalements({ chantier: CHANTIER, tout: TOUT }).then(r => { if (moi === enCours) afficher(r); })
+    .catch(err => {
+      if (moi !== enCours) return;
+      $('liste').textContent = '';
+      $('info').textContent = '';
+      const v = el('div', 'vide', err && err.connexion ? 'Session terminée : reconnectez-vous depuis l’accueil. '
+        : 'Liste indisponible : ' + LOUE.messageClair(err) + ' ');
+      if (err && err.connexion) { const a = el('a', '', 'Aller à l’accueil'); a.href = 'index.html'; v.appendChild(a); }
+      $('liste').appendChild(v);
+    })
+    .finally(() => { if (moi === enCours) $('btn-actualiser').disabled = false; });
+}
+function choisirFiltre(tout) {
+  TOUT = !!tout;
+  $('filtre-encours').classList.toggle('active', !TOUT);
+  $('filtre-tout').classList.toggle('active', TOUT);
+  charger();
+}
+
+// Changement de statut : seulement avec du réseau (deux personnes peuvent changer le même signalement)
+let changement = false;
+function changerStatut(s, statut, rangee) {
+  if (changement || statut === s.statut) return;
+  if (navigator.onLine === false) { LOUE.message('Pas de réseau : le statut ne peut pas être changé maintenant.', 6000); return; }
+  changement = true;
+  const boutons = Array.from(rangee.querySelectorAll('button'));
+  boutons.forEach(b => { b.disabled = true; });
+  LOUE.changerStatutSignalement(s.id, statut).then(() => {
+    LOUE.message('✓ Statut enregistré : ' + statut, 4000);
+    charger();
+  }).catch(err => {
+    boutons.forEach(b => { b.disabled = false; });
+    LOUE.message(err && err.connexion ? 'Session terminée : reconnectez-vous depuis l’accueil.'
+      : '⚠ Statut non enregistré : ' + LOUE.messageClair(err) + '. Réessayez quand il y aura du réseau.', 8000);
+  }).finally(() => { changement = false; });
+}
+
+entete();
+charger();
+// Au retour dans l'appli ou du réseau : la liste est rafraîchie
+document.addEventListener('visibilitychange', () => { if (!document.hidden && !changement) charger(); });
+window.addEventListener('online', () => { if (!changement) charger(); });
+</script>
+</body>
+</html>

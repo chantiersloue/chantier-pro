@@ -42,9 +42,11 @@ let mode = 'normal';
 ctx.genererCle();
 ctx.preparerOngletsLot2();
 const U = google.feuilles['Utilisateurs'];
-[['poseur1', 'Thomas TEST', 'Poseur'], ['conducteur1', 'Sébastien TEST', 'Conducteur'], ['admin1', 'Franck TEST', 'Admin'], ['nouveau1', 'Thomas TEST', 'Poseur']]
+[['poseur1', 'Thomas TEST', 'Poseur'], ['conducteur1', 'Sébastien TEST', 'Conducteur'], ['admin1', 'Franck TEST', 'Admin'], ['nouveau1', 'Thomas TEST', 'Poseur'],
+  ['atelier1', 'Thomas TEST', 'Atelier'], ['poseur2', 'Kévin TEST', 'Poseur']]   // lot 7 : un compte Atelier et un second poseur
   .forEach(([id, nom, role], i) => { U.lignes[i + 1] = [id, nom, role, true, true, '', '', false, false, '']; });   // en haut, comme Franck
 ctx.traiterComptes();
+console.log(ctx.installerLot7Production().split(String.fromCharCode(10)).filter(l => /installation terminée|❌|Refusé/.test(l)).join(' ') || 'Lot 7 : installation non confirmée');   // lot 7 : onglet Signalements
 U.lignes.slice(1).filter(l => l[0]).forEach(l => {
   if (l[0] === 'nouveau1') { console.log('Compte « nouveau1 » : mot de passe provisoire ' + l[5]); return; }
   const r = ctx.motDePasse_({ identifiant: l[0], ancien: l[5], nouveau: 'Essai-2026' });
@@ -75,6 +77,7 @@ http.createServer((req, res) => {
     res.writeHead(200, entetes);
     return res.end(JSON.stringify({ mode, mails: google.mails.map(m => ({ to: m.to, sujet: m.sujet, bcc: m.opts.bcc || '' })),
       envois: (google.feuilles['Envois'] || { lignes: [] }).lignes, quota: google.etat.quota,
+      signalements: (google.feuilles['Signalements'] || { lignes: [] }).lignes,   // lot 7
       sansCompte: (google.feuilles['Sans compte'] || { lignes: [] }).lignes, utilisateurs: U.lignes.map(l => [l[0], l[2], l[5], l[9]]) }));
   }
   let corps = '';
