@@ -204,5 +204,5 @@ Choisis le soir ou un moment où personne n'envoie de fiche : pendant `executerM
 - [x] B — ouvrir et installer la copie d'essai.
 - [x] C — les 18 essais + la migration sur TEST (avec son retour arrière).
 - [x] Retouches — R-A serveur v5.1 sur TEST, R-B `essaiMiseEnPage`, R-C onglet « Matériaux bordereau », R-D essai 17 et essais des retouches.
-- [x] D — serveur de production (v5.1), puis fusion de `livraison/lot-1` (demande #6). **Reste D.11 : installation sur les iPhone des gars.**
+- [x] D — serveur de production (v5.1), puis fusion de `livraison/lot-1` (demande #6). **Reste D.11 : installation sur les iPhone des gars** (à faire le même jour que la remise des mots de passe du lot 2 : `docs/lot2-procedure.md`, D.8).
 - [x] E — migration du vrai Drive, après sauvegarde CSV.
