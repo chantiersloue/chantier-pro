@@ -16,7 +16,7 @@
 const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
-const { depotDepuisAdresse } = require('./lien-fusion.js');
+const DEPOT_PRODUCTION = 'chantiersloue/chantier-pro';   // la copie d'essai ne doit JAMAIS y aller
 
 const RACINE = path.join(__dirname, '..');
 const NOM_DOSSIER = 'chantier-pro-essai';
@@ -29,6 +29,7 @@ function lireCible(fichier) {
   const ok = x => typeof x === 'string' && /^[A-Za-z0-9][A-Za-z0-9-]*$/.test(x);
   const okDepot = x => typeof x === 'string' && /^[A-Za-z0-9._-]+$/.test(x) && !/^\.+$/.test(x);
   if (!ok(c.organisation) || !okDepot(c.depot)) throw new Error('outils/essai-cible.json : « organisation » ou « depot » manquant ou mal écrit');
+  if ((c.organisation + '/' + c.depot).toLowerCase() === DEPOT_PRODUCTION) throw new Error('outils/essai-cible.json désigne le dépôt de PRODUCTION (' + DEPOT_PRODUCTION + ') : refusé');
   return { organisation: c.organisation, depot: c.depot,
            nom: c.organisation + '/' + c.depot,
            adresseGit: 'https://github.com/' + c.organisation + '/' + c.depot + '.git',
@@ -44,6 +45,17 @@ function git(dossier) {
     { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
 }
 
+// Deux adresses Git désignent-elles le même dépôt ? (https ou ssh, avec ou sans .git, majuscules ou non)
+function adresseNormale(a) {
+  return String(a).trim().replace(/\\/g, '/').replace(/^git@github\.com:/i, 'https://github.com/')
+    .replace(/\.git\/?$/i, '').replace(/\/+$/, '').toLowerCase();
+}
+// Adresse de lecture + toutes les adresses d'envoi d'un dépôt relié (elles peuvent être réglées à part)
+function adressesDe(dossier, nom) {
+  return [git(dossier, 'remote', 'get-url', nom)]
+    .concat(git(dossier, 'remote', 'get-url', '--push', '--all', nom).split('\n').filter(Boolean));
+}
+
 // Refuse tout dossier qui n'est pas, sans aucun doute, la copie de travail du dépôt d'essai
 function controlerDossier(dossier, cible, racine) {
   racine = racine || RACINE;
@@ -52,13 +64,18 @@ function controlerDossier(dossier, cible, racine) {
   if (contient(r, d) || contient(d, r)) throw new Error('Dossier refusé (il doit être HORS du dépôt de production) : ' + d);
   if (!fs.existsSync(d) || !fs.statSync(d).isDirectory()) throw new Error('Dossier absent : ' + d + ' — lancer « node outils/publier-essai.js --preparer »');
   if (!fs.existsSync(path.join(d, '.git'))) throw new Error('Dossier refusé (ce n’est pas une copie de travail Git) : ' + d);
-  let sommet, origine;
-  try { sommet = git(d, 'rev-parse', '--show-toplevel'); origine = git(d, 'remote', 'get-url', 'origin'); }
+  let sommet, adresses;
+  try { sommet = git(d, 'rev-parse', '--show-toplevel'); adresses = adressesDe(d, 'origin'); }
   catch (e) { throw new Error('Dossier refusé (Git ne le reconnaît pas ou il n’a pas d’« origin ») : ' + d); }
   if (!memeChemin(sommet, d)) throw new Error('Dossier refusé (il fait partie d’un autre dépôt : ' + sommet + ')');
-  let depot;
-  try { depot = depotDepuisAdresse(origine); } catch (e) { throw new Error('Dossier refusé (« origin » n’est pas un dépôt GitHub) : ' + origine); }
-  if (depot.toLowerCase() !== cible.nom.toLowerCase()) throw new Error('Dossier refusé : il est relié à « ' + depot + ' » et non à « ' + cible.nom + ' »');
+  // La cible ne peut pas être le dépôt de production : ni par son nom, ni parce que c'est le dépôt d'où l'on fabrique
+  const attendue = adresseNormale(cible.adresseGit);
+  let production = ['https://github.com/' + DEPOT_PRODUCTION];
+  try { production = production.concat(adressesDe(r, 'origin')); } catch (e) {}
+  if (production.map(adresseNormale).indexOf(attendue) > -1) throw new Error('Refusé : la cible de la copie d’essai est le dépôt de PRODUCTION (' + cible.adresseGit + ')');
+  // Lecture ET envoi doivent pointer sur le dépôt d'essai, et nulle part ailleurs
+  const autre = adresses.find(a => adresseNormale(a) !== attendue);
+  if (autre) throw new Error('Dossier refusé : il est relié à « ' + autre + ' » et non à « ' + cible.adresseGit + ' »');
   return d;
 }
 
@@ -114,7 +131,7 @@ function fabriquer(o) {
   return { dossier: dossier, cible: cible, elements: aCopier.length };
 }
 
-module.exports = { lireCible, dossierVoisin, controlerDossier, fabriquer, NOM_DOSSIER, MARQUE };
+module.exports = { lireCible, dossierVoisin, controlerDossier, adresseNormale, fabriquer, NOM_DOSSIER, MARQUE, DEPOT_PRODUCTION };
 if (require.main === module) {
   try {
     const r = fabriquer();

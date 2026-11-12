@@ -2,6 +2,14 @@
 
 Chaque lot : **quoi**, **pourquoi**, **comment déployer**. Procédures détaillées dans `docs/lotN-procedure.md`.
 
+## Outillage — étapes A et B (12/11/2026) — outils du PC seulement, aucun changement pour les téléphones
+
+**Quoi** : 1. `main` est verrouillée sur GitHub : plus rien n'y entre sans demande de fusion. 2. `node outils/lien-fusion.js` prépare le lien qui ouvre une demande de fusion déjà remplie (serveur changé ou non, pages changées ou non, empreinte du `Code.gs`) : il reste 3 clics à Franck. 3. La copie d'essai sort de ce dépôt : `node outils/publier-essai.js` la fabrique dans un dossier voisin et la publie dans un dépôt à part (organisation GitHub gratuite), à sa propre adresse, toujours en mode TEST. 4. Prêt mais pas encore en service (branche `outillage`) : l'installation d'un lot en une seule fonction Apps Script.
+
+**Pourquoi** : que Claude fasse seul le maximum pour les prochains lots, sans jamais pouvoir publier la production à la place de Franck (`docs/automatisation.md`, décisions O-2 à O-4).
+
+**Comment déployer** : rien à mettre dans Apps Script, rien ne change pour les poseurs. Franck : fusionner la demande `livraison/outillage` (documents et outils) ; créer l'organisation et le dépôt d'essai (`docs/outillage-plan.md`, séance B). Mode d'emploi : `docs/guide-outillage.md`. Reste à faire : étape C (clasp et porte de service sur TEST).
+
 ## Lot 2 — Comptes, rôles, accueil (avec 9a) — serveur v6.0.1, appli 6.0.1 — **en production depuis le 12/11/2026**
 
 **En production (12/11/2026)** : le serveur v6.0.1 tourne sous le déploiement « Lot 2 — production » ; la demande de fusion `livraison/lot-2` (n° 10) est fusionnée : vraies pages 6.0.1, copie d'essai `essai/` retirée. Vérifié par Franck : « À propos » affiche 6.0.1, connexion avec son compte, quitus réel envoyé et reçu. L'ancien déploiement (lot 1) reste en service comme retour arrière jusqu'à la fin de la transition ; d'ici là, les gars sans compte touchent « Continuer sans compte » et l'appli marche comme avant.
