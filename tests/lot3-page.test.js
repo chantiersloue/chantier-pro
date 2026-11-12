@@ -42,18 +42,18 @@ function scenario() {
   const connecter = id => page.evaluate(a => { LOUE.deconnecter(); return LOUE.connexion(a[0], a[1]).then(x => x.code); }, [id, MDP]);
   const serveur = () => page.evaluate(u => fetch(u + '/etat').then(x => x.json()), SERVEUR);
   const reglage = m => page.evaluate(u => fetch(u).then(x => x.text()), SERVEUR + '/reglage?mode=' + m);
-  const etat = () => page.evaluate(() => ({
+  const etat = () => page.evaluate(() => { const visible = id => getComputedStyle(document.getElementById(id)).display !== 'none'; return {
     cartes: document.querySelectorAll('#liste .note').length, attente: document.querySelectorAll('#liste .pastille.orange').length,
     faites: document.querySelectorAll('#liste .note.faite').length, nouveau: document.querySelectorAll('#liste .pastille.rouge').length,
     info: document.getElementById('info').textContent, vide: (document.querySelector('#liste .vide') || {}).textContent || '',
     texte: document.getElementById('liste').textContent, saisie: document.getElementById('saisie-texte').value,
-    saisieCachee: document.getElementById('saisie').hidden, photosSaisie: document.querySelectorAll('#saisie-photos img').length,
+    saisieCachee: !visible('saisie'), photosSaisie: document.querySelectorAll('#saisie-photos img').length,
     boutonsInactifs: document.querySelectorAll('#liste .note-actions button:disabled').length, boutons: document.querySelectorAll('#liste .note-actions button').length,
     modifier: Array.from(document.querySelectorAll('#liste .note-actions button')).filter(b => b.textContent === 'Modifier').length,
-    outils: !document.getElementById('outils').hidden, filtres: !document.getElementById('filtres').hidden,
+    outils: visible('outils'), filtres: visible('filtres'),
     xss: window.__xss || 0, dangereux: document.querySelectorAll('#liste img[onerror], #liste script, #liste iframe, #liste .note-texte *').length,
     largeur: document.documentElement.scrollWidth <= innerWidth, premier: (document.querySelector('#liste .note .note-texte') || {}).textContent || '',
-    pied: (document.querySelector('#liste .note .note-pied') || {}).textContent || '' }));
+    pied: (document.querySelector('#liste .note .note-pied') || {}).textContent || '' }; });
   const clic = (texte, n) => page.evaluate(a => { const b = Array.from(document.querySelectorAll('#liste button, #corbeille button')).filter(x => x.textContent.indexOf(a[0]) === 0)[a[1] || 0]; if (b) b.click(); return !!b; }, [texte, n || 0]);
 
   await ctx.setOffline(false);
@@ -190,7 +190,7 @@ setTimeout(() => {
     console.log('Lot 3 — page « Notes » dans un vrai Chrome, largeur téléphone (service worker actif, faux serveur)');
     const r = lancer(), j = x => JSON.stringify(x);
     verifier('page vierge : saisie visible en bas, aucune note, pas de défilement horizontal', r.connexion === 'CONNECTE' && r.vierge.cartes === 0 && !r.vierge.saisieCachee
-      && /Écrivez la première/.test(r.vierge.vide) && r.vierge.largeur === true, j(r.vierge));
+      && /Écrivez la première/.test(r.vierge.vide) && r.vierge.largeur === true && r.vierge.filtres === false && r.vierge.outils === false, j(r.vierge));
     verifier('saisie en cours (texte et photo) retrouvée après fermeture, hors réseau, sans question', /^Cales de 5/.test(r.saisieRetrouvee.saisie) && r.saisieRetrouvee.photosSaisie === 1, j(r.saisieRetrouvee));
     verifier('note écrite hors réseau : affichée tout de suite « en attente », boutons inactifs, saisie vidée, rangée dans le téléphone',
       r.horsReseau.cartes === 1 && r.horsReseau.attente === 1 && r.horsReseau.boutons > 0 && r.horsReseau.boutonsInactifs === r.horsReseau.boutons
