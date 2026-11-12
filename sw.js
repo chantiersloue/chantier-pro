@@ -4,14 +4,14 @@
 // ne pas les modifier à la main. En cas de gros problème : remplacer ce fichier par outils/sw-secours.js.
 // Les échanges avec Apps Script ne passent JAMAIS par ce cache (fiches, listes : gérés par commun/api.js).
 // ═══════════════════════════════════════════════════════════════
-const VERSION = 'loue-8b8822e115';
+const VERSION = 'loue-abab553716';
 const A_GARDER = [
   './', 'index.html', 'quitus.html', 'bordereau.html',
   'cotes.html', 'fiche-fabrication.html', 'note-reunion.html', 'bordereau-orga.html', 'bordereau-materiaux.html',
   'attestation.html', 'reception-support.html', 'absence.html', 'signaler.html', 'signalements.html',
   'manifest.json', 'logo.png', 'apple-touch-icon.png', 'icone-192.png', 'icone-512.png', 'icone-512-maskable.png',
   // Fichiers communs et modèles, avec leur numéro de version (liste fabriquée par outils/construire.js)
-  /*COMMUNS*/ 'commun/adresses.js?v=8b8822e115', 'commun/api.js?v=8b8822e115', 'commun/brouillon.js?v=8b8822e115', 'commun/config.js?v=8b8822e115', 'commun/destinataires.js?v=8b8822e115', 'commun/hors-ligne.js?v=8b8822e115', 'commun/photos.js?v=8b8822e115', 'commun/signature.js?v=8b8822e115', 'commun/ui.js?v=8b8822e115', 'commun/fiche.css?v=8b8822e115', 'commun/style.css?v=8b8822e115', 'modeles/absence.js?v=8b8822e115', 'modeles/attestation.js?v=8b8822e115', 'modeles/bordereau.js?v=8b8822e115', 'modeles/cotes.js?v=8b8822e115', 'modeles/fabrication.js?v=8b8822e115', 'modeles/mise-en-page.js?v=8b8822e115', 'modeles/note.js?v=8b8822e115', 'modeles/quitus.js?v=8b8822e115', 'modeles/reception.js?v=8b8822e115', 'modeles/signalement.js?v=8b8822e115',
+  /*COMMUNS*/ 'commun/adresses.js?v=abab553716', 'commun/api.js?v=abab553716', 'commun/brouillon.js?v=abab553716', 'commun/config.js?v=abab553716', 'commun/destinataires.js?v=abab553716', 'commun/hors-ligne.js?v=abab553716', 'commun/photos.js?v=abab553716', 'commun/signature.js?v=abab553716', 'commun/ui.js?v=abab553716', 'commun/fiche.css?v=abab553716', 'commun/style.css?v=abab553716', 'modeles/absence.js?v=abab553716', 'modeles/attestation.js?v=abab553716', 'modeles/bordereau.js?v=abab553716', 'modeles/cotes.js?v=abab553716', 'modeles/fabrication.js?v=abab553716', 'modeles/mise-en-page.js?v=abab553716', 'modeles/note.js?v=abab553716', 'modeles/quitus.js?v=abab553716', 'modeles/reception.js?v=abab553716', 'modeles/signalement.js?v=abab553716',
 ];
 
 // Nom du cache : version + portée. Deux sites installés sur le même téléphone ont chacun le leur,
