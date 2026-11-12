@@ -203,6 +203,7 @@ const TRAITEMENTS = {
   'reception-support'  : 'traiterReceptionSupport',
   'attestation'        : 'traiterAttestation',
   'cotes'              : 'traiterFicheCotes',
+  'signalement'        : 'traiterSignalement',   // lot 7 (Signalements.gs)
 };
 
 function doPost(e) {
@@ -230,10 +231,12 @@ function repondre_(objet) {
 }
 
 // Fabrique le PDF, classe et envoie une fiche (ancien et nouveau format)
-function traiterFiche_(brut) {
+// contexte (lot 7, facultatif) : { id, auteurId, auteurNom } — ce que le SERVEUR sait de la fiche (numéro, compte vérifié
+// par le jeton). Jamais lu dans les données du téléphone. Absent pour l'ancien format (pages d'avant le lot 1).
+function traiterFiche_(brut, contexte) {
   const nom = brut && Object.prototype.hasOwnProperty.call(TRAITEMENTS, brut.type) ? TRAITEMENTS[brut.type] : '';
   if (!nom) throw new Error('Type de fiche inconnu');
-  globalThis[nom](preparerDonnees_(brut), brut);
+  globalThis[nom](preparerDonnees_(brut), brut, contexte);
 }
 
 // Lot 2 : chaque action (sauf ping, connexion, motDePasse) passe par identifier_ : jeton valable, ou transition ouverte
@@ -253,7 +256,7 @@ function routerV5_(corps) {
     if (corps.action === 'outilTest' && typeof outilTest_ === 'function') return outilTest_(corps);
     if (corps.action === 'connexion')  return connexion_(corps);
     if (corps.action === 'motDePasse') return motDePasse_(corps);
-    if (['photo', 'fiche', 'moi', 'listes', 'dossiers'].indexOf(corps.action) < 0) return { ok: false, code: 'ACTION_INCONNUE', message: 'Action inconnue' };
+    if (['photo', 'fiche', 'moi', 'listes', 'dossiers', 'signalements', 'signalementStatut'].indexOf(corps.action) < 0) return { ok: false, code: 'ACTION_INCONNUE', message: 'Action inconnue' };
     let qui = identifier_(corps);
     const envoi = corps.action === 'photo' || corps.action === 'fiche';
     // Fiche ou photo d'un compte désactivé : acceptée, notée « (compte désactivé) »
@@ -272,6 +275,9 @@ function routerV5_(corps) {
     if (corps.action === 'moi')      return moi_(qui.compte);
     if (corps.action === 'listes')   return listes_(qui.compte);
     if (corps.action === 'dossiers') return dossiersCompte_(qui.compte, String(corps.chantier || ''));
+    // Lot 7 : suivi des signalements (réservé aux comptes ; droits vérifiés dans Signalements.gs)
+    if (corps.action === 'signalements')      return listerSignalements_(qui.compte, corps);
+    if (corps.action === 'signalementStatut') return changerStatutSignalement_(qui.compte, corps);
   } catch (err) {
     console.error('routerV5_:', err.message);
     return { ok: false, code: 'ERREUR', message: 'Erreur du serveur : ' + err.message };
@@ -370,6 +376,11 @@ function recevoirFiche_(corps, compte) {
   if (!idValide_(corps.id)) return { ok: false, code: 'DONNEES_INVALIDES', message: 'Numéro de fiche invalide' };
   const donnees = corps.donnees || {};
   if (!Object.prototype.hasOwnProperty.call(TRAITEMENTS, donnees.type)) return { ok: false, code: 'TYPE_INCONNU', message: 'Type de fiche inconnu' };
+  // Lot 7 : un signalement invalide est refusé pour de bon, AVANT de réserver un numéro (ni nouveaux essais, ni alerte)
+  if (donnees.type === 'signalement') {
+    const refus = validerSignalement_(donnees);
+    if (refus) return { ok: false, code: 'DONNEES_INVALIDES', message: refus };
+  }
 
   // Auteur : le compte qui envoie (et celui qui était connecté quand la fiche a été rangée, s'il est différent)
   const saisiPar = normaliserId_(corps.saisiPar);
@@ -419,7 +430,9 @@ function recevoirFiche_(corps, compte) {
   // 3. PDF, classement, mails
   RAPPORT_ = {};
   try {
-    traiterFiche_(brut);
+    // Ce que le serveur sait de la fiche : son numéro, et le compte vérifié par le jeton (vide si sans compte)
+    traiterFiche_(brut, { id: corps.id, auteurId: compte && compte.id ? compte.id : '',
+      auteurNom: compte ? (compte.nom || compte.etiquette || compte.id) : 'sans compte' });
   } catch (err) {
     // Des mails sont déjà partis : renvoyer la fiche les doublerait. On la note traitée et Franck vérifie.
     const partis = RAPPORT_ && ((RAPPORT_['envoyé'] || []).length + (RAPPORT_['reporté'] || []).length);

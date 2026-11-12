@@ -27,6 +27,7 @@ const DOSSIERS_DEFAUT = {
     'bordereau-orga':      '05 - CHANTIER/ORGANIGRAMME',
     'bordereau-materiaux': '05 - CHANTIER/BORDEREAUX MATERIAUX',
     'photos':              '05 - CHANTIER/PHOTOS CHANTIER',
+    'signalement':         '05 - CHANTIER/SIGNALEMENTS',
     'carnet':              'CARNET',
     'plans':               'Plans',
   },
@@ -39,6 +40,7 @@ const DOSSIERS_DEFAUT = {
     'cotes': 'PRISE DE COTES', 'fabrication': 'FICHE FABRICATION', 'note': 'COMPTE RENDU',
     'quitus': 'QUITUS', 'attestation': 'ATTESTATION', 'reception-support': 'RECEPTION SUPPORT',
     'bordereau-orga': 'BORDEREAU ORGANIGRAMME', 'bordereau-materiaux': 'BORDEREAU MATERIAUX', 'absence': 'ABSENCE',
+    'signalement': 'SIGNALEMENT',
   },
 };
 

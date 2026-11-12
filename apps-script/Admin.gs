@@ -113,6 +113,8 @@ function verifierConfig() {
   ok(estEmail_(emailAdmin_()), 'Adresse de Franck (alertes, copies) : ' + emailAdmin_());
   [SHEET_CONTACTS, SHEET_CONTACT_NOTES, SHEET_CHANTIERS].forEach(n => ok(!!ss.getSheetByName(n), 'Onglet « ' + n + ' »'));
   lignes.push(verifierDossiers_());   // lot 1.5 : fichier des noms de dossiers
+  // Lot 7 : onglet des signalements (créé par installerLot7Test / installerLot7Production)
+  ok(!!ss.getSheetByName(SHEET_SIGNALEMENTS), 'Onglet « ' + SHEET_SIGNALEMENTS + ' » (sinon lancer installerLot7Test ou installerLot7Production)');
   // Lot 1 R2 : onglet des matériaux proposés par le bordereau matériaux (créé vide, avec ses titres)
   if (!ss.getSheetByName(SHEET_MAT_BORDEREAU)) {
     feuille_(SHEET_MAT_BORDEREAU, ['Type', 'Matériau', 'Quantité']);

@@ -269,7 +269,7 @@ console.log('Lot 0 — consultation et partages Drive');
 
 test('doGet : version, callback JSONP contrôlé', () => {
   const g = environnement();
-  assert.strictEqual(g.ctx.doGet({ parameter: {} }).contenu, 'Loué App API v6.0.1 OK');
+  assert.strictEqual(g.ctx.doGet({ parameter: {} }).contenu, 'Loué App API v7.0 OK');
   const r = g.ctx.doGet({ parameter: { action: 'getContacts', callback: 'alert(1);x' } });
   assert.ok(r.contenu.charAt(0) === '{', 'callback invalide ignoré : JSON simple');
 });
@@ -335,6 +335,8 @@ test('installerDeclencheurs + verifierConfig', () => {
   assert.deepStrictEqual(g.declencheurs, ['renvoyerMailsEnAttente', 'traiterComptes', 'surModificationSheet']);   // lot 2 : 3 déclencheurs
   assert.ok(g.ctx.verifierConfig().indexOf('❌ Clé des jetons') > -1, 'lot 2 pas mis en place : signalé');
   g.ctx.genererCle(); g.ctx.preparerOngletsLot2();
+  assert.ok(g.ctx.verifierConfig().indexOf('❌ Onglet « Signalements »') > -1, 'lot 7 pas installé : signalé');
+  assert.ok(/installation terminée/.test(g.ctx.installerLot7Production()), 'lot 7 installé');
   const rapport = g.ctx.verifierConfig();
   assert.ok(rapport.indexOf('❌') < 0, rapport);
 });

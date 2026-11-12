@@ -33,6 +33,7 @@ function creerGoogle(options = {}) {
         // Lot 2 : cases à cocher et listes de choix (la validation est gardée pour les tests)
         insertCheckboxes: () => { for (let i = 0; i < nr; i++) for (let j = 0; j < nc; j++) ecrire(r + i, c + j, false); f.cases = (f.cases || 0) + nr * nc; return p; },
         setDataValidation: v => { f.validations = (f.validations || []).concat([{ r, c, nr, nc, v }]); return p; },
+        getDataValidation: () => { const t = (f.validations || []).filter(x => r >= x.r && r < x.r + x.nr && c >= x.c && c < x.c + x.nc); return t.length ? t[t.length - 1].v : null; },
         setNote: () => p, setWrap: () => p, setNumberFormat: () => p,
         getRow: () => r, getColumn: () => c, getNumRows: () => nr, getNumColumns: () => nc,
       };

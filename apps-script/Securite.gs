@@ -24,6 +24,7 @@ const LIBELLES_FICHES = {
   'attestation'        : 'Attestation',
   'cotes'              : 'Prise de cotes',
   'fabrication'        : 'Fiche de fabrication',
+  'signalement'        : 'Signalement',
 };
 
 // Champs qui contiennent une image « data: » (signatures)
