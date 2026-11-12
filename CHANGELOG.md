@@ -2,6 +2,21 @@
 
 Chaque lot : **quoi**, **pourquoi**, **comment déployer**. Procédures détaillées dans `docs/lotN-procedure.md`.
 
+## Lot 3 — Notes de chantier — serveur v8.0, appli 8.0 — construit, testé contre le faux serveur seulement (ni TEST, ni production)
+
+**Quoi**
+- Page **« Notes »** (`notes.html`), ouverte depuis un chantier : liste la plus récente en haut, saisie rapide toujours visible en bas (texte, micro du clavier, 0 à 3 photos, bouton de dictée sur Android), case « Fait », modifier, supprimer, historique, corbeille et restauration pour les conducteurs, export PDF. Hors réseau : la note et les gestes sont gardés dans le téléphone et partent au retour du réseau, dans l'ordre.
+- Vue **« Tous chantiers »** pour les conducteurs et l'admin (filtres chantier, auteur, « nouvelles », « non faites », recherche dans le texte).
+- Accueil : tuile « Notes » dans chaque chantier, tuile « Notes de chantier » pour les conducteurs, chiffre rouge des notes nouvelles.
+- Serveur : onglets *Notes*, *Notes historique*, *Notes vues* ; droits vérifiés par le jeton ; photos rangées dans `05 - CHANTIER/PHOTOS CHANTIER/NOTES` et rendues après contrôle (aucun lien public) ; PDF rangé dans `05 - CHANTIER/COMPTE RENDU` ; **aucun mail**.
+- Installation en une fonction : `installerLot3Test` / `installerLot3Production`.
+
+**Pourquoi** : un pense-bête qui suit le chantier, pas la personne (`PLAN.md`, lot 3). Décisions D3-1 à D3-3 ; plan critiqué avant construction (`docs/lot3-plan.md`).
+
+**Comment déployer** : pas avant la mise en production du lot 7. Procédure : `docs/lot3-procedure.md`.
+
+**Tests** : serveur (`tests/lot3-notes.test.js`), page dans un vrai Chrome en largeur téléphone, hors réseau et en réseau lent (`tests/lot3-page.test.js`) ; toutes les séries existantes repassent. **Pas testé** : le vrai serveur TEST, un vrai téléphone (la barre de saisie avec le clavier d'un iPhone), le bouton de dictée, le vrai convertisseur PDF de Google.
+
 ## Lot 7 — Signalement casse / manquant / à recommander — serveur v7.0, appli 7.0 — en test (rien en production)
 
 **Quoi**

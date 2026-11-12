@@ -87,6 +87,37 @@ Une ligne par signalement, écrite par l'appli. **Seule la colonne M (Statut) se
 - Les colonnes de texte (numéro, chantier, auteur, repère, commentaire…) sont au format « texte brut » : un repère « 1/2 » n'y devient pas une date.
 - Le chef d'atelier prévenu par la case « Prévenir l'atelier » est le contact (ou les contacts) dont la colonne **ChefAtelier** de l'onglet *Contacts* vaut `O`.
 
+## Onglets « Notes », « Notes historique », « Notes vues » (lot 3 — créés par `installerLot3Test` / `installerLot3Production`)
+
+Écrits par l'appli seulement. Tu peux les trier et les filtrer ; **ne modifie rien à la main**, sauf le cas du chantier renommé (ci-dessous).
+
+**Notes** — une ligne par note :
+
+| Col. | Contenu |
+|---|---|
+|A|Numéro (sert à ne jamais écrire deux fois la même note)|
+|B|Chantier (le nom de l'onglet *Chantiers*)|
+|C|Auteur (identifiant du compte, vérifié par le serveur)|
+|D|Auteur (nom affiché)|
+|E|Créée le (heure du serveur)|
+|F|Texte|
+|G|Photos (identifiants des fichiers Drive ; jamais envoyés aux téléphones)|
+|H|Fait : Oui / vide|
+|I, J|Fait par, Fait le|
+|K, L|Modifiée par, Modifiée le|
+|M, N|Supprimée par, Supprimée le (la ligne reste : c'est la corbeille)|
+|O|Version du texte (1, 2, 3…)|
+|P|Remarque de l'appli (« modifiée en même temps par … »)|
+|Q|Saisie le (date et heure du téléphone)|
+|R, S|Dernier texte le, par (identifiant) : sert à la pastille « nouveau »|
+
+**Notes historique** — l'ancien texte à chaque modification : Numéro, Enregistrée le, Version remplacée, Ancien texte, Écrit par, Remplacé par, Motif.
+
+**Notes vues** — la dernière visite de chaque personne sur chaque chantier (pour « nouveau ») : Identifiant, Chantier, Vue le.
+
+- Les photos des notes sont dans le dossier du chantier, sous `05 - CHANTIER/PHOTOS CHANTIER/NOTES` ; l'export PDF va dans `05 - CHANTIER/COMPTE RENDU`.
+- **Chantier renommé dans l'onglet *Chantiers*** : ses notes restent sous l'ancien nom. Remplace-le aussi dans la colonne B de l'onglet *Notes* (Édition → Rechercher et remplacer, dans cette feuille seulement).
+
 ## Onglet « Installation » (outillage)
 
 Bilan des fonctions d'installation (`installerLot7…`, `controlerInstallationLot2`) : date, lot, environnement, mode, ligne du bilan. Les 50 dernières lignes sont gardées. Peut être supprimé sans risque.

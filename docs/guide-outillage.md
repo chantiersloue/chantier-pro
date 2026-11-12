@@ -122,6 +122,7 @@ Pendant les essais, le serveur de la copie TEST contient des **outils d'essai** 
 | `poserDeclencheurs`, `retirerDeclencheurs` | Les déclencheurs de l'appli, le temps d'un essai (retirés tout seuls au bout de 2 h) |
 | `traiterComptes`, `finirTransition`, `prolongerTransition`, `retablirTransition` | Les fonctions d'essai du lot 2 ; la période sans compte d'origine est mémorisée et remise |
 | `preparerComptes`, `session`, `fermerSessions`, `cocher`, `lireCompte` | Quatre comptes d'essai (`auto-poseur`, `auto-conducteur`, `auto-admin`, `auto-atelier`), activés seulement pendant un essai |
+| `installerLot3` | Lot 3 : installer les onglets des notes sur TEST |
 | `installerLot7`, `lireSignalements`, `destinatairesEssai` | Lot 7 : installer le lot sur TEST, lire l'onglet *Signalements* (sans chantier ni texte saisi), savoir à qui partiraient les mails d'un essai (sans donner d'adresse) |
 | `preparerChantier` | Une ligne « CHANTIER TEST AUTO » dans l'onglet *Chantiers* de TEST |
 
