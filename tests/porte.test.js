@@ -80,7 +80,8 @@ test('porte : une erreur interne AVANT le contrôle de la clé ne donne aucun d�
 });
 test('porte : seuls les gestes de la liste existent (aucune fonction du serveur n’est appelable par son nom)', () => {
   const g = serveur(TEST(), true);
-  ['verifierConfig', 'changerCle', 'genererCle', 'installerDeclencheurs', 'retirerDeclencheurs', 'executerMigration', 'constructor', '__proto__', 'toString', '', null, undefined, 42]
+  ['verifierConfig', 'changerCle', 'genererCle', 'installerDeclencheurs', 'demarrerTransition', 'executerMigration', 'anonymiserCopieTest', 'retirerPartages', 'preparerOngletsLot2',
+    'outilTestSession_', 'constructor', '__proto__', 'toString', 'hasOwnProperty', '', null, undefined, 42, ['etat']]
     .forEach(geste => assert.deepStrictEqual(poster(g, appel(geste)), { ok: false, code: 'REFUSE', message: 'Refusé' }, String(geste)));
   assert.strictEqual(g.declencheurs.length, 0);
 });
@@ -90,6 +91,114 @@ test('porte : l’essai de faisabilité pose puis retire un déclencheur, sans t
   assert.strictEqual(r.ok, true, JSON.stringify(r));
   assert.deepStrictEqual([r.data.pose, r.data.retire], [true, true]);
   assert.strictEqual(r.message, 'déclencheur posé ; déclencheur retiré');
+});
+// ── Porte complète : un serveur TEST avec le lot 2 en place ──
+function serveurLot2(extra) {
+  const g = creerGoogle({ nomSheet: 'ChantierPro TEST',
+    proprietes: Object.assign({ ENVIRONNEMENT: 'TEST', CLE_OUTILS_TEST: CLE, DRIVE_ROOT_ID: 'R', DRIVE_PLANNING_ID: 'P', HACHAGE_ITERATIONS: '200' }, extra || {}),
+    feuilles: { 'Contacts': [['Nom', 'Role', 'Email']], 'Contacts notes': [['Nom', 'Email']],
+      'Chantiers': [['Nom', 'Référence', 'Statut', 'Conducteur'], ['CHANTIER TEST 1', 'LIEU', 'En cours', 'Franck']],
+      'Envois': [['Numéro', 'Reçu le', 'Type', 'Chantier', 'Statut', 'Détail', 'Compte']].concat(Array.from({ length: 30 }, (_, i) => ['id' + i, 'date', 'quitus', 'CHANTIER TEST 1', 'traité', '', 'x'])) } });
+  g.ctx = chargerScript(g);
+  vm.runInContext(fs.readFileSync(path.join(RACINE, construire.PORTE), 'utf8'), g.ctx, { filename: 'OutilsTest.gs' });
+  g.ctx.genererCle(); g.ctx.preparerOngletsLot2();
+  g.feuilles['Utilisateurs'].lignes[1] = ['poseur01', 'Vrai Poseur de TEST', 'Poseur', true, false, '', '', false, false, ''];
+  return g;
+}
+const geste = (g, nom, donnees) => poster(g, Object.assign({ action: 'outilTest', v: 5, geste: nom, cle: CLE }, donnees || {}));
+const U = g => g.feuilles['Utilisateurs'].lignes;
+
+test('porte : preparerComptes crée les trois comptes d’essai une seule fois, sans toucher aux lignes existantes', () => {
+  const g = serveurLot2(), avant = JSON.stringify(U(g)[1]);
+  const r = geste(g, 'preparerComptes');
+  assert.ok(r.ok, JSON.stringify(r));
+  assert.deepStrictEqual(Array.from(r.data.crees), ['auto-poseur', 'auto-conducteur', 'auto-admin']);
+  assert.strictEqual(JSON.stringify(U(g)[1]), avant, 'la ligne du vrai compte de TEST n’est pas modifiée');
+  const lignes = U(g).filter(l => /^auto-/.test(String(l[0])));
+  assert.deepStrictEqual(lignes.map(l => [l[0], l[2], l[3]]), [['auto-poseur', 'Poseur', true], ['auto-conducteur', 'Conducteur', true], ['auto-admin', 'Admin', true]]);
+  const r2 = geste(g, 'preparerComptes');
+  assert.deepStrictEqual([Array.from(r2.data.crees), Array.from(r2.data.dejaPresents).length], [[], 3]);
+  assert.strictEqual(U(g).filter(l => /^auto-/.test(String(l[0]))).length, 3, 'pas de doublon');
+});
+test('porte : session d’essai — le jeton marche sur ce serveur, puis fermerSessions l’annule', () => {
+  const g = serveurLot2(); geste(g, 'preparerComptes');
+  const s1 = geste(g, 'session', { id: 'auto-admin' });
+  assert.ok(s1.ok && s1.data.profil.role === 'Admin' && /^auto-admin\.t\.\d+\.\d+\./.test(s1.data.jeton), JSON.stringify(s1));
+  const moi = poster(g, { action: 'moi', v: 5, jeton: s1.data.jeton });
+  assert.ok(moi.ok && moi.data.profil.id === 'auto-admin', JSON.stringify(moi));
+  g.ctx.finirTransitionMaintenant();   // transition finie : un jeton annulé est vraiment refusé
+  assert.ok(poster(g, { action: 'moi', v: 5, jeton: s1.data.jeton }).ok);
+  assert.ok(geste(g, 'fermerSessions').ok);
+  assert.strictEqual(poster(g, { action: 'moi', v: 5, jeton: s1.data.jeton }).code, 'JETON_INVALIDE');
+  assert.ok(JSON.stringify(geste(g, 'lireCompte', { id: 'auto-admin' })).indexOf(s1.data.jeton) < 0);
+});
+test('porte : un jeton de session d’essai fabriqué sur TEST est refusé par un serveur de production (même clé de signature volée ou non)', () => {
+  const g = serveurLot2(); geste(g, 'preparerComptes');
+  const jeton = geste(g, 'session', { id: 'auto-admin' }).data.jeton;
+  // production : autre environnement ; on lui donne même la clé de signature de TEST et un compte du même nom
+  const p = creerGoogle({ nomSheet: 'ChantierPro', proprietes: { CLE_JETON: g.proprietes.CLE_JETON, DRIVE_ROOT_ID: 'R', DRIVE_PLANNING_ID: 'P' },
+    feuilles: { 'Contacts': [['Nom']], 'Contacts notes': [['Nom']], 'Chantiers': [['Nom', 'Référence', 'Statut', 'Conducteur']] } });
+  p.ctx = chargerScript(p); p.ctx.preparerOngletsLot2();
+  p.feuilles['Utilisateurs'].lignes[1] = ['auto-admin', 'X', 'Admin', true, false, '', '', false, false, ''];
+  p.ctx.finirTransitionMaintenant = null; p.proprietes.FIN_TRANSITION = String(Date.now() - 1000);
+  assert.strictEqual(poster(p, { action: 'moi', v: 5, jeton: jeton }).code, 'JETON_INVALIDE');
+});
+test('porte : session, cocher et lireCompte ne servent QUE les trois comptes d’essai', () => {
+  const g = serveurLot2(); geste(g, 'preparerComptes');
+  const avant = JSON.stringify(U(g)[1]);
+  ['poseur01', 'franck', 'AUTO-ADMIN', 'auto-admin ', 'auto-autre', '', null, undefined, 12, ['auto-admin'], { id: 'auto-admin' }, '__proto__', 'constructor'].forEach(id => {
+    ['session', 'lireCompte'].forEach(nom => {
+      const r = geste(g, nom, { id: id });
+      assert.ok(!r.ok && r.code === 'ERREUR_OUTIL' && /compte refusé/.test(r.message) && !r.data, nom + ' ' + JSON.stringify(id));
+    });
+    assert.ok(!geste(g, 'cocher', { id: id, case: 'actif', valeur: false }).ok);
+  });
+  assert.strictEqual(JSON.stringify(U(g)[1]), avant, 'le vrai compte de TEST n’a pas été touché');
+});
+test('porte : cocher n’accepte que trois cases et vrai/faux ; « Réinitialiser » puis traiterComptes donne un provisoire, jamais renvoyé', () => {
+  const g = serveurLot2(); geste(g, 'preparerComptes');
+  ['provisoire', 'id', 'role', 'etat', 'tous', '__proto__', 5, null].forEach(c => assert.ok(!geste(g, 'cocher', { id: 'auto-poseur', case: c, valeur: true }).ok, String(c)));
+  ['oui', 1, null, undefined, 'true'].forEach(v => assert.ok(!geste(g, 'cocher', { id: 'auto-poseur', case: 'reinit', valeur: v }).ok, String(v)));
+  assert.ok(geste(g, 'cocher', { id: 'auto-poseur', case: 'reinit', valeur: true }).ok);
+  assert.strictEqual(geste(g, 'lireCompte', { id: 'auto-poseur' }).data.reinit, true);
+  const t = geste(g, 'traiterComptes');
+  assert.ok(t.ok, JSON.stringify(t));
+  const c = geste(g, 'lireCompte', { id: 'auto-poseur' });
+  assert.ok(c.ok && c.data.aProvisoire === true && c.data.reinit === false && c.data.utilisable === true, JSON.stringify(c));
+  const provisoire = String(U(g).find(l => l[0] === 'auto-poseur')[5]);
+  assert.ok(provisoire.length === 8 && JSON.stringify(c).indexOf(provisoire) < 0, 'le mot de passe provisoire n’est jamais dans la réponse');
+  assert.ok(geste(g, 'cocher', { id: 'auto-poseur', case: 'actif', valeur: false }).ok);
+  assert.ok(!geste(g, 'session', { id: 'auto-poseur' }).ok, 'pas de session pour un compte désactivé');
+});
+test('porte : lectures bornées (20 lignes au plus), déclencheurs, transition, contrôle du lot 2', () => {
+  const g = serveurLot2();
+  assert.strictEqual(geste(g, 'lireEnvois').data.lignes.length, 6, '5 lignes par défaut + les titres');
+  assert.strictEqual(geste(g, 'lireEnvois', { n: 1000 }).data.lignes.length, 21);
+  assert.strictEqual(geste(g, 'lireEnvois', { n: 'x' }).data.lignes.length, 6);
+  const l = geste(g, 'lireEnvois', { n: 2 }).data.lignes;
+  assert.deepStrictEqual([l[0][0], l[1][0], l[2][0]], ['Numéro', 'id28', 'id29']);
+  assert.deepStrictEqual(Array.from(geste(g, 'lireChantiers').data.chantiers.map(c => c.nom)), ['CHANTIER TEST 1']);
+  assert.ok(geste(g, 'poserDeclencheurs').ok);
+  assert.deepStrictEqual(Array.from(geste(g, 'etat').data.declencheurs), ['renvoyerMailsEnAttente', 'surModificationSheet', 'traiterComptes']);
+  assert.ok(geste(g, 'retirerDeclencheurs').ok);
+  assert.strictEqual(geste(g, 'etat').data.declencheurs.length, 0);
+  assert.strictEqual(geste(g, 'etat').data.transitionOuverte, true);
+  assert.ok(geste(g, 'finirTransition').ok);
+  assert.strictEqual(geste(g, 'etat').data.transitionOuverte, false);
+  assert.ok(geste(g, 'prolongerTransition').ok);
+  assert.strictEqual(geste(g, 'etat').data.transitionOuverte, true);
+  const c = geste(g, 'controlerLot2');
+  assert.ok(c.ok && /Lot 2 — contrôle seul — environnement : TEST/.test(c.message) && /HACHAGE_ITERATIONS.* : déjà fait/.test(c.message), c.message);
+  assert.ok(geste(g, 'lireBilan').data.lignes.length >= 2);
+});
+test('porte complète hors de TEST : tous les gestes sont refusés, rien n’est écrit', () => {
+  const g = serveurLot2();
+  g.proprietes.ENVIRONNEMENT = '';   // même projet, mais plus « TEST » : environnement incohérent
+  const avant = JSON.stringify([U(g), g.proprietes, g.declencheurs]);
+  ['etat', 'preparerComptes', 'session', 'fermerSessions', 'cocher', 'poserDeclencheurs', 'retirerDeclencheurs', 'traiterComptes', 'finirTransition', 'prolongerTransition',
+    'lireEnvois', 'lireBilan', 'lireChantiers', 'lireCompte', 'controlerLot2', 'essaiDeclencheur'].forEach(nom =>
+    assert.deepStrictEqual(geste(g, nom, { id: 'auto-admin', case: 'actif', valeur: true }), { ok: false, code: 'REFUSE', message: 'Refusé' }, nom));
+  assert.strictEqual(JSON.stringify([U(g), g.proprietes, g.declencheurs]), avant);
 });
 test('serveur SANS la porte (production) : l’action « outilTest » est une action inconnue, même avec la bonne clé', () => {
   [TEST(), PROD].forEach(o => {
