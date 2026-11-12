@@ -1,10 +1,14 @@
 // Outils de la « porte de service » de la copie TEST (utilisés par Claude, depuis le PC) :
-//   node outils/porte.js --creer-cle       → fabrique la clé et l'écrit dans _prive/cle-outils-test.txt, SANS l'afficher
-//   node outils/porte.js etat              → demande son état au serveur TEST (version, empreinte, déclencheurs…)
-//   node outils/porte.js essaiDeclencheur  → essai de faisabilité : poser puis retirer un déclencheur
-// La clé n'est jamais affichée, ni écrite ailleurs que dans _prive/ (dossier exclu de GitHub) : Franck la copie
-// de ce fichier vers la propriété CLE_OUTILS_TEST du projet Apps Script de la copie TEST (jamais en production).
-// Ces appels ne vont QUE vers l'adresse de la copie TEST (URL_TEST de commun/config.js).
+//   node outils/porte.js --creer-cle                → fabrique la clé dans _prive/cle-outils-test.txt, SANS l'afficher
+//   node outils/porte.js etat                       → état du serveur TEST (version, empreinte, déclencheurs, transition…)
+//   node outils/porte.js <geste> [nom=valeur …]     → un geste de la liste fermée du serveur, par exemple :
+//        node outils/porte.js lireEnvois n=3
+//        node outils/porte.js cocher id=auto-poseur case=reinit valeur=true
+//        node outils/porte.js session id=auto-admin
+// SECRETS : la clé n'est jamais affichée ni écrite ailleurs que dans _prive/ (dossier exclu de GitHub). Le jeton d'une
+// session d'essai n'est jamais affiché non plus : il est rangé dans _prive/session-essai.json, et la réponse montrée
+// dit seulement où il est.
+// Ces appels ne vont QUE vers l'adresse de la copie TEST (URL_TEST de commun/config.js, différente de la production).
 'use strict';
 const fs = require('fs');
 const path = require('path');
@@ -12,7 +16,9 @@ const crypto = require('crypto');
 const { deploiementTest } = require('./envoyer-test.js');
 
 const RACINE = path.join(__dirname, '..');
-const fichierCle = prive => path.join(prive || path.join(RACINE, '_prive'), 'cle-outils-test.txt');
+const dossierPrive = prive => prive || path.join(RACINE, '_prive');
+const fichierCle = prive => path.join(dossierPrive(prive), 'cle-outils-test.txt');
+const fichierSession = prive => path.join(dossierPrive(prive), 'session-essai.json');
 
 function creerCle(prive) {
   const f = fichierCle(prive);
@@ -28,18 +34,43 @@ function lireCle(prive) {
   if (cle.length < 32) throw new Error('Clé trop courte dans ' + f);
   return cle;
 }
-// Appelle la porte. La réponse ne contient jamais la clé ; en cas d'erreur réseau, le message non plus.
+// Session d'essai en cours (rangée par le geste « session ») : { id, jeton, profil } ou null
+function lireSession(prive) {
+  try { return JSON.parse(fs.readFileSync(fichierSession(prive), 'utf8')); } catch (e) { return null; }
+}
+
+// Appelle la porte. La réponse RENDUE ne contient jamais la clé ni un jeton de session.
 async function appeler(geste, donnees, o) {
   o = o || {};
   const url = o.url || deploiementTest(o.racine || RACINE).url;
   const envoyer = o.envoyer || (async (u, corps) => {
-    const r = await fetch(u, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(corps) });
+    const r = await fetch(u, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(corps),
+      signal: AbortSignal.timeout(o.maxMs || 120000) });
     return r.json();
   });
-  return envoyer(url, Object.assign({}, donnees || {}, { action: 'outilTest', v: 5, geste: geste, cle: lireCle(o.prive) }));
+  const rep = await envoyer(url, Object.assign({}, donnees || {}, { action: 'outilTest', v: 5, geste: geste, cle: lireCle(o.prive) }));
+  if (rep && rep.data && typeof rep.data.jeton === 'string') {
+    fs.mkdirSync(dossierPrive(o.prive), { recursive: true });
+    fs.writeFileSync(fichierSession(o.prive), JSON.stringify({ id: rep.data.id, jeton: rep.data.jeton, profil: rep.data.profil, ouverteLe: new Date().toISOString() }));
+    rep.data.jeton = '(rangé dans _prive/session-essai.json, jamais affiché)';
+  }
+  if (geste === 'fermerSessions' && rep && rep.ok) { try { fs.rmSync(fichierSession(o.prive), { force: true }); } catch (e) {} }
+  return rep;
+}
+// « n=3 », « valeur=true », « id=auto-poseur » → { n: 3, valeur: true, id: 'auto-poseur' }
+function lireParametres(args) {
+  const d = {};
+  args.forEach(a => {
+    const i = a.indexOf('=');
+    if (i < 1) throw new Error('Paramètre mal écrit (attendu nom=valeur) : ' + a);
+    const nom = a.slice(0, i), v = a.slice(i + 1);
+    if (['action', 'v', 'geste', 'cle'].indexOf(nom) > -1) throw new Error('Paramètre réservé : ' + nom);
+    d[nom] = v === 'true' ? true : v === 'false' ? false : /^\d+$/.test(v) ? Number(v) : v;
+  });
+  return d;
 }
 
-module.exports = { creerCle, lireCle, appeler, fichierCle };
+module.exports = { creerCle, lireCle, lireSession, appeler, lireParametres, fichierCle, fichierSession };
 if (require.main === module) {
   (async () => {
     const a = process.argv.slice(2);
@@ -48,8 +79,8 @@ if (require.main === module) {
       console.log((r.cree ? 'Clé fabriquée et écrite' : 'La clé existe déjà') + ' dans _prive/cle-outils-test.txt (elle n’est pas affichée).');
       return;
     }
-    if (['etat', 'essaiDeclencheur'].indexOf(a[0]) < 0) throw new Error('Usage : node outils/porte.js --creer-cle | etat | essaiDeclencheur');
-    const rep = await appeler(a[0]);
+    if (!a[0] || !/^[A-Za-z]+$/.test(a[0])) throw new Error('Usage : node outils/porte.js --creer-cle | <geste> [nom=valeur …]');
+    const rep = await appeler(a[0], lireParametres(a.slice(1)));
     console.log(JSON.stringify(rep, null, 2));
     if (!rep || !rep.ok) process.exitCode = 1;
   })().catch(e => { console.error('❌ ' + e.message); process.exit(1); });

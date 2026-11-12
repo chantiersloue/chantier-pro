@@ -87,10 +87,12 @@ test('porte : seuls les gestes de la liste existent (aucune fonction du serveur 
 });
 test('porte : l’essai de faisabilité pose puis retire un déclencheur, sans toucher aux autres', () => {
   const g = serveur(TEST(), true);
+  g.declencheurs.push('traiterComptes');   // un déclencheur déjà en place doit y rester
   const r = poster(g, appel('essaiDeclencheur'));
   assert.strictEqual(r.ok, true, JSON.stringify(r));
   assert.deepStrictEqual([r.data.pose, r.data.retire], [true, true]);
   assert.strictEqual(r.message, 'déclencheur posé ; déclencheur retiré');
+  assert.deepStrictEqual(Array.from(g.declencheurs), ['traiterComptes'], 'les autres déclencheurs ne sont pas touchés');
 });
 // ── Porte complète : un serveur TEST avec le lot 2 en place ──
 function serveurLot2(extra) {
@@ -115,7 +117,8 @@ test('porte : preparerComptes crée les trois comptes d’essai une seule fois, 
   assert.deepStrictEqual(Array.from(r.data.crees), ['auto-poseur', 'auto-conducteur', 'auto-admin']);
   assert.strictEqual(JSON.stringify(U(g)[1]), avant, 'la ligne du vrai compte de TEST n’est pas modifiée');
   const lignes = U(g).filter(l => /^auto-/.test(String(l[0])));
-  assert.deepStrictEqual(lignes.map(l => [l[0], l[2], l[3]]), [['auto-poseur', 'Poseur', true], ['auto-conducteur', 'Conducteur', true], ['auto-admin', 'Admin', true]]);
+  assert.deepStrictEqual(lignes.map(l => [l[0], l[2], l[3]]), [['auto-poseur', 'Poseur', false], ['auto-conducteur', 'Conducteur', false], ['auto-admin', 'Admin', false]], 'créés désactivés');
+  assert.deepStrictEqual([3, 4, 5].map(n => U(g)[n - 1][0]), ['auto-poseur', 'auto-conducteur', 'auto-admin'], 'juste sous les comptes existants, là où il y a des cases à cocher');
   const r2 = geste(g, 'preparerComptes');
   assert.deepStrictEqual([Array.from(r2.data.crees), Array.from(r2.data.dejaPresents).length], [[], 3]);
   assert.strictEqual(U(g).filter(l => /^auto-/.test(String(l[0]))).length, 3, 'pas de doublon');
@@ -128,8 +131,15 @@ test('porte : session d’essai — le jeton marche sur ce serveur, puis fermerS
   assert.ok(moi.ok && moi.data.profil.id === 'auto-admin', JSON.stringify(moi));
   g.ctx.finirTransitionMaintenant();   // transition finie : un jeton annulé est vraiment refusé
   assert.ok(poster(g, { action: 'moi', v: 5, jeton: s1.data.jeton }).ok);
-  assert.ok(geste(g, 'fermerSessions').ok);
+  assert.strictEqual(geste(g, 'lireCompte', { id: 'auto-admin' }).data.actif, true, 'le compte est activé le temps de la session');
+  const f1 = geste(g, 'fermerSessions');
+  assert.deepStrictEqual(Array.from(f1.data.comptes), ['auto-poseur', 'auto-conducteur', 'auto-admin']);
   assert.strictEqual(poster(g, { action: 'moi', v: 5, jeton: s1.data.jeton }).code, 'JETON_INVALIDE');
+  assert.strictEqual(geste(g, 'lireCompte', { id: 'auto-admin' }).data.actif, false, 'puis désactivé');
+  // sans compte créé, fermerSessions n'écrit rien
+  const vide = serveurLot2(), propsAvant = JSON.stringify(vide.proprietes);
+  assert.deepStrictEqual(Array.from(geste(vide, 'fermerSessions').data.comptes), []);
+  assert.strictEqual(JSON.stringify(vide.proprietes), propsAvant);
   assert.ok(JSON.stringify(geste(g, 'lireCompte', { id: 'auto-admin' })).indexOf(s1.data.jeton) < 0);
 });
 test('porte : un jeton de session d’essai fabriqué sur TEST est refusé par un serveur de production (même clé de signature volée ou non)', () => {
@@ -161,6 +171,7 @@ test('porte : cocher n’accepte que trois cases et vrai/faux ; « Réinitialise
   ['oui', 1, null, undefined, 'true'].forEach(v => assert.ok(!geste(g, 'cocher', { id: 'auto-poseur', case: 'reinit', valeur: v }).ok, String(v)));
   assert.ok(geste(g, 'cocher', { id: 'auto-poseur', case: 'reinit', valeur: true }).ok);
   assert.strictEqual(geste(g, 'lireCompte', { id: 'auto-poseur' }).data.reinit, true);
+  geste(g, 'cocher', { id: 'auto-poseur', case: 'actif', valeur: true });
   const t = geste(g, 'traiterComptes');
   assert.ok(t.ok, JSON.stringify(t));
   const c = geste(g, 'lireCompte', { id: 'auto-poseur' });
@@ -168,7 +179,7 @@ test('porte : cocher n’accepte que trois cases et vrai/faux ; « Réinitialise
   const provisoire = String(U(g).find(l => l[0] === 'auto-poseur')[5]);
   assert.ok(provisoire.length === 8 && JSON.stringify(c).indexOf(provisoire) < 0, 'le mot de passe provisoire n’est jamais dans la réponse');
   assert.ok(geste(g, 'cocher', { id: 'auto-poseur', case: 'actif', valeur: false }).ok);
-  assert.ok(!geste(g, 'session', { id: 'auto-poseur' }).ok, 'pas de session pour un compte désactivé');
+  assert.ok(geste(g, 'session', { id: 'auto-poseur' }).ok && geste(g, 'lireCompte', { id: 'auto-poseur' }).data.actif === true, 'ouvrir une session réactive le compte d’essai');
 });
 test('porte : lectures bornées (20 lignes au plus), déclencheurs, transition, contrôle du lot 2', () => {
   const g = serveurLot2();
@@ -177,26 +188,85 @@ test('porte : lectures bornées (20 lignes au plus), déclencheurs, transition, 
   assert.strictEqual(geste(g, 'lireEnvois', { n: 'x' }).data.lignes.length, 6);
   const l = geste(g, 'lireEnvois', { n: 2 }).data.lignes;
   assert.deepStrictEqual([l[0][0], l[1][0], l[2][0]], ['Numéro', 'id28', 'id29']);
-  assert.deepStrictEqual(Array.from(geste(g, 'lireChantiers').data.chantiers.map(c => c.nom)), ['CHANTIER TEST 1']);
+  const ch = geste(g, 'lireChantiers');
+  assert.deepStrictEqual([ch.data.nombre, ch.data.chantierEssaiPresent], [1, false]);
+  assert.ok(JSON.stringify(ch).indexOf('CHANTIER TEST 1') < 0 && JSON.stringify(ch).indexOf('Franck') < 0, 'ni nom de chantier, ni nom de personne dans la réponse');
+  assert.deepStrictEqual(Array.from(geste(g, 'lireEnvois', { n: 1 }).data.lignes[1]), ['id29', 'date', 'quitus', 'traité'], 'seulement numéro, date, type, statut');
+  const pc = geste(g, 'preparerChantier');
+  assert.ok(pc.ok && pc.data.cree === true && geste(g, 'preparerChantier').data.cree === false);
+  assert.deepStrictEqual(g.feuilles['Chantiers'].lignes[2].slice(0, 3), ['CHANTIER TEST AUTO', 'ESSAIS AUTOMATIQUES (outillage)', 'En cours']);
+  assert.strictEqual(g.feuilles['Chantiers'].lignes[1][0], 'CHANTIER TEST 1', 'la ligne existante n’est pas touchée');
+  assert.strictEqual(geste(g, 'lireChantiers').data.chantierEssaiPresent, true);
   assert.ok(geste(g, 'poserDeclencheurs').ok);
-  assert.deepStrictEqual(Array.from(geste(g, 'etat').data.declencheurs), ['renvoyerMailsEnAttente', 'surModificationSheet', 'traiterComptes']);
+  assert.deepStrictEqual(Array.from(geste(g, 'etat').data.declencheurs), ['outilTestRetraitAuto_', 'renvoyerMailsEnAttente', 'surModificationSheet', 'traiterComptes'], 'avec le retrait automatique dans 2 h');
+  geste(g, 'poserDeclencheurs');
+  assert.strictEqual(geste(g, 'etat').data.declencheurs.length, 4, 'reposer ne les double pas');
+  g.ctx.outilTestRetraitAuto_();   // ce que fait le déclencheur de retrait automatique
+  assert.strictEqual(geste(g, 'etat').data.declencheurs.length, 0, 'le retrait automatique retire tout, lui compris');
+  geste(g, 'poserDeclencheurs');
   assert.ok(geste(g, 'retirerDeclencheurs').ok);
   assert.strictEqual(geste(g, 'etat').data.declencheurs.length, 0);
-  assert.strictEqual(geste(g, 'etat').data.transitionOuverte, true);
+  // transition : pas commencée au départ ; les essais la modifient ; retablirTransition la remet comme avant
+  let e = geste(g, 'etat').data;
+  assert.deepStrictEqual([e.transitionOuverte, e.transitionJusquau, e.transitionARetablir], [true, null, false]);
+  const pas = geste(g, 'prolongerTransition');
+  assert.ok(!pas.ok && /rien n’a été prolongé/.test(pas.message), 'prolonger une transition pas commencée n’est pas annoncé comme réussi');
   assert.ok(geste(g, 'finirTransition').ok);
-  assert.strictEqual(geste(g, 'etat').data.transitionOuverte, false);
+  e = geste(g, 'etat').data;
+  assert.deepStrictEqual([e.transitionOuverte, e.transitionARetablir], [false, true]);
   assert.ok(geste(g, 'prolongerTransition').ok);
   assert.strictEqual(geste(g, 'etat').data.transitionOuverte, true);
+  const ret = geste(g, 'retablirTransition');
+  assert.ok(ret.ok && /pas commencée/.test(ret.message), ret.message);
+  e = geste(g, 'etat').data;
+  assert.deepStrictEqual([e.transitionOuverte, e.transitionJusquau, e.transitionARetablir], [true, null, false]);
+  assert.ok(!g.proprietes.FIN_TRANSITION && !g.proprietes.OUTIL_TEST_FIN_AVANT);
+  assert.ok(/Rien à rétablir/.test(geste(g, 'retablirTransition').message));
+  // une transition déjà commencée (cas de la vraie copie TEST) retrouve exactement sa date
+  g.proprietes.FIN_TRANSITION = '1794933622155';
+  geste(g, 'finirTransition'); geste(g, 'prolongerTransition'); geste(g, 'retablirTransition');
+  assert.strictEqual(g.proprietes.FIN_TRANSITION, '1794933622155');
+  delete g.proprietes.FIN_TRANSITION;
   const c = geste(g, 'controlerLot2');
   assert.ok(c.ok && /Lot 2 — contrôle seul — environnement : TEST/.test(c.message) && /HACHAGE_ITERATIONS.* : déjà fait/.test(c.message), c.message);
   assert.ok(geste(g, 'lireBilan').data.lignes.length >= 2);
+});
+test('porte : un geste qui n’a pas eu son effet répond ok:false (traiterComptes occupé ou en erreur)', () => {
+  const occupe = creerGoogle({ nomSheet: 'ChantierPro TEST', verrouOccupe: true, proprietes: { ENVIRONNEMENT: 'TEST', CLE_OUTILS_TEST: CLE },
+    feuilles: { 'Chantiers': [['Nom']] } });
+  occupe.ctx = chargerScript(occupe);
+  vm.runInContext(fs.readFileSync(path.join(RACINE, construire.PORTE), 'utf8'), occupe.ctx, { filename: 'OutilsTest.gs' });
+  const r = geste(occupe, 'traiterComptes');
+  assert.ok(!r.ok && r.code === 'ERREUR_OUTIL' && /n’a pas tourné : occupé/.test(r.message), JSON.stringify(r));
+  assert.ok(!geste(occupe, 'preparerComptes').ok, 'les écritures attendent le verrou, et renoncent');
+  const g = serveurLot2();
+  g.ctx.synchroniserAcces_ = () => { throw new Error('boum'); };
+  const r2 = geste(g, 'traiterComptes');
+  assert.ok(!r2.ok && /n’a pas tourné : erreur : boum/.test(r2.message), JSON.stringify(r2));
+});
+test('porte : une ligne tapée à la main qui ressemble à un compte d’essai n’est jamais adoptée', () => {
+  [[' AUTO-Admin ', 'Poseur'], ['auto-admin', 'Poseur'], ['Auto-Admin', 'Admin']].forEach(([brut, role]) => {
+    const g = serveurLot2();
+    U(g)[2] = [brut, 'Quelqu’un', role, false, false, '', '', false, false, ''];
+    const avant = JSON.stringify(U(g)[2]);
+    ['preparerComptes', 'session', 'lireCompte', 'fermerSessions'].forEach(nom => {
+      const r = geste(g, nom, { id: 'auto-admin' });
+      assert.ok(!r.ok && /n’est pas un compte d’essai conforme/.test(r.message), nom + ' ' + brut + ' : ' + JSON.stringify(r));
+    });
+    assert.ok(!geste(g, 'cocher', { id: 'auto-admin', case: 'actif', valeur: true }).ok);
+    assert.strictEqual(JSON.stringify(U(g)[2]), avant, 'la ligne n’a pas été modifiée');
+  });
+  // en double : refusé aussi
+  const g = serveurLot2(); geste(g, 'preparerComptes');
+  U(g)[10] = ['auto-admin', 'AUTO Admin', 'Admin', true, false, '', '', false, false, ''];
+  assert.ok(!geste(g, 'session', { id: 'auto-admin' }).ok);
 });
 test('porte complète hors de TEST : tous les gestes sont refusés, rien n’est écrit', () => {
   const g = serveurLot2();
   g.proprietes.ENVIRONNEMENT = '';   // même projet, mais plus « TEST » : environnement incohérent
   const avant = JSON.stringify([U(g), g.proprietes, g.declencheurs]);
   ['etat', 'preparerComptes', 'session', 'fermerSessions', 'cocher', 'poserDeclencheurs', 'retirerDeclencheurs', 'traiterComptes', 'finirTransition', 'prolongerTransition',
-    'lireEnvois', 'lireBilan', 'lireChantiers', 'lireCompte', 'controlerLot2', 'essaiDeclencheur'].forEach(nom =>
+    'lireEnvois', 'lireBilan', 'lireChantiers', 'lireCompte', 'controlerLot2', 'essaiDeclencheur', 'retablirTransition', 'preparerChantier'].forEach(nom =>
     assert.deepStrictEqual(geste(g, nom, { id: 'auto-admin', case: 'actif', valeur: true }), { ok: false, code: 'REFUSE', message: 'Refusé' }, nom));
   assert.strictEqual(JSON.stringify([U(g), g.proprietes, g.declencheurs]), avant);
 });
@@ -521,6 +591,16 @@ test('clé : fabriquée une fois (48 caractères), jamais refaite, jamais affich
   assert.ok(rep.ok && recu.u === 'https://exemple.test/exec' && recu.u.indexOf(cle) < 0);
   assert.deepStrictEqual(recu.corps, { action: 'outilTest', v: 5, geste: 'etat', cle: cle });
   assert.throws(() => porte.lireCle(path.join(TMP, 'absent')), /Clé absente/);
+  // le jeton d'une session d'essai n'est jamais dans la réponse rendue : il est rangé dans _prive/
+  const JETON = 'auto-admin.t.2.1799999999999.SIGNATURE-SECRETE-DE-TEST';
+  const s = await porte.appeler('session', { id: 'auto-admin' }, { prive: prive, url: 'https://exemple.test/exec',
+    envoyer: async () => ({ ok: true, code: 'OK', data: { id: 'auto-admin', profil: { role: 'Admin' }, jeton: JETON } }) });
+  assert.ok(JSON.stringify(s).indexOf('SIGNATURE-SECRETE') < 0 && /rangé dans _prive/.test(s.data.jeton), JSON.stringify(s));
+  assert.strictEqual(porte.lireSession(prive).jeton, JETON);
+  await porte.appeler('fermerSessions', null, { prive: prive, url: 'https://exemple.test/exec', envoyer: async () => ({ ok: true, data: {} }) });
+  assert.strictEqual(porte.lireSession(prive), null, 'le jeton rangé est effacé à la fermeture des sessions');
+  assert.deepStrictEqual(porte.lireParametres(['n=3', 'valeur=true', 'id=auto-poseur', 'case=reinit']), { n: 3, valeur: true, id: 'auto-poseur', case: 'reinit' });
+  ['cle=x', 'geste=etat', 'action=ping', 'sansegal'].forEach(a => assert.throws(() => porte.lireParametres([a]), /réservé|mal écrit/));
   const sortie = execFileSync(process.execPath, ['-e', "const p=require(process.argv[1]);const r=p.creerCle(process.argv[2]);console.log(r.cree)", path.join(RACINE, 'outils', 'porte.js'), path.join(TMP, 'cle2')], { encoding: 'utf8' });
   assert.ok(sortie.indexOf(porte.lireCle(path.join(TMP, 'cle2'))) < 0);
 });
