@@ -43,7 +43,7 @@
   LOUE.dernierIdentifiant = function () { var c = lireCompteLocal(); return c && c.profil ? c.profil.id : ''; };
   LOUE.enregistrerCompte = function (jeton, profil, chantiers) {
     var c = lireCompteLocal() || {};
-    if (c.profil && profil && c.profil.id !== profil.id) c = {};            // autre personne : rien de l'ancienne
+    if (c.profil && profil && c.profil.id !== profil.id) { c = {}; oublierSignalements(''); }   // autre personne : rien de l'ancienne
     c.jeton = jeton; if (profil) c.profil = profil; if (chantiers) c.chantiers = chantiers;
     ecrireCompteLocal(c);
   };
@@ -51,6 +51,7 @@
     var c = lireCompteLocal();
     if (!c || !c.jeton) return;
     delete c.jeton; ecrireCompteLocal(c);
+    oublierSignalements('');   // lot 7 : session terminée → les listes de signalements gardées sont effacées
     LOUE.signaler({ type: 'compte', etat: 'deconnecte', message: raison || '' });
   }
   // Se déconnecter : le jeton, le profil et les listes de la personne sont effacés du téléphone (pas les fiches en attente)

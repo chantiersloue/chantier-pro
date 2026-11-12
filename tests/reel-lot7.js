@@ -47,12 +47,15 @@ const signalement = extra => Object.assign({ type: 'signalement', chantier: CHAN
   verifier('la porte répond, environnement TEST, serveur ' + etat.data.version + ' (empreinte ' + etat.data.empreinte + ')', etat.data.environnement === 'TEST');
   if (etat.data.environnement !== 'TEST') throw new Error('environnement inattendu');
   if (etat.data.mailsPossibles < 40) throw new Error('moins de 40 mails possibles aujourd’hui (' + etat.data.mailsPossibles + ') : essais reportés');
-  verifier('installation du lot 7 sur TEST', (await geste('installerLot7')).ok);
+  const inst = await geste('installerLot7');
+  verifier('installation du lot 7 sur TEST', inst.ok, inst.message);
   const pc = await geste('preparerComptes'), ch = await geste('preparerChantier');
   verifier('comptes et chantier d’essai prêts', pc.ok && ch.ok, JSON.stringify([pc, ch]));
+  if (!inst.ok || !pc.ok || !ch.ok) throw new Error('préparatifs incomplets : aucun signalement d’essai n’est envoyé');
   const dest = (await geste('destinatairesEssai')).data;
   console.log('    destinataires d’un essai : ' + JSON.stringify(dest));
   if (!dest.racineDriveNommeeTest) throw new Error('le dossier Drive de ce serveur ne s’appelle pas « … TEST … » : essais annulés');
+  if (!dest.chantierEssaiPresent) throw new Error('le chantier d’essai est absent de la copie TEST : essais annulés (le PDF irait dans « à classer », avec une alerte)');
   if (dest.conducteurChantierEssai === 'AUTRE PERSONNE') throw new Error('le chantier d’essai a pour conducteur une autre personne que Franck : essais annulés');
 
   // ── Un signalement, envoyé par le poseur d'essai ──

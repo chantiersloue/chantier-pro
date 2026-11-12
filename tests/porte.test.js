@@ -290,7 +290,9 @@ test('porte : une ligne tapée à la main qui ressemble à un compte d’essai n
 test('porte, lot 7 : installation, lecture des signalements sans texte saisi, destinataires d’un essai sans aucune adresse', () => {
   const g = serveurLot2();
   g.feuilles['Contacts'].lignes.push(['Vrai Chef', 'Chef atelier', 'vrai.chef@loue.test', 'N', 'N', 'N', 'O', 'N']);
+  g.feuilles['Chantiers'].lignes.push(['VRAI CHANTIER SANS CONDUCTEUR', 'LIEU', 'En cours', '']);
   const i = geste(g, 'installerLot7');
+  assert.ok(!/VRAI CHANTIER|ℹ/.test(JSON.stringify(i)), 'aucun nom de chantier dans la réponse de la porte');
   assert.ok(i.ok && /Lot 7 — installation — environnement : TEST/.test(i.message) && /installation terminée/.test(i.message), i.message);
   assert.ok(g.feuilles['Signalements'], 'onglet créé');
   assert.ok(geste(g, 'installerLot7').ok, 'relançable');
@@ -305,6 +307,10 @@ test('porte, lot 7 : installation, lecture des signalements sans texte saisi, de
   const ligne = Array.from(l.data.lignes[1]);
   assert.deepStrictEqual([ligne[0], ligne[2], ligne[3], ligne[4], ligne[6], ligne[7], ligne[8]], ['fiche-auto-porte-0001', 'auto-poseur', 'Casse', 'Pas urgent', 'Non', 'À traiter', 'envoyé']);
   assert.ok(!/SECRET|CHANTIER TEST AUTO|AUTO Poseur/.test(JSON.stringify(l)), 'ni texte saisi, ni chantier, ni nom dans la réponse');
+  // l'identifiant d'un vrai compte de la copie TEST est masqué
+  g.feuilles['Signalements'].lignes.push(['fiche-vrai-compte-0001', new Date(), 'X', 'poseur01', 'Vrai Poseur', 'Casse', 'Pas urgent', '', '', 0, 'Non', '', 'À traiter', '', '', 'envoyé', '']);
+  const l2 = geste(g, 'lireSignalements', { n: 1 });
+  assert.ok(Array.from(l2.data.lignes[1])[2] === '(compte réel)' && !/poseur01/.test(JSON.stringify(l2)), JSON.stringify(l2));
   // destinataires : la copie TEST a un « vrai » chef d'atelier → l'essai avec atelier ne doit pas être joué
   const d = geste(g, 'destinatairesEssai');
   assert.deepStrictEqual([d.data.chefsAtelier, d.data.chefsAtelierSontFranck, d.data.conducteurChantierEssai, d.data.chantierEssaiPresent], [1, false, 'aucun (le mail part à Franck)', true]);

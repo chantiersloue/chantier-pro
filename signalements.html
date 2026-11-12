@@ -9,12 +9,13 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Loué App">
 <meta name="theme-color" content="#1A2B4A">
-<link rel="stylesheet" href="commun/style.css?v=abab553716">
-<link rel="stylesheet" href="commun/fiche.css?v=abab553716">
+<link rel="stylesheet" href="commun/style.css?v=63454d8031">
+<link rel="stylesheet" href="commun/fiche.css?v=63454d8031">
 <style>
 .sig-carte{background:var(--card);border:1px solid var(--border);border-left:6px solid var(--header-bg);border-radius:var(--rl);margin-bottom:12px;padding:12px 14px;}
 .sig-carte.bloquant{border-left-color:var(--red);}
-.sig-carte.clos{opacity:.7;border-left-color:var(--border2);}
+.sig-carte.clos{border-left-color:var(--border2);background:#F7F5F1;}
+.sig-carte.clos .sig-type{color:var(--muted);}
 .sig-tete{display:flex;flex-wrap:wrap;gap:6px 8px;align-items:center;margin-bottom:6px;}
 .sig-type{font-size:18px;font-weight:800;}
 .pastille{display:inline-block;padding:3px 9px;border-radius:999px;font-size:13px;font-weight:700;background:#E8EDF5;color:var(--header-bg);}
@@ -59,10 +60,10 @@
   <a class="btn btn-green" id="btn-signaler" href="signaler.html" style="flex:1;text-decoration:none">+ Nouveau signalement</a>
 </div>
 
-<script src="commun/config.js?v=abab553716"></script>
-<script src="commun/api.js?v=abab553716"></script>
-<script src="commun/ui.js?v=abab553716"></script>
-<script src="commun/hors-ligne.js?v=abab553716"></script>
+<script src="commun/config.js?v=63454d8031"></script>
+<script src="commun/api.js?v=63454d8031"></script>
+<script src="commun/ui.js?v=63454d8031"></script>
+<script src="commun/hors-ligne.js?v=63454d8031"></script>
 <script>
 'use strict';
 // Suivi des signalements (lot 7). Tout ce qui vient du serveur a été saisi par quelqu'un d'autre : il n'est JAMAIS
@@ -143,7 +144,7 @@ function afficher(r) {
     ? 'Pas de réseau : liste du ' + new Date(r.date).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) + ' gardée dans le téléphone. Les statuts ne peuvent pas être changés hors réseau.'
     : (DONNEES.plein ? 'Seuls les 100 plus récents sont affichés.' : '');
   if (!sigs.length) {
-    liste.appendChild(el('div', 'vide', TOUT ? 'Aucun signalement.' : 'Aucun signalement en cours.'
+    liste.appendChild(el('div', 'vide', (TOUT ? 'Aucun signalement.' : 'Aucun signalement en cours.')
       + (DONNEES.peutChanger ? '' : ' Vous voyez ici les signalements que vous avez envoyés avec votre compte.')));
     return;
   }
@@ -156,6 +157,7 @@ function charger() {
   const compte = LOUE.compte();
   $('filtres').hidden = !compte;
   if (!compte) {
+    $('btn-actualiser').disabled = false;
     $('liste').textContent = '';
     $('info').textContent = '';
     const v = el('div', 'vide', 'Connectez-vous pour voir les signalements. ');

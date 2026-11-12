@@ -78,12 +78,13 @@ Une ligne par signalement, écrite par l'appli. **Seule la colonne M (Statut) se
 |M|**Statut** : À traiter / Commandé / Livré / Clos|À traiter|
 |N|Statut modifié par l'appli le| |
 |O|Statut modifié par l'appli par| |
-|P|Mail à la réception : envoyé / reporté / envoyé et reporté / aucun|envoyé|
+|P|Mail à la réception : envoyé / reporté / envoyé et reporté / aucun (« en cours » si le traitement a été coupé avant le mail : le téléphone réessaie)|envoyé|
 |Q|Saisi le (date et heure du téléphone)|12/11/2026 14h05|
 
 - Le PDF de chaque signalement est rangé dans le dossier du chantier, sous `05 - CHANTIER/SIGNALEMENTS`.
 - Un statut tapé à la main hors de la liste est lu « À traiter » par l'appli. Les colonnes N et O ne parlent que des changements faits dans l'appli.
 - Tu peux trier ou filtrer l'onglet : l'appli retrouve chaque signalement par son numéro, pas par sa position.
+- Les colonnes de texte (numéro, chantier, auteur, repère, commentaire…) sont au format « texte brut » : un repère « 1/2 » n'y devient pas une date.
 - Le chef d'atelier prévenu par la case « Prévenir l'atelier » est le contact (ou les contacts) dont la colonne **ChefAtelier** de l'onglet *Contacts* vaut `O`.
 
 ## Onglet « Installation » (outillage)

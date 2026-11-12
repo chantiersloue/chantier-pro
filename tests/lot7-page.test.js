@@ -101,9 +101,63 @@ function scenario(verrou) {
   return JSON.stringify(r);
 }`;
 }
-function lancer(verrou) {
+// Page de suivi : texte hostile, droits, liste gardée par compte, hors réseau, changement de statut.
+// Les comptes et le mot de passe sont ceux du faux serveur local (tests/faux-serveur.js), jamais de vrais comptes.
+function scenarioSuivi() {
+  return `async page => {
+  const BASE = ${JSON.stringify(SITE)}, q = 'api=${API}&sw=1', MDP = 'Essai-' + '2026';
+  const ctx = page.context(), r = {};
+  page.on('dialog', d => d.accept().catch(() => {}));
+  const attendreFileVide = async () => { for (let i = 0; i < 40; i++) { await page.waitForTimeout(500); if (!(await page.evaluate(() => LOUE.stockage.tout('file').then(l => l.length)))) return; } };
+  const connecter = id => page.evaluate(a => { LOUE.deconnecter(); return LOUE.connexion(a[0], a[1]).then(x => x.code); }, [id, MDP]);
+  const etatListe = () => page.evaluate(() => ({ cartes: document.querySelectorAll('.sig-carte').length, boutons: document.querySelectorAll('.statut-btn').length,
+    desactives: document.querySelectorAll('.statut-btn:disabled').length, info: document.getElementById('info').textContent, vide: (document.querySelector('.vide') || {}).textContent || '',
+    xss: window.__xss || 0, balisesDangereuses: document.querySelectorAll('#liste img, #liste script, #liste iframe, #liste [onerror]').length,
+    texte: document.getElementById('liste').textContent, largeur: document.documentElement.scrollWidth <= innerWidth }));
+  await ctx.setOffline(false);
+  await page.goto(BASE + 'signaler.html?' + q + '&chantier=CHANTIER%20TEST%201'); await page.waitForTimeout(2000);
+  const b = await page.$('.loue-brouillon [data-non]'); if (b) await b.click();
+  // 1. poseur1 envoie un signalement au texte hostile
+  r.connexion = await connecter('poseur1');
+  await page.check('#type-casse'); await page.check('#urgence-semaine');
+  await page.fill('#meta-repere', '<img src=x onerror="window.__xss=1">');
+  await page.fill('#meta-commentaire', '<script>window.__xss=2</scr' + 'ipt><b>gras</b> & fin');
+  await page.evaluate(() => envoyer()); await attendreFileVide();
+  // 2. poseur1 : voit le sien, en texte, sans bouton de statut
+  await page.goto(BASE + 'signalements.html?' + q); await page.waitForTimeout(2500);
+  r.poseur1 = await etatListe();
+  // 3. hors réseau : la liste gardée dans le téléphone est affichée, avec sa date
+  await ctx.setOffline(true); await page.reload(); await page.waitForTimeout(2500);
+  r.poseur1HorsLigne = await etatListe();
+  // 4. un autre poseur sur le même téléphone : rien de la liste du premier, ni en ligne ni hors réseau
+  await ctx.setOffline(false); await page.reload(); await page.waitForTimeout(1500);
+  r.connexion2 = await connecter('poseur2');
+  r.cachesApresChangement = await page.evaluate(() => Object.keys(localStorage).filter(k => /signalements/.test(k)).length);
+  await page.reload(); await page.waitForTimeout(2500);
+  r.poseur2 = await etatListe();
+  await ctx.setOffline(true); await page.reload(); await page.waitForTimeout(2500);
+  r.poseur2HorsLigne = await etatListe();
+  // 5. sans compte : rien
+  await ctx.setOffline(false); await page.reload(); await page.waitForTimeout(1500);
+  await page.evaluate(() => LOUE.deconnecter()); await page.reload(); await page.waitForTimeout(2000);
+  r.sansCompte = await etatListe();
+  // 6. conducteur : voit tout, boutons de statut ; hors réseau ils sont désactivés ; en ligne, le statut change
+  r.connexion3 = await connecter('conducteur1');
+  await page.reload(); await page.waitForTimeout(2500);
+  r.conducteur = await etatListe();
+  await ctx.setOffline(true); await page.reload(); await page.waitForTimeout(2500);
+  r.conducteurHorsLigne = await etatListe();
+  await ctx.setOffline(false); await page.reload(); await page.waitForTimeout(2500);
+  await page.evaluate(() => { Array.from(document.querySelectorAll('.statut-btn')).find(x => x.textContent === 'Livré').click(); });
+  await page.waitForTimeout(3500);
+  r.apresStatut = await page.evaluate(() => ({ actif: (document.querySelector('.statut-btn.active') || {}).textContent, pied: (document.querySelector('.sig-pied') || {}).textContent }));
+  await page.evaluate(() => LOUE.deconnecter());
+  return JSON.stringify(r);
+}`;
+}
+function lancer(verrou, texte) {
   const f = path.join(dossier, 'scenario-' + verrou + '.js');
-  fs.writeFileSync(f, scenario(verrou));
+  fs.writeFileSync(f, texte || scenario(verrou));
   spawnSync('playwright-cli', ['-s=loue-l7', 'close'], { shell: true });
   spawnSync('playwright-cli', ['-s=loue-l7', 'open', '--browser=chrome', '--mobile', 'about:blank'], { shell: true, encoding: 'utf8' });
   const sortie = spawnSync('playwright-cli', ['-s=loue-l7', '--raw', 'run-code', '--filename=' + f], { shell: true, encoding: 'utf8', timeout: 240000 });
@@ -132,6 +186,20 @@ setTimeout(() => {
     verifier('mémoire occupée par un autre onglet : bouton libéré, message clair', !/Rangement|Envoi direct/.test(b.bouton) && /n’arrive pas à ranger/.test(b.message), JSON.stringify(b));
     verifier('… le texte de la fiche reste dans le brouillon', b.texteGarde === true, JSON.stringify(b));
     verifier('… rien n’est rangé en retard (pas de doublon, pas de photo orpheline)', b.fiches === 0 && b.photos === 0, JSON.stringify(b));
+    console.log('Lot 7 — page « Signalements » (suivi)');
+    const c = lancer('suivi', scenarioSuivi());
+    const j = x => JSON.stringify(x);
+    verifier('le poseur voit le sien, sans bouton de statut, sans défilement horizontal', c.connexion === 'CONNECTE' && c.poseur1.cartes >= 1 && c.poseur1.boutons === 0 && c.poseur1.largeur === true, j(c.poseur1));
+    verifier('un texte hostile saisi par un autre s’affiche comme du texte, jamais comme du code', c.poseur1.xss === 0 && c.poseur1.balisesDangereuses === 0
+      && c.poseur1.texte.indexOf('<img src=x onerror=') > -1 && c.poseur1.texte.indexOf('<b>gras</b> & fin') > -1 && c.conducteur.xss === 0 && c.conducteur.balisesDangereuses === 0, j(c.poseur1));
+    verifier('hors réseau : la dernière liste est affichée, avec sa date', c.poseur1HorsLigne.cartes === c.poseur1.cartes && /Pas de réseau : liste du/.test(c.poseur1HorsLigne.info), j(c.poseur1HorsLigne));
+    verifier('un autre poseur sur le même téléphone ne voit rien de la liste du premier (en ligne et hors réseau)', c.connexion2 === 'CONNECTE' && c.cachesApresChangement === 0
+      && c.poseur2.cartes === 0 && c.poseur2HorsLigne.cartes === 0 && c.poseur2HorsLigne.texte.indexOf('onerror') < 0, j([c.cachesApresChangement, c.poseur2, c.poseur2HorsLigne]));
+    verifier('sans compte : rien n’est affiché, connexion demandée', c.sansCompte.cartes === 0 && /Connectez-vous/.test(c.sansCompte.vide), j(c.sansCompte));
+    verifier('le conducteur voit tout, avec 4 boutons de statut par signalement', c.connexion3 === 'CONNECTE' && c.conducteur.cartes >= c.poseur1.cartes && c.conducteur.boutons === 4 * c.conducteur.cartes
+      && c.conducteur.desactives === 0, j(c.conducteur));
+    verifier('hors réseau, les boutons de statut sont désactivés', c.conducteurHorsLigne.boutons > 0 && c.conducteurHorsLigne.desactives === c.conducteurHorsLigne.boutons, j(c.conducteurHorsLigne));
+    verifier('en ligne, le conducteur change le statut : le bouton actif et son nom le montrent', c.apresStatut.actif === 'Livré' && /Statut changé par Sébastien TEST/.test(c.apresStatut.pied), j(c.apresStatut));
   } catch (e) { echecs++; console.log('  ✗ ' + e.message); }
   spawnSync('playwright-cli', ['-s=loue-l7', 'close'], { shell: true });
   site.kill(); faux.kill();

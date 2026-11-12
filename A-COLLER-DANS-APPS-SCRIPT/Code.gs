@@ -1,10 +1,10 @@
 // ═══════════════════════════════════════════════════════════════
 // LOUÉ APP — SERVEUR COMPLET, À COLLER DANS APPS SCRIPT (fichier « Code.gs », tout remplacer)
 // FICHIER GÉNÉRÉ AUTOMATIQUEMENT par « node outils/construire.js » — NE PAS MODIFIER À LA MAIN :
-// les sources sont dans le dossier apps-script/ du dépôt. Version du serveur e7a9457a18 (pages abab553716)
+// les sources sont dans le dossier apps-script/ du dépôt. Version du serveur 4c15de7dc6 (pages 63454d8031)
 // ═══════════════════════════════════════════════════════════════
 
-const EMPREINTE_SERVEUR = 'e7a9457a18';
+const EMPREINTE_SERVEUR = '4c15de7dc6';
 
 // ████ Config.gs ████
 // ═══════════════════════════════════════════════════════════════
@@ -194,7 +194,8 @@ function nettoyerHtmlRiche_(html) {
 // serait pris pour une formule → on le préfixe d'une apostrophe. Les nombres négatifs restent des nombres.
 function cellule_(v) {
   if (typeof v !== 'string') return v;
-  return (/^[=+@]/.test(v) || /^-(?![\d.,\s]|$)/.test(v)) ? "'" + v : v;
+  // « -1+IMPORTDATA(…) » commence comme un nombre mais serait une formule : seul un nombre négatif PUR passe tel quel
+  return (/^[=+@]/.test(v) || (/^-/.test(v) && !/^-\s*\d+(?:[.,]\d+)?\s*$/.test(v))) ? "'" + v : v;
 }
 
 // Nom de fichier Drive : sans caractères de contrôle, longueur raisonnable
@@ -2135,7 +2136,17 @@ function estDossierTechnique_(dossier) {
 function dossiers_() {
   const cache = CacheService.getScriptCache();
   const enCache = cache.get('dossiers.json');
-  if (enCache) { try { return JSON.parse(enCache); } catch (e) {} }
+  // Le cache est commun à tous les déploiements du projet : un ancien serveur encore en service peut y avoir rangé une
+  // configuration SANS les clés ajoutées depuis (lot 7 : « signalement »). On complète donc toujours par les valeurs par défaut.
+  if (enCache) {
+    try {
+      const c = JSON.parse(enCache);
+      return { version: c.version || 1,
+        documents: Object.assign({}, DOSSIERS_DEFAUT.documents, c.documents || {}),
+        hors_chantier: Object.assign({}, DOSSIERS_DEFAUT.hors_chantier, c.hors_chantier || {}),
+        intitules: Object.assign({}, DOSSIERS_DEFAUT.intitules, c.intitules || {}) };
+    } catch (e) {}
+  }
   let conf = DOSSIERS_DEFAUT;
   try {
     const racine = DriveApp.getFolderById(driveRootId_());
@@ -2505,6 +2516,7 @@ const SIG_TYPES    = ['Casse', 'Manquant', 'À recommander'];
 const SIG_URGENCES = ['Bloquant', 'Cette semaine', 'Pas urgent'];
 const SIG_STATUTS  = ['À traiter', 'Commandé', 'Livré', 'Clos'];
 const SIG_ROLES_SUIVI = ['Conducteur', 'Admin', 'Atelier'];   // voient tous les signalements et changent le statut
+const SIG_MAX_LEGENDE = 80;
 const SIG_MAX_PHOTOS = 3, SIG_MAX_REPERE = 120, SIG_MAX_COMMENTAIRE = 2000, SIG_MAX_CHANTIER = 150, SIG_MAX_LISTE = 100;
 const SIG_ENTETES = ['Numéro', 'Reçu le', 'Chantier', 'Auteur (identifiant)', 'Auteur', 'Type', 'Urgence', 'Repère', 'Commentaire', 'Photos',
   'Atelier prévenu', 'Remarque', 'Statut', 'Statut modifié par l’appli le', 'Statut modifié par l’appli par', 'Mail à la réception', 'Saisi le'];
@@ -2512,28 +2524,56 @@ const COL_S = { id: 1, recu: 2, chantier: 3, auteurId: 4, auteur: 5, type: 6, ur
   atelier: 11, remarque: 12, statut: 13, modifLe: 14, modifPar: 15, mail: 16, saisi: 17 };
 
 // ── Contrôle des données : '' si tout va bien, sinon la raison du refus (code DONNEES_INVALIDES, définitif) ──
-function validerSignalement_(d) {
+// photosJointes : vrai quand le serveur a déjà remplacé les références des photos par leurs images (2e passage)
+function validerSignalement_(d, photosJointes) {
   d = d || {};
   const texte = v => (typeof v === 'string' ? v.trim() : '');
+  const CONTROLE = /[\u0000-\u001f\u007f]/, CONTROLE_SAUF_LIGNES = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/;
+  if (typeof d.date !== 'string' || !/^\d{2}\/\d{2}\/\d{4}$/.test(d.date)) return 'Date invalide';
+  if (typeof d.heure !== 'string' || !/^\d{2}h\d{2}$/.test(d.heure)) return 'Heure invalide';
   if (SIG_TYPES.indexOf(d.type_signalement) < 0) return 'Type de signalement inconnu';
   if (SIG_URGENCES.indexOf(d.urgence) < 0) return 'Urgence inconnue';
   const chantier = texte(d.chantier);
   if (!chantier) return 'Chantier manquant';
   if (chantier.length > SIG_MAX_CHANTIER) return 'Nom de chantier trop long';
+  if (CONTROLE.test(chantier)) return 'Nom de chantier invalide';
   if (d.repere != null && typeof d.repere !== 'string') return 'Repère invalide';
   if (d.commentaire != null && typeof d.commentaire !== 'string') return 'Commentaire invalide';
+  if (CONTROLE.test(texte(d.repere))) return 'Repère invalide';
+  if (CONTROLE_SAUF_LIGNES.test(texte(d.commentaire))) return 'Commentaire invalide';
   if (texte(d.repere).length > SIG_MAX_REPERE) return 'Repère trop long (' + SIG_MAX_REPERE + ' caractères au plus)';
   if (texte(d.commentaire).length > SIG_MAX_COMMENTAIRE) return 'Commentaire trop long (' + SIG_MAX_COMMENTAIRE + ' caractères au plus)';
   const photos = d.photosBase64 == null ? [] : d.photosBase64;
   if (!Array.isArray(photos)) return 'Photos invalides';
   if (photos.length > SIG_MAX_PHOTOS) return SIG_MAX_PHOTOS + ' photos au plus pour un signalement';
+  for (let i = 0; i < photos.length; i++) {
+    const p = photos[i];
+    if (!p || typeof p !== 'object' || Array.isArray(p)) return 'Photo invalide';
+    if (p.label != null && (typeof p.label !== 'string' || p.label.length > SIG_MAX_LEGENDE || CONTROLE.test(p.label))) return 'Légende de photo invalide';
+    // À la réception : seulement une référence à une photo déposée par l'action « photo » (jamais une image glissée dans la fiche)
+    if (!photosJointes && (!idValide_(p.photoRef) || Object.keys(p).some(k => k !== 'photoRef' && k !== 'label'))) return 'Photo invalide';
+  }
   if (!texte(d.repere) && !texte(d.commentaire) && !photos.length) return 'Signalement vide : il faut un repère, un commentaire ou une photo';
   if (d.atelier != null && d.atelier !== true && d.atelier !== false) return 'Case « atelier » invalide';
   return '';
 }
 
 // ── Onglet ──
-function feuilleSignalements_() { return feuille_(SHEET_SIGNALEMENTS, SIG_ENTETES); }
+function feuilleSignalements_() {
+  const existait = !!SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_SIGNALEMENTS);
+  const sh = feuille_(SHEET_SIGNALEMENTS, SIG_ENTETES);
+  if (!existait) preparerOngletSignalements_(sh);
+  return sh;
+}
+// Liste déroulante des statuts, et colonnes de texte en « texte brut » : sans cela Sheets transformerait un repère
+// « 1/2 » en date ou un identifiant « 0123 » en nombre (et le poseur ne retrouverait plus « les siens »)
+function preparerOngletSignalements_(sh) {
+  const lignes = Math.max(1, sh.getMaxRows() - 1);
+  [COL_S.id, COL_S.chantier, COL_S.auteurId, COL_S.auteur, COL_S.repere, COL_S.commentaire, COL_S.remarque, COL_S.saisi]
+    .forEach(c => sh.getRange(2, c, lignes, 1).setNumberFormat('@'));
+  sh.getRange(2, COL_S.statut, lignes, 1).setDataValidation(
+    SpreadsheetApp.newDataValidation().requireValueInList(SIG_STATUTS).setAllowInvalid(true).build());
+}
 // Ligne d'un signalement d'après son numéro (colonne A), ou 0. Jamais par position : Franck peut trier l'onglet.
 function chercherSignalement_(sh, id) {
   const derniere = sh.getLastRow();
@@ -2559,7 +2599,7 @@ function chefsAtelier_() {
 // Rappelé après une panne, il retrouve la ligne par son numéro et ne la réécrit pas.
 function traiterSignalement(data, brut, contexte) {
   if (!contexte || !contexte.id) throw new Error('Signalement refusé : numéro de fiche absent (page trop ancienne)');
-  const refus = validerSignalement_(brut);
+  const refus = validerSignalement_(brut, true);
   if (refus) throw new Error(refus);
   const texte = v => (typeof v === 'string' ? v.trim() : '');
   const chantier = texte(brut.chantier), type = brut.type_signalement, urgence = brut.urgence;
@@ -2574,12 +2614,16 @@ function traiterSignalement(data, brut, contexte) {
   const remarque = atelier && !chefs.length ? 'aucun chef d’atelier dans l’onglet Contacts (colonne ChefAtelier = O)' : '';
   const conducteur = emailConducteurChantier_(chantier) || emailAdmin_();
 
-  // 1. La ligne, une seule fois
-  const sh = feuilleSignalements_();
+  // 1. La ligne, une seule fois (onglet créé sous verrou s'il manque)
   const verrou = LockService.getScriptLock();
   if (!verrou.tryLock(15000)) throw new Error('Serveur occupé (onglet Signalements)');
+  let sh, dejaTraite = false;
   try {
-    if (!chercherSignalement_(sh, contexte.id)) {
+    sh = feuilleSignalements_();
+    const existante = chercherSignalement_(sh, contexte.id);
+    // Nouvel essai après une coupure : si le mail de ce signalement est déjà parti (ou reporté), on ne refait ni PDF ni mail
+    if (existante) dejaTraite = String(sh.getRange(existante, COL_S.mail).getValue()) !== 'en cours';
+    else {
       const ligne = [];
       for (let c = 1; c <= SIG_ENTETES.length; c++) ligne.push('');
       ligne[COL_S.id - 1] = contexte.id; ligne[COL_S.recu - 1] = new Date(); ligne[COL_S.chantier - 1] = chantier;
@@ -2590,6 +2634,7 @@ function traiterSignalement(data, brut, contexte) {
       sh.appendRow(ligne.map(cellule_));
     }
   } finally { verrou.releaseLock(); }
+  if (dejaTraite) return;
 
   // 2. Le PDF (informations + photos), rangé dans le dossier du chantier
   const heure = texte(brut.heure).replace(/[^0-9]/g, 'h').replace(/h+$/, '');
@@ -2665,7 +2710,7 @@ function changerStatutSignalement_(compte, corps) {
   const REFUS = { ok: false, code: 'INTERDIT', message: 'Signalement introuvable, ou vous ne pouvez pas changer son statut.' };
   if (SIG_ROLES_SUIVI.indexOf(compte.role) < 0) return avecJeton_(REFUS, compte);
   if (typeof corps.statut !== 'string' || SIG_STATUTS.indexOf(corps.statut) < 0) return avecJeton_({ ok: false, code: 'DONNEES_INVALIDES', message: 'Statut inconnu' }, compte);
-  if (!idValide_(corps.id)) return avecJeton_(REFUS, compte);
+  if (typeof corps.id !== 'string' || !idValide_(corps.id)) return avecJeton_(REFUS, compte);
   const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_SIGNALEMENTS);
   if (!sh) return avecJeton_(REFUS, compte);
   const verrou = LockService.getScriptLock();
@@ -2695,24 +2740,17 @@ function etapesLot7_() {
         return SIG_ENTETES.every((t, i) => String(titres[i]) === t) && !!regleStatut(sh);
       },
       action: () => {
-        let sh = ss.getSheetByName(SHEET_SIGNALEMENTS);
-        if (sh) {
-          // Onglet déjà là avec d'autres titres : on ne réécrit rien par-dessus des données
-          const titres = sh.getRange(1, 1, 1, SIG_ENTETES.length).getValues()[0];
-          if (!SIG_ENTETES.every((t, i) => String(titres[i]) === t)) {
-            if (sh.getLastRow() > 1 || titres.some(t => String(t).trim() !== '')) throw new Error('un onglet « ' + SHEET_SIGNALEMENTS + ' » existe déjà avec d’autres titres : le renommer, puis relancer');
-            sh.getRange(1, 1, 1, SIG_ENTETES.length).setValues([SIG_ENTETES]);
-          }
-        } else sh = feuilleSignalements_();
-        const lignes = Math.max(1, sh.getMaxRows() - 1);
-        sh.getRange(2, COL_S.statut, lignes, 1).setDataValidation(
-          SpreadsheetApp.newDataValidation().requireValueInList(SIG_STATUTS).setAllowInvalid(true).build());
+        const sh = ss.getSheetByName(SHEET_SIGNALEMENTS);
+        if (!sh) { feuilleSignalements_(); return 'onglet créé'; }   // titres, liste des statuts, colonnes de texte en texte brut
+        // Onglet déjà là (créé par un premier signalement, ou par quelqu'un) : jamais rien réécrire par-dessus des données
+        const titres = sh.getRange(1, 1, 1, SIG_ENTETES.length).getValues()[0];
+        if (!SIG_ENTETES.every((t, i) => String(titres[i]) === t)) {
+          if (sh.getLastRow() > 1 || titres.some(t => String(t).trim() !== '')) throw new Error('un onglet « ' + SHEET_SIGNALEMENTS + ' » existe déjà avec d’autres titres : le renommer, puis relancer');
+          sh.getRange(1, 1, 1, SIG_ENTETES.length).setValues([SIG_ENTETES]);
+        }
+        preparerOngletSignalements_(sh);
         return 'onglet prêt';
       } },
-    // dossiers.json est gardé 10 min en cache : sans cela, les premiers PDF iraient dans « Divers »
-    { nom: 'Dossier de rangement des signalements connu du serveur',
-      fait: () => { try { return !!dossiers_().documents.signalement; } catch (e) { return false; } },
-      action: () => { CacheService.getScriptCache().remove('dossiers.json'); return 'cache des noms de dossiers vidé'; } },
   ];
 }
 // Informations utiles à Franck (jamais bloquantes) : chantiers en cours sans conducteur, chefs d'atelier
@@ -2720,7 +2758,7 @@ function infosLot7_() {
   const sans = lignesChantiers_().filter(r => String(r[2] || '').trim() === STATUTS_CHANTIER[1] && !emailContact_(r[3])).map(r => String(r[0]));
   const chefs = chefsAtelier_().length;
   return [
-    sans.length ? 'ℹ ' + sans.length + ' chantier(s) « ' + STATUTS_CHANTIER[1] + ' » sans conducteur connu (colonne D) : leurs signalements arriveront à Franck — ' + sans.slice(0, 10).join(', ') + (sans.length > 10 ? '…' : '')
+    sans.length ? 'ℹ ' + sans.length + ' chantier(s) « ' + STATUTS_CHANTIER[1] + ' » sans conducteur connu (onglet Chantiers, colonne D vide ou nom absent de Contacts) : leurs signalements arriveront à Franck'
                 : 'ℹ Tous les chantiers « ' + STATUTS_CHANTIER[1] + ' » ont un conducteur connu.',
     chefs ? 'ℹ Chef(s) d’atelier (Contacts, ChefAtelier = O) : ' + chefs + ' adresse(s).'
           : 'ℹ Aucun chef d’atelier dans Contacts (colonne ChefAtelier = O) : la case « Prévenir l’atelier » n’enverra de mail à personne.',

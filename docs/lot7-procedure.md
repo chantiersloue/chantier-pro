@@ -28,16 +28,21 @@
 
 ## Étape B — Tes essais sur téléphone (15 min)
 
-**Avant de commencer** : dans le Sheet **« ChantierPro TEST »**, onglet *Contacts*, regarde la ligne dont la colonne **ChefAtelier** vaut `O`. Son adresse (colonne C) doit être **la tienne** : sinon le vrai chef d'atelier recevrait tes mails d'essai. S'il n'y en a pas, mets `O` sur ta propre ligne.
+**Avant de commencer, pour qu'aucun mail d'essai ne parte chez quelqu'un d'autre que toi** (la copie TEST garde peut-être de vraies adresses) :
+
+1. **Le chantier.** Fais tous tes essais sur le chantier **« CHANTIER TEST AUTO »**. Je l'ai créé dans la copie TEST pour mes propres essais ; il n'a pas de conducteur, donc ses mails arrivent **à toi**. N'utilise pas un autre chantier : son conducteur recevrait tes essais.
+2. **Le chef d'atelier.** Dans le Sheet **« ChantierPro TEST »**, onglet *Contacts*, regarde la ou les lignes dont la colonne **ChefAtelier** vaut `O`. L'adresse (colonne C) doit être **la tienne**. Sinon, remplace-la par la tienne le temps des essais, ou mets `O` sur ta propre ligne et retire-le des autres.
 
 Ouvre la copie d'essai (icône **« Loué ESSAI »**, bandeau rouge ; « À propos » affiche **7.0**). Connecte-toi avec ton compte d'essai Admin (`franck01`).
 
+Dans le suivi, tu verras aussi quelques lignes « ESSAI AUTOMATIQUE » : ce sont mes essais, déjà clos.
+
 | # | Essai | Attendu |
 |---|---|---|
-| 1 | Ouvre un chantier → **Signaler**. **Mode avion.** Choisis « Casse », « Bloquant », tape un repère, prends **une photo avec l'appareil**, **Envoyer** | « Signalement rangé dans le téléphone », indicateur « ⏳ 1 » ; la fiche se vide, le chantier reste |
+| 1 | Ouvre le chantier **CHANTIER TEST AUTO** → **Signaler**. **Mode avion.** Choisis « Casse », « Bloquant », tape un repère, prends **une photo avec l'appareil**, **Envoyer** | « Signalement rangé dans le téléphone », indicateur « ⏳ 1 » ; la fiche se vide, le chantier reste |
 | 2 | Coupe le mode avion | Le signalement part tout seul : « ✓ Tout est envoyé ». Tu reçois **un** mail « Signalement — Casse — … » avec un PDF qui contient la photo |
 | 3 | Les gros boutons | Lisibles dehors, utilisables d'une main, même avec des gants |
-| 4 | Un 2e signalement : « À recommander », commentaire **dicté au micro du clavier**, case **Prévenir l'atelier** cochée, sans photo | Deux destinataires prévenus (le conducteur du chantier et le chef d'atelier ; si c'est deux fois toi, tu reçois **un** seul mail) |
+| 4 | Un 2e signalement : « À recommander », commentaire **dicté au micro du clavier**, case **Prévenir l'atelier** cochée, sans photo | Tu reçois **un** mail (le conducteur du chantier et le chef d'atelier, c'est toi les deux fois : une seule adresse, un seul mail) |
 | 5 | Retour → tuile **Signalements** | Tes deux signalements, le plus récent en haut, « atelier prévenu » sur le second. Passe le premier à **Commandé** : « ✓ Statut enregistré » ; ton nom apparaît dessous |
 | 6 | Dans le Sheet TEST, onglet *Signalements* | Deux lignes, statut « Commandé » sur la première ; la colonne Statut est une liste déroulante |
 
@@ -49,7 +54,7 @@ Sur ma demande :
 ```
 node outils\envoyer-test.js --sans-porte
 ```
-La copie TEST exécute alors **le fichier exact** qui ira en production. Refais l'essai 1 (un signalement, avec réseau) pour le confirmer.
+La copie TEST exécute alors **le fichier exact** qui ira en production. Refais un signalement (avec réseau, toujours sur CHANTIER TEST AUTO) pour le confirmer.
 
 ## Étape D — Production (30 min, au copier-coller pour ce lot)
 
@@ -61,14 +66,20 @@ Le serveur du lot 7 a sa **propre adresse** : l'ancien déploiement (lot 2) cont
 4. Vérifie que la propriété **`ENVIRONNEMENT`** n'est **pas** `TEST`, et qu'il n'y a **pas** de propriété `CLE_OUTILS_TEST`.
 5. ▶ **`installerLot7Production`**. Lis le bilan :
    - première ligne : `Lot 7 — installation — environnement : PRODUCTION — Sheet « … » — serveur v7.0` ;
-   - deux lignes ✅, puis `✅ Lot 7 : installation terminée.` ;
-   - deux lignes ℹ : les chantiers « En cours » sans conducteur (leurs signalements t'arriveront à toi) et le nombre de chefs d'atelier. **Si « Aucun chef d'atelier »** : mets `O` dans la colonne *ChefAtelier* du bon contact, sinon la case « Prévenir l'atelier » ne prévient personne.
+   - une ligne ✅ (l'onglet *Signalements*), puis `✅ Lot 7 : installation terminée.` ;
+   - deux lignes ℹ : le **nombre** de chantiers « En cours » sans conducteur connu (leurs signalements t'arriveront à toi : complète la colonne D de l'onglet *Chantiers* si tu veux qu'ils aillent au conducteur) et le nombre d'adresses de chefs d'atelier. **Si « Aucun chef d'atelier »** : mets `O` dans la colonne *ChefAtelier* du bon contact, sinon la case « Prévenir l'atelier » ne prévient personne.
    - Une ligne ❌ : arrête-toi et envoie-la-moi.
 6. ▶ **`verifierConfig`** : première ligne `Loué App API v7.0`, aucun ❌.
 7. **Déployer → Nouveau déploiement** → type « Application Web », description **« Lot 7 — production »**, exécuter en tant que **moi**, accès **Tout le monde** → Déployer. Ouvre la nouvelle adresse : **`Loué App API v7.0 OK`**. **Envoie-moi l'adresse.**
 8. Je vérifie que ce serveur est bien celui de la livraison (son empreinte), je mets l'adresse dans les pages, et je te donne le **lien pré-rempli** : **Create pull request**, **Merge pull request**, **Confirm merge**.
 9. Trois minutes plus tard, sur ton téléphone (vraie appli) : « À propos » affiche **7.0**. Ouvre un chantier → **Signaler** → envoie un signalement réel vers toi → mail reçu, ligne dans l'onglet *Signalements* du vrai Sheet.
 10. Montre la tuile « Signaler » aux gars. À leur dire : **« Bloquant » sans réseau ne part qu'au retour du réseau : dans ce cas, on téléphone.**
+
+## À savoir sur les mails
+
+- Un signalement = **un mail par adresse** : le conducteur du chantier, plus chaque adresse de chef d'atelier si la case est cochée. Avec un chef d'atelier, compte 2 mails par signalement coché ; le compte Google en permet 100 par jour, toutes fiches confondues.
+- Si la limite du jour approche, le signalement est quand même enregistré : son mail part plus tard (dans les 2 heures), et le suivi affiche « mail parti en retard ».
+- N'écris qu'**une** adresse par chef d'atelier dans *Contacts* : cinq adresses sur la même ligne, c'est cinq mails à chaque fois.
 
 ## Retour arrière
 

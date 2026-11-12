@@ -176,7 +176,7 @@ Aucune page existante n'est modifiée, sauf l'accueil (deux tuiles). Le brouillo
 - **Réponses qui ne renseignent pas.** Le filtre par rôle passe avant tout autre ; aucun total n'est rendu ; changer le statut d'un signalement inconnu ou interdit donne la même réponse.
 - **« Mail reporté ».** La colonne dit ce qui s'est passé **à la réception** ; le suivi affiche « mail parti en retard » sans prétendre savoir s'il est arrivé depuis.
 - **Statut changé dans le Sheet.** Possible ; les colonnes L et M ne parlent alors que du dernier changement fait par l'appli. Une valeur hors liste est lue « À traiter ». L'appli retrouve la ligne par son numéro, sous verrou, jamais par sa position.
-- **Rangement.** Dossier `05 - CHANTIER/SIGNALEMENTS` (pas avec les réserves ni les quitus). L'installation ajoute cette clé au fichier `dossiers.json` déjà présent dans Drive et vide son cache. Le nom du PDF porte le type et l'heure.
+- **Rangement.** Dossier `05 - CHANTIER/SIGNALEMENTS` (pas avec les réserves ni les quitus). Le fichier `dossiers.json` déjà présent dans Drive n'est pas modifié : le serveur complète toujours ce qu'il y lit (ou ce qui est en cache) par ses valeurs par défaut, y compris quand un ancien déploiement encore en service a rempli le cache. Le nom du PDF porte le type et l'heure.
 - **Comptes d'essai.** Un quatrième compte `auto-atelier` pour essayer les droits de l'atelier.
 - **Gros boutons.** De vrais boutons radio habillés en gros boutons : le brouillon les reprend sans code particulier.
 - **Tuiles.** « Signaler » est aussi dans la grille ouverte sans chantier (le chantier se choisit alors dans la page). « Signalements » est masquée sans compte.
@@ -200,3 +200,15 @@ Le serveur de ce lot contient aussi l'outillage, jamais passé en production : l
 **Construction en deux temps**, chacun testé avant le suivant : 7a, signaler (page, mail, onglet) ; 7b, suivi et statut. Une seule livraison.
 
 **Ce que Franck fait, regroupé** : la réactivation de « API Google Apps Script » se fait au moment du premier envoi clasp ; la vérification des conducteurs et du chef d'atelier est faite par la fonction d'installation.
+
+## Ce que la relecture du code a fait changer (12/11/2026)
+
+- **Procédure** : tous les essais de Franck se font sur « CHANTIER TEST AUTO » (sans conducteur, donc mails à Franck). La première version aurait envoyé ses essais au vrai conducteur du chantier choisi.
+- **Rangement** : le cache des noms de dossiers, commun à tous les déploiements, pouvait être rempli par l'ancien serveur encore en service ; les PDF seraient alors partis dans « Divers ». Le serveur complète maintenant toujours ce cache par ses valeurs par défaut.
+- **Contrôle des données** : date et heure au format attendu, photos acceptées seulement comme références à des photos déposées, légendes bornées à 80 caractères, pas de retour à la ligne dans le chantier ni le repère (un sujet de mail ne peut plus être détourné).
+- **Après une coupure** : si le mail d'un signalement est déjà parti, le nouvel essai ne refait ni PDF ni mail.
+- **Onglet** : colonnes de texte en « texte brut » ; créé sous verrou.
+- **Porte de service** : plus aucun nom de chantier ni identifiant d'un vrai compte dans ses réponses.
+- **Page de suivi** : 8 tests automatiques dans un vrai Chrome (elle n'en avait aucun).
+- **Formules** : un texte du genre « -1+IMPORTDATA(…) » est maintenant neutralisé dans le Sheet (défaut antérieur au lot).
+- **Non corrigé, assumé** : après une panne survenue entre le rangement du PDF et l'envoi du mail, le nouvel essai range un second PDF (« _V2 ») ; au-delà de 1 000 lignes, les nouvelles lignes de l'onglet n'ont plus la liste déroulante des statuts (sans effet sur l'appli).

@@ -47,7 +47,7 @@ const destinataires = g => g.mails.map(m => m.to).sort();
 const estDate = v => Object.prototype.toString.call(v) === '[object Date]';   // les dates viennent d'un autre « monde » JavaScript
 let numero = 0;
 const idFiche = () => 'fiche-lot7-' + String(++numero).padStart(6, '0');
-const sig = extra => Object.assign({ type: 'signalement', chantier: 'CHANTIER TEST 1', date: '12/11/2026', heure: '14:05',
+const sig = extra => Object.assign({ type: 'signalement', chantier: 'CHANTIER TEST 1', date: '12/11/2026', heure: '14h05',
   type_signalement: 'Casse', urgence: 'Bloquant', repere: 'Porte P12, 2e étage', commentaire: 'Vitrage fêlé à la livraison',
   atelier: false, photosBase64: [] }, extra || {});
 const envoyer = (g, qui, donnees, id) => poster(g, Object.assign({ action: 'fiche', id: id || idFiche(), donnees: donnees || sig() }, qui ? { jeton: jeton(g, qui) } : {}));
@@ -69,13 +69,13 @@ test('un signalement : une ligne dans Signalements, un mail au conducteur du cha
   assert.strictEqual(l.length, 1);
   assert.deepStrictEqual([l[0][C.id], l[0][C.chantier], l[0][C.auteurId], l[0][C.auteur], l[0][C.type], l[0][C.urgence], l[0][C.repere], l[0][C.commentaire],
     l[0][C.photos], l[0][C.atelier], l[0][C.remarque], l[0][C.statut], l[0][C.mail], l[0][C.saisi]],
-    [id, 'CHANTIER TEST 1', 'thomas27', 'Thomas', 'Casse', 'Bloquant', 'Porte P12, 2e étage', 'Vitrage fêlé à la livraison', 0, 'Non', '', 'À traiter', 'envoyé', '12/11/2026 14:05']);
+    [id, 'CHANTIER TEST 1', 'thomas27', 'Thomas', 'Casse', 'Bloquant', 'Porte P12, 2e étage', 'Vitrage fêlé à la livraison', 0, 'Non', '', 'À traiter', 'envoyé', '12/11/2026 14h05']);
   assert.ok(estDate(l[0][C.recu]));
   assert.deepStrictEqual(destinataires(g), [SEB], 'le conducteur du chantier, et lui seul');
   const m = g.mails[0];
   assert.strictEqual(m.sujet, '[Loué App] Signalement — Casse — CHANTIER TEST 1');
   ['Signalement — Casse — Bloquant', 'Chantier : CHANTIER TEST 1', 'Repère : Porte P12, 2e étage', 'Commentaire : Vitrage fêlé à la livraison',
-    'Signalé par : Thomas, le 12/11/2026 à 14:05', 'Photos : aucune', 'Atelier prévenu : non'].forEach(t => assert.ok(m.texte.indexOf(t) > -1, t + '\n' + m.texte));
+    'Signalé par : Thomas, le 12/11/2026 à 14h05', 'Photos : aucune', 'Atelier prévenu : non'].forEach(t => assert.ok(m.texte.indexOf(t) > -1, t + '\n' + m.texte));
   const pdf = m.opts.attachments[0];
   assert.ok(/SIGNALEMENT/.test(pdf.contenu) && /Casse/.test(pdf.contenu) && /Bloquant/.test(pdf.contenu) && /Porte P12/.test(pdf.contenu) && /Thomas/.test(pdf.contenu));
   assert.ok(/^Signalement_Casse_CHANTIER TEST 1_12-11-2026\.pdf$/.test(pdf.nom || pdf.getName()), pdf.nom);
@@ -165,11 +165,34 @@ test('données invalides : refus DÉFINITIF avant tout (ni ligne dans Envois, ni
   const g = environnement();
   [{ type_signalement: 'Vol' }, { type_signalement: undefined }, { urgence: 'Urgent' }, { urgence: '' }, { chantier: '   ' }, { chantier: 'x'.repeat(151) },
     { repere: 'r'.repeat(121) }, { commentaire: 'c'.repeat(2001) }, { repere: '', commentaire: '  ', photosBase64: [] }, { repere: 12 }, { commentaire: { a: 1 } },
-    { atelier: 'oui' }, { photosBase64: 'x' }, { photosBase64: [1, 2, 3, 4].map(n => ({ photoRef: 'photo-lot7-bbbb000' + n })) }].forEach(extra => {
+    { atelier: 'oui' }, { photosBase64: 'x' }, { photosBase64: [1, 2, 3, 4].map(n => ({ photoRef: 'photo-lot7-bbbb000' + n })) },
+    // relecture : date et heure au bon format, photos = références seulement, légendes bornées, pas de caractères de contrôle
+    { date: 'x'.repeat(50000) }, { date: { a: 1 } }, { date: '12-11-2026' }, { date: undefined }, { heure: '14:05' }, { heure: 'h'.repeat(50000) }, { heure: 1405 },
+    { repere: '', commentaire: '', photosBase64: ['abc', null, 42] }, { photosBase64: [null] }, { photosBase64: [['photo-lot7-cccc0001']] },
+    { photosBase64: [{ data: '/9j/4AAQSkZJRg==', mimeType: 'image/jpeg' }] }, { photosBase64: [{ photoRef: 'photo-lot7-cccc0001', data: '/9j/4AAQSkZJRg==' }] },
+    { photosBase64: [{ photoRef: '../x' }] }, { photosBase64: [{ photoRef: 'photo-lot7-cccc0001', label: 'l'.repeat(81) }] }, { photosBase64: [{ photoRef: 'photo-lot7-cccc0001', label: 7 }] },
+    { chantier: 'CHANTIER TEST 1\nBcc: x@y.fr' }, { chantier: 'CHANTIER\tTEST' }, { repere: 'P12\r\nSubject: x' }, { commentaire: 'a\u0000b' }].forEach(extra => {
     const r = envoyer(g, 'thomas27', sig(extra));
     assert.deepStrictEqual([r.ok, r.code], [false, 'DONNEES_INVALIDES'], JSON.stringify(extra) + ' → ' + JSON.stringify(r));
   });
   assert.deepStrictEqual([S(g).length, E(g).length, g.mails.length], [0, 0, 0]);
+});
+test('un commentaire sur plusieurs lignes est accepté ; un repère « 1/2 » ou « 0123 » reste un texte', () => {
+  const g = environnement();
+  assert.ok(envoyer(g, 'thomas27', sig({ repere: '1/2', commentaire: 'ligne 1\nligne 2\n\tretrait' })).ok);
+  assert.ok(envoyer(g, 'thomas27', sig({ repere: '0123' })).ok);
+  assert.deepStrictEqual(S(g).map(l => l[C.repere]), ['1/2', '0123']);
+  assert.ok(/ligne 1\nligne 2/.test(g.mails[0].texte));
+});
+test('après une coupure, si le mail est déjà parti, le nouvel essai ne refait ni PDF ni mail', () => {
+  const g = environnement(), id = idFiche();
+  assert.ok(envoyer(g, 'thomas27', sig(), id).ok);
+  // comme après une exécution tuée par Google : l'onglet Envois est resté « en cours » depuis plus de 7 minutes
+  const e = E(g).find(x => x[0] === id); e[4] = 'en cours'; e[1] = new Date(Date.now() - 10 * 60 * 1000);
+  let pdf = 0; const vrai = g.ctx.pdfDuModele_; g.ctx.pdfDuModele_ = function () { pdf++; return vrai.apply(null, arguments); };
+  const r = envoyer(g, 'thomas27', sig(), id);
+  assert.ok(r.ok, JSON.stringify(r));
+  assert.deepStrictEqual([S(g).length, g.mails.length, pdf, S(g)[0][C.mail]], [1, 1, 0, 'envoyé'], 'ni 2e ligne, ni 2e mail, ni 2e PDF');
 });
 test('l’auteur vient du jeton, jamais des données du téléphone', () => {
   const g = environnement();
@@ -274,6 +297,7 @@ test('poseur (même auteur) : refusé ; numéro inconnu : MÊME réponse (on n�
 test('statut hors liste : refusé ; un statut tapé à la main dans le Sheet et inconnu est lu « À traiter »', () => {
   const g = monde(), id = S(g)[0][C.id];
   ['Annulé', '', null, 3, ['Clos'], 'clos'].forEach(s => assert.strictEqual(changer(g, 'seb', id, s).code, 'DONNEES_INVALIDES', String(s)));
+  assert.strictEqual(changer(g, 'seb', [id], 'Clos').code, 'INTERDIT', 'le numéro doit être un texte');
   S(g)[0][C.statut] = 'en attente fournisseur';
   assert.strictEqual(lire(g, 'seb').data.signalements.find(x => x.id === id).statut, 'À traiter');
 });
@@ -298,14 +322,15 @@ test('installerLot7Test : onglet créé avec ses titres et la liste des statuts 
   const g = environnement({ test: true, sansInstallation: true });
   assert.ok(!g.feuilles['Signalements']);
   const t1 = g.ctx.installerLot7Test();
-  assert.ok(/Lot 7 — installation — environnement : TEST/.test(t1) && /✅ 1\/2 Onglet « Signalements ».* : fait/.test(t1) && /✅ Lot 7 : installation terminée/.test(t1), t1);
+  assert.ok(/Lot 7 — installation — environnement : TEST/.test(t1) && /✅ 1\/1 Onglet « Signalements ».* : fait/.test(t1) && /✅ Lot 7 : installation terminée/.test(t1), t1);
   assert.strictEqual(g.feuilles['Signalements'].lignes[0].slice(0, 3).join('|'), 'Numéro|Reçu le|Chantier');
   assert.strictEqual(g.feuilles['Signalements'].lignes[0].length, 17);
   const v = g.feuilles['Signalements'].validations[0];
   assert.deepStrictEqual([v.c, Array.from(v.v.liste)], [13, ['À traiter', 'Commandé', 'Livré', 'Clos']]);
-  assert.ok(/ℹ 1 chantier\(s\) « En cours » sans conducteur connu.*CHANTIER SANS CONDUCTEUR/.test(t1) && /ℹ Chef\(s\) d’atelier.* : 2 adresse\(s\)/.test(t1), t1);
+  assert.ok(/ℹ 1 chantier\(s\) « En cours » sans conducteur connu/.test(t1) && /ℹ Chef\(s\) d’atelier.* : 2 adresse\(s\)/.test(t1), t1);
+  assert.ok(!/CHANTIER SANS CONDUCTEUR|@/.test(t1), 'ni nom de chantier ni adresse dans le bilan');
   const t2 = g.ctx.installerLot7Test();
-  assert.ok(/1\/2 Onglet .* : déjà fait/.test(t2) && /2\/2 .* : déjà fait/.test(t2), t2);
+  assert.ok(/1\/1 Onglet .* : déjà fait/.test(t2), t2);
   assert.strictEqual(g.feuilles['Signalements'].validations.length, 1, 'rien de réécrit');
 });
 test('mauvais environnement : chaque fonction refuse l’autre ; rien n’est créé', () => {
@@ -320,19 +345,45 @@ test('un onglet « Signalements » déjà là avec d’autres titres et des donn
   g.ctx.feuille_('Signalements', ['Mes notes', 'Autre']);
   g.feuilles['Signalements'].lignes.push(['important', 'à garder']);
   const t = g.ctx.installerLot7Production();
-  assert.ok(/❌ 1\/2 .*existe déjà avec d’autres titres/.test(t) && /⛔ Arrêt/.test(t), t);
+  assert.ok(/❌ 1\/1 .*existe déjà avec d’autres titres/.test(t) && /⛔ Arrêt/.test(t), t);
   assert.deepStrictEqual(g.feuilles['Signalements'].lignes, [['Mes notes', 'Autre'], ['important', 'à garder']]);
 });
-test('le cache des noms de dossiers (10 min) d’avant le lot est vidé : le PDF n’est pas rangé dans « Divers »', () => {
-  const g = environnement({ sansInstallation: true });
-  const ancien = JSON.parse(JSON.stringify(g.ctx.dossiers_()));
-  delete ancien.documents.signalement; delete ancien.intitules.signalement;
-  g.cache['dossiers.json'] = JSON.stringify(ancien);
-  assert.ok(!g.ctx.dossiers_().documents.signalement, 'cache périmé en place');
-  const t = g.ctx.installerLot7Production();
-  assert.ok(/✅ 2\/2 Dossier de rangement.* : fait — cache des noms de dossiers vidé/.test(t), t);
+test('cache des noms de dossiers rempli par un ANCIEN déploiement encore en service : le PDF n’est jamais rangé dans « Divers »', () => {
+  const g = environnement();
+  const remettreAncienCache = () => {   // ce que fait l'ancien serveur (lot 2) toutes les 10 minutes
+    const ancien = JSON.parse(JSON.stringify(g.ctx.dossiers_()));
+    delete ancien.documents.signalement; delete ancien.intitules.signalement; ancien.documents.quitus = 'DOSSIER DE FRANCK';
+    g.cache['dossiers.json'] = JSON.stringify(ancien);
+  };
+  remettreAncienCache();
   assert.strictEqual(g.ctx.dossiers_().documents.signalement, '05 - CHANTIER/SIGNALEMENTS');
   assert.strictEqual(g.ctx.dossiers_().intitules.signalement, 'SIGNALEMENT');
+  assert.strictEqual(g.ctx.dossiers_().documents.quitus, 'DOSSIER DE FRANCK', 'les noms choisis par Franck sont gardés');
+  let dossierVu = '';
+  const vrai = g.ctx.dossierParChemin_;
+  g.ctx.dossierParChemin_ = function (parent, chemin) { dossierVu = chemin; return vrai.apply(null, arguments); };
+  remettreAncienCache();
+  assert.ok(envoyer(g, 'thomas27', sig()).ok);
+  assert.strictEqual(dossierVu, '05 - CHANTIER/SIGNALEMENTS');
+});
+test('onglet créé par un premier signalement AVANT l’installation : l’installation le complète sans rien écraser', () => {
+  const g = environnement({ sansInstallation: true });
+  assert.ok(envoyer(g, 'thomas27', sig()).ok);
+  const avant = JSON.stringify(S(g));
+  const t = g.ctx.installerLot7Production();
+  assert.ok(/installation terminée/.test(t), t);
+  assert.strictEqual(JSON.stringify(S(g)), avant);
+  assert.ok(g.feuilles['Signalements'].validations.length >= 1);
+});
+test('neutralisation des formules : « -1+IMPORTDATA(…) » est neutralisé, un nombre négatif reste un nombre', () => {
+  const g = environnement();
+  assert.strictEqual(g.ctx.cellule_('-1+IMPORTDATA("http://x.test")'), "'-1+IMPORTDATA(\"http://x.test\")");
+  assert.strictEqual(g.ctx.cellule_('-12,5'), '-12,5');
+  assert.strictEqual(g.ctx.cellule_('-3'), '-3');
+  assert.strictEqual(g.ctx.cellule_('- à voir'), "'- à voir");
+  assert.strictEqual(g.ctx.cellule_('=1+1'), "'=1+1");
+  assert.strictEqual(g.ctx.cellule_('Porte P12'), 'Porte P12');
+  assert.strictEqual(g.ctx.cellule_(-4), -4);
 });
 test('aucun chef d’atelier : l’installation le dit (information, pas une erreur)', () => {
   const g = environnement({ sansChef: true, sansInstallation: true });

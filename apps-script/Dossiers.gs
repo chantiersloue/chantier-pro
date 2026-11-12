@@ -55,7 +55,17 @@ function estDossierTechnique_(dossier) {
 function dossiers_() {
   const cache = CacheService.getScriptCache();
   const enCache = cache.get('dossiers.json');
-  if (enCache) { try { return JSON.parse(enCache); } catch (e) {} }
+  // Le cache est commun à tous les déploiements du projet : un ancien serveur encore en service peut y avoir rangé une
+  // configuration SANS les clés ajoutées depuis (lot 7 : « signalement »). On complète donc toujours par les valeurs par défaut.
+  if (enCache) {
+    try {
+      const c = JSON.parse(enCache);
+      return { version: c.version || 1,
+        documents: Object.assign({}, DOSSIERS_DEFAUT.documents, c.documents || {}),
+        hors_chantier: Object.assign({}, DOSSIERS_DEFAUT.hors_chantier, c.hors_chantier || {}),
+        intitules: Object.assign({}, DOSSIERS_DEFAUT.intitules, c.intitules || {}) };
+    } catch (e) {}
+  }
   let conf = DOSSIERS_DEFAUT;
   try {
     const racine = DriveApp.getFolderById(driveRootId_());

@@ -57,12 +57,15 @@ function outilTest_(corps) {
       case 'lireCompte':    return ok('Compte d’essai', outilTestLireCompte_(outilTestIdFixe_(corps.id)));
       // Lot 7 : numéro, reçu le, auteur (identifiant), type, urgence, photos, atelier, statut, mail — ni chantier, ni nom, ni texte saisi
       case 'lireSignalements': return ok('Dernières lignes de l’onglet Signalements', { lignes: outilTestDernieresLignes_(SHEET_SIGNALEMENTS, corps.n,
-        [COL_S.id, COL_S.recu, COL_S.auteurId, COL_S.type, COL_S.urgence, COL_S.photos, COL_S.atelier, COL_S.statut, COL_S.mail]) });
+        [COL_S.id, COL_S.recu, COL_S.auteurId, COL_S.type, COL_S.urgence, COL_S.photos, COL_S.atelier, COL_S.statut, COL_S.mail])
+        // l'identifiant d'un vrai compte de la copie TEST n'est pas rendu : seuls ceux des comptes d'essai le sont
+        .map((l, i) => { if (i > 0 && l[2] && !Object.prototype.hasOwnProperty.call(OUTIL_TEST_COMPTES, l[2])) l[2] = '(compte réel)'; return l; }) });
       case 'destinatairesEssai': return ok('À qui partiraient les mails d’un essai (aucune adresse n’est donnée)', outilTestDestinataires_());
 
       // ── Lancer (fonctions existantes, sans paramètre) : ok seulement si l'effet est constaté ──
       case 'controlerLot2':        return ok(controlerInstallationLot2());
-      case 'installerLot7': { const m = installerLot7Test(); if (!/installation terminée/.test(m)) throw new Error('installation du lot 7 non terminée : ' + m); return ok(m); }
+      // (le bilan seul : les informations « chantiers sans conducteur » de installerLot7Test restent dans l'éditeur)
+      case 'installerLot7': { const r = installer_('Lot 7', 'TEST', etapesLot7_()); if (!r.ok) throw new Error('installation du lot 7 non terminée : ' + r.texte); return ok(r.texte); }
       case 'poserDeclencheurs':    return ok(outilTestPoserDeclencheurs_());
       case 'retirerDeclencheurs':  return ok(outilTestRetirerDeclencheurs_());
       case 'traiterComptes': { const r = traiterComptes(); if (r !== 'ok') throw new Error('traiterComptes n’a pas tourné : ' + r); return ok('traiterComptes : fait'); }

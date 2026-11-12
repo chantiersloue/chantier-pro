@@ -113,7 +113,8 @@ function nettoyerHtmlRiche_(html) {
 // serait pris pour une formule → on le préfixe d'une apostrophe. Les nombres négatifs restent des nombres.
 function cellule_(v) {
   if (typeof v !== 'string') return v;
-  return (/^[=+@]/.test(v) || /^-(?![\d.,\s]|$)/.test(v)) ? "'" + v : v;
+  // « -1+IMPORTDATA(…) » commence comme un nombre mais serait une formule : seul un nombre négatif PUR passe tel quel
+  return (/^[=+@]/.test(v) || (/^-/.test(v) && !/^-\s*\d+(?:[.,]\d+)?\s*$/.test(v))) ? "'" + v : v;
 }
 
 // Nom de fichier Drive : sans caractères de contrôle, longueur raisonnable
