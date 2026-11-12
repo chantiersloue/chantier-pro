@@ -99,7 +99,7 @@ Lot 8  Note de réunion                 │  dépend de 1 + 2 + onglet Intervena
 Lot 10 Idées                           ┘  au fil de l'eau, selon gain / effort
 ```
 
-**État au 12/11/2026** : lots 0, 1 (avec le 6) et 2 (avec le 9a) **en production**. Reste à Franck pour le lot 2 : installation sur les téléphones et remise des mots de passe, `demarrerTransition`, archivage des anciens déploiements (`docs/lot2-procedure.md`, D.8 à D.10). Lot suivant prévu : le 7. Il ne commence pas avant les réponses de Franck aux six décisions de `docs/automatisation.md`.
+**État au 12/11/2026** : lots 0, 1 (avec le 6) et 2 (avec le 9a) **en production**. Reste à Franck pour le lot 2 : installation sur les téléphones et remise des mots de passe, `demarrerTransition`, archivage des anciens déploiements (`docs/lot2-procedure.md`, D.8 à D.10). Outillage en place et vérifié le 12/11/2026 (`docs/guide-outillage.md`). **Lot 7 en cours** (plan : `docs/lot7-plan.md`, procédure : `docs/lot7-procedure.md`).
 
 **Pourquoi cet ordre ?**
 - Le lot 0 ferme une faille ouverte aujourd'hui.

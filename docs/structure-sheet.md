@@ -57,6 +57,39 @@ Chantier, Nom, Société, Lot / fonction, Mail, Téléphone, Mis à jour le. Rem
 - **Sans compte** : fiches et lectures reçues sans compte pendant la période de transition.
 - **Envois**, colonne G **Auteur (compte)**.
 
+## Onglet « Signalements » (lot 7 — créé par `installerLot7Test` / `installerLot7Production`)
+
+Une ligne par signalement, écrite par l'appli. **Seule la colonne M (Statut) se modifie à la main** (liste déroulante).
+
+| Col. | Contenu | Exemple |
+|---|---|---|
+|A|Numéro (celui de la fiche ; sert à ne jamais écrire deux fois le même)|fiche-…|
+|B|Reçu le (heure du serveur)|12/11/2026 14:07|
+|C|Chantier| |
+|D|Auteur (identifiant du compte, vérifié par le serveur ; vide si « sans compte »)|poseur01|
+|E|Auteur (nom affiché)| |
+|F|Type : Casse / Manquant / À recommander|Casse|
+|G|Urgence : Bloquant / Cette semaine / Pas urgent|Bloquant|
+|H|Repère|Porte P12|
+|I|Commentaire| |
+|J|Photos (nombre ; elles sont dans le PDF)|1|
+|K|Atelier prévenu : Oui / Non|Non|
+|L|Remarque de l'appli (par exemple : aucun chef d'atelier dans Contacts)| |
+|M|**Statut** : À traiter / Commandé / Livré / Clos|À traiter|
+|N|Statut modifié par l'appli le| |
+|O|Statut modifié par l'appli par| |
+|P|Mail à la réception : envoyé / reporté / envoyé et reporté / aucun|envoyé|
+|Q|Saisi le (date et heure du téléphone)|12/11/2026 14h05|
+
+- Le PDF de chaque signalement est rangé dans le dossier du chantier, sous `05 - CHANTIER/SIGNALEMENTS`.
+- Un statut tapé à la main hors de la liste est lu « À traiter » par l'appli. Les colonnes N et O ne parlent que des changements faits dans l'appli.
+- Tu peux trier ou filtrer l'onglet : l'appli retrouve chaque signalement par son numéro, pas par sa position.
+- Le chef d'atelier prévenu par la case « Prévenir l'atelier » est le contact (ou les contacts) dont la colonne **ChefAtelier** de l'onglet *Contacts* vaut `O`.
+
+## Onglet « Installation » (outillage)
+
+Bilan des fonctions d'installation (`installerLot7…`, `controlerInstallationLot2`) : date, lot, environnement, mode, ligne du bilan. Les 50 dernières lignes sont gardées. Peut être supprimé sans risque.
+
 ## Onglet « Fonctions »
 
 |Colonne|Titre|À quoi ça sert|Exemple fictif|

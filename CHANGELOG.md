@@ -2,6 +2,21 @@
 
 Chaque lot : **quoi**, **pourquoi**, **comment déployer**. Procédures détaillées dans `docs/lotN-procedure.md`.
 
+## Lot 7 — Signalement casse / manquant / à recommander — serveur v7.0, appli 7.0 — en test (rien en production)
+
+**Quoi**
+- Page **« Signaler »** (`signaler.html`), ouverte depuis un chantier : type et urgence en gros boutons, repère, commentaire, 0 à 3 photos, case « Prévenir l'atelier ». Brouillon automatique, rangement dans le téléphone, envoi au retour du réseau, comme les autres fiches.
+- Page **« Signalements »** (`signalements.html`) : le suivi. Conducteurs, admin et atelier voient tout et changent le statut (À traiter / Commandé / Livré / Clos) ; chaque poseur voit les siens.
+- Serveur : onglet *Signalements*, PDF (informations et photos) rangé dans `05 - CHANTIER/SIGNALEMENTS`, mail au conducteur du chantier à chaque fois, au chef d'atelier (Contacts, *ChefAtelier* = O) seulement si la case est cochée ; plafond de quota inchangé (mail reporté si besoin).
+- Installation en une fonction : `installerLot7Test` / `installerLot7Production`.
+- Ce lot emporte l'outillage du serveur (fonction d'installation unique, empreinte du serveur, `verifierConfig` complété).
+
+**Pourquoi** : rien d'oublié sur le chantier, et un suivi visible par tous (`PLAN.md`, lot 7). Décisions D7-1 à D7-3 ; écart avec le plan général : un PDF au lieu des photos brutes en pièces jointes (D7-2).
+
+**Comment déployer** : `docs/lot7-procedure.md`.
+
+**Tests** : serveur 31 (`tests/lot7-signalement.test.js`), page dans un vrai Chrome en largeur téléphone 8 (`tests/lot7-page.test.js`), porte de service 48, essais réels sur la copie TEST (`tests/reel-lot7.js`), toutes les séries des lots précédents.
+
 ## Outillage — étape C (12/11/2026) — copie TEST seulement, aucun changement pour les téléphones ni pour la production
 
 **Quoi** : 1. `node outils\envoyer-test.js` envoie le serveur sur la copie TEST avec clasp : c'est Franck qui la lance (2 lignes, 1 clic « Autoriser »), elle vérifie que le projet visé est bien celui de TEST, sauvegarde, envoie, contrôle en ligne par l'empreinte du serveur, et efface le jeton Google dans tous les cas. 2. Une « porte de service », présente seulement dans le serveur envoyé sur TEST, permet à Claude de lancer depuis le PC une liste fermée de gestes d'essai (`node outils/porte.js`). 3. Le serveur renvoie son empreinte (`ping`). 4. `verifierConfig` signale par un ❌ tout reste des outils d'essai hors de TEST.

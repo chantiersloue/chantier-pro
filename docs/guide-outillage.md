@@ -121,10 +121,11 @@ Pendant les essais, le serveur de la copie TEST contient des **outils d'essai** 
 | `controlerLot2` | Vérifie que le lot 2 est en place, sans rien modifier |
 | `poserDeclencheurs`, `retirerDeclencheurs` | Les déclencheurs de l'appli, le temps d'un essai (retirés tout seuls au bout de 2 h) |
 | `traiterComptes`, `finirTransition`, `prolongerTransition`, `retablirTransition` | Les fonctions d'essai du lot 2 ; la période sans compte d'origine est mémorisée et remise |
-| `preparerComptes`, `session`, `fermerSessions`, `cocher`, `lireCompte` | Trois comptes d'essai (`auto-poseur`, `auto-conducteur`, `auto-admin`), activés seulement pendant un essai |
+| `preparerComptes`, `session`, `fermerSessions`, `cocher`, `lireCompte` | Quatre comptes d'essai (`auto-poseur`, `auto-conducteur`, `auto-admin`, `auto-atelier`), activés seulement pendant un essai |
+| `installerLot7`, `lireSignalements`, `destinatairesEssai` | Lot 7 : installer le lot sur TEST, lire l'onglet *Signalements* (sans chantier ni texte saisi), savoir à qui partiraient les mails d'un essai (sans donner d'adresse) |
 | `preparerChantier` | Une ligne « CHANTIER TEST AUTO » dans l'onglet *Chantiers* de TEST |
 
-Ce que tu verras dans le Sheet « ChantierPro TEST » : trois lignes `auto-…` dans *Utilisateurs* (décochées hors essai), un onglet *Installation*, et peut-être une colonne `auto-poseur` dans *Accès chantiers*. Tu peux les laisser : ils servent aux essais suivants.
+Ce que tu verras dans le Sheet « ChantierPro TEST » : quatre lignes `auto-…` dans *Utilisateurs* (décochées hors essai), un onglet *Installation*, et peut-être une colonne `auto-poseur` dans *Accès chantiers*. Tu peux les laisser : ils servent aux essais suivants.
 
 La clé de la porte est dans `_prive/cle-outils-test.txt` et dans la propriété `CLE_OUTILS_TEST` du projet TEST. Si elle fuit, elle ne donne accès qu'aux gestes ci-dessus, sur la copie TEST. Pour la changer : supprimer le fichier, relancer `node outils/porte.js --creer-cle`, recopier la nouvelle valeur dans la propriété.
 
