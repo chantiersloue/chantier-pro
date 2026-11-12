@@ -2,6 +2,16 @@
 
 Chaque lot : **quoi**, **pourquoi**, **comment déployer**. Procédures détaillées dans `docs/lotN-procedure.md`.
 
+## Lot 9b — Contrat avec les skills (12/11/2026) — un document, rien à déployer
+
+**Quoi** : `docs/contrat-skills.md`, le contrat entre l'appli et les skills Claude de Franck : identité du chantier lue dans l'onglet *Chantiers*, intervenants transmis par un fichier que l'appli recopie, carnet, rapatriement des fiches de Drive vers MEGA avec son relevé, cotes de chantier pour le métré des plinthes. Textes prêts à coller dans les skills (chapitre 8).
+
+**Pourquoi** : les lots 4, 5 et 8 en dépendent (`PLAN.md`, lot 9). Décisions D9b-1 à D9b-3. Principe retenu après une relecture indépendante : **un skill ne modifie jamais le Sheet de l'appli**.
+
+**Comment déployer** : rien dans l'appli. Franck colle les blocs A et B dans ses skills (lecture seule) et fait les trois essais du chapitre 9 quand il veut. Le bloc C attend le lot 4. Cinq questions lui sont posées au chapitre 10.
+
+**Pas vérifié** : aucun essai avec un vrai skill ni avec le vrai Sheet (hors de ma portée) ; le contrat a été relu deux fois par un agent indépendant.
+
 ## Lot 7 — Signalement casse / manquant / à recommander — serveur v7.0, appli 7.0 — en test (rien en production)
 
 **Quoi**
