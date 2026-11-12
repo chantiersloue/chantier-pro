@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Loué App — Notes de chantier</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Loué App">
+<meta name="theme-color" content="#1A2B4A">
+<link rel="stylesheet" href="commun/style.css?v=0633466480">
+<link rel="stylesheet" href="commun/fiche.css?v=0633466480">
+<style>
+body.avec-saisie{padding-bottom:230px;}
+.note{background:var(--card);border:1px solid var(--border);border-left:6px solid var(--header-bg);border-radius:var(--rl);margin-bottom:12px;padding:12px 14px;}
+.note.faite{border-left-color:var(--green);background:#F7F5F1;}
+.note.attente{border-left-color:#C98A00;}
+.note.supprimee{border-left-color:var(--border2);background:#F7F5F1;}
+.note-tete{display:flex;flex-wrap:wrap;gap:6px 8px;align-items:center;margin-bottom:6px;font-size:14px;color:var(--muted);}
+.note-tete b{color:var(--text);font-size:15px;}
+.pastille{display:inline-block;padding:3px 9px;border-radius:999px;font-size:13px;font-weight:700;background:#E8EDF5;color:var(--header-bg);}
+.pastille.rouge{background:var(--red-l);color:var(--red);}
+.pastille.orange{background:#FCF1D6;color:#7A5200;}
+.pastille.gris{background:#EFECE8;color:var(--muted);}
+.note-texte{font-size:17px;line-height:1.45;overflow-wrap:anywhere;white-space:pre-wrap;}
+.note.faite .note-texte{text-decoration:line-through;color:var(--muted);}
+.note-pied{font-size:14px;color:var(--muted);margin-top:6px;line-height:1.4;overflow-wrap:anywhere;}
+.note-photos{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;}
+.note-photos img{max-width:100%;border-radius:var(--r);border:1px solid var(--border);display:block;}
+.note-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;}
+.note-actions .btn{flex:1 1 auto;}
+.btn-fait{min-height:56px;font-size:17px;border:2px solid var(--green);background:#fff;color:var(--green);}
+.note.faite .btn-fait{background:var(--green);color:#fff;}
+.btn:disabled{opacity:.5;cursor:default;}
+.note-edit{width:100%;min-height:110px;margin-top:6px;}
+.histo{margin-top:8px;border-top:1px dashed var(--border2);padding-top:8px;font-size:14px;line-height:1.4;}
+.histo div{margin-bottom:8px;overflow-wrap:anywhere;white-space:pre-wrap;}
+.vide{text-align:center;color:var(--muted);padding:28px 10px;font-size:17px;line-height:1.5;}
+.filtres{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;align-items:center;}
+.filtres .meta-input{flex:1 1 180px;}
+.filtres label{display:flex;align-items:center;gap:6px;min-height:48px;padding:0 10px;border:1px solid var(--border2);border-radius:var(--r);background:#fff;font-weight:600;}
+.filtres input[type=checkbox]{width:22px;height:22px;}
+.outils{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0;}
+.outils .btn{flex:1 1 160px;}
+.saisie{position:fixed;bottom:0;left:0;right:0;background:var(--card);border-top:2px solid var(--header-bg);padding:8px 10px calc(8px + env(safe-area-inset-bottom,0px));z-index:15;}
+.saisie-int{max-width:860px;margin:0 auto;}
+.saisie textarea{width:100%;min-height:64px;max-height:160px;resize:none;}
+.saisie-ligne{display:flex;gap:8px;margin-top:6px;}
+.saisie-ligne .btn{min-height:56px;}
+.saisie-ligne .btn-green{flex:1;font-size:18px;}
+.saisie-photos{display:flex;gap:8px;margin-bottom:6px;flex-wrap:wrap;}
+.saisie-photos div{position:relative;}
+.saisie-photos img{height:64px;width:64px;object-fit:cover;border-radius:var(--r);border:1px solid var(--border);display:block;}
+.saisie-photos button{position:absolute;top:-8px;right:-8px;width:32px;height:32px;border-radius:50%;border:none;background:var(--red);color:#fff;font-size:18px;font-weight:800;cursor:pointer;}
+.saisie-info{font-size:13px;color:var(--muted);margin-top:4px;}
+.dictee-active{background:var(--red)!important;color:#fff!important;}
+</style>
+</head>
+<body>
+
+<div class="topbar no-print">
+  <a class="btn btn-secondary btn-petit" href="index.html" aria-label="Retour à l'accueil">‹ Retour</a>
+  <span class="tb-name">Notes</span>
+  <span id="loue-envoi-place"></span>
+  <button class="btn btn-secondary btn-petit" type="button" id="btn-actualiser" onclick="charger()">↻ Actualiser</button>
+</div>
+
+<div class="main">
+  <div class="aide" id="entete"></div>
+
+  <div class="filtres" id="filtres" hidden>
+    <select class="meta-input" id="f-chantier" data-brouillon="non" aria-label="Chantier"><option value="">Tous les chantiers</option></select>
+    <select class="meta-input" id="f-auteur" data-brouillon="non" aria-label="Auteur"><option value="">Tous les auteurs</option></select>
+    <input class="meta-input" id="f-recherche" data-brouillon="non" type="search" maxlength="100" placeholder="Chercher dans les notes…" aria-label="Chercher dans les notes">
+    <label for="f-nouveau"><input type="checkbox" id="f-nouveau" data-brouillon="non"> Nouvelles</label>
+    <label for="f-nonfait"><input type="checkbox" id="f-nonfait" data-brouillon="non"> Non faites</label>
+  </div>
+
+  <div class="listes-info" id="info" role="status"></div>
+  <div id="liste"></div>
+
+  <div class="outils" id="outils" hidden>
+    <button class="btn btn-secondary" type="button" id="btn-corbeille" onclick="basculerCorbeille()">🗑 Corbeille</button>
+    <button class="btn btn-secondary" type="button" id="btn-pdf" onclick="exporter()">Exporter en PDF</button>
+  </div>
+  <div id="corbeille" hidden></div>
+</div>
+
+<div class="saisie no-print" id="saisie" hidden>
+  <div class="saisie-int">
+    <div class="saisie-photos" id="saisie-photos"></div>
+    <textarea class="meta-input" id="saisie-texte" data-brouillon="non" maxlength="2000" placeholder="Nouvelle note… (le micro du clavier permet de dicter)" aria-label="Nouvelle note"></textarea>
+    <input type="file" id="photo-cam" accept="image/*" capture="environment" hidden onchange="ajouterPhotos(this.files);this.value=''">
+    <div class="saisie-ligne">
+      <button class="btn btn-secondary" type="button" id="btn-photo" onclick="document.getElementById('photo-cam').click()" aria-label="Ajouter une photo">📷</button>
+      <button class="btn btn-secondary" type="button" id="btn-dictee" onclick="dicter()" aria-label="Dicter la note" hidden>🎤</button>
+      <button class="btn btn-green" type="button" id="btn-ajouter" onclick="ajouter()">Ajouter la note</button>
+    </div>
+    <div class="saisie-info" id="saisie-info"></div>
+  </div>
+</div>
+
+<script src="commun/config.js?v=0633466480"></script>
+<script src="commun/api.js?v=0633466480"></script>
+<script src="commun/ui.js?v=0633466480"></script>
+<script src="commun/photos.js?v=0633466480"></script>
+<script src="commun/notes.js?v=0633466480"></script>
+<script src="commun/hors-ligne.js?v=0633466480"></script>
+<script>
+'use strict';
+// Notes de chantier (lot 3). Tout ce qui vient du serveur a été écrit par quelqu'un d'autre : il n'est JAMAIS inséré
+// comme du code de page. La liste est construite élément par élément, le texte posé par textContent.
+// Écrire : une note ou un geste est rangé dans la file d'envoi du téléphone (il part tout de suite, ou au retour du
+// réseau) ; ce qui attend encore est affiché tout de suite, marqué « ⏳ ».
+const $ = id => document.getElementById(id);
+let CHANTIER = '';
+try { CHANTIER = (new URLSearchParams(location.search).get('chantier') || '').trim().slice(0, 150); } catch (e) {}
+const TOUS = !CHANTIER;
+let DONNEES = null;      // dernière réponse du serveur : { notes, chantier, chef, moi, heure, plein }
+let DU_TELEPHONE = false, DATE_LISTE = 0;
+let ATTENTE = [];        // notes et gestes de CE compte encore dans la file d'envoi, pour ce chantier
+let enCours = 0;         // numéro de la dernière demande : une réponse en retard n'écrase pas la plus récente
+let EDITION = '';        // numéro de la note en cours de modification
+let HISTO = {};          // numéro de note → anciennes versions déjà chargées
+let PHOTOS_VUES = {};    // « note|rang » → adresse locale de l'image
+let photos = [];         // photos de la saisie en cours : [{ id, blob, url }]
+
+function el(balise, classe, texte) {
+  const e = document.createElement(balise);
+  if (classe) e.className = classe;
+  if (texte !== undefined && texte !== null) e.textContent = String(texte);
+  return e;
+}
+function bouton(classe, texte, action) {
+  const b = el('button', 'btn ' + classe, texte);
+  b.type = 'button';
+  b.addEventListener('click', action);
+  return b;
+}
+const quand = ms => new Date(ms).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+
+function entete() {
+  const e = $('entete');
+  e.textContent = '';
+  if (TOUS) { e.textContent = 'Toutes les notes, tous chantiers. Pour écrire une note, ouvrez un chantier.'; return; }
+  e.appendChild(document.createTextNode('Chantier : '));
+  e.appendChild(el('b', '', (DONNEES && DONNEES.chantier) || CHANTIER));
+}
+
+// ── La liste affichée = la réponse du serveur + ce qui attend encore dans le téléphone ──
+function notesAffichees() {
+  const compte = LOUE.compte();
+  const moiNom = compte ? (compte.profil.nom || compte.profil.id) : '';
+  const notes = ((DONNEES && DONNEES.notes) || []).map(n => Object.assign({}, n));
+  const parId = {};
+  notes.forEach(n => { parId[n.id] = n; });
+  const refus = [];
+  ATTENTE.forEach(a => {
+    const d = a.donnees || {}, enErreur = a.etat === 'erreur';
+    if (a.type === 'note-chantier') {
+      if (parId[a.id]) return;   // déjà arrivée (la file n'a pas encore été nettoyée)
+      const n = { id: a.id, chantier: d.chantier, auteur: moiNom, cree: quand(a.cree), texte: d.texte || '', photos: (d.photos || []).length, fait: false,
+        version: 1, mien: true, peutModifier: false, enAttente: true, pasEncorePartie: true, refus: enErreur ? a.message : '' };
+      notes.unshift(n); parId[n.id] = n;
+      return;
+    }
+    const n = parId[d.note];
+    if (!n) { if (enErreur) refus.push(a); return; }
+    if (enErreur) { n.refus = a.message; n.refusId = a.id; return; }
+    n.enAttente = true;
+    if (d.geste === 'modifier') { n.texte = d.texte || ''; n.modifPar = moiNom; n.modifLe = quand(a.cree); }
+    if (d.geste === 'fait') { n.fait = true; n.faitPar = moiNom; n.faitLe = quand(a.cree); }
+    if (d.geste === 'defaire') { n.fait = false; n.faitPar = ''; n.faitLe = ''; }
+    if (d.geste === 'supprimer') n.cachee = true;
+  });
+  return notes.filter(n => !n.cachee);
+}
+
+function carte(n, corbeille) {
+  const chef = !!(DONNEES && DONNEES.chef);
+  const c = el('div', 'note' + (n.fait ? ' faite' : '') + (n.enAttente ? ' attente' : '') + (corbeille ? ' supprimee' : ''));
+  c.dataset.note = n.id;
+  const tete = el('div', 'note-tete');
+  tete.appendChild(el('b', '', n.auteur || '—'));
+  tete.appendChild(el('span', '', n.cree || ''));
+  if (n.nouveau) tete.appendChild(el('span', 'pastille rouge', 'nouveau'));
+  if (n.enAttente) tete.appendChild(el('span', 'pastille orange', '⏳ en attente d’envoi'));
+  if (n.mien && !n.pasEncorePartie) tete.appendChild(el('span', 'pastille gris', 'la mienne'));
+  c.appendChild(tete);
+  if (TOUS) {
+    const ch = el('div', 'note-pied');
+    ch.appendChild(document.createTextNode('Chantier : '));
+    const a = el('a', '', n.chantier || '—'); a.href = 'notes.html?chantier=' + encodeURIComponent(n.chantier || ''); ch.appendChild(a);
+    c.appendChild(ch);
+  }
+
+  if (EDITION === n.id && !corbeille) {
+    const zone = el('textarea', 'meta-input note-edit');
+    zone.value = n.texte || ''; zone.maxLength = 2000; zone.dataset.brouillon = 'non'; zone.setAttribute('aria-label', 'Texte de la note');
+    c.appendChild(zone);
+    const rangee = el('div', 'note-actions');
+    rangee.appendChild(bouton('btn-green', 'Enregistrer', () => enregistrerModification(n, zone.value)));
+    rangee.appendChild(bouton('btn-secondary', 'Annuler', () => { EDITION = ''; afficher(); }));
+    c.appendChild(rangee);
+    setTimeout(() => zone.focus(), 0);
+    return c;
+  }
+
+  c.appendChild(el('div', 'note-texte', n.texte || (n.photos ? '(photo sans texte)' : '')));
+
+  if (n.photos) {
+    const zone = el('div', 'note-photos');
+    for (let rang = 1; rang <= n.photos; rang++) {
+      const cle = n.id + '|' + rang;
+      if (PHOTOS_VUES[cle]) { const img = el('img'); img.src = PHOTOS_VUES[cle]; img.alt = 'Photo ' + rang + ' de la note'; zone.appendChild(img); continue; }
+      const b = bouton('btn-secondary', '📷 Voir la photo' + (n.photos > 1 ? ' ' + rang : ''), () => voirPhoto(n, rang, b));
+      if (n.pasEncorePartie) { b.disabled = true; b.textContent = '📷 Photo ' + rang + ' (dans le téléphone, pas encore envoyée)'; }
+      zone.appendChild(b);
+    }
+    c.appendChild(zone);
+  }
+
+  const pied = [];
+  if (n.fait) pied.push('✓ Fait par ' + (n.faitPar || '—') + (n.faitLe ? ' le ' + n.faitLe : ''));
+  if (n.modifPar) pied.push('Modifiée par ' + n.modifPar + (n.modifLe ? ' le ' + n.modifLe : ''));
+  if (n.remarque) pied.push('⚠ ' + n.remarque + ' — voir l’historique');
+  if (corbeille) pied.push('Supprimée par ' + (n.supprPar || '—') + (n.supprLe ? ' le ' + n.supprLe : ''));
+  if (n.refus) pied.push('⚠ Pas enregistré : ' + n.refus + ' (détail : indicateur en haut de l’écran)');
+  if (pied.length) c.appendChild(el('div', 'note-pied', pied.join(' · ')));
+
+  const actions = el('div', 'note-actions');
+  if (corbeille) {
+    if (chef) actions.appendChild(bouton('btn-secondary', '↩ Restaurer', () => geste(n, 'restaurer', 'Note : restauration')));
+  } else if (!TOUS) {
+    const bFait = bouton('btn-fait', n.fait ? '✓ Fait — toucher pour annuler' : 'Marquer « Fait »', () => geste(n, n.fait ? 'defaire' : 'fait', n.fait ? 'Note : pas fait' : 'Note : fait'));
+    bFait.setAttribute('aria-pressed', n.fait ? 'true' : 'false');
+    actions.appendChild(bFait);
+    if (n.peutModifier) {
+      actions.appendChild(bouton('btn-secondary', 'Modifier', () => { EDITION = n.id; afficher(); }));
+      actions.appendChild(bouton('btn-secondary', 'Supprimer', () => {
+        if (confirm('Supprimer cette note ? Elle ira à la corbeille : un conducteur pourra la restaurer.')) geste(n, 'supprimer', 'Note : suppression');
+      }));
+    }
+    // Une note pas encore partie n'existe pas pour le serveur : pas de geste dessus avant son envoi
+    if (n.pasEncorePartie) actions.querySelectorAll('button').forEach(b => { b.disabled = true; });
+  }
+  if (n.modifPar && !n.pasEncorePartie) actions.appendChild(bouton('btn-secondary', 'Historique', () => voirHistorique(n, c)));
+  if (actions.children.length) c.appendChild(actions);
+
+  if (HISTO[n.id]) c.appendChild(blocHistorique(HISTO[n.id]));
+  return c;
+}
+
+function blocHistorique(versions) {
+  const b = el('div', 'histo');
+  if (!versions.length) { b.textContent = 'Aucune ancienne version.'; return b; }
+  versions.forEach(v => {
+    const d = el('div');
+    d.appendChild(el('b', '', 'Version ' + v.version + ' — écrite par ' + (v.par || '—') + (v.remplacePar ? ', remplacée par ' + v.remplacePar : '') + ' le ' + v.le
+      + (v.motif && v.motif !== 'modification' ? ' (' + v.motif + ')' : '') + ' :'));
+    d.appendChild(document.createTextNode('\n' + v.texte));
+    b.appendChild(d);
+  });
+  return b;
+}
+
+function afficher() {
+  const liste = $('liste');
+  const notes = notesAffichees();
+  liste.textContent = '';
+  entete();
+  $('info').textContent = DU_TELEPHONE
+    ? 'Pas de réseau : liste du ' + quand(DATE_LISTE) + ' gardée dans le téléphone. Vos notes et vos « Fait » sont gardés et partiront au retour du réseau.'
+    : (DONNEES && DONNEES.plein ? (TOUS ? 'Seules les 300 notes les plus récentes sont affichées : précisez avec les filtres.' : 'Seules les 200 notes les plus récentes sont affichées.') : '');
+  if (!notes.length) liste.appendChild(el('div', 'vide', TOUS ? 'Aucune note ne correspond.' : 'Aucune note pour ce chantier. Écrivez la première en bas de l’écran.'));
+  notes.forEach(n => liste.appendChild(carte(n, false)));
+  $('outils').hidden = TOUS || !(DONNEES && DONNEES.chef);
+  if (TOUS) remplirFiltres();
+}
+
+function pasDeCompte(texte) {
+  $('liste').textContent = ''; $('info').textContent = '';
+  $('saisie').hidden = true; document.body.classList.remove('avec-saisie');
+  $('filtres').hidden = true; $('outils').hidden = true;
+  const v = el('div', 'vide', texte + ' ');
+  const a = el('a', '', 'Aller à l’accueil'); a.href = 'index.html'; v.appendChild(a);
+  $('liste').appendChild(v);
+}
+
+function filtresActuels() {
+  return { chantier: $('f-chantier').value, auteur: $('f-auteur').value, recherche: $('f-recherche').value.trim(), nouveau: $('f-nouveau').checked, nonFait: $('f-nonfait').checked };
+}
+// Listes déroulantes des filtres : les chantiers du compte, et les auteurs vus dans les réponses (on n'en retire jamais)
+const AUTEURS = {};
+function remplirFiltres() {
+  ((DONNEES && DONNEES.notes) || []).forEach(n => { if (n.auteur) AUTEURS[n.auteur] = true; });
+  const sel = $('f-auteur'), choisi = sel.value;
+  Object.keys(AUTEURS).sort().forEach(a => {
+    if (Array.prototype.some.call(sel.options, o => o.value === a)) return;
+    const o = el('option', '', a); o.value = a; sel.appendChild(o);
+  });
+  sel.value = choisi;
+}
+
+function charger() {
+  const moi = ++enCours;
+  const compte = LOUE.compte();
+  if (!compte) { pasDeCompte('Connectez-vous pour voir les notes.'); return; }
+  $('saisie').hidden = TOUS; document.body.classList.toggle('avec-saisie', !TOUS);
+  $('filtres').hidden = !TOUS;
+  if (!DONNEES) $('info').textContent = 'Chargement…';
+  $('btn-actualiser').disabled = true;
+  const demande = TOUS ? filtresActuels() : { chantier: CHANTIER };
+  Promise.all([LOUE.notes.lire(demande), TOUS ? Promise.resolve([]) : LOUE.notes.enAttente(CHANTIER)]).then(r => {
+    if (moi !== enCours) return;
+    DONNEES = r[0].donnees || { notes: [] }; DU_TELEPHONE = !!r[0].depuisLeTelephone; DATE_LISTE = r[0].date; ATTENTE = r[1];
+    afficher();
+    // « Vu » : seulement une liste venue du serveur, réellement affichée, page visible
+    if (!TOUS && !DU_TELEPHONE && !document.hidden && DONNEES.heure) LOUE.notes.vues(DONNEES.chantier || CHANTIER, DONNEES.heure);
+  }).catch(err => {
+    if (moi !== enCours) return;
+    if (err && err.connexion) { pasDeCompte('Session terminée : reconnectez-vous depuis l’accueil.'); return; }
+    // Liste indisponible : on montre au moins ce qui attend dans le téléphone, et la saisie reste possible
+    LOUE.notes.enAttente(CHANTIER).then(a => {
+      if (moi !== enCours) return;
+      DONNEES = DONNEES || { notes: [] }; ATTENTE = TOUS ? [] : a;
+      afficher();
+      $('info').textContent = 'Liste indisponible : ' + LOUE.messageClair(err) + (TOUS ? '' : ' Vous pouvez quand même écrire une note : elle partira dès que possible.');
+    });
+  }).finally(() => { if (moi === enCours) $('btn-actualiser').disabled = false; });
+}
+
+// Ce qui attend dans le téléphone a changé (rangement, envoi, refus) : la liste est redessinée ; après un envoi, relue
+let relecture = null;
+function majAttente(relire) {
+  if (TOUS || !LOUE.compte()) return;
+  LOUE.notes.enAttente(CHANTIER).then(a => { ATTENTE = a; if (!EDITION) afficher(); });
+  if (relire) { clearTimeout(relecture); relecture = setTimeout(charger, 700); }
+}
+LOUE.surEvenement(ev => {
+  const estNote = ev.element && /^note-/.test(ev.element.type || '');
+  if (ev.type === 'envoyee' && estNote) majAttente(true);
+  else if (ev.type === 'file' || estNote) majAttente(false);
+  if (ev.type === 'compte') charger();
+});
+
+// ── Gestes : rangés dans la file d'envoi (ils partent dans l'ordre), affichés tout de suite ──
+let gesteEnCours = false;
+function geste(n, nom, libelle, extra) {
+  if (gesteEnCours) return Promise.resolve();
+  gesteEnCours = true;
+  const d = Object.assign({ chantier: (DONNEES && DONNEES.chantier) || CHANTIER, note: n.id, geste: nom }, extra || {});
+  return LOUE.mettreEnFile('note-action', d, [], libelle).then(() => {
+    LOUE.viderFile();
+    return LOUE.notes.enAttente(CHANTIER).then(a => { ATTENTE = a; afficher(); });
+  }, () => {
+    // Le téléphone refuse de garder le geste (navigation privée, mémoire pleine) : envoi direct, page ouverte
+    LOUE.message('Envoi en cours… ne quittez pas la page', 6000);
+    return LOUE.envoyerDirect('note-action', d, []).then(() => { LOUE.message('✓ ' + libelle + ' : enregistré', 3000); charger(); })
+      .catch(err => LOUE.message('⚠ Pas enregistré : ' + LOUE.messageClair(err) + '. Réessayez quand il y aura du réseau.', 10000));
+  }).finally(() => { gesteEnCours = false; if (nom === 'restaurer' || nom === 'supprimer') setTimeout(() => { if (!$('corbeille').hidden) chargerCorbeille(); }, 1500); });
+}
+function enregistrerModification(n, texte) {
+  const t = LOUE.notes.nettoyer(texte);
+  if (!t && !n.photos) { LOUE.message('La note ne peut pas être vide. Pour l’enlever, touchez « Supprimer ».', 6000); return; }
+  EDITION = '';
+  if (t === (n.texte || '')) { afficher(); return; }
+  geste(n, 'modifier', 'Note : modification', { texte: t, base: n.version || 1 });
+}
+
+function voirPhoto(n, rang, b) {
+  b.disabled = true; b.textContent = 'Chargement de la photo…';
+  LOUE.notes.photo(n.id, rang).then(url => { PHOTOS_VUES[n.id + '|' + rang] = url; afficher(); if (!$('corbeille').hidden) chargerCorbeille(); })
+    .catch(err => { b.disabled = false; b.textContent = '📷 Réessayer'; LOUE.message('Photo indisponible : ' + LOUE.messageClair(err), 6000); });
+}
+function voirHistorique(n, c) {
+  if (HISTO[n.id]) { delete HISTO[n.id]; afficher(); return; }
+  LOUE.notes.historique(n.id).then(v => { HISTO[n.id] = v; afficher(); })
+    .catch(err => LOUE.message('Historique indisponible : ' + LOUE.messageClair(err), 6000));
+}
+
+// ── Corbeille et export (conducteurs, admin) ──
+function basculerCorbeille() {
+  const z = $('corbeille');
+  if (!z.hidden) { z.hidden = true; return; }
+  z.hidden = false; chargerCorbeille();
+}
+function chargerCorbeille() {
+  const z = $('corbeille');
+  z.textContent = ''; z.appendChild(el('div', 'listes-info', 'Chargement de la corbeille…'));
+  LOUE.notes.lire({ chantier: CHANTIER, corbeille: true }).then(r => {
+    z.textContent = '';
+    const notes = (r.donnees && r.donnees.notes) || [];
+    z.appendChild(el('div', 'aide', notes.length ? 'Notes supprimées de ce chantier :' : 'La corbeille de ce chantier est vide.'));
+    notes.forEach(n => z.appendChild(carte(n, true)));
+  }).catch(err => { z.textContent = ''; z.appendChild(el('div', 'vide', 'Corbeille indisponible : ' + LOUE.messageClair(err))); });
+}
+function exporter() {
+  if (!confirm('Fabriquer le PDF des notes de ce chantier ? Il sera rangé dans le dossier du chantier (COMPTE RENDU). Cela peut prendre une minute.')) return;
+  const b = $('btn-pdf');
+  b.disabled = true; b.textContent = 'Fabrication du PDF…';
+  LOUE.notes.exporter(CHANTIER).then(d => {
+    LOUE.message('✓ PDF rangé dans le dossier du chantier : ' + (d.nom || '') + (d.photosNonReprises ? ' (' + d.photosNonReprises + ' photo(s) non reprise(s) : voir le dossier PHOTOS CHANTIER/NOTES)' : ''), 0);
+  }).catch(err => LOUE.message('⚠ PDF non fabriqué : ' + LOUE.messageClair(err), 10000))
+    .finally(() => { b.disabled = false; b.textContent = 'Exporter en PDF'; });
+}
+
+// ── Saisie rapide : texte, photos (3 au plus), dictée ; gardée dans le téléphone sans rien demander ──
+function afficherPhotosSaisie() {
+  const z = $('saisie-photos');
+  z.textContent = '';
+  photos.forEach((p, i) => {
+    const d = el('div');
+    const img = el('img'); img.src = p.url; img.alt = 'Photo ' + (i + 1);
+    const b = el('button', '', '×'); b.type = 'button'; b.setAttribute('aria-label', 'Retirer la photo ' + (i + 1));
+    b.addEventListener('click', () => { URL.revokeObjectURL(photos[i].url); photos.splice(i, 1); afficherPhotosSaisie(); garderSaisie(); });
+    d.appendChild(img); d.appendChild(b); z.appendChild(d);
+  });
+  $('btn-photo').disabled = photos.length >= LOUE.notes.MAX_PHOTOS;
+}
+async function ajouterPhotos(fichiers) {
+  for (const f of Array.from(fichiers || [])) {
+    if (photos.length >= LOUE.notes.MAX_PHOTOS) { LOUE.message(LOUE.notes.MAX_PHOTOS + ' photos au maximum par note'); break; }
+    try {
+      const blob = await LOUE.compresserPhoto(f);
+      photos.push({ id: LOUE.nouvelId('photo'), blob, url: URL.createObjectURL(blob) });
+    } catch (err) { LOUE.message(err.message, 8000); }
+  }
+  afficherPhotosSaisie(); garderSaisie();
+}
+let minuteurSaisie = null;
+function garderSaisie() {
+  clearTimeout(minuteurSaisie);
+  minuteurSaisie = setTimeout(() => {
+    const texte = $('saisie-texte').value;
+    if (!texte.trim() && !photos.length) LOUE.notes.effacerSaisie(CHANTIER);
+    else LOUE.notes.ecrireSaisie(CHANTIER, { texte: texte, photos: photos.map(p => ({ id: p.id, blob: p.blob })) });
+  }, 400);
+}
+function restaurerSaisie() {
+  if (TOUS || !LOUE.compte()) return;
+  LOUE.notes.lireSaisie(CHANTIER).then(s => {
+    if (!s || $('saisie-texte').value || photos.length) return;
+    $('saisie-texte').value = String(s.texte || '').slice(0, 2000);
+    photos = (s.photos || []).filter(p => p && p.blob).slice(0, LOUE.notes.MAX_PHOTOS).map(p => ({ id: p.id, blob: p.blob, url: URL.createObjectURL(p.blob) }));
+    afficherPhotosSaisie();
+    if ($('saisie-texte').value || photos.length) $('saisie-info').textContent = 'Note commencée retrouvée : touchez « Ajouter la note » pour l’enregistrer.';
+  });
+}
+$('saisie-texte').addEventListener('input', () => { $('saisie-info').textContent = ''; garderSaisie(); });
+
+let ajoutEnCours = false;
+async function ajouter() {
+  if (ajoutEnCours) return;
+  const texte = LOUE.notes.nettoyer($('saisie-texte').value);
+  if (!texte && !photos.length) { LOUE.message('Écrivez un texte ou ajoutez une photo.', 5000); $('saisie-texte').focus(); return; }
+  arreterDictee();
+  ajoutEnCours = true;
+  const b = $('btn-ajouter');
+  b.disabled = true; b.textContent = 'Rangement dans le téléphone…';
+  const now = new Date(), p = n => String(n).padStart(2, '0');
+  const d = { chantier: (DONNEES && DONNEES.chantier) || CHANTIER, texte: texte, photos: photos.map(x => ({ photoRef: x.id })),
+    date: p(now.getDate()) + '/' + p(now.getMonth() + 1) + '/' + now.getFullYear(), heure: p(now.getHours()) + 'h' + p(now.getMinutes()) };
+  const lesPhotos = photos.map(x => ({ id: x.id, blob: x.blob }));
+  const vider = () => {
+    clearTimeout(minuteurSaisie);
+    $('saisie-texte').value = ''; photos.forEach(x => URL.revokeObjectURL(x.url)); photos = []; afficherPhotosSaisie(); $('saisie-info').textContent = '';
+    return LOUE.notes.effacerSaisie(CHANTIER);
+  };
+  const finir = () => { b.disabled = false; b.textContent = 'Ajouter la note'; ajoutEnCours = false; };
+  let enFile = false;
+  try {
+    await LOUE.mettreEnFile('note-chantier', d, lesPhotos, 'Note');
+    enFile = true;
+    await vider();
+    LOUE.viderFile();
+    ATTENTE = await LOUE.notes.enAttente(CHANTIER);
+    afficher(); window.scrollTo(0, 0);
+    finir();
+  } catch (err) {
+    if (enFile) { try { await vider(); } catch (e2) {} majAttente(false); finir(); return; }   // déjà dans la file : surtout pas d'envoi direct (doublon)
+    // Le téléphone refuse de garder la note (navigation privée, mémoire pleine) : envoi direct, page ouverte
+    b.textContent = 'Envoi direct… ne quittez pas la page';
+    try {
+      await LOUE.envoyerDirect('note-chantier', d, lesPhotos);
+      await vider();
+      LOUE.message('✓ Note enregistrée', 4000);
+      charger();
+    } catch (err2) {
+      LOUE.message(err2.stockageBloque ? '⚠ La note n’est pas partie : ' + err2.message + '.'
+        : err2.aConfirmer ? LOUE.MSG_DIRECT_A_CONFIRMER
+        : err2.connexion ? LOUE.MSG_DIRECT_CONNEXION
+        : '⚠ La note n’est pas partie : ' + err2.message + '. Gardez la page ouverte et réessayez quand il y aura du réseau.', err2.stockageBloque ? 0 : 12000);
+    }
+    finir();
+  }
+}
+
+// ── Dictée par le bouton 🎤 : seulement sur Chrome pour Android (ailleurs, le micro du clavier fait le travail) ──
+const Reco = window.SpeechRecognition || window.webkitSpeechRecognition;
+const dicteePossible = !!Reco && /Android/i.test(navigator.userAgent) && /Chrome\//.test(navigator.userAgent);
+let reco = null;
+function arreterDictee() { if (reco) { try { reco.stop(); } catch (e) {} } }
+function dicter() {
+  if (reco) { arreterDictee(); return; }
+  const zone = $('saisie-texte'), debut = zone.value ? zone.value.replace(/\s*$/, '') + ' ' : '';
+  try {
+    reco = new Reco();
+    reco.lang = 'fr-FR'; reco.continuous = true; reco.interimResults = true;
+    reco.onresult = e => {
+      let t = '';
+      for (let i = 0; i < e.results.length; i++) t += e.results[i][0].transcript;
+      zone.value = (debut + t).slice(0, 2000); garderSaisie();
+    };
+    reco.onerror = e => { if (e.error !== 'no-speech' && e.error !== 'aborted') LOUE.message('La dictée n’a pas marché (elle a besoin de réseau). Le micro du clavier marche aussi.', 7000); };
+    reco.onend = () => { reco = null; $('btn-dictee').classList.remove('dictee-active'); $('saisie-info').textContent = ''; };
+    reco.start();
+    $('btn-dictee').classList.add('dictee-active');
+    $('saisie-info').textContent = 'Dictée en cours… touchez 🎤 pour arrêter.';
+  } catch (e) { reco = null; LOUE.message('La dictée n’est pas disponible sur ce téléphone. Le micro du clavier marche aussi.', 7000); }
+}
+$('btn-dictee').hidden = !dicteePossible;
+
+// ── Filtres de la vue « Tous chantiers » (appliqués par le serveur) ──
+if (TOUS) {
+  const c = LOUE.compte();
+  ((c && c.chantiers) || []).forEach(x => { const o = el('option', '', x.nom); o.value = x.nom; $('f-chantier').appendChild(o); });
+  let minuteurFiltre = null;
+  ['f-chantier', 'f-auteur', 'f-nouveau', 'f-nonfait'].forEach(id => $(id).addEventListener('change', charger));
+  $('f-recherche').addEventListener('input', () => { clearTimeout(minuteurFiltre); minuteurFiltre = setTimeout(charger, 500); });
+}
+
+// ── Démarrage ──
+LOUE.notes.nettoyerTelephone().then(() => { restaurerSaisie(); charger(); });
+// Au retour dans l'appli ou du réseau : la liste est rafraîchie (jamais pendant une modification en cours)
+document.addEventListener('visibilitychange', () => { if (!document.hidden && !EDITION) charger(); });
+window.addEventListener('online', () => { if (!EDITION) charger(); });
+</script>
+</body>
+</html>

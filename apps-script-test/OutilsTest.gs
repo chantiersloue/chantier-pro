@@ -65,6 +65,7 @@ function outilTest_(corps) {
       // ── Lancer (fonctions existantes, sans paramètre) : ok seulement si l'effet est constaté ──
       case 'controlerLot2':        return ok(controlerInstallationLot2());
       // (le bilan seul : les informations « chantiers sans conducteur » de installerLot7Test restent dans l'éditeur)
+      case 'installerLot3': { const r = installer_('Lot 3', 'TEST', etapesLot3_()); if (!r.ok) throw new Error('installation du lot 3 non terminée : ' + r.texte); return ok(r.texte); }
       case 'installerLot7': { const r = installer_('Lot 7', 'TEST', etapesLot7_()); if (!r.ok) throw new Error('installation du lot 7 non terminée : ' + r.texte); return ok(r.texte); }
       case 'poserDeclencheurs':    return ok(outilTestPoserDeclencheurs_());
       case 'retirerDeclencheurs':  return ok(outilTestRetirerDeclencheurs_());
