@@ -1,7 +1,7 @@
 // ═══════════════════════════════════════════════════════════════
 // LOUÉ APP — SERVEUR COMPLET, À COLLER DANS APPS SCRIPT (fichier « Code.gs », tout remplacer)
 // FICHIER GÉNÉRÉ AUTOMATIQUEMENT par « node outils/construire.js » — NE PAS MODIFIER À LA MAIN :
-// les sources sont dans le dossier apps-script/ du dépôt. Version du serveur f3c6a51e1b (pages 9bbb75edc5)
+// les sources sont dans le dossier apps-script/ du dépôt. Version du serveur 779c357590 (pages 684d37e7fe)
 // ═══════════════════════════════════════════════════════════════
 
 // ████ Config.gs ████
@@ -10,7 +10,7 @@
 // Loué Menuiserie
 // ═══════════════════════════════════════════════════════════════
 
-const VERSION_API = 'v6.0';   // lot 2 (comptes)
+const VERSION_API = 'v6.0.1';   // lot 2 (comptes) ; 6.0.1 : état « bloqué » écrit tout de suite
 
 // ── CONFIGURATION ──
 const SHEET_CONTACTS      = 'Contacts';
@@ -690,6 +690,21 @@ function noterEchec_(id) {
   if (n >= ESSAIS_AVANT_BLOCAGE) {
     cache.put('BLOQUE_' + id, String(maintenant_() + BLOCAGE_MIN * 60000), BLOCAGE_MIN * 60 + 60);
     cache.remove('ECHECS_' + id);
+    // État écrit tout de suite dans le Sheet (sinon au passage suivant de traiterComptes, jusqu'à 10 min) ;
+    // seulement pour un compte qui existe (un identifiant inventé n'écrit rien). traiterComptes l'effacera au déblocage.
+    try {
+      const l = utilisateurs_().parId[id];
+      if (l) {
+        // Sous le verrou du script (le même que traiterComptes) : jamais d'État écrit en même temps que « Réinitialiser » ;
+        // verrou pas libre en 2 s : traiterComptes écrira l'état à son passage
+        const v = LockService.getScriptLock();
+        const deja = !!(v.hasLock && v.hasLock());
+        if (deja || v.tryLock(2000)) {
+          try { ecrireEtat_(l.ligne, 'bloqué ' + BLOCAGE_MIN + ' min (5 essais ratés) — « Réinitialiser » débloque'); }
+          finally { if (!deja) v.releaseLock(); }
+        }
+      }
+    } catch (e) { console.error('noterEchec_ :', e.message); }
   } else {
     cache.put('ECHECS_' + id, String(n), BLOCAGE_MIN * 60);
   }
