@@ -397,9 +397,9 @@ test('sans l’onglet (installation oubliée) : le premier signalement le crée 
   assert.ok(envoyer(g, 'thomas27', sig()).ok);
   assert.strictEqual(S(g).length, 1);
 });
-test('livraison : le serveur à coller contient le lot 7, en version v7.0, sans les outils d’essai', () => {
+test('livraison : le serveur à coller contient le lot 7, sans les outils d’essai', () => {
   const code = fs.readFileSync(path.join(__dirname, '..', 'A-COLLER-DANS-APPS-SCRIPT', 'Code.gs'), 'utf8');
-  ['function traiterSignalement(', 'function installerLot7Test(', 'function installerLot7Production(', 'function modele_signalement(', "const VERSION_API = 'v7.0'"]
+  ['function traiterSignalement(', 'function installerLot7Test(', 'function installerLot7Production(', 'function modele_signalement(']
     .forEach(t => assert.ok(code.indexOf(t) > -1, t));
   assert.ok(!/function\s+outilTest_\s*\(/.test(code));
 });

@@ -28,6 +28,8 @@ const DOSSIERS_DEFAUT = {
     'bordereau-materiaux': '05 - CHANTIER/BORDEREAUX MATERIAUX',
     'photos':              '05 - CHANTIER/PHOTOS CHANTIER',
     'signalement':         '05 - CHANTIER/SIGNALEMENTS',
+    'notes-photos':        '05 - CHANTIER/PHOTOS CHANTIER/NOTES',   // lot 3 : photos des notes de chantier
+    'notes-chantier':      '05 - CHANTIER/COMPTE RENDU',            // lot 3 : export PDF des notes
     'carnet':              'CARNET',
     'plans':               'Plans',
   },
@@ -40,7 +42,7 @@ const DOSSIERS_DEFAUT = {
     'cotes': 'PRISE DE COTES', 'fabrication': 'FICHE FABRICATION', 'note': 'COMPTE RENDU',
     'quitus': 'QUITUS', 'attestation': 'ATTESTATION', 'reception-support': 'RECEPTION SUPPORT',
     'bordereau-orga': 'BORDEREAU ORGANIGRAMME', 'bordereau-materiaux': 'BORDEREAU MATERIAUX', 'absence': 'ABSENCE',
-    'signalement': 'SIGNALEMENT',
+    'signalement': 'SIGNALEMENT', 'notes-chantier': 'NOTES DE CHANTIER',
   },
 };
 
