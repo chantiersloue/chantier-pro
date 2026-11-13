@@ -9,8 +9,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Loué App">
 <meta name="theme-color" content="#1A2B4A">
-<link rel="stylesheet" href="commun/style.css?v=bffdf2bc81">
-<link rel="stylesheet" href="commun/fiche.css?v=bffdf2bc81">
+<link rel="stylesheet" href="commun/style.css?v=a5437aa273">
+<link rel="stylesheet" href="commun/fiche.css?v=a5437aa273">
 <style>
 [hidden]{display:none!important;}   /* un élément caché le reste, même s'il a une mise en forme « flex » */
 body.avec-saisie{padding-bottom:230px;}
@@ -105,12 +105,12 @@ body.avec-saisie{padding-bottom:230px;}
   </div>
 </div>
 
-<script src="commun/config.js?v=bffdf2bc81"></script>
-<script src="commun/api.js?v=bffdf2bc81"></script>
-<script src="commun/ui.js?v=bffdf2bc81"></script>
-<script src="commun/photos.js?v=bffdf2bc81"></script>
-<script src="commun/notes.js?v=bffdf2bc81"></script>
-<script src="commun/hors-ligne.js?v=bffdf2bc81"></script>
+<script src="commun/config.js?v=a5437aa273"></script>
+<script src="commun/api.js?v=a5437aa273"></script>
+<script src="commun/ui.js?v=a5437aa273"></script>
+<script src="commun/photos.js?v=a5437aa273"></script>
+<script src="commun/notes.js?v=a5437aa273"></script>
+<script src="commun/hors-ligne.js?v=a5437aa273"></script>
 <script>
 'use strict';
 // Notes de chantier (lot 3). Tout ce qui vient du serveur a été écrit par quelqu'un d'autre : il n'est JAMAIS inséré
@@ -121,7 +121,7 @@ const $ = id => document.getElementById(id);
 let CHANTIER = '';
 try { CHANTIER = (new URLSearchParams(location.search).get('chantier') || '').trim().slice(0, 150); } catch (e) {}
 const TOUS = !CHANTIER;
-let DONNEES = null;      // dernière réponse du serveur : { notes, chantier, chef, moi, heure, plein }
+let DONNEES = null;      // dernière réponse du serveur : { notes, chantier, chef, heure, plein }
 let DU_TELEPHONE = false, DATE_LISTE = 0;
 let ATTENTE = [];        // notes et gestes de CE compte encore dans la file d'envoi, pour ce chantier
 let enCours = 0;         // numéro de la dernière demande : une réponse en retard n'écrase pas la plus récente
@@ -240,15 +240,15 @@ function carte(n, corbeille) {
 
   const actions = el('div', 'note-actions');
   if (corbeille) {
-    if (chef) actions.appendChild(bouton('btn-secondary', '↩ Restaurer', () => geste(n, 'restaurer', 'Note : restauration')));
+    if (chef) actions.appendChild(bouton('btn-secondary', '↩ Restaurer', () => geste(n, 'restaurer', 'Note restaurée')));
   } else if (!TOUS) {
-    const bFait = bouton('btn-fait', n.fait ? '✓ Fait — toucher pour annuler' : 'Marquer « Fait »', () => geste(n, n.fait ? 'defaire' : 'fait', n.fait ? 'Note : pas fait' : 'Note : fait'));
+    const bFait = bouton('btn-fait', n.fait ? '✓ Fait — toucher pour annuler' : 'Marquer « Fait »', () => geste(n, n.fait ? 'defaire' : 'fait', n.fait ? '« Fait » annulé' : 'Note marquée « Fait »'));
     bFait.setAttribute('aria-pressed', n.fait ? 'true' : 'false');
     actions.appendChild(bFait);
     if (n.peutModifier) {
       actions.appendChild(bouton('btn-secondary', 'Modifier', () => { EDITION = n.id; TEXTE_EDITION = n.texte || ''; afficher(); }));
       actions.appendChild(bouton('btn-secondary', 'Supprimer', () => {
-        if (confirm('Supprimer cette note ? Elle ira à la corbeille : un conducteur pourra la restaurer.')) geste(n, 'supprimer', 'Note : suppression');
+        if (confirm('Supprimer cette note ? Elle ira à la corbeille : un conducteur pourra la restaurer.')) geste(n, 'supprimer', 'Note supprimée');
       }));
     }
     // Une note pas encore partie n'existe pas pour le serveur : pas de geste dessus avant son envoi
@@ -278,7 +278,11 @@ function afficher() {
   const liste = $('liste');
   // Une modification est en cours : on ne redessine pas sous les doigts (le texte tapé et le curseur restent en place) ;
   // ce qui est arrivé entre-temps sera affiché à « Enregistrer » ou « Annuler »
-  if (EDITION && liste.querySelector('.note-edit')) { aRedessiner = true; return; }
+  if (EDITION && liste.querySelector('.note-edit')) {
+    aRedessiner = true;
+    $('info').textContent = 'Modification en cours : la liste sera mise à jour après « Enregistrer » ou « Annuler ».';
+    return;
+  }
   aRedessiner = false;
   const notes = notesAffichees();
   liste.textContent = '';
@@ -290,6 +294,11 @@ function afficher() {
   notes.forEach(n => liste.appendChild(carte(n, false)));
   $('outils').hidden = TOUS || !(DONNEES && DONNEES.chef);
   if (TOUS) remplirFiltres();
+  // Une note est en cours de modification : les boutons des AUTRES notes attendent (la liste ne bouge pas pendant la frappe)
+  if (EDITION) {
+    liste.querySelectorAll('.note').forEach(c => { if (c.dataset.note !== EDITION) c.querySelectorAll('button').forEach(b => { b.disabled = true; }); });
+    if (liste.querySelector('.note-edit')) $('info').textContent = 'Modification en cours : touchez « Enregistrer » ou « Annuler » pour retrouver les autres boutons.';
+  }
 }
 // Fin d'une modification (enregistrée ou annulée) : la liste est redessinée avec ce qui est arrivé entre-temps
 function finEdition() { EDITION = ''; TEXTE_EDITION = ''; const z = $('liste').querySelector('.note-edit'); if (z) z.remove(); afficher(); }
@@ -337,7 +346,7 @@ function charger() {
       afficher();
     });
   }
-  Promise.all([LOUE.notes.lire(demande), TOUS ? Promise.resolve([]) : LOUE.notes.enAttente(CHANTIER)]).then(r => {
+  LOUE.notes.lire(demande).then(liste => (TOUS ? Promise.resolve([]) : LOUE.notes.enAttente(CHANTIER)).then(a => [liste, a])).then(r => {
     if (moi !== enCours) return;
     DONNEES = r[0].donnees || { notes: [] }; DU_TELEPHONE = !!r[0].depuisLeTelephone; DATE_LISTE = r[0].date; ATTENTE = r[1]; MESSAGE_LISTE = '';
     afficher();
@@ -350,7 +359,8 @@ function charger() {
     // Liste indisponible : on montre au moins ce qui attend dans le téléphone, et la saisie reste possible
     LOUE.notes.enAttente(CHANTIER).then(a => {
       if (moi !== enCours) return;
-      DONNEES = DONNEES || { notes: [] }; ATTENTE = TOUS ? [] : a;
+      DONNEES = (err && err.code === 'INTERDIT') ? { notes: [] } : (DONNEES || { notes: [] });   // accès retiré : la liste affichée est retirée
+      ATTENTE = TOUS ? [] : a;
       MESSAGE_LISTE = 'Liste indisponible : ' + String(LOUE.messageClair(err)).replace(/,? nouvel essai automatique/, '').replace(/[.\s]+$/, '')
         + '.' + (TOUS ? '' : ' Vous pouvez quand même écrire une note : elle partira dès que possible.');
       afficher();
@@ -386,7 +396,8 @@ LOUE.surEvenement(ev => {
 let gesteEnCours = false;
 function geste(n, nom, libelle, extra) {
   // Un double appui (ou un second appui juste après le redessin) ne fait pas deux gestes
-  if (gesteEnCours || Date.now() - (DERNIER_GESTE[n.id] || 0) < 700) return Promise.resolve();
+  if (gesteEnCours) { LOUE.message('Un envoi est en cours : réessayez dans un instant.', 4000); return Promise.resolve(); }
+  if (Date.now() - (DERNIER_GESTE[n.id] || 0) < 700) return Promise.resolve();
   gesteEnCours = true; DERNIER_GESTE[n.id] = Date.now();
   const d = Object.assign({ chantier: (DONNEES && DONNEES.chantier) || CHANTIER, note: n.id, geste: nom }, extra || {});
   return LOUE.mettreEnFile('note-action', d, [], libelle).then(() => {
@@ -395,17 +406,18 @@ function geste(n, nom, libelle, extra) {
   }, () => {
     // Le téléphone refuse de garder le geste (navigation privée, mémoire pleine) : envoi direct, page ouverte
     LOUE.message('Envoi en cours… ne quittez pas la page', 6000);
-    return LOUE.envoyerDirect('note-action', d, []).then(() => { LOUE.message('✓ ' + libelle + ' — enregistré', 3000); charger(); })
+    return LOUE.envoyerDirect('note-action', d, []).then(() => { LOUE.message('✓ ' + libelle, 3000); charger(); })
       .catch(err => LOUE.message('⚠ Pas enregistré : ' + LOUE.messageClair(err) + '. Réessayez quand il y aura du réseau.', 10000));
   }).finally(() => { gesteEnCours = false; });   // la corbeille ouverte est relue quand le geste est arrivé (voir charger)
 }
 function enregistrerModification(n, texte) {
   const t = LOUE.notes.nettoyer(texte);
   if (!t && !n.photos) { LOUE.message('La note ne peut pas être vide. Pour l’enlever, touchez « Supprimer ».', 6000); return; }
+  if (t === (n.texte || '')) { finEdition(); return; }
+  if (gesteEnCours) { LOUE.message('Un envoi est en cours : touchez « Enregistrer » de nouveau dans un instant (votre texte reste là).', 5000); return; }
   finEdition();
-  if (t === (n.texte || '')) return;
   DERNIER_GESTE[n.id] = 0;
-  geste(n, 'modifier', 'Note : modification', { texte: t, base: n.version || 1 });
+  geste(n, 'modifier', 'Note modifiée', { texte: t, base: n.version || 1 });
 }
 
 function voirPhoto(n, rang, b) {
@@ -493,6 +505,9 @@ function restaurerSaisie() {
 $('saisie-texte').addEventListener('input', () => { $('saisie-info').textContent = ''; garderSaisie(); });
 
 let ajoutEnCours = false;
+// La même note renvoyée sans rien changer (après « pas encore confirmé ») garde ses données, heure comprise :
+// le serveur reconnaît son numéro et ne l'enregistre pas deux fois
+let DERNIER_AJOUT = {};
 async function ajouter() {
   if (ajoutEnCours) return;
   const texte = LOUE.notes.nettoyer($('saisie-texte').value);
@@ -502,10 +517,13 @@ async function ajouter() {
   const b = $('btn-ajouter');
   b.disabled = true; b.textContent = 'Rangement dans le téléphone…';
   const now = new Date(), p = n => String(n).padStart(2, '0');
-  const d = { chantier: (DONNEES && DONNEES.chantier) || CHANTIER, texte: texte, photos: photos.map(x => ({ photoRef: x.id })),
+  const cleSaisie = texte + '|' + photos.map(x => x.id).join(',');
+  const d = DERNIER_AJOUT.cle === cleSaisie ? DERNIER_AJOUT.d : { chantier: (DONNEES && DONNEES.chantier) || CHANTIER, texte: texte, photos: photos.map(x => ({ photoRef: x.id })),
     date: p(now.getDate()) + '/' + p(now.getMonth() + 1) + '/' + now.getFullYear(), heure: p(now.getHours()) + 'h' + p(now.getMinutes()) };
   const lesPhotos = photos.map(x => ({ id: x.id, blob: x.blob }));
+  DERNIER_AJOUT = { cle: cleSaisie, d: d };
   const vider = () => {
+    DERNIER_AJOUT = {};
     clearTimeout(minuteurSaisie);
     $('saisie-texte').value = ''; photos.forEach(x => URL.revokeObjectURL(x.url)); photos = []; afficherPhotosSaisie(); $('saisie-info').textContent = '';
     return LOUE.notes.effacerSaisie(CHANTIER);

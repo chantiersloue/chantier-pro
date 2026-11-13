@@ -275,14 +275,22 @@ function marquerNotesVues_(compte, corps) {
   try {
     const sh = feuilleNotesVues_(), derniere = sh.getLastRow();
     const lignes = derniere > 1 ? sh.getRange(2, 1, derniere - 1, 3).getValues() : [];
+    const nouvelles = [];
     chantiers.forEach(chantier => {
       for (let i = 0; i < lignes.length; i++) {
         if (String(lignes[i][0]) !== compte.id || cleChantier_(lignes[i][1]) !== cleChantier_(chantier)) continue;
         if (noteMs_(lignes[i][2]) < jusqua) sh.getRange(i + 2, 3).setValue(new Date(jusqua));
         return;
       }
-      noteAjouterLigne_(sh, [compte.id, chantier, new Date(jusqua)], [1, 2]);
+      nouvelles.push([cellule_(compte.id), cellule_(chantier), new Date(jusqua)]);
     });
+    // Les nouvelles lignes en UNE écriture (50 chantiers d'un coup ne tiennent pas le verrou du script 20 secondes)
+    if (nouvelles.length) {
+      const debut = sh.getLastRow() + 1, manque = debut + nouvelles.length - 1 - sh.getMaxRows();
+      if (manque > 0) sh.insertRowsAfter(sh.getMaxRows(), manque + 50);
+      sh.getRange(debut, 1, nouvelles.length, 2).setNumberFormat('@');
+      sh.getRange(debut, 1, nouvelles.length, 3).setValues(nouvelles);
+    }
   } finally { verrou.releaseLock(); }
   return avecJeton_({ ok: true, code: 'OK', message: 'Visite notée' }, compte);
 }

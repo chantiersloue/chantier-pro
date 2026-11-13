@@ -1,10 +1,10 @@
 // ═══════════════════════════════════════════════════════════════
 // LOUÉ APP — SERVEUR COMPLET, À COLLER DANS APPS SCRIPT (fichier « Code.gs », tout remplacer)
 // FICHIER GÉNÉRÉ AUTOMATIQUEMENT par « node outils/construire.js » — NE PAS MODIFIER À LA MAIN :
-// les sources sont dans le dossier apps-script/ du dépôt. Version du serveur ce669d2b21 (pages bffdf2bc81)
+// les sources sont dans le dossier apps-script/ du dépôt. Version du serveur 4267c942d6 (pages a5437aa273)
 // ═══════════════════════════════════════════════════════════════
 
-const EMPREINTE_SERVEUR = 'ce669d2b21';
+const EMPREINTE_SERVEUR = '4267c942d6';
 
 // ████ Config.gs ████
 // ═══════════════════════════════════════════════════════════════
@@ -3098,14 +3098,22 @@ function marquerNotesVues_(compte, corps) {
   try {
     const sh = feuilleNotesVues_(), derniere = sh.getLastRow();
     const lignes = derniere > 1 ? sh.getRange(2, 1, derniere - 1, 3).getValues() : [];
+    const nouvelles = [];
     chantiers.forEach(chantier => {
       for (let i = 0; i < lignes.length; i++) {
         if (String(lignes[i][0]) !== compte.id || cleChantier_(lignes[i][1]) !== cleChantier_(chantier)) continue;
         if (noteMs_(lignes[i][2]) < jusqua) sh.getRange(i + 2, 3).setValue(new Date(jusqua));
         return;
       }
-      noteAjouterLigne_(sh, [compte.id, chantier, new Date(jusqua)], [1, 2]);
+      nouvelles.push([cellule_(compte.id), cellule_(chantier), new Date(jusqua)]);
     });
+    // Les nouvelles lignes en UNE écriture (50 chantiers d'un coup ne tiennent pas le verrou du script 20 secondes)
+    if (nouvelles.length) {
+      const debut = sh.getLastRow() + 1, manque = debut + nouvelles.length - 1 - sh.getMaxRows();
+      if (manque > 0) sh.insertRowsAfter(sh.getMaxRows(), manque + 50);
+      sh.getRange(debut, 1, nouvelles.length, 2).setNumberFormat('@');
+      sh.getRange(debut, 1, nouvelles.length, 3).setValues(nouvelles);
+    }
   } finally { verrou.releaseLock(); }
   return avecJeton_({ ok: true, code: 'OK', message: 'Visite notée' }, compte);
 }

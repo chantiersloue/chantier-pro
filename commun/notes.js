@@ -5,7 +5,8 @@
 // Écriture : une note ou un geste part par la file d'attente commune (LOUE.mettreEnFile, types « note-chantier »
 // et « note-action ») ; ce fichier ne fait que LIRE et GARDER.
 // Ce qui est gardé dans le téléphone l'est dans une base À PART (« loue_notes_… ») : la base des fiches et des
-// brouillons n'est pas modifiée. Tout y est rangé par compte, jamais rendu à quelqu'un d'autre, effacé à la déconnexion.
+// brouillons n'est pas modifiée. Tout y est rangé par compte et jamais rendu à quelqu'un d'autre ; listes et photos sont effacées à la déconnexion
+// (une saisie en cours, elle, attend le retour de son auteur, comme un brouillon de fiche).
 // ═══════════════════════════════════════════════════════════════
 (function () {
   'use strict';
