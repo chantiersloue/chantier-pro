@@ -145,6 +145,30 @@ async function demander(corps) {
   await Promise.all(Array.from({ length: 15 }, (x, k) => telephone(k)));
   verifier('15 téléphones en même temps sur un vrai plan (90 demandes) : aucune erreur ; la plus lente ' + s1(pire) + ' ; le tout en ' + s1(Date.now() - debut), ko === 0 && ok === 90, court(codes));
 
+  // ── Lot 4b : 15 téléphones en « Tout télécharger » (une demande de 1,2 Mo à la fois chacun), et une fiche envoyée pendant ──
+  const lotsMasse = [];
+  { let lot = [], o = 0;
+    nv0.paquets.forEach(p => p.tuiles.forEach(t => { if (o + t[3] > 1200 * 1024 || lot.length >= 60) { lotsMasse.push(lot); lot = []; o = 0; } lot.push([t[0], t[1]]); o += t[3]; }));
+    if (lot.length) lotsMasse.push(lot); }
+  const debutM = Date.now(); let okM = 0, koM = 0, pireM = 0, octetsM = 0; const codesM = {}, dureesM = [];
+  const masse = async k => {
+    for (let i = 0; i < 3; i++) {
+      const r = await demander({ jeton: jeton, chantier: CHANTIER, action: 'carnetTuiles', doc: gros.id, page: pg, quoi: 'tuiles', niveau: 0, masse: true, tuiles: lotsMasse[(k + i) % lotsMasse.length] });
+      if (r.rep.ok && r.rep.data.images.length) { okM++; octetsM += r.poids; dureesM.push(r.ms); } else { koM++; codesM[r.rep.code || '?'] = (codesM[r.rep.code || '?'] || 0) + 1; }
+      pireM = Math.max(pireM, r.ms);
+    }
+  };
+  const graine = Date.now().toString(36);
+  const ficheP = (async () => { await new Promise(r => setTimeout(r, 3000)); return demander({ action: 'fiche', id: 'fiche-auto-' + graine + '-carnet', jeton: jeton, saisiPar: 'auto-poseur',
+    donnees: { type: 'note-chantier', chantier: CHANTIER, texte: 'ESSAI AUTOMATIQUE fiche envoyée pendant 15 téléchargements du carnet' } }); })();
+  await Promise.all(Array.from({ length: 15 }, (x, k) => masse(k)));
+  const fiche = await ficheP;
+  verifier('15 téléphones en « Tout télécharger » (45 demandes de masse, ' + Math.round(octetsM / 1048576) + ' Mo reçus en ' + s1(Date.now() - debutM) + ') : aucune erreur ; médiane ' + s1(mediane(dureesM.length ? dureesM : [0]))
+    + ', la plus lente ' + s1(pireM), koM === 0 && okM === 45, court(codesM));
+  verifier('… une fiche envoyée pendant ce temps est enregistrée (' + s1(fiche.ms) + ')', fiche.rep.ok === true, court(fiche.rep));
+  const purge = await geste('purgerNotesEssai');
+  verifier('la note d’essai est retirée de la copie TEST', purge.ok, court(purge));
+
   // ── Fin : on laisse les documents (ils servent aux essais de Franck), on referme les comptes d'essai ──
   await geste('accesChantier', { id: 'auto-poseur', valeur: false });
   const fin = await geste('fermerSessions'); await geste('retirerDeclencheurs');
