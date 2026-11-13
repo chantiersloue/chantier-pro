@@ -2,7 +2,7 @@
 
 Chaque lot : **quoi**, **pourquoi**, **comment déployer**. Procédures détaillées dans `docs/lotN-procedure.md`.
 
-## Lot 7 — Signalement casse / manquant / à recommander — serveur v7.0, appli 7.0 — en test (rien en production)
+## Lot 7 — Signalement casse / manquant / à recommander — serveur v7.0, appli 7.0 — serveur en production le 13/11/2026 (déploiement « Lot 7 — production »), pages livrées par la fusion de livraison/lot-7
 
 **Quoi**
 - Page **« Signaler »** (`signaler.html`), ouverte depuis un chantier : type et urgence en gros boutons, repère, commentaire, 0 à 3 photos, case « Prévenir l'atelier ». Brouillon automatique, rangement dans le téléphone, envoi au retour du réseau, comme les autres fiches.
