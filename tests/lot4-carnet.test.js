@@ -107,6 +107,30 @@ test('le carnet d’un autre chantier posé dans ce dossier n’est pas servi', 
   const r = lister(g, 'thomas27');
   assert.deepStrictEqual([r.ok, r.code], [false, 'CARNET_ARRIVE'], JSON.stringify(r));
 });
+test('le nom écrit dans la liste peut être celui du DOSSIER du chantier quand il diffère du nom du chantier', () => {
+  const g = environnement(), d = deposer(g, { nomDansListe: 'Chantier Test 1' });   // même nom, casse différente : accepté
+  assert.strictEqual(lister(g, 'thomas27').ok, true);
+  d.liste.chantier = 'DOSSIER RENOMMÉ'; d.fichier.contenu = JSON.stringify(d.liste); viderCache(g);
+  assert.strictEqual(lister(g, 'thomas27').code, 'CARNET_ARRIVE', 'un autre nom : refusé');
+  d.carnet.parents[0].nom = 'DOSSIER RENOMMÉ';   // le dossier Drive du chantier porte ce nom (retrouvé par l'onglet « Dossiers chantiers »)
+  g.feuilles['Dossiers chantiers'].lignes.push(['CHANTIER TEST 1', 'DOSSIER RENOMMÉ', d.carnet.parents[0].id, 'essai', '']);
+  viderCache(g);
+  const r = lister(g, 'thomas27');
+  assert.deepStrictEqual([r.ok, r.data && r.data.documents.length], [true, 1], JSON.stringify(r).slice(0, 300));
+});
+test('des documents dans le dossier CARNET mais pas de liste : « en cours d’arrivée », jamais une liste vide', () => {
+  const g = environnement(), d = deposer(g);
+  d.fichier.corbeille = true;
+  const r = lister(g, 'thomas27');
+  assert.deepStrictEqual([r.ok, r.code], [false, 'CARNET_ARRIVE'], JSON.stringify(r));
+});
+test('chaque document a une empreinte, qui change quand il est redéposé sous le même identifiant', () => {
+  const g = environnement(), d = deposer(g);
+  const a = lister(g, 'thomas27').data.documents[0].empreinte;
+  d.liste.documents[0].depose = '2026-11-14T08:00:00'; d.fichier.contenu = JSON.stringify(d.liste); viderCache(g);
+  const b = lister(g, 'thomas27').data.documents[0].empreinte;
+  assert.ok(a && b && a !== b, a + ' / ' + b);
+});
 test('liste coupée (fichier en cours d’arrivée) : réponse « en cours d’arrivée », pas une erreur', () => {
   const g = environnement(), d = deposer(g);
   d.fichier.contenu = '{"version":1,"documents":[{"id":"105';

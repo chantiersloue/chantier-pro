@@ -81,6 +81,18 @@ Ce qu'il ne faut pas oublier sur ce chantier. Tout le monde sur le chantier voit
 - « ● nouveau » et le chiffre rouge de l'accueil montrent ce que les autres ont ajouté ou changé depuis ta dernière visite.
 - La liste n'envoie **aucun mail**. Pour une casse ou un manquant, utilise **Signaler** : le conducteur est prévenu.
 
+## Le carnet du chantier : les plans
+
+Dans un chantier, la tuile **« Carnet »** donne les plans validés par le bureau, toujours au dernier indice.
+
+- Touchez un document pour l'ouvrir. La page s'affiche d'abord un peu floue, puis nette : comptez quelques secondes.
+- **Un doigt** déplace le plan. **Deux doigts** (ou deux tapes rapides, ou les boutons **+** et **−**) grossissent.
+- Le bouton **⟳** tourne le plan d'un quart de tour (utile si la rotation du téléphone est verrouillée).
+- **‹** et **›** changent de page. **« ‹ Liste »** revient à la liste.
+- **« ⚠ Signaler ici »** ouvre un signalement avec le chantier et le plan déjà notés.
+- **Sans réseau**, vous relisez ce que vous avez déjà ouvert sur ce téléphone, aux endroits déjà regardés. Ouvrez donc vos plans une première fois quand vous avez du réseau.
+- « ● nouvel indice » : le plan a changé depuis votre dernière visite. Regardez-le.
+
 ## Ne rien perdre : le brouillon
 
 - Tout ce que tu tapes est **gardé automatiquement** dans le téléphone, photos et signatures comprises.

@@ -2,6 +2,19 @@
 
 Chaque lot : **quoi**, **pourquoi**, **comment déployer**. Procédures détaillées dans `docs/lotN-procedure.md`.
 
+## Lot 4a — Carnet de chantier : déposer et lire — serveur v9.0, appli 9.0 — **construit, pas encore en production**
+
+**Quoi**
+- Page **« Carnet »** (`carnet.html`), ouverte depuis un chantier : la liste des plans et documents validés (intitulé, indice, pages, poids, « nouveau »), et une visionneuse plein écran : un doigt déplace, deux doigts ou deux tapes grossissent, bouton de rotation, pages, « Signaler ici » (ouvre le signalement avec le chantier et le repère déjà remplis).
+- Les plans sont des **images** (jamais le PDF) : un aperçu de la page d'abord, puis seulement les morceaux de la zone regardée. Ce qui a été vu reste dans le téléphone et se relit **sans réseau**.
+- Programme de dépôt sur le PC : `outils/depot_carnet.py` et `outils/deposer.bat` (PDF → images dans `<chantier>/CARNET/`, liste `carnet.json` écrite en dernier ; reprise page par page ; `--verifier`, `--retirer` ; ne supprime jamais rien).
+- Serveur : actions `carnet` et `carnetTuiles` (`apps-script/Carnet.gs`) ; droit vérifié à chaque demande ; aucun lien public, aucun identifiant Drive envoyé aux téléphones ; le serveur n'écrit et ne supprime rien dans le carnet. Aucun onglet nouveau, aucun mail.
+- Dans le téléphone : base à part pour les plans, limitée (400 Mo, 80 Mo toujours laissés libres), rangée par compte.
+
+**Pourquoi** : les poseurs lisent les plans validés sur leur téléphone, au zoom, même sans réseau, sans manipulation de fichier (exigence 9 du plan).
+
+**Comment déployer** : `docs/lot4a-procedure.md`. Mesures préalables : `docs/lot4-etape0.md`.
+
 ## Lot 3 — Notes de chantier : la liste des choses à faire — serveur v8.0, appli 8.0 — **en production depuis le 13/11/2026** (déploiement « Lot 3 — production »)
 
 **Quoi**

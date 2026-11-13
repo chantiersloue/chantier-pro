@@ -72,7 +72,7 @@ def lire(chemin):
 
 
 def sans_date(documents):
-    return [{k: v for k, v in d.items() if k != "date"} for d in documents]
+    return [{k: v for k, v in d.items() if k not in ("date", "depose")} for d in documents]
 
 
 COMMUN = {}

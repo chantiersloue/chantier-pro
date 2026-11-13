@@ -52,6 +52,9 @@ function recopier(dossierPc, parent) {
   });
 }
 const chargerCarnet = () => { if (process.env.LOUE_RACINE_ESSAI) recopier(process.env.LOUE_RACINE_ESSAI, google.elements.RACINE); };
+const viderCacheCarnet = () => Object.keys(google.cache).forEach(k => { if (/^carnet:/.test(k)) delete google.cache[k]; });
+// le dossier CARNET du chantier d'essai dans le faux Drive
+const dossierCarnet = () => { const ch = google.elements.RACINE.enfants.find(x => x.nom === 'CHANTIER TEST 1' && !x.corbeille); return ch ? ch.enfants.find(x => x.nom === 'CARNET' && !x.corbeille) : null; };
 chargerCarnet();
 // Lot 2 : comptes d'essai
 ctx.genererCle();
@@ -90,7 +93,22 @@ http.createServer((req, res) => {
       if (col > 1) A.lignes.forEach(l => { if (l[0] === 'CHANTIER TEST 1') l[col] = url.searchParams.get('valeur') === '1'; });
       res.writeHead(200, entetes); return res.end('{"acces":' + (col > 1) + '}');
     }
-    if (m === 'recharger-carnet') { chargerCarnet(); Object.keys(google.cache).forEach(k => { if (/^carnet:/.test(k)) delete google.cache[k]; }); res.writeHead(200, entetes); return res.end('{"carnet":"relu"}'); }
+    if (m === 'recharger-carnet') { chargerCarnet(); viderCacheCarnet(); res.writeHead(200, entetes); return res.end('{"carnet":"relu"}'); }
+    // Lot 4 : la liste carnet.json absente (en cours d'arrivée) puis revenue ; un second état du Drive (redépôt, nouvel indice) ; un compte désactivé
+    if (m === 'carnet-sans-liste' || m === 'carnet-liste') {
+      const c = dossierCarnet(); if (c) c.enfants.forEach(x => { if (x.nom === 'carnet.json') x.corbeille = m === 'carnet-sans-liste'; });
+      viderCacheCarnet(); res.writeHead(200, entetes); return res.end('{"liste":"' + m + '"}');
+    }
+    if (m === 'carnet-2') {
+      const c = dossierCarnet(); if (c) c.enfants.forEach(x => { x.corbeille = true; });
+      if (process.env.LOUE_RACINE_ESSAI_2) recopier(process.env.LOUE_RACINE_ESSAI_2, google.elements.RACINE);
+      viderCacheCarnet(); res.writeHead(200, entetes); return res.end('{"carnet":"second état"}');
+    }
+    if (m === 'desactiver') {
+      const l = U.lignes.find(x => x[0] === url.searchParams.get('id'));
+      if (l) { l[3] = false; ctx.traiterComptes(); }
+      res.writeHead(200, entetes); return res.end('{"desactive":' + !!l + '}');
+    }
     mode = m;
     if (mode === 'quota') google.etat.quota = 5; else google.etat.quota = 100;
     res.writeHead(200, entetes); return res.end(JSON.stringify({ mode }));

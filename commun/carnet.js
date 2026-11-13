@@ -148,15 +148,21 @@
         if (indexMemoire) { var ancien = indexMemoire.lignes[cle]; indexMemoire.total += taille - (ancien ? ancien.o || 0 : 0); indexMemoire.lignes[cle] = ligne; }
         return true;
       });
-    }).catch(function () {
-      // « Plein » signalé par le téléphone lui-même : le carnet rend tout de suite un quart de sa place, et n'insiste pas
+    }).catch(function (err) {
+      // L'image n'a pas pu être gardée. Seul un vrai « plein » signalé par le téléphone fait rendre de la place : le quart
+      // le plus ancien, une seule fois à la fois (huit images arrivent ensemble), jamais le document affiché.
       C.pleinLe = Date.now();
+      if (!err || err.name !== 'QuotaExceededError' || purgeEnCours) return false;
+      purgeEnCours = true;
+      var protege = cleChantier(chantier) + '|' + doc + '|';
       return index().then(function (ix) {
-        var anciennes = Object.keys(ix.lignes).map(function (k) { return ix.lignes[k]; }).sort(function (a, b) { return (a.vu || 0) - (b.vu || 0); });
+        var anciennes = Object.keys(ix.lignes).map(function (k) { return ix.lignes[k]; })
+          .filter(function (l) { return l.cle.indexOf(protege) !== 0; }).sort(function (a, b) { return (a.vu || 0) - (b.vu || 0); });
         return supprimer(anciennes.slice(0, Math.ceil(anciennes.length / 4)).map(function (l) { return l.cle; }));
-      }).catch(function () {}).then(function () { return false; });
+      }).catch(function () {}).then(function () { setTimeout(function () { purgeEnCours = false; }, 10000); return false; });
     });
   }
+  var purgeEnCours = false;
   // Une image gardée (ArrayBuffer), ou null
   C.gardee = function (chantier, doc, page, quoi) {
     var cle = cleImage(chantier, doc, page, quoi);
@@ -199,6 +205,43 @@
     return Promise.resolve(false);
   };
 
+  // Une liste vient d'arriver du serveur : elle est gardée, et le ménage est fait dans les images du chantier.
+  //  - document redéposé sous le même identifiant (son « empreinte » a changé) : ce qui en était gardé est effacé,
+  //    sinon le téléphone continuerait de montrer l'ancien plan ;
+  //  - document remplacé par un nouvel indice : l'ancien reste lisible (marqué « ancien ») tant que le nouveau n'a pas
+  //    été ouvert sur ce téléphone — une barre de réseau ne doit pas laisser le poseur sans aucun plan ;
+  //  - liste vide alors que la précédente ne l'était pas : rien n'est effacé avant une SECONDE liste vide.
+  function recevoir(chantier, k, data, ancienne) {
+    var recus = data.documents || [];
+    var avant = (ancienne && ancienne.documents) || [];
+    var vides = recus.length ? 0 : ((ancienne && ancienne.vides) || 0) + 1;
+    if (!recus.length && avant.length && vides < 2) {
+      ancienne.vides = vides;
+      return transaction(['listes'], 'readwrite', function (m) { m('listes').put(ancienne); }).catch(function () {})
+        .then(function () { return { documents: [], maj: data.maj || 0, date: Date.now(), horsReseau: false }; });
+    }
+    return index().then(function (ix) {
+      var apercuGarde = function (id) { return !!(ix.lignes[k + '|' + id + '|1|leger'] || ix.lignes[k + '|' + id + '|1|net']); };
+      var presents = {}, effaces = {}, anciens = [];
+      recus.forEach(function (d) { presents[d.id] = d; });
+      avant.forEach(function (a) {
+        var neuf = presents[a.id];
+        if (neuf) { if (String(a.empreinte || '') !== String(neuf.empreinte || '')) effaces[a.id] = true; return; }
+        var remplacant = a.code ? recus.filter(function (d) { return d.code === a.code; })[0] : null;
+        if (remplacant && apercuGarde(a.id) && !apercuGarde(remplacant.id)) anciens.push(Object.assign({}, a, { ancien: true, remplacePar: remplacant.indice || '' }));
+      });
+      var gardes = {}; anciens.forEach(function (a) { gardes[a.id] = true; });
+      var docs = recus.concat(anciens);
+      var liste = { cle: k, chantier: data.chantier || chantier, documents: docs, maj: data.maj || 0, date: Date.now(), vides: vides };
+      return transaction(['listes'], 'readwrite', function (m) { m('listes').put(liste); }).then(function () {
+        return supprimer(Object.keys(ix.lignes).filter(function (c) {
+          var l = ix.lignes[c];
+          return l.chantier === k && (effaces[l.doc] || (!presents[l.doc] && !gardes[l.doc]));
+        }));
+      }).catch(function () {}).then(function () { return { documents: docs, maj: liste.maj, date: liste.date, horsReseau: false }; });
+    }, function () { return { documents: recus, maj: data.maj || 0, date: Date.now(), horsReseau: false }; });
+  }
+
   // ── La liste des documents d'un chantier ──
   // Rend { documents, maj, date, horsReseau } ; ou { interdit: true, message } ; rejette s'il n'y a ni réseau ni liste gardée.
   C.liste = function (chantier) {
@@ -207,19 +250,13 @@
       return pret().then(function () { return transaction(['listes'], 'readonly', function (m) { return m('listes').get(k); }); }).catch(function () { return null; });
     };
     return LOUE.appeler({ action: 'carnet', chantier: chantier }, 25000).then(function (rep) {
-      if (rep && rep.ok) {
-        var docs = (rep.data && rep.data.documents) || [];
-        var liste = { cle: k, chantier: rep.data.chantier || chantier, documents: docs, maj: rep.data.maj || 0, date: Date.now() };
-        // Ménage : les images des documents qui ne sont plus dans la liste (retirés, ou ancien indice remplacé)
-        var presents = {}; docs.forEach(function (d) { presents[d.id] = true; });
-        return pret().then(function () { return transaction(['listes'], 'readwrite', function (m) { m('listes').put(liste); }); })
-          .then(index).then(function (ix) {
-            return supprimer(Object.keys(ix.lignes).filter(function (c) { return ix.lignes[c].chantier === k && !presents[ix.lignes[c].doc]; }));
-          }).catch(function () {}).then(function () { return { documents: docs, maj: liste.maj, date: liste.date, horsReseau: false }; });
-      }
+      if (rep && rep.ok) return gardee().then(function (ancienne) { return recevoir(chantier, k, rep.data || {}, ancienne); });
+      // Refus du chantier : ce que ce compte en gardait est effacé. Compte refusé (désactivé) : tout le carnet gardé est effacé.
       if (rep && rep.code === 'INTERDIT') return C.oublierChantier(chantier).then(function () { return { interdit: true, message: rep.message }; });
+      if (rep && rep.code === 'COMPTE_REFUSE') return toutEffacer(moi()).catch(function () {}).then(function () { return { interdit: true, message: rep.message }; });
+      // Le serveur a répondu autre chose (liste en cours d'arrivée, session terminée, serveur occupé) : la liste gardée, avec SON message
       return gardee().then(function (g) {
-        if (g) return { documents: g.documents, maj: g.maj, date: g.date, horsReseau: true, message: rep && rep.message };
+        if (g) return { documents: g.documents, maj: g.maj, date: g.date, horsReseau: false, message: (rep && rep.message) || 'Le serveur ne répond pas' };
         throw Object.assign(new Error((rep && rep.message) || 'Le serveur ne répond pas'), { reponse: rep });
       });
     }, function (err) {
@@ -239,6 +276,12 @@
   var file = [], enCours = 0, generation = 0;
   // Abandonne les demandes pas encore parties (la personne a changé de page ou de zone)
   C.abandonner = function () { generation++; file.forEach(function (d) { d.rendre(null); }); file = []; };
+  // Les tuiles pas encore demandées au serveur sortent de la file (la personne regarde ailleurs) ; ce qui est parti arrive
+  C.abandonnerAttente = function () {
+    var parties = file.filter(function (d) { return d.tuiles; });
+    file = file.filter(function (d) { return !d.tuiles; });
+    parties.forEach(function (d) { d.rendre(null); });
+  };
   function avancer() {
     while (enCours < C.EN_MEME_TEMPS && file.length) {
       var d = file.shift();
@@ -280,7 +323,7 @@
       for (var i = 0; i < restantes.length; i += C.PAR_DEMANDE) lots.push(restantes.slice(i, i + C.PAR_DEMANDE));
       var demander = function (lot, tours) {
         return new Promise(function (fini) {
-          file.push({ rendre: function () { fini(); }, partir: function () {
+          file.push({ tuiles: true, rendre: function () { bilan.abandonnees = (bilan.abandonnees || 0) + lot.length; fini(); }, partir: function () {
             if (gen !== generation) { fini(); return Promise.resolve(); }
             return LOUE.appeler({ action: 'carnetTuiles', chantier: chantier, doc: doc, page: page, quoi: 'tuiles', niveau: niveau, tuiles: lot }, 60000).then(function (rep) {
               if (!rep || !rep.ok) throw erreurDe(rep);

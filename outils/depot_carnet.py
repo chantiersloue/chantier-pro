@@ -110,7 +110,7 @@ def traiter_page(page, dpi, ecrire=None, prefixe=""):
     for nom, cote in (("leger", LEGER), ("net", NET)):
         e = min(plein, cote / max(largeur_pt, hauteur_pt))
         description[nom] = sortir(nom + ".webp", webp(page.render(scale=e).to_pil().convert("RGB")))
-    if max(largeur, hauteur) <= NET:      # petite page (A4 de texte à 150 dpi) : les aperçus suffisent
+    if max(largeur, hauteur) <= NET:      # très petite page (plus petite que l'aperçu net) : les aperçus suffisent
         return description, fichiers
     for z, l, h in niveaux_de(largeur, hauteur):
         echelle = plein / (2 ** z)
@@ -367,7 +367,9 @@ def deposer(racine, dossier, chantier, pdf, code, indice, intitule, limite=LIMIT
     if not liste.get("chantier"):
         liste["chantier"] = chantier
     liste["documents"].append({"id": ident, "code": code, "indice": indice, "intitule": intitule, "dossier": nom_dossier,
-                               "date": datetime.date.today().isoformat(), "poids": poids, "source": source, "pages": pages})
+                               "date": datetime.date.today().isoformat(),
+                               # « depose » : instant du dépôt ; un redépôt sous le même identifiant fait effacer aux téléphones ce qu'ils gardaient
+                               "depose": datetime.datetime.now().isoformat(timespec="seconds"), "poids": poids, "source": source, "pages": pages})
     ecrire_json(os.path.join(carnet, CARNET_FICHIER), liste)
     etat["termine"] = True
     ecrire_json(chemin_etat, etat)
@@ -550,6 +552,10 @@ def main(argv=None):
         print("Déposé : %s, %d page(s), %.1f Mo d'images, en %.0f s, dans « %s ». Le document apparaît dans l'appli quand "
               "Google Drive a fini de l'envoyer (quelques minutes)." % (r["id"], r["pages"], r["poids"] / 1048576, time.time() - debut, r["dossier"]))
         return 0
+    except OSError as e:
+        # disque plein, Drive pour ordinateur arrêté, chemin trop long, fichier verrouillé… : rien n'est annoncé dans la liste
+        print("ARRÊT : le dossier n'a pas pu être lu ou écrit (%s). Rien n'est ajouté à la liste du carnet ; vérifiez que Google Drive pour ordinateur tourne, puis relancez la même commande." % e, file=sys.stderr)
+        return 2
     except Refus as e:
         print("REFUS : %s" % e, file=sys.stderr)
         return 2

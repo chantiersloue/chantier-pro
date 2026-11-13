@@ -9,8 +9,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Loué App">
 <meta name="theme-color" content="#1A2B4A">
-<link rel="stylesheet" href="commun/style.css?v=d4170ceb3b">
-<link rel="stylesheet" href="commun/fiche.css?v=d4170ceb3b">
+<link rel="stylesheet" href="commun/style.css?v=67d8872402">
+<link rel="stylesheet" href="commun/fiche.css?v=67d8872402">
 <style>
 [hidden]{display:none!important;}
 .docs{background:var(--card);border:1px solid var(--border);border-radius:var(--rl);overflow:hidden;}
@@ -23,6 +23,8 @@
 .doc-detail{font-size:14px;color:var(--muted);margin-top:4px;}
 .doc-etat{font-size:14px;font-weight:700;margin-top:4px;}
 .doc-etat.garde{color:var(--green);}
+.doc.ancien{background:#FDF1F1;}
+.doc-ancien{font-size:15px;font-weight:800;color:var(--red);margin-top:4px;}
 /* ── Visionneuse : plein écran, fond sombre (lisible en plein soleil), gros boutons ── */
 #vue{position:fixed;inset:0;z-index:50;background:#2B2F36;display:flex;flex-direction:column;}
 body.loue-test #vue{top:40px;}   /* sous le bandeau du mode test */
@@ -76,11 +78,11 @@ body.loue-test #vue{top:40px;}   /* sous le bandeau du mode test */
   </div>
 </div>
 
-<script src="commun/config.js?v=d4170ceb3b"></script>
-<script src="commun/api.js?v=d4170ceb3b"></script>
-<script src="commun/ui.js?v=d4170ceb3b"></script>
-<script src="commun/carnet.js?v=d4170ceb3b"></script>
-<script src="commun/hors-ligne.js?v=d4170ceb3b"></script>
+<script src="commun/config.js?v=67d8872402"></script>
+<script src="commun/api.js?v=67d8872402"></script>
+<script src="commun/ui.js?v=67d8872402"></script>
+<script src="commun/carnet.js?v=67d8872402"></script>
+<script src="commun/hors-ligne.js?v=67d8872402"></script>
 <script>
 'use strict';
 const $ = id => document.getElementById(id);
@@ -105,7 +107,9 @@ function pasDeCompte(message) {
 
 function charger() {
   const moi = ++enCours;
-  if (!LOUE.compte()) { pasDeCompte('Connectez-vous pour voir le carnet du chantier.'); return; }
+  // Session terminée du même compte : ce qui est gardé dans le téléphone reste lisible ; sans compte du tout : rien
+  const SESSION = !LOUE.compte();
+  if (SESSION && !LOUE.dernierIdentifiant()) { pasDeCompte('Connectez-vous pour voir le carnet du chantier.'); return; }
   if (!CHANTIER) { pasDeCompte('Ouvrez le carnet depuis un chantier, à l’accueil.'); return; }
   $('entete').textContent = CHANTIER;
   $('btn-actualiser').disabled = true;
@@ -114,14 +118,18 @@ function charger() {
     if (moi !== enCours) return;
     if (r.interdit) { DOCS = []; $('docs').hidden = true; $('info').textContent = r.message; return; }
     DOCS = r.documents || [];
-    $('info').textContent = r.horsReseau
-      ? '📴 Pas de réseau : liste du ' + new Date(r.date).toLocaleDateString('fr-FR') + '. Seules les pages déjà ouvertes sur ce téléphone sont lisibles.'
+    const du = 'liste du ' + new Date(r.date).toLocaleDateString('fr-FR') + '. Seules les pages déjà ouvertes sur ce téléphone sont lisibles.';
+    $('info').textContent = SESSION ? '🔑 Session terminée : reconnectez-vous à l’accueil dès que vous avez du réseau. En attendant, ' + du
+      : r.horsReseau ? '📴 Pas de réseau : ' + du
+      : r.message ? '⚠ ' + r.message + ' En attendant, ' + du
       : (DOCS.length ? '' : 'Aucun document dans le carnet de ce chantier pour l’instant.');
     return afficherListe();
   }).catch(err => {
     if (moi !== enCours) return;
     $('docs').hidden = true;
-    $('info').textContent = '⚠ ' + (LOUE.messageClair ? LOUE.messageClair(err) : 'Pas de réseau') + ' Le carnet de ce chantier n’a encore jamais été ouvert sur ce téléphone.';
+    $('info').textContent = SESSION ? '🔑 Session terminée : reconnectez-vous à l’accueil pour voir le carnet de ce chantier.'
+      : err && err.reponse && err.reponse.message ? '⚠ ' + err.reponse.message
+      : '⚠ ' + (LOUE.messageClair ? LOUE.messageClair(err) : 'Pas de réseau') + ' Le carnet de ce chantier n’a encore jamais été ouvert sur ce téléphone.';
   }).then(() => { if (moi === enCours) $('btn-actualiser').disabled = false; });
 }
 
@@ -130,13 +138,15 @@ function afficherListe() {
   return Promise.all(DOCS.map(d => CARNET.etat(CHANTIER, d.id))).then(etats => {
     zone.textContent = '';
     DOCS.forEach((d, i) => {
-      const b = el('button', 'doc'); b.type = 'button'; b.dataset.doc = d.id;
+      const b = el('button', 'doc' + (d.ancien ? ' ancien' : '')); b.type = 'button'; b.dataset.doc = d.id;
       const t = el('div', 'doc-titre', d.intitule || d.id);
       if (d.indice) t.appendChild(el('span', 'doc-indice', 'indice ' + d.indice));
       const connu = vus[d.code || d.id];
-      if (connu && connu !== d.id) t.appendChild(el('span', 'doc-nouveau', '● nouvel indice'));
+      if (d.ancien) { /* pas de pastille : la ligne rouge ci-dessous dit tout */ }
+      else if (connu && connu !== d.id) t.appendChild(el('span', 'doc-nouveau', '● nouvel indice'));
       else if (!connu) t.appendChild(el('span', 'doc-nouveau', '● nouveau'));
       b.appendChild(t);
+      if (d.ancien) b.appendChild(el('div', 'doc-ancien', '⚠ ANCIEN INDICE — l’indice ' + (d.remplacePar || 'suivant') + ' est sorti : ouvrez-le dès que vous avez du réseau.'));
       const n = (d.pages || []).length;
       b.appendChild(el('div', 'doc-detail', [d.code, dateFr(d.date), n + (n > 1 ? ' pages' : ' page'), poids(d.poids || 0)].filter(Boolean).join(' · ')));
       const gardees = Object.keys(etats[i].pages).length;
@@ -174,9 +184,9 @@ function ouvrirDoc(id, page) {
   const d = DOCS.filter(x => x.id === id)[0];
   if (!d || !(d.pages || []).length) return;
   V.doc = d; V.r = 0;
-  noterVu(d);
+  if (!d.ancien) noterVu(d);
   $('vue').hidden = false; document.body.style.overflow = 'hidden';
-  $('vue-titre').textContent = (d.intitule || d.id) + (d.indice ? ' — indice ' + d.indice : '');
+  $('vue-titre').textContent = (d.ancien ? '⚠ ANCIEN ' : '') + (d.indice ? 'Ind. ' + d.indice + ' — ' : '') + (d.intitule || d.id);
   CARNET.persister();
   ouvrirPage(page || 1);
   try { history.pushState({ vue: true }, ''); } catch (e) {}
@@ -217,8 +227,22 @@ function ouvrirPage(n) {
   // l'aperçu léger d'abord (affiché en quelques secondes), puis le net par-dessus
   const leger = p.leger ? CARNET.apercu(CHANTIER, V.doc.id, n, 'leger').then(o => { poser('leger', o); info(''); }) : Promise.resolve();
   leger.catch(() => {}).then(() => { if (gen === V.gen && p.net) return CARNET.apercu(CHANTIER, V.doc.id, n, 'net').then(o => { poser('net', o); info(''); }); })
-    .catch(err => { if (gen !== V.gen || (err && err.message === 'abandonné')) return; if (!V.apercu) info('⚠ Page pas encore gardée dans ce téléphone, et pas de réseau.'); })
-    .then(() => { if (gen === V.gen) demanderTuiles(); });
+    .catch(err => { if (gen !== V.gen || (err && err.message === 'abandonné')) return; if (!refusServeur(err) && !V.apercu) info('⚠ Page pas encore gardée dans ce téléphone, et pas de réseau.'); })
+    .then(() => { if (gen !== V.gen) return; if ($('vue-info').textContent === 'Chargement de la page…') info(''); demanderTuiles(); });
+}
+
+// Le serveur a répondu par un refus (ce n'est pas une panne de réseau) : on dit ce qu'il a dit. Rend true si c'est le cas.
+function refusServeur(err) {
+  const rep = err && err.reponse;
+  if (!rep || !rep.code) return false;
+  if (rep.code === 'INTERDIT' || rep.code === 'COMPTE_REFUSE') { fermerVue(); charger(); return true; }   // la liste affiche le refus et fait le ménage
+  if (rep.code === 'CARNET_INCONNU' && V.doc && !V.doc.ancien) {   // le document a changé pendant la lecture (nouvel indice, retrait)
+    fermerVue(); charger(); LOUE.message && LOUE.message('Ce document a changé : la liste est mise à jour.', 5000); return true;
+  }
+  if (rep.code === 'CARNET_INCONNU') { info('Cette partie de l’ancien indice n’est pas gardée dans ce téléphone.', 5000); return true; }
+  if (LOUE.estRefusDeConnexion && LOUE.estRefusDeConnexion(rep)) { info('🔑 Session terminée : reconnectez-vous à l’accueil. Seul ce qui est déjà gardé reste lisible.', 6000); return true; }
+  info('⚠ ' + (rep.message || 'Le serveur ne répond pas.'), 6000);
+  return true;
 }
 
 // ── Géométrie : écran = T + R(s × point du plan) ──
@@ -344,10 +368,28 @@ function demanderTuiles() {
     if (nv.existe[c + ',' + li] && !V.tuiles[cle]) voulues.push([c, li]);
   }
   if (!voulues.length) return;
+  CARNET.abandonnerAttente();   // ce qui attendait pour une zone quittée ne passera pas avant la zone regardée
   // du centre de l'écran vers les bords
   const centre = versPlan(L / 2, H / 2);
   voulues.sort((a, b) => Math.hypot((a[0] + .5) * cote - centre[0], (a[1] + .5) * cote - centre[1]) - Math.hypot((b[0] + .5) * cote - centre[0], (b[1] + .5) * cote - centre[1]));
-  const lot = voulues.slice(0, 48);
+  alleger(x0, y0, x1, y1);
+  for (let i = 0; i < Math.min(voulues.length, 48); i += 8) demanderLot(nv, voulues.slice(i, i + 8), cote, gen);
+}
+// Au-delà de 80 tuiles affichées, celles qui sont loin de la zone regardée sont retirées (mémoire du téléphone)
+function alleger(x0, y0, x1, y1) {
+  const cles = Object.keys(V.tuiles).filter(k => V.tuiles[k] && V.tuiles[k] !== 'demandée');
+  if (cles.length <= 80) return;
+  const mx = x1 - x0, my = y1 - y0;
+  cles.forEach(k => {
+    const im = V.tuiles[k], g = parseFloat(im.style.left), h = parseFloat(im.style.top), l = parseFloat(im.style.width), ha = parseFloat(im.style.height);
+    if (g + l < x0 - mx || g > x1 + mx || h + ha < y0 - my || h > y1 + my) {
+      try { URL.revokeObjectURL(im.src); } catch (e) {}
+      V.urls = V.urls.filter(u => u !== im.src);
+      im.remove(); delete V.tuiles[k];
+    }
+  });
+}
+function demanderLot(nv, lot, cote, gen) {
   lot.forEach(t => { V.tuiles[nv.z + ':' + t[0] + ',' + t[1]] = 'demandée'; });
   CARNET.tuiles(CHANTIER, V.doc.id, V.page, nv.z, lot, (c, li, octets) => {
     if (gen !== V.gen) return;
@@ -363,7 +405,9 @@ function demanderTuiles() {
     if (gen !== V.gen) return;
     // une tuile demandée mais pas reçue pourra être redemandée
     lot.forEach(t => { const cle = nv.z + ':' + t[0] + ',' + t[1]; if (V.tuiles[cle] === 'demandée') delete V.tuiles[cle]; });
-    if (bilan.manquantes) info(navigator.onLine === false || bilan.erreur ? '📴 Pas de réseau : cette zone n’est pas encore gardée dans ce téléphone à ce grossissement.' : '⚠ Zone incomplète : réessayez dans un instant.', 5000);
+    if (bilan.abandonnees) { clearTimeout(V.minuteur); V.minuteur = setTimeout(demanderTuiles, 50); }   // sorties de la file : redemandées si elles sont encore à l'écran
+    if (!bilan.manquantes || refusServeur(bilan.erreur)) return;
+    info(bilan.erreur ? '📴 Pas de réseau : cette zone n’est pas encore gardée dans ce téléphone à ce grossissement.' : '⚠ Zone incomplète : réessayez dans un instant.', 5000);
   });
 }
 
@@ -374,7 +418,11 @@ function signalerIci() {
   location.href = 'signaler.html?chantier=' + encodeURIComponent(CHANTIER) + '&repere=' + encodeURIComponent(repere.slice(0, 150));
 }
 
-if (LOUE.surEvenement) LOUE.surEvenement(ev => { if (ev.type === 'compte') { if (!LOUE.compte()) { fermerVue(true); pasDeCompte('Connectez-vous pour voir le carnet du chantier.'); } else charger(); } });
+if (LOUE.surEvenement) LOUE.surEvenement(ev => {
+  if (ev.type !== 'compte') return;
+  if (!LOUE.compte() && !LOUE.dernierIdentifiant()) { fermerVue(true); pasDeCompte('Connectez-vous pour voir le carnet du chantier.'); }   // déconnexion volontaire
+  else if ($('vue').hidden) charger();   // session terminée ou reconnexion : la liste dit où on en est, sans fermer un plan ouvert
+});
 document.addEventListener('DOMContentLoaded', charger);
 </script>
 </body>

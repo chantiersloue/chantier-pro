@@ -34,17 +34,24 @@ const fabrique = [
 const plan = path.join(dossier, 'plan.pdf'), texte = path.join(dossier, 'ppsps.pdf');
 const f1 = spawnSync('python', ['-c', fabrique, plan, texte], { encoding: 'utf8' });
 if (f1.status !== 0) { console.log('  ✗ PDF d’essai non fabriqué : ' + f1.stderr); process.exit(1); }
-function deposer(pdf, code, indice, intitule) {
-  const r = spawnSync('python', [path.join(racine, 'outils', 'depot_carnet.py'), '--racine', drive, '--dossier', 'CHANTIER TEST 1', '--pdf', pdf, '--code', code, '--indice', indice, '--intitule', intitule],
+function deposer(pdf, code, indice, intitule, ou) {
+  const r = spawnSync('python', [path.join(racine, 'outils', 'depot_carnet.py'), '--racine', ou || drive, '--dossier', 'CHANTIER TEST 1', '--pdf', pdf, '--code', code, '--indice', indice, '--intitule', intitule],
     { encoding: 'utf8', cwd: racine, env: Object.assign({}, process.env, { PYTHONIOENCODING: 'utf-8' }) });
   if (r.status !== 0) throw new Error('dépôt ' + code + ' ' + indice + ' : ' + (r.stdout || '') + (r.stderr || ''));
 }
-try { deposer(plan, '105', 'A', 'PLANS DE RESERVATIONS'); deposer(texte, '001', 'A', 'PPSPS'); }
+// Second état du Drive (joué plus tard) : le 105-A REDÉPOSÉ avec un autre PDF sous le même identifiant, et le PPSPS passé à l'indice B
+const drive2 = path.join(dossier, 'drive2');
+fs.mkdirSync(path.join(drive2, 'CHANTIER TEST 1'), { recursive: true });
+fs.writeFileSync(path.join(drive2, 'dossiers.json'), JSON.stringify({ version: 1, documents: { carnet: 'CARNET' } }));
+try {
+  deposer(plan, '105', 'A', 'PLANS DE RESERVATIONS'); deposer(texte, '001', 'A', 'PPSPS');
+  deposer(texte, '105', 'A', 'PLANS DE RESERVATIONS', drive2); deposer(texte, '001', 'A', 'PPSPS', drive2); deposer(texte, '001', 'B', 'PPSPS', drive2);
+}
 catch (e) { console.log('  ✗ ' + e.message); fs.rmSync(dossier, { recursive: true, force: true }); process.exit(1); }
 
 const SITE = 'http://127.0.0.1:8787/', SERVEUR = 'http://127.0.0.1:8788', API = SERVEUR + '/exec';
 const site = spawn('python', ['-m', 'http.server', '8787', '--bind', '127.0.0.1', '--directory', racine], { stdio: 'ignore' });
-const faux = spawn('node', [path.join(__dirname, 'faux-serveur.js'), '8788'], { stdio: 'ignore', env: Object.assign({}, process.env, { LOUE_RACINE_ESSAI: drive }) });
+const faux = spawn('node', [path.join(__dirname, 'faux-serveur.js'), '8788'], { stdio: 'ignore', env: Object.assign({}, process.env, { LOUE_RACINE_ESSAI: drive, LOUE_RACINE_ESSAI_2: drive2 }) });
 
 function scenario() {
   return `async page => {
@@ -65,6 +72,13 @@ function scenario() {
       apercu: V.apercu, fondCharge: !!fond && fond.naturalWidth > 0, fondLargeur: fond ? fond.naturalWidth : 0,
       tuiles: ims.length, tuilesChargees: ims.filter(i => i.naturalWidth > 0).length, niveaux: Array.from(new Set(ims.map(i => i.parentNode.dataset.z))).sort(),
       // une tuile est à sa place si son coin haut-gauche (dans le plan) est un multiple de sa taille, et si elle touche l'écran
+      // chaque tuile est posée sur un multiple de sa taille dans le plan, et occupe à l'écran sa taille × le grossissement
+      malPlacees: ims.filter(i => { const z = Number(i.parentNode.dataset.z), cote = 512 * Math.pow(2, z), t = i.dataset.t.split(',').map(Number), b = i.getBoundingClientRect();
+        const l = parseFloat(i.style.width), h = parseFloat(i.style.height);
+        const bon = parseFloat(i.style.left) === t[0] * cote && parseFloat(i.style.top) === t[1] * cote && l > 0 && l <= cote && h > 0 && h <= cote
+          && i.naturalWidth * Math.pow(2, z) === l && i.naturalHeight * Math.pow(2, z) === h
+          && (V.r !== 0 || (Math.abs(b.width - l * V.s) < 1 && Math.abs(b.height - h * V.s) < 1));
+        return !bon; }).length,
       aLEcran: ims.filter(i => { const b = i.getBoundingClientRect(); return b.right > s.left && b.left < s.right && b.bottom > s.top && b.top < s.bottom; }).length,
       transform: document.getElementById('monde').style.transform, r: V.r, s: V.s,
       centre: versPlan(s.width / 2, s.height / 2).map(Math.round), info: document.getElementById('vue-info').hidden ? '' : document.getElementById('vue-info').textContent,
@@ -168,7 +182,10 @@ function scenario() {
   const avantExpiration = await page.evaluate(() => LOUE.carnet.etat('CHANTIER TEST 1', '105-A'));
   await reglage('deconnecter&id=poseur1');
   await page.evaluate(() => charger()); await page.waitForTimeout(2500);
-  r.expiree = { message: (await liste()).entete, compte: await page.evaluate(() => !!LOUE.compte()) };
+  r.expiree = { liste: await liste(), compte: await page.evaluate(() => !!LOUE.compte()) };
+  await ouvrir('105-A');
+  r.expireeOuvert = await vue();
+  await page.evaluate(() => fermerVue()); await page.waitForTimeout(300);
   r.reconnexion = await page.evaluate(a => LOUE.connexion(a[0], a[1]).then(x => x.code), ['poseur1', MDP]);
   await page.waitForTimeout(1500);
   r.apresExpiration = { avant: avantExpiration.images, apres: (await page.evaluate(() => LOUE.carnet.etat('CHANTIER TEST 1', '105-A'))).images };
@@ -182,7 +199,33 @@ function scenario() {
   await page.evaluate(() => charger()); await page.waitForTimeout(2500);
   r.refus = { avant: avantRefus, apres: (await page.evaluate(() => LOUE.carnet.etat('CHANTIER TEST 1', '105-A'))).images, liste: await liste() };
   await reglage('acces&id=poseur2&valeur=1');
-  // 12. Sans compte
+  // 12. Liste absente du Drive (en cours d'arrivée), redépôt sous le même identifiant, nouvel indice, compte désactivé
+  r.connexion3 = await connecter('poseur1');
+  await page.goto(CARNET); await attendre(() => document.querySelectorAll('#docs .doc').length > 0);
+  await ouvrir('105-A'); await zoomerSur(120, 200, 3); await page.evaluate(() => fermerVue()); await page.waitForTimeout(300);
+  await ouvrir('001-A'); await page.evaluate(() => fermerVue()); await page.waitForTimeout(300);
+  const images = id => page.evaluate(d => LOUE.carnet.etat('CHANTIER TEST 1', d).then(e => e.images), id);
+  const avant = { a105: await images('105-A'), a001: await images('001-A'), largeur: await page.evaluate(() => DOCS.filter(d => d.id === '105-A')[0].pages[0].l) };
+  await reglage('carnet-sans-liste');
+  await page.evaluate(() => charger()); await page.waitForTimeout(2500);
+  r.sansListe = { liste: await liste(), a105: await images('105-A'), avant: avant.a105 };
+  await reglage('carnet-liste');
+  await reglage('carnet-2');
+  await page.evaluate(() => charger()); await page.waitForTimeout(2500);
+  r.second = { liste: await liste(), a105: await images('105-A'), a001: await images('001-A'), avant: avant };
+  await ouvrir('105-A');
+  r.redepose = Object.assign(await vue(), { largeurPlan: await page.evaluate(() => V.desc.l), ancienne: avant.largeur });
+  await page.evaluate(() => fermerVue()); await page.waitForTimeout(300);
+  await ouvrir('001-A');   // l'ancien indice, gardé dans le téléphone, se rouvre
+  r.ancienOuvert = await vue();
+  await page.evaluate(() => fermerVue()); await page.waitForTimeout(300);
+  await ouvrir('001-B'); await page.evaluate(() => fermerVue()); await page.waitForTimeout(300);
+  await page.evaluate(() => charger()); await page.waitForTimeout(2500);
+  r.apresNouvelIndice = { liste: await liste(), a001: await images('001-A') };
+  await reglage('desactiver&id=poseur1');
+  await page.evaluate(() => charger()); await page.waitForTimeout(2500);
+  r.desactive = { liste: await liste(), occupation: await page.evaluate(() => LOUE.carnet.occupation()) };
+  // 13. Sans compte
   await page.evaluate(() => LOUE.deconnecter()); await page.goto(CARNET); await page.waitForTimeout(1500);
   r.sansCompte = await liste();
   return JSON.stringify(r);
@@ -220,8 +263,8 @@ setTimeout(() => {
     verifier('ouverture : aperçu net affiché, « 1 / 2 », aucune tuile demandée tant que la page entière tient à l’écran ; boutons d’au moins 48 px, tout tient dans l’écran',
       r.ouvert.ouverte && r.ouvert.apercu === 'net' && r.ouvert.fondCharge && r.ouvert.page === '1 / 2' && r.ouvert.tuiles === 0 && r.ouvert.boutons === true && r.ouvert.piedDansEcran === true
       && r.ouvert.avant === true && r.ouvert.apres === false && j(r.demandesOuverture) === j(['carnet::0', 'carnetTuiles:leger:0', 'carnetTuiles:net:0']), j([r.ouvert, r.demandesOuverture]));
-    verifier('zoom : les tuiles de la zone regardée arrivent, toutes chargées, à l’écran ; peu de demandes',
-      r.zoom.tuiles > 0 && r.zoom.tuilesChargees === r.zoom.tuiles && r.zoom.aLEcran >= Math.min(r.zoom.tuiles, 2) && r.demandesZoom.length >= 1 && r.demandesZoom.length <= 4
+    verifier('zoom : les tuiles de la zone regardée arrivent, toutes chargées, chacune à sa place et à sa taille ; peu de demandes',
+      r.zoom.tuiles > 0 && r.zoom.tuilesChargees === r.zoom.tuiles && r.zoom.malPlacees === 0 && r.zoom.aLEcran >= Math.min(r.zoom.tuiles, 2) && r.demandesZoom.length >= 1 && r.demandesZoom.length <= 4
       && r.demandesZoom.every(d => /^carnetTuiles:tuiles:[1-8]$/.test(d)), j([r.zoom, r.demandesZoom]));
     verifier('bouton de rotation : le plan tourne d’un quart de tour, le point au centre de l’écran y reste ; quatre appuis ramènent à l’endroit',
       r.tourne.r === 90 && /rotate\(90deg\)/.test(r.tourne.transform) && proche(r.tourne.centre, r.zoom.centre, 3) && r.retourne.r === 0 && proche(r.retourne.centre, r.zoom.centre, 3), j([r.zoom.centre, r.tourne, r.retourne.centre]));
@@ -241,10 +284,21 @@ setTimeout(() => {
       && r.menage.apres105 < r.menage.avant105 && r.menage.garde001 > 0, j(r.menage));
     verifier('carnet PLEIN : plus rien n’est gardé, mais les images s’affichent quand même', r.plein.tuiles > 0 && r.plein.apercu === true && r.plein.pleinLe === true && r.plein.occupation <= r.menage.plafond, j(r.plein));
     verifier('carnet PLEIN : une fiche est quand même gardée par le téléphone', r.fichePendantPlein.apres === r.fichePendantPlein.avant + 1, j(r.fichePendantPlein));
-    verifier('session expirée : connexion demandée ; au retour du MÊME compte, les plans gardés sont toujours là', r.expiree.compte === false && /Connectez-vous/.test(r.expiree.message)
-      && r.reconnexion === 'CONNECTE' && r.apresExpiration.avant > 0 && r.apresExpiration.apres === r.apresExpiration.avant, j([r.expiree, r.reconnexion, r.apresExpiration]));
+    verifier('session terminée : ce qui est gardé reste lisible, avec « reconnectez-vous » ; au retour du MÊME compte, tout est encore là', r.expiree.compte === false && /Session terminée : reconnectez-vous/.test(r.expiree.liste.info)
+      && r.expiree.liste.docs.length === 2 && r.expireeOuvert.fondCharge === true && r.reconnexion === 'CONNECTE' && r.apresExpiration.avant > 0 && r.apresExpiration.apres === r.apresExpiration.avant, j([r.expiree, r.reconnexion, r.apresExpiration]));
     verifier('un AUTRE compte sur le même téléphone : rien de ce que le premier avait gardé', r.connexion2 === 'CONNECTE' && r.autreCompte.images === 0 && /demande du réseau/.test(r.autreCompte.liste.docs[0].texte), j(r.autreCompte));
     verifier('accès au chantier retiré : refus affiché, plans de ce chantier effacés du téléphone', r.refus.avant > 0 && r.refus.apres === 0 && r.refus.liste.visible === false && /ne fait pas partie de vos chantiers/.test(r.refus.liste.info), j(r.refus));
+    verifier('liste absente du Drive (en cours d’arrivée) : le serveur le dit, la liste gardée reste affichée, aucun plan gardé n’est effacé', r.connexion3 === 'CONNECTE' && r.sansListe.avant > 0
+      && r.sansListe.a105 === r.sansListe.avant && r.sansListe.liste.docs.length === 2 && /en cours d’arrivée/.test(r.sansListe.liste.info) && !/Pas de réseau/.test(r.sansListe.liste.info), j(r.sansListe));
+    verifier('document REDÉPOSÉ sous le même identifiant : ce que le téléphone en gardait est effacé, le nouveau plan est demandé au serveur', r.second.avant.a105 > 0 && r.second.a105 === 0
+      && r.redepose.fondCharge === true && r.redepose.largeurPlan !== r.redepose.ancienne, j([r.second.avant, r.second.a105, r.redepose.largeurPlan, r.redepose.ancienne]));
+    verifier('NOUVEL INDICE pas encore ouvert : l’ancien reste lisible, marqué « ANCIEN INDICE — l’indice B est sorti »', r.second.a001 === r.second.avant.a001 && r.second.liste.docs.length === 3
+      && r.second.liste.docs.some(d => d.id === '001-A' && /ANCIEN INDICE — l’indice B est sorti/.test(d.texte)) && r.second.liste.docs.some(d => d.id === '001-B' && /nouvel indice/.test(d.texte))
+      && r.ancienOuvert.fondCharge === true && /ANCIEN/.test(r.ancienOuvert.titre), j([r.second.liste, r.second.a001, r.ancienOuvert.titre]));
+    verifier('… une fois le nouvel indice ouvert, l’ancien disparaît de la liste et du téléphone', r.apresNouvelIndice.liste.docs.length === 2 && r.apresNouvelIndice.a001 === 0
+      && !r.apresNouvelIndice.liste.docs.some(d => d.id === '001-A'), j(r.apresNouvelIndice));
+    verifier('compte désactivé : refus affiché (pas « pas de réseau »), tous les plans gardés sont effacés', r.desactive.liste.visible === false && r.desactive.occupation === 0
+      && r.desactive.liste.info.length > 0 && !/Pas de réseau/.test(r.desactive.liste.info), j(r.desactive));
     verifier('sans compte : rien n’est affiché, connexion demandée', r.sansCompte.visible === false && /Connectez-vous/.test(r.sansCompte.entete), j(r.sansCompte));
   } catch (e) { echecs++; console.log('  ✗ ' + e.message); }
   spawnSync('playwright-cli', ['-s=loue-l4', 'close'], { shell: true });

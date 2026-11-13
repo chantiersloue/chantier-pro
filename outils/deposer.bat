@@ -77,9 +77,11 @@ echo.
 if "%RESULTAT%"=="0" (
   echo  TERMINÉ : le document est déposé. Laissez Google Drive finir l'envoi avant d'éteindre le PC.
 ) else if "%RESULTAT%"=="2" (
-  echo  REFUSÉ : rien n'a été écrit. Lisez le message ci-dessus.
+  echo  REFUSÉ ou ARRÊTÉ : rien n'a été ajouté à la liste du carnet. Lisez le message ci-dessus.
 ) else if "%RESULTAT%"=="3" (
   echo  PAS FINI : relancez ce programme avec les mêmes réponses, le travail reprendra où il en est.
+) else if "%RESULTAT%"=="9009" (
+  echo  Python est introuvable sur ce PC : montrez ce message pour le faire installer.
 ) else (
   echo  ERREUR inattendue ^(code %RESULTAT%^) : copiez le texte ci-dessus pour le montrer.
 )

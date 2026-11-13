@@ -35,7 +35,7 @@ function carnetChantier_(compte, corps) {
   const chantier = demande ? noteChantierConnu_(demande) : '';
   if (!chantier || !notePeutLire_(compte, chantier)) return null;
   const dossier = dossierChantier_(chantier, false);
-  return { chantier: chantier, carnet: dossier ? dossierParChemin_(dossier, dossiers_().documents.carnet, false) : null };
+  return { chantier: chantier, dossier: dossier ? dossier.getName() : '', carnet: dossier ? dossierParChemin_(dossier, dossiers_().documents.carnet, false) : null };
 }
 
 // La liste carnet.json du dossier CARNET : { liste, maj, doublon }. Deux fichiers de ce nom (Drive pour ordinateur en
@@ -56,7 +56,11 @@ function carnetListe_(carnet) {
     nombre++;
     if (!fichier || f.getLastUpdated().getTime() > fichier.getLastUpdated().getTime()) fichier = f;
   }
-  if (!fichier) return { liste: { documents: [] }, maj: 0, doublon: false };
+  if (!fichier) {
+    const sous = carnet.getFolders();
+    while (sous.hasNext()) { if (!sous.next().isTrashed()) throw carnetErreur_('CARNET_ARRIVE', 'La liste du carnet est en cours d’arrivée : réessayez dans quelques minutes.'); }
+    return { liste: { documents: [] }, maj: 0, doublon: false };
+  }
   let liste;
   try { liste = JSON.parse(fichier.getBlob().getDataAsString('UTF-8')); } catch (e) { throw carnetErreur_('CARNET_ARRIVE', 'La liste du carnet est en cours d’arrivée : réessayez dans quelques minutes.'); }
   if (!liste || !Array.isArray(liste.documents)) throw carnetErreur_('CARNET_ARRIVE', 'La liste du carnet est en cours d’arrivée : réessayez dans quelques minutes.');
@@ -73,8 +77,9 @@ function carnetListe_(carnet) {
 }
 
 // Les documents montrés : jamais un document retiré, et pour chaque code seulement le DERNIER déposé (dernier indice)
-function carnetDocuments_(liste, chantier) {
-  if (liste.chantier && cleChantier_(liste.chantier) !== cleChantier_(chantier)) throw carnetErreur_('CARNET_ARRIVE', 'Le carnet de ce dossier appartient à un autre chantier : prévenez le bureau.');
+function carnetDocuments_(liste, chantier, dossier) {
+  // le programme de dépôt écrit le nom du chantier, ou à défaut celui de son dossier : les deux sont acceptés
+  if (liste.chantier && cleChantier_(liste.chantier) !== cleChantier_(chantier) && cleChantier_(liste.chantier) !== cleChantier_(dossier)) throw carnetErreur_('CARNET_ARRIVE', 'Le carnet de ce dossier appartient à un autre chantier : prévenez le bureau.');
   const parCode = {}, ordre = [];
   liste.documents.forEach(d => {
     if (!d || d.retire === true || typeof d.id !== 'string' || !CARNET_NOM_SUR.test(d.id) || typeof d.dossier !== 'string' || !Array.isArray(d.pages)) return;
@@ -92,8 +97,10 @@ function carnetLister_(compte, corps) {
   if (!ou) return avecJeton_({ ok: false, code: 'INTERDIT', message: CARNET_REFUS }, compte);
   try {
     const lu = ou.carnet ? carnetListe_(ou.carnet) : { liste: { documents: [] }, maj: 0, doublon: false };
-    const docs = carnetDocuments_(lu.liste, ou.chantier).map(d => ({ id: d.id, code: String(d.code || ''), indice: String(d.indice || ''),
-      intitule: String(d.intitule || ''), date: String(d.date || ''), poids: Number(d.poids) || 0, pages: d.pages }));
+    // « empreinte » : change dès qu'un document est redéposé sous le même identifiant (le téléphone efface alors ce qu'il en gardait)
+    const empreinte = d => String(d.depose || [d.poids, d.pages.length, d.pages[0] && d.pages[0].leger && d.pages[0].leger.o, d.pages[0] && d.pages[0].net && d.pages[0].net.o, d.date].join('-'));
+    const docs = carnetDocuments_(lu.liste, ou.chantier, ou.dossier).map(d => ({ id: d.id, code: String(d.code || ''), indice: String(d.indice || ''),
+      intitule: String(d.intitule || ''), date: String(d.date || ''), poids: Number(d.poids) || 0, empreinte: empreinte(d), pages: d.pages }));
     return avecJeton_({ ok: true, code: 'OK', message: docs.length + ' document(s)',
       data: { chantier: ou.chantier, documents: docs, maj: lu.maj, heure: Date.now(), ms: Date.now() - debut } }, compte);
   } catch (e) {
@@ -127,7 +134,7 @@ function carnetTuiles_(compte, corps) {
   if (!ou || !ou.carnet) return avecJeton_({ ok: false, code: 'INTERDIT', message: CARNET_REFUS }, compte);
   try {
     const lu = carnetListe_(ou.carnet);
-    const doc = carnetDocuments_(lu.liste, ou.chantier).filter(d => d.id === corps.doc)[0];
+    const doc = carnetDocuments_(lu.liste, ou.chantier, ou.dossier).filter(d => d.id === corps.doc)[0];
     const page = doc && doc.pages[Number(corps.page) - 1];
     if (!page) return avecJeton_({ ok: false, code: 'CARNET_INCONNU', message: 'Ce document n’est plus au carnet : rouvrez la liste.' }, compte);
     const rendre = (images, reste, lus) => avecJeton_({ ok: true, code: 'OK', message: images.length + ' image(s)',
