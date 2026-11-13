@@ -44,7 +44,8 @@ Fais tous tes essais sur le chantier **« CHANTIER TEST AUTO »** de la copie TE
 | 6 | **La barre de saisie avec le clavier ouvert** (iPhone surtout) | La zone de texte et le bouton « Ajouter la note » restent visibles au-dessus du clavier. **C'est le point que je n'ai pas pu tester : dis-moi ce que tu vois** |
 | 7 | **Supprimer** une note, puis **🗑 Corbeille** → **Restaurer** | Elle disparaît, se retrouve dans la corbeille, puis revient |
 | 8 | **Exporter en PDF** | « PDF rangé dans le dossier du chantier ». Dans le Drive TEST, dossier du chantier → `05 - CHANTIER/COMPTE RENDU` : ouvre le PDF, vérifie le texte **et la photo** |
-| 9 | Retour à l'accueil → tuile **Notes de chantier** | Toutes les notes ; tape un mot dans « Chercher » : la liste se réduit |
+| 9 | Retour à l'accueil → tuile **Notes de chantier** | Toutes les notes ; tape un mot dans « Chercher » : la liste se réduit. **Tout marquer comme lu** remet à zéro le chiffre rouge de l'accueil |
+| 9 bis | Écris une note qui commence par un signe **+** (par exemple « +2 cales au R+1 ») | Elle s'affiche telle quelle dans l'appli, **sans apostrophe devant**. Si une apostrophe apparaît, dis-le-moi |
 | 10 | Avec un second téléphone (ou en te connectant avec un compte d'essai Poseur dont le chantier est coché) | Il voit tes notes avec la pastille « nouveau », peut cocher « Fait », mais n'a ni « Modifier » ni « Supprimer » sur **tes** notes, ni corbeille, ni PDF |
 | 11 | Sur Android (Chrome) : le bouton **🎤** de la zone de saisie | Il écrit ce que tu dis (il lui faut du réseau). Sur iPhone, ce bouton n'existe pas : c'est normal, le micro du clavier fait le travail |
 | 12 | Dans le Sheet TEST | Onglet *Notes* : une ligne par note. Onglet *Notes historique* : ta modification |

@@ -204,3 +204,19 @@ Un agent indépendant a relu ce plan contre le code réel, avant toute construct
 - **Rôle Atelier** : il lit et écrit les notes des chantiers cochés pour lui (la commande ne parlait que des poseurs et des conducteurs) : noté dans `DECISIONS.md`.
 - **Pas testé dans ce lot**, en plus du §10 : la barre de saisie avec le clavier d'un vrai iPhone.
 - Tests ajoutés : deux gestes en file sur la même note, compte désactivé, poseur « tous les chantiers », chantier inexistant, téléphone partagé, réseau lent.
+
+## 13. Ce que la relecture du code a fait changer (13/11/2026)
+
+Un agent indépendant a relu le code construit, et rejoué ses propres scénarios dans un vrai Chrome. Aucun point bloquant ; cinq importants, tous corrigés :
+
+- **Texte en cours de modification** : il était remis à l'ancien texte dès que la liste se rafraîchissait (un « Fait » confirmé sur une autre note, une photo qui arrive). La liste n'est plus redessinée pendant une modification.
+- **Téléphone partagé** : le geste resté en attente d'un autre compte bloquait sans fin mes gestes sur la même note. L'ordre des gestes est maintenant tenu par personne.
+- **Mention de conflit** : une seconde modification du même téléphone la faisait disparaître ; elle ne s'efface plus que par une modification faite en ayant vu la version actuelle.
+- **Réseau faible** : à l'ouverture, la liste gardée dans le téléphone et les notes en attente s'affichent tout de suite, sans attendre la réponse du serveur (jusqu'à 20 secondes avec une barre de réseau).
+- **Conducteurs** : bouton « Tout marquer comme lu » dans la vue « Tous chantiers » (sinon le chiffre rouge de l'accueil ne redescendait qu'en ouvrant chaque chantier).
+
+Et aussi : la liste et le PDF suivent la date des notes, pas l'ordre des lignes (Franck peut trier l'onglet) ; bouton « Galerie » pour les photos ; la saisie en cours survit à une déconnexion ; une note déjà arrivée quitte la file même si une autre personne s'est connectée entre-temps ; un double appui ne fait pas deux gestes ; messages propres aux notes ; un test prouve maintenant que deux gestes ne partent jamais dans le désordre (il échoue si on retire la protection).
+
+**Laissé tel quel, assumé** : un « Fait » peut encore être coché sur une note qui vient d'être supprimée (sans effet visible) ; la corbeille se consulte chantier par chantier ; pas de lien vers le PDF depuis l'appli (il est dans le dossier du chantier) ; chaque geste coûte deux à trois appels au serveur.
+
+**À vérifier à l'essai réel** (le faux serveur ne le montre pas) : une note qui commence par « + », « = », « - » ou « @ » (l'apostrophe de protection ne doit pas s'afficher dans l'appli) ; le PDF avec 12 photos ; la barre de saisie avec le clavier ouvert.

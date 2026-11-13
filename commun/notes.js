@@ -17,7 +17,6 @@
 
   function moi() { var c = LOUE.compte && LOUE.compte(); return c ? c.profil.id : ''; }
   function cleChantier(nom) { return String(nom || '').trim().toLowerCase(); }
-  N.cleChantier = cleChantier;
 
   // ── Base à part : un seul magasin « cache », entrées { cle, compte, sorte, date, valeur } ──
   var basePromesse = null;
@@ -66,12 +65,18 @@
     if (!id) return Promise.resolve();
     return magasin('readwrite', function (s) { return s.delete(id + '|' + cle); }).catch(function () {});
   }
-  // Efface tout ce qui n'appartient pas au compte connecté (tout, si personne n'est connecté)
+  // Efface les listes et les photos gardées qui n'appartiennent pas au compte connecté (toutes, si personne n'est connecté).
+  // Une saisie en cours n'est JAMAIS effacée ici : comme un brouillon de fiche, elle attend le retour de son auteur
+  // (elle n'est rendue qu'à lui).
   N.nettoyerTelephone = function () {
     var id = moi();
     return magasin('readwrite', function (s) {
       var req = s.openCursor();
-      req.onsuccess = function () { var c = req.result; if (!c) return; if (!id || c.value.compte !== id) c.delete(); c.continue(); };
+      req.onsuccess = function () {
+        var c = req.result; if (!c) return;
+        if (c.value.sorte !== 'saisie' && (!id || c.value.compte !== id)) c.delete();
+        c.continue();
+      };
     }).catch(function () {});
   };
   // Pas plus de 60 photos gardées : les plus anciennes sont retirées
@@ -115,6 +120,7 @@
       if (simple && qui === moi()) ecrireEntree(cle, 'liste', d);
       return { donnees: d, date: Date.now(), depuisLeTelephone: false };
     }, function (err) {
+      if (err && err.code === 'INTERDIT' && simple) effacerEntree(cle);   // accès retiré : la liste gardée ne doit plus se lire hors réseau
       if (err && (err.connexion || err.serveur) || !simple) throw err;
       return lireEntree(cle).then(function (e) {   // pas de réseau : la dernière liste de CE compte
         if (e && e.valeur) return { donnees: e.valeur, date: e.date, depuisLeTelephone: true };
@@ -122,9 +128,14 @@
       });
     });
   };
+  // La dernière liste gardée dans le téléphone pour ce chantier (ou null) : affichée tout de suite, avant la réponse du serveur
+  N.gardee = function (chantier) {
+    return lireEntree('liste|' + cleChantier(chantier)).then(function (e) { return e && e.valeur ? { donnees: e.valeur, date: e.date, depuisLeTelephone: true } : null; });
+  };
   // Après l'affichage : « j'ai vu les notes de ce chantier jusqu'à telle heure du serveur ». Un échec est sans gravité.
-  N.vues = function (chantier, jusqua) {
-    return appel({ action: 'notesVues', chantier: chantier, jusqua: jusqua }, 15000, '').catch(function () { return null; });
+  // chantier vide + tous = vrai : tous les chantiers (vue « Tous chantiers » des conducteurs).
+  N.vues = function (chantier, jusqua, tous) {
+    return appel({ action: 'notesVues', chantier: chantier || '', jusqua: jusqua, tous: !!tous }, 15000, '').then(function () { return true; }, function () { return false; });
   };
   // Badges : { parChantier: { nom: n }, total }
   N.nouvelles = function () { return appel({ action: 'notesNouvelles' }, 15000, 'Indisponible'); };
@@ -132,14 +143,14 @@
   N.exporter = function (chantier) { return appel({ action: 'notesPdf', chantier: chantier }, 120000, 'Export impossible'); };
   // Photo d'une note → adresse locale de l'image. Chargée à la demande (90 s : une barre de réseau), puis gardée.
   N.photo = function (id, rang) {
-    var cle = 'photo|' + id + '|' + rang;
+    var cle = 'photo|' + id + '|' + rang, qui = moi();
     return lireEntree(cle).then(function (e) {
       if (e && e.valeur) return URL.createObjectURL(e.valeur);
       return appel({ action: 'notePhoto', note: id, rang: rang }, 90000, 'Photo indisponible').then(function (d) {
         var binaire = atob(d.data), octets = new Uint8Array(binaire.length);
         for (var i = 0; i < binaire.length; i++) octets[i] = binaire.charCodeAt(i);
         var blob = new Blob([octets], { type: /^image\/(jpeg|png|webp)$/.test(d.mime) ? d.mime : 'image/jpeg' });
-        ecrireEntree(cle, 'photo', blob).then(limiterPhotos);
+        if (qui === moi()) ecrireEntree(cle, 'photo', blob).then(limiterPhotos);   // gardée seulement si c'est toujours le même compte
         return URL.createObjectURL(blob);
       });
     });

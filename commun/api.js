@@ -388,7 +388,7 @@
       var seriesBloquees = {};
       liste.forEach(function (ancien) {
         var el = ancien;
-        var serie = el.type === 'note-action' && el.donnees ? String(el.donnees.note || '') : '';
+        var serie = el.type === 'note-action' && el.donnees ? (el.saisiPar || '') + '|' + String(el.donnees.note || '') : '';
         if (el.etat === 'erreur') return;                                   // attend une action de la personne
         if (el.env && el.env !== CONFIG.env) return;                        // fiche d'un autre mode (test / production)
         if (!force(el) && el.prochainEssai && Date.now() < el.prochainEssai) { if (serie) seriesBloquees[serie] = true; return; }

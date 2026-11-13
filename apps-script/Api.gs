@@ -405,13 +405,14 @@ function recevoirFiche_(corps, compte) {
   // Lot 3 : notes de chantier. Tout est contrôlé ICI, avant de réserver un numéro : aucun nouvel essai inutile, aucune alerte.
   const estNote = /^note-/.test(String(donnees.type));
   if (estNote) {
-    // Téléphone partagé : une note rangée par X ne part jamais sous le nom de Y (elle attend que X se reconnecte)
-    if (compte && saisiPar && saisiPar !== compte.id) return { ok: false, code: 'COMPTE_REFUSE',
-      message: 'En attente : cette note a été écrite par « ' + saisiPar + ' ». Elle partira quand cette personne se reconnectera sur ce téléphone.' };
     // Renvoi après une réponse perdue : déjà enregistrée → on le dit, sans recontrôler des droits qui ont pu changer
+    // (ni qui tient le téléphone : la note est arrivée, elle doit quitter la file)
     const shEnvois = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_ENVOIS);
     const deja = shEnvois ? chercherEnvoi_(shEnvois, corps.id) : 0;
     if (deja && String(shEnvois.getRange(deja, 5).getValue()).indexOf('traité') === 0) return { ok: true, code: 'DEJA_RECU', message: 'Déjà enregistré', data: { id: corps.id, note: true } };
+    // Téléphone partagé : une note rangée par X ne part jamais sous le nom de Y (elle attend que X se reconnecte)
+    if (compte && saisiPar && saisiPar !== compte.id) return { ok: false, code: 'COMPTE_REFUSE',
+      message: 'En attente : cette note a été écrite par « ' + saisiPar + ' ». Elle partira quand cette personne se reconnectera sur ce téléphone.' };
     const refusNote = refusNote_(donnees, compte);
     if (refusNote) return { ok: false, code: refusNote.code, message: refusNote.message };
   }

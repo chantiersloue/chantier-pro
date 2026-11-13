@@ -69,11 +69,13 @@ const NOTE_HISTO_TEXTE = [1, 4, 5, 6, 7];
 function feuilleNotesHisto_() { return noteFeuille_(SHEET_NOTES_HISTO, NOTE_HISTO_ENTETES, NOTE_HISTO_TEXTE); }
 function feuilleNotesVues_() { return noteFeuille_(SHEET_NOTES_VUES, NOTE_VUES_ENTETES, [1, 2]); }
 
-// Toutes les lignes de l'onglet Notes (sans les titres) ; [] si l'onglet n'existe pas encore
+// Toutes les lignes de l'onglet Notes (sans les titres), de la plus ancienne à la plus récente d'après « Créée le »
+// (jamais d'après leur position : Franck peut trier l'onglet) ; [] si l'onglet n'existe pas encore
 function lignesNotes_() {
   const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NOTES);
   const derniere = sh ? sh.getLastRow() : 0;
-  return derniere > 1 ? sh.getRange(2, 1, derniere - 1, NOTE_ENTETES.length).getValues() : [];
+  const lignes = derniere > 1 ? sh.getRange(2, 1, derniere - 1, NOTE_ENTETES.length).getValues() : [];
+  return lignes.map((r, i) => ({ r: r, i: i, t: noteMs_(r[COL_N.cree - 1]) })).sort((a, b) => (a.t - b.t) || (a.i - b.i)).map(x => x.r);
 }
 // Ligne d'une note d'après son numéro (colonne A), ou 0. Jamais par position : Franck peut trier l'onglet.
 function chercherNote_(sh, id) {
@@ -221,7 +223,11 @@ function traiterNoteAction(data, brut, contexte) {
       histo([brut.note, maintenant, version, ancien, dernierNom, nom, conflit ? 'modification en même temps' : 'modification']);
       ecrire(COL_N.texte, [texte]);
       ecrire(COL_N.modifPar, [nom, maintenant]);
-      ecrire(COL_N.version, [version + 1, conflit ? 'modifiée en même temps par ' + dernierNom : '']);
+      // La mention de conflit ne s'efface que quand quelqu'un modifie EN AYANT VU la version actuelle (base = version) :
+      // une 2e modification du même téléphone, écrite hors réseau sur l'ancienne base, ne la fait pas disparaître
+      const remarque = conflit ? 'modifiée en même temps par ' + dernierNom
+        : (brut.base != null && Number(brut.base) === version ? '' : String(r[COL_N.remarque - 1] || ''));
+      ecrire(COL_N.version, [version + 1, remarque]);
       ecrire(COL_N.texteLe, [maintenant, compte.id]);
     } else if (geste === 'fait') {
       if (String(r[COL_N.fait - 1] || '') !== 'Oui') ecrire(COL_N.fait, ['Oui', nom, maintenant]);
@@ -248,10 +254,20 @@ function notesVues_(id) {
 }
 // Action « notesVues » { chantier, jusqua } : envoyée par la page APRÈS l'affichage de la liste, avec l'heure du serveur
 // de cette liste (jamais celle du téléphone). La visite ne recule jamais et ne dépasse jamais l'heure du serveur.
+// Avec { tous: true } (conducteurs et admin, depuis la vue « Tous chantiers ») : tous les chantiers qui ont des notes.
 function marquerNotesVues_(compte, corps) {
   const REFUS = { ok: false, code: 'INTERDIT', message: 'Ce chantier ne fait pas partie de vos chantiers : voyez avec le bureau.' };
-  const chantier = noteChantierConnu_(typeof corps.chantier === 'string' ? corps.chantier.trim().slice(0, NOTE_MAX_CHANTIER) : '');
-  if (!chantier || !notePeutLire_(compte, chantier)) return avecJeton_(REFUS, compte);
+  let chantiers;
+  if (corps.tous === true) {
+    if (!noteChef_(compte)) return avecJeton_(REFUS, compte);
+    const vus = {};
+    lignesNotes_().forEach(r => { const n = String(r[COL_N.chantier - 1] || '').trim(); if (n && String(r[COL_N.id - 1] || '')) vus[cleChantier_(n)] = n; });
+    chantiers = Object.keys(vus).map(k => vus[k]);
+  } else {
+    const chantier = noteChantierConnu_(typeof corps.chantier === 'string' ? corps.chantier.trim().slice(0, NOTE_MAX_CHANTIER) : '');
+    if (!chantier || !notePeutLire_(compte, chantier)) return avecJeton_(REFUS, compte);
+    chantiers = [chantier];
+  }
   const maintenant = Date.now();
   const jusqua = typeof corps.jusqua === 'number' && isFinite(corps.jusqua) && corps.jusqua > 0 ? Math.min(corps.jusqua, maintenant) : maintenant;
   const verrou = LockService.getScriptLock();
@@ -259,14 +275,14 @@ function marquerNotesVues_(compte, corps) {
   try {
     const sh = feuilleNotesVues_(), derniere = sh.getLastRow();
     const lignes = derniere > 1 ? sh.getRange(2, 1, derniere - 1, 3).getValues() : [];
-    let trouve = false;
-    for (let i = 0; i < lignes.length; i++) {
-      if (String(lignes[i][0]) !== compte.id || cleChantier_(lignes[i][1]) !== cleChantier_(chantier)) continue;
-      trouve = true;
-      if (noteMs_(lignes[i][2]) < jusqua) sh.getRange(i + 2, 3).setValue(new Date(jusqua));
-      break;
-    }
-    if (!trouve) noteAjouterLigne_(sh, [compte.id, chantier, new Date(jusqua)], [1, 2]);
+    chantiers.forEach(chantier => {
+      for (let i = 0; i < lignes.length; i++) {
+        if (String(lignes[i][0]) !== compte.id || cleChantier_(lignes[i][1]) !== cleChantier_(chantier)) continue;
+        if (noteMs_(lignes[i][2]) < jusqua) sh.getRange(i + 2, 3).setValue(new Date(jusqua));
+        return;
+      }
+      noteAjouterLigne_(sh, [compte.id, chantier, new Date(jusqua)], [1, 2]);
+    });
   } finally { verrou.releaseLock(); }
   return avecJeton_({ ok: true, code: 'OK', message: 'Visite notée' }, compte);
 }
@@ -324,7 +340,7 @@ function listerNotes_(compte, corps) {
     res.push(noteObjet_(r, compte, vues));
   }
   return avecJeton_({ ok: true, code: 'OK', message: res.length + ' note(s)',
-    data: { notes: res, chantier: chantier, corbeille: corbeille, chef: chef, moi: compte.id, heure: heure, plein: res.length >= max } }, compte);
+    data: { notes: res, chantier: chantier, corbeille: corbeille, chef: chef, heure: heure, plein: res.length >= max } }, compte);
 }
 // Nombre de notes nouvelles par chantier visible (badges de l'accueil)
 function notesNouvelles_(compte) {

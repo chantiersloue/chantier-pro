@@ -9,8 +9,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Loué App">
 <meta name="theme-color" content="#1A2B4A">
-<link rel="stylesheet" href="commun/style.css?v=75471f72b1">
-<link rel="stylesheet" href="commun/fiche.css?v=75471f72b1">
+<link rel="stylesheet" href="commun/style.css?v=bffdf2bc81">
+<link rel="stylesheet" href="commun/fiche.css?v=bffdf2bc81">
 <style>
 [hidden]{display:none!important;}   /* un élément caché le reste, même s'il a une mise en forme « flex » */
 body.avec-saisie{padding-bottom:230px;}
@@ -76,6 +76,7 @@ body.avec-saisie{padding-bottom:230px;}
     <input class="meta-input" id="f-recherche" data-brouillon="non" type="search" maxlength="100" placeholder="Chercher dans les notes…" aria-label="Chercher dans les notes">
     <label for="f-nouveau"><input type="checkbox" id="f-nouveau" data-brouillon="non"> Nouvelles</label>
     <label for="f-nonfait"><input type="checkbox" id="f-nonfait" data-brouillon="non"> Non faites</label>
+    <button class="btn btn-secondary" type="button" id="btn-tout-lu" onclick="toutMarquerLu()">Tout marquer comme lu</button>
   </div>
 
   <div class="listes-info" id="info" role="status"></div>
@@ -93,8 +94,10 @@ body.avec-saisie{padding-bottom:230px;}
     <div class="saisie-photos" id="saisie-photos"></div>
     <textarea class="meta-input" id="saisie-texte" data-brouillon="non" maxlength="2000" placeholder="Nouvelle note… (le micro du clavier permet de dicter)" aria-label="Nouvelle note"></textarea>
     <input type="file" id="photo-cam" accept="image/*" capture="environment" hidden onchange="ajouterPhotos(this.files);this.value=''">
+    <input type="file" id="photo-galerie" accept="image/*" multiple hidden onchange="ajouterPhotos(this.files);this.value=''">
     <div class="saisie-ligne">
-      <button class="btn btn-secondary" type="button" id="btn-photo" onclick="document.getElementById('photo-cam').click()" aria-label="Ajouter une photo">📷</button>
+      <button class="btn btn-secondary" type="button" id="btn-photo" onclick="document.getElementById('photo-cam').click()" aria-label="Prendre une photo">📷</button>
+      <button class="btn btn-secondary" type="button" id="btn-galerie" onclick="document.getElementById('photo-galerie').click()" aria-label="Choisir une photo dans la galerie">🖼</button>
       <button class="btn btn-secondary" type="button" id="btn-dictee" onclick="dicter()" aria-label="Dicter la note" hidden>🎤</button>
       <button class="btn btn-green" type="button" id="btn-ajouter" onclick="ajouter()">Ajouter la note</button>
     </div>
@@ -102,12 +105,12 @@ body.avec-saisie{padding-bottom:230px;}
   </div>
 </div>
 
-<script src="commun/config.js?v=75471f72b1"></script>
-<script src="commun/api.js?v=75471f72b1"></script>
-<script src="commun/ui.js?v=75471f72b1"></script>
-<script src="commun/photos.js?v=75471f72b1"></script>
-<script src="commun/notes.js?v=75471f72b1"></script>
-<script src="commun/hors-ligne.js?v=75471f72b1"></script>
+<script src="commun/config.js?v=bffdf2bc81"></script>
+<script src="commun/api.js?v=bffdf2bc81"></script>
+<script src="commun/ui.js?v=bffdf2bc81"></script>
+<script src="commun/photos.js?v=bffdf2bc81"></script>
+<script src="commun/notes.js?v=bffdf2bc81"></script>
+<script src="commun/hors-ligne.js?v=bffdf2bc81"></script>
 <script>
 'use strict';
 // Notes de chantier (lot 3). Tout ce qui vient du serveur a été écrit par quelqu'un d'autre : il n'est JAMAIS inséré
@@ -123,6 +126,10 @@ let DU_TELEPHONE = false, DATE_LISTE = 0;
 let ATTENTE = [];        // notes et gestes de CE compte encore dans la file d'envoi, pour ce chantier
 let enCours = 0;         // numéro de la dernière demande : une réponse en retard n'écrase pas la plus récente
 let EDITION = '';        // numéro de la note en cours de modification
+let TEXTE_EDITION = '';  // ce qui est tapé dans la zone de modification (jamais écrasé par un rafraîchissement)
+let MESSAGE_LISTE = '';  // « liste indisponible… » : reste affiché tant que la liste n'est pas revenue
+let aRedessiner = false; // un rafraîchissement est arrivé pendant une modification : il sera appliqué après
+const DERNIER_GESTE = {}; // numéro de note → heure du dernier geste (un double appui ne fait pas deux gestes)
 let HISTO = {};          // numéro de note → anciennes versions déjà chargées
 let PHOTOS_VUES = {};    // « note|rang » → adresse locale de l'image
 let photos = [];         // photos de la saisie en cours : [{ id, blob, url }]
@@ -156,19 +163,18 @@ function notesAffichees() {
   const notes = ((DONNEES && DONNEES.notes) || []).map(n => Object.assign({}, n));
   const parId = {};
   notes.forEach(n => { parId[n.id] = n; });
-  const refus = [];
   ATTENTE.forEach(a => {
     const d = a.donnees || {}, enErreur = a.etat === 'erreur';
     if (a.type === 'note-chantier') {
       if (parId[a.id]) return;   // déjà arrivée (la file n'a pas encore été nettoyée)
       const n = { id: a.id, chantier: d.chantier, auteur: moiNom, cree: quand(a.cree), texte: d.texte || '', photos: (d.photos || []).length, fait: false,
-        version: 1, mien: true, peutModifier: false, enAttente: true, pasEncorePartie: true, refus: enErreur ? a.message : '' };
+        version: 1, mien: true, peutModifier: false, enAttente: !enErreur, pasEncorePartie: true, refus: enErreur ? a.message : '' };
       notes.unshift(n); parId[n.id] = n;
       return;
     }
     const n = parId[d.note];
-    if (!n) { if (enErreur) refus.push(a); return; }
-    if (enErreur) { n.refus = a.message; n.refusId = a.id; return; }
+    if (!n) return;
+    if (enErreur) { n.refus = a.message; return; }
     n.enAttente = true;
     if (d.geste === 'modifier') { n.texte = d.texte || ''; n.modifPar = moiNom; n.modifLe = quand(a.cree); }
     if (d.geste === 'fait') { n.fait = true; n.faitPar = moiNom; n.faitLe = quand(a.cree); }
@@ -187,6 +193,7 @@ function carte(n, corbeille) {
   tete.appendChild(el('span', '', n.cree || ''));
   if (n.nouveau) tete.appendChild(el('span', 'pastille rouge', 'nouveau'));
   if (n.enAttente) tete.appendChild(el('span', 'pastille orange', '⏳ en attente d’envoi'));
+  if (n.refus && n.pasEncorePartie) tete.appendChild(el('span', 'pastille rouge', '⚠ pas enregistrée'));
   if (n.mien && !n.pasEncorePartie) tete.appendChild(el('span', 'pastille gris', 'la mienne'));
   c.appendChild(tete);
   if (TOUS) {
@@ -198,11 +205,12 @@ function carte(n, corbeille) {
 
   if (EDITION === n.id && !corbeille) {
     const zone = el('textarea', 'meta-input note-edit');
-    zone.value = n.texte || ''; zone.maxLength = 2000; zone.dataset.brouillon = 'non'; zone.setAttribute('aria-label', 'Texte de la note');
+    zone.value = TEXTE_EDITION; zone.maxLength = 2000; zone.dataset.brouillon = 'non'; zone.setAttribute('aria-label', 'Texte de la note');
+    zone.addEventListener('input', () => { TEXTE_EDITION = zone.value; });
     c.appendChild(zone);
     const rangee = el('div', 'note-actions');
     rangee.appendChild(bouton('btn-green', 'Enregistrer', () => enregistrerModification(n, zone.value)));
-    rangee.appendChild(bouton('btn-secondary', 'Annuler', () => { EDITION = ''; afficher(); }));
+    rangee.appendChild(bouton('btn-secondary', 'Annuler', finEdition));
     c.appendChild(rangee);
     setTimeout(() => zone.focus(), 0);
     return c;
@@ -238,7 +246,7 @@ function carte(n, corbeille) {
     bFait.setAttribute('aria-pressed', n.fait ? 'true' : 'false');
     actions.appendChild(bFait);
     if (n.peutModifier) {
-      actions.appendChild(bouton('btn-secondary', 'Modifier', () => { EDITION = n.id; afficher(); }));
+      actions.appendChild(bouton('btn-secondary', 'Modifier', () => { EDITION = n.id; TEXTE_EDITION = n.texte || ''; afficher(); }));
       actions.appendChild(bouton('btn-secondary', 'Supprimer', () => {
         if (confirm('Supprimer cette note ? Elle ira à la corbeille : un conducteur pourra la restaurer.')) geste(n, 'supprimer', 'Note : suppression');
       }));
@@ -268,17 +276,23 @@ function blocHistorique(versions) {
 
 function afficher() {
   const liste = $('liste');
+  // Une modification est en cours : on ne redessine pas sous les doigts (le texte tapé et le curseur restent en place) ;
+  // ce qui est arrivé entre-temps sera affiché à « Enregistrer » ou « Annuler »
+  if (EDITION && liste.querySelector('.note-edit')) { aRedessiner = true; return; }
+  aRedessiner = false;
   const notes = notesAffichees();
   liste.textContent = '';
   entete();
-  $('info').textContent = DU_TELEPHONE
-    ? 'Pas de réseau : liste du ' + quand(DATE_LISTE) + ' gardée dans le téléphone. Vos notes et vos « Fait » sont gardés et partiront au retour du réseau.'
-    : (DONNEES && DONNEES.plein ? (TOUS ? 'Seules les 300 notes les plus récentes sont affichées : précisez avec les filtres.' : 'Seules les 200 notes les plus récentes sont affichées.') : '');
+  $('info').textContent = MESSAGE_LISTE || (DU_TELEPHONE
+    ? 'Liste du ' + quand(DATE_LISTE) + ' gardée dans le téléphone (pas de réseau, ou réponse pas encore arrivée). Vos notes et vos « Fait » sont gardés et partiront tout seuls.'
+    : (DONNEES && DONNEES.plein ? 'Seules les notes les plus récentes sont affichées' + (TOUS ? ' : précisez avec les filtres.' : '.') : ''));
   if (!notes.length) liste.appendChild(el('div', 'vide', TOUS ? 'Aucune note ne correspond.' : 'Aucune note pour ce chantier. Écrivez la première en bas de l’écran.'));
   notes.forEach(n => liste.appendChild(carte(n, false)));
   $('outils').hidden = TOUS || !(DONNEES && DONNEES.chef);
   if (TOUS) remplirFiltres();
 }
+// Fin d'une modification (enregistrée ou annulée) : la liste est redessinée avec ce qui est arrivé entre-temps
+function finEdition() { EDITION = ''; TEXTE_EDITION = ''; const z = $('liste').querySelector('.note-edit'); if (z) z.remove(); afficher(); }
 
 function pasDeCompte(texte) {
   $('liste').textContent = ''; $('info').textContent = '';
@@ -310,15 +324,26 @@ function charger() {
   if (!compte) { pasDeCompte('Connectez-vous pour voir les notes.'); return; }
   $('saisie').hidden = TOUS; document.body.classList.toggle('avec-saisie', !TOUS);
   $('filtres').hidden = !TOUS;
-  if (!DONNEES) $('info').textContent = 'Chargement…';
   $('btn-actualiser').disabled = true;
   const demande = TOUS ? filtresActuels() : { chantier: CHANTIER };
+  // Première ouverture : la liste gardée dans le téléphone et ce qui attend d'être envoyé s'affichent TOUT DE SUITE
+  // (avec une barre de réseau, la réponse du serveur peut mettre 20 secondes) ; la liste du serveur les remplace ensuite
+  if (!DONNEES) {
+    $('info').textContent = 'Chargement…';
+    if (!TOUS) Promise.all([LOUE.notes.gardee(CHANTIER), LOUE.notes.enAttente(CHANTIER)]).then(r => {
+      if (moi !== enCours || DONNEES) return;
+      if (!r[0] && !r[1].length) return;
+      DONNEES = (r[0] && r[0].donnees) || { notes: [] }; DU_TELEPHONE = true; DATE_LISTE = r[0] ? r[0].date : Date.now(); ATTENTE = r[1];
+      afficher();
+    });
+  }
   Promise.all([LOUE.notes.lire(demande), TOUS ? Promise.resolve([]) : LOUE.notes.enAttente(CHANTIER)]).then(r => {
     if (moi !== enCours) return;
-    DONNEES = r[0].donnees || { notes: [] }; DU_TELEPHONE = !!r[0].depuisLeTelephone; DATE_LISTE = r[0].date; ATTENTE = r[1];
+    DONNEES = r[0].donnees || { notes: [] }; DU_TELEPHONE = !!r[0].depuisLeTelephone; DATE_LISTE = r[0].date; ATTENTE = r[1]; MESSAGE_LISTE = '';
     afficher();
-    // « Vu » : seulement une liste venue du serveur, réellement affichée, page visible
-    if (!TOUS && !DU_TELEPHONE && !document.hidden && DONNEES.heure) LOUE.notes.vues(DONNEES.chantier || CHANTIER, DONNEES.heure);
+    if (!TOUS && !$('corbeille').hidden) chargerCorbeille();
+    // « Vu » : seulement une liste venue du serveur, réellement affichée, page visible, et qui montrait du nouveau
+    if (!TOUS && !DU_TELEPHONE && !document.hidden && DONNEES.heure && (DONNEES.notes || []).some(n => n.nouveau)) LOUE.notes.vues(DONNEES.chantier || CHANTIER, DONNEES.heure);
   }).catch(err => {
     if (moi !== enCours) return;
     if (err && err.connexion) { pasDeCompte('Session terminée : reconnectez-vous depuis l’accueil.'); return; }
@@ -326,17 +351,28 @@ function charger() {
     LOUE.notes.enAttente(CHANTIER).then(a => {
       if (moi !== enCours) return;
       DONNEES = DONNEES || { notes: [] }; ATTENTE = TOUS ? [] : a;
+      MESSAGE_LISTE = 'Liste indisponible : ' + String(LOUE.messageClair(err)).replace(/,? nouvel essai automatique/, '').replace(/[.\s]+$/, '')
+        + '.' + (TOUS ? '' : ' Vous pouvez quand même écrire une note : elle partira dès que possible.');
       afficher();
-      $('info').textContent = 'Liste indisponible : ' + LOUE.messageClair(err) + (TOUS ? '' : ' Vous pouvez quand même écrire une note : elle partira dès que possible.');
     });
   }).finally(() => { if (moi === enCours) $('btn-actualiser').disabled = false; });
+}
+// Vue « Tous chantiers » : le conducteur a tout lu → les chiffres rouges de l'accueil repartent de zéro
+function toutMarquerLu() {
+  const b = $('btn-tout-lu');
+  b.disabled = true;
+  LOUE.notes.vues('', DONNEES && DONNEES.heure, true).then(ok => {
+    b.disabled = false;
+    LOUE.message(ok ? '✓ Toutes les notes sont marquées comme lues.' : '⚠ Pas enregistré : réessayez quand il y aura du réseau.', 5000);
+    if (ok) charger();
+  });
 }
 
 // Ce qui attend dans le téléphone a changé (rangement, envoi, refus) : la liste est redessinée ; après un envoi, relue
 let relecture = null;
 function majAttente(relire) {
   if (TOUS || !LOUE.compte()) return;
-  LOUE.notes.enAttente(CHANTIER).then(a => { ATTENTE = a; if (!EDITION) afficher(); });
+  LOUE.notes.enAttente(CHANTIER).then(a => { ATTENTE = a; afficher(); });
   if (relire) { clearTimeout(relecture); relecture = setTimeout(charger, 700); }
 }
 LOUE.surEvenement(ev => {
@@ -349,8 +385,9 @@ LOUE.surEvenement(ev => {
 // ── Gestes : rangés dans la file d'envoi (ils partent dans l'ordre), affichés tout de suite ──
 let gesteEnCours = false;
 function geste(n, nom, libelle, extra) {
-  if (gesteEnCours) return Promise.resolve();
-  gesteEnCours = true;
+  // Un double appui (ou un second appui juste après le redessin) ne fait pas deux gestes
+  if (gesteEnCours || Date.now() - (DERNIER_GESTE[n.id] || 0) < 700) return Promise.resolve();
+  gesteEnCours = true; DERNIER_GESTE[n.id] = Date.now();
   const d = Object.assign({ chantier: (DONNEES && DONNEES.chantier) || CHANTIER, note: n.id, geste: nom }, extra || {});
   return LOUE.mettreEnFile('note-action', d, [], libelle).then(() => {
     LOUE.viderFile();
@@ -360,13 +397,14 @@ function geste(n, nom, libelle, extra) {
     LOUE.message('Envoi en cours… ne quittez pas la page', 6000);
     return LOUE.envoyerDirect('note-action', d, []).then(() => { LOUE.message('✓ ' + libelle + ' — enregistré', 3000); charger(); })
       .catch(err => LOUE.message('⚠ Pas enregistré : ' + LOUE.messageClair(err) + '. Réessayez quand il y aura du réseau.', 10000));
-  }).finally(() => { gesteEnCours = false; if (nom === 'restaurer' || nom === 'supprimer') setTimeout(() => { if (!$('corbeille').hidden) chargerCorbeille(); }, 1500); });
+  }).finally(() => { gesteEnCours = false; });   // la corbeille ouverte est relue quand le geste est arrivé (voir charger)
 }
 function enregistrerModification(n, texte) {
   const t = LOUE.notes.nettoyer(texte);
   if (!t && !n.photos) { LOUE.message('La note ne peut pas être vide. Pour l’enlever, touchez « Supprimer ».', 6000); return; }
-  EDITION = '';
-  if (t === (n.texte || '')) { afficher(); return; }
+  finEdition();
+  if (t === (n.texte || '')) return;
+  DERNIER_GESTE[n.id] = 0;
   geste(n, 'modifier', 'Note : modification', { texte: t, base: n.version || 1 });
 }
 
@@ -418,7 +456,7 @@ function afficherPhotosSaisie() {
     b.addEventListener('click', () => { URL.revokeObjectURL(photos[i].url); photos.splice(i, 1); afficherPhotosSaisie(); garderSaisie(); });
     d.appendChild(img); d.appendChild(b); z.appendChild(d);
   });
-  $('btn-photo').disabled = photos.length >= LOUE.notes.MAX_PHOTOS;
+  $('btn-photo').disabled = $('btn-galerie').disabled = photos.length >= LOUE.notes.MAX_PHOTOS;
 }
 async function ajouterPhotos(fichiers) {
   for (const f of Array.from(fichiers || [])) {
@@ -436,7 +474,10 @@ function garderSaisie() {
   minuteurSaisie = setTimeout(() => {
     const texte = $('saisie-texte').value;
     if (!texte.trim() && !photos.length) LOUE.notes.effacerSaisie(CHANTIER);
-    else LOUE.notes.ecrireSaisie(CHANTIER, { texte: texte, photos: photos.map(p => ({ id: p.id, blob: p.blob })) });
+    else LOUE.notes.ecrireSaisie(CHANTIER, { texte: texte, photos: photos.map(p => ({ id: p.id, blob: p.blob })) }).then(ok => {
+      // Le téléphone refuse de garder la saisie (navigation privée, mémoire pleine) : on le dit, une seule fois
+      if (!ok && !garderSaisie.prevenu) { garderSaisie.prevenu = true; $('saisie-info').textContent = '⚠ Le téléphone ne peut pas garder cette note en cours : touchez « Ajouter la note » avant de quitter la page.'; }
+    });
   }, 400);
 }
 function restaurerSaisie() {
@@ -490,8 +531,8 @@ async function ajouter() {
       charger();
     } catch (err2) {
       LOUE.message(err2.stockageBloque ? '⚠ La note n’est pas partie : ' + err2.message + '.'
-        : err2.aConfirmer ? LOUE.MSG_DIRECT_A_CONFIRMER
-        : err2.connexion ? LOUE.MSG_DIRECT_CONNEXION
+        : err2.aConfirmer ? '⏳ Pas encore confirmé par le bureau (la note est peut-être déjà arrivée). Touchez « Ajouter la note » de nouveau, SANS RIEN CHANGER : elle ne sera pas enregistrée deux fois.'
+        : err2.connexion ? '⚠ Note pas envoyée : il faut se connecter, et le téléphone n’a PAS pu la garder. Ne quittez pas cette page : touchez « Ajouter la note » de nouveau.'
         : '⚠ La note n’est pas partie : ' + err2.message + '. Gardez la page ouverte et réessayez quand il y aura du réseau.', err2.stockageBloque ? 0 : 12000);
     }
     finir();
@@ -535,8 +576,8 @@ if (TOUS) {
 // ── Démarrage ──
 LOUE.notes.nettoyerTelephone().then(() => { restaurerSaisie(); charger(); });
 // Au retour dans l'appli ou du réseau : la liste est rafraîchie (jamais pendant une modification en cours)
-document.addEventListener('visibilitychange', () => { if (!document.hidden && !EDITION) charger(); });
-window.addEventListener('online', () => { if (!EDITION) charger(); });
+document.addEventListener('visibilitychange', () => { if (!document.hidden) charger(); });
+window.addEventListener('online', charger);
 </script>
 </body>
 </html>

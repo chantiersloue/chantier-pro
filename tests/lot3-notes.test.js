@@ -171,6 +171,8 @@ test('compte désactivé : sa note en attente n’est pas acceptée (une fiche o
   const r = envoyer(g, 'thomas27', note());
   assert.deepStrictEqual([r.ok, r.code], [false, 'COMPTE_REFUSE'], JSON.stringify(r));
   assert.strictEqual(N(g).length, 0);
+  const q = envoyer(g, 'thomas27', { type: 'quitus', chantier: 'CHANTIER TEST 1', date: '12/11/2026', destinataires: [] });
+  assert.deepStrictEqual([q.ok, q.code], [true, 'ENREGISTRE'], 'la fiche ordinaire du même compte passe encore : ' + JSON.stringify(q));
 });
 test('téléphone partagé : une note rangée par Thomas ne part pas sous le nom de Lucas connecté ensuite', () => {
   const g = environnement(), id = idFiche();
@@ -180,6 +182,8 @@ test('téléphone partagé : une note rangée par Thomas ne part pas sous le nom
   assert.strictEqual(N(g).length, 0);
   assert.ok(envoyer(g, 'thomas27', note(), id, 'thomas27').ok, 'elle part quand Thomas se reconnecte');
   assert.strictEqual(N(g)[0][C.auteurId], 'thomas27');
+  // déjà arrivée, renvoyée depuis le téléphone où Lucas est maintenant connecté : « déjà reçu », elle quitte la file
+  assert.strictEqual(envoyer(g, 'lucas', note(), id, 'thomas27').code, 'DEJA_RECU');
 });
 
 console.log('Lot 3 — lire');
@@ -190,7 +194,7 @@ test('lecture d’un chantier : les plus récentes en haut, droits et marques pa
   assert.ok(r.ok, JSON.stringify(r));
   assert.deepStrictEqual(r.data.notes.map(n => n.id), [b, a]);
   assert.deepStrictEqual(r.data.notes.map(n => [n.auteur, n.mien, n.peutModifier, n.nouveau]), [['Sébastien', false, false, true], ['Thomas', false, false, true]]);
-  assert.deepStrictEqual([r.data.chantier, r.data.chef, r.data.moi, typeof r.data.heure], ['CHANTIER TEST 1', false, 'lucas', 'number']);
+  assert.deepStrictEqual([r.data.chantier, r.data.chef, typeof r.data.heure], ['CHANTIER TEST 1', false, 'number']);
   const t = lire(g, 'thomas27', { chantier: 'CHANTIER TEST 1' }).data.notes;
   assert.deepStrictEqual(t.map(n => [n.mien, n.peutModifier, n.nouveau]), [[false, false, true], [true, true, false]]);
   const s = lire(g, 'seb', { chantier: 'CHANTIER TEST 1' }).data;
@@ -252,6 +256,19 @@ test('lire ne marque rien ; « notesVues » envoyée après l’affichage efface
   assert.strictEqual(poster(g, { action: 'notesNouvelles', jeton: jeton(g, 'seb') }).data.total, 0);
   assert.strictEqual(poster(g, { action: 'notesVues', chantier: 'CHANTIER TEST 1', jeton: jeton(g, 'kevin') }).code, 'INTERDIT');
 });
+test('« tout marquer comme lu » (vue Tous chantiers) : conducteurs et admin seulement, tous les chantiers d’un coup', () => {
+  const g = environnement();
+  creer(g, 'thomas27'); creer(g, 'franck', { chantier: 'CHANTIER TEST 2' });
+  const nouvelles = () => poster(g, { action: 'notesNouvelles', jeton: jeton(g, 'seb') }).data.total;
+  assert.strictEqual(nouvelles(), 2);
+  assert.strictEqual(poster(g, { action: 'notesVues', tous: true, jeton: jeton(g, 'thomas27') }).code, 'INTERDIT');
+  assert.strictEqual(poster(g, { action: 'notesVues', tous: true, jeton: jeton(g, 'partout') }).code, 'INTERDIT');
+  assert.ok(poster(g, { action: 'notesVues', tous: true, jeton: jeton(g, 'seb') }).ok);
+  assert.strictEqual(nouvelles(), 0);
+  assert.deepStrictEqual(V(g).map(l => [l[0], l[1]]).sort(), [['seb', 'CHANTIER TEST 1'], ['seb', 'CHANTIER TEST 2']]);
+  assert.ok(poster(g, { action: 'notesVues', tous: true, jeton: jeton(g, 'seb') }).ok);
+  assert.strictEqual(V(g).length, 2, 'répété : pas de ligne en double');
+});
 test('une note modifiée par quelqu’un d’autre après ma visite redevient « nouvelle »', () => {
   const g = environnement();
   const id = creer(g, 'thomas27');
@@ -307,6 +324,14 @@ test('conflit : deux personnes modifient la même version ; la dernière reçue 
   assert.ok(envoyer(g, 'seb', geste(id, 'modifier', { texte: 'accord', base: 3 })).ok);
   assert.strictEqual(N(g)[0][C.remarque], '');
 });
+test('conflit puis 2e modification du même téléphone sur l’ancienne base : la mention de conflit reste', () => {
+  const g = environnement();
+  const id = creer(g, 'thomas27', { texte: 'origine' });
+  assert.ok(envoyer(g, 'seb', geste(id, 'modifier', { texte: 'version de Seb', base: 1 })).ok);
+  assert.ok(envoyer(g, 'thomas27', geste(id, 'modifier', { texte: 'Thomas 1', base: 1 })).ok);
+  assert.ok(envoyer(g, 'thomas27', geste(id, 'modifier', { texte: 'Thomas 2', base: 1 })).ok);
+  assert.deepStrictEqual([N(g)[0][C.texte], N(g)[0][C.remarque]], ['Thomas 2', 'modifiée en même temps par Sébastien']);
+});
 test('la même personne modifie deux fois hors réseau (même base) : pas de faux conflit', () => {
   const g = environnement();
   const id = creer(g, 'thomas27', { texte: 'a' });
@@ -347,6 +372,17 @@ test('geste invalide ou sur une note inconnue : refus définitif, même message 
   [{ geste: 'effacer' }, { note: 'x' }, { note: 12 }, { base: 0 }, { base: 1.5 }, { base: 'un' }].forEach(extra =>
     assert.strictEqual(envoyer(g, 'thomas27', Object.assign(geste(id, 'modifier', { texte: 'ok' }), extra)).code, 'DONNEES_INVALIDES', JSON.stringify(extra)));
 });
+test('Franck trie l’onglet : la liste et le PDF restent dans l’ordre des dates, jamais dans celui des lignes', () => {
+  const g = environnement();
+  const a = creer(g, 'seb', { texte: 'ANCIENNE' }), b = creer(g, 'seb', { texte: 'RECENTE' });
+  const f = g.feuilles['Notes'].lignes;
+  f[1][C.cree] = new Date(Date.now() - 60000);   // la première a une minute de plus
+  const x = f[1]; f[1] = f[2]; f[2] = x;          // onglet trié à l'envers
+  assert.deepStrictEqual(lire(g, 'seb', { chantier: 'CHANTIER TEST 1' }).data.notes.map(n => n.id), [b, a]);
+  const r = poster(g, { action: 'notesPdf', chantier: 'CHANTIER TEST 1', jeton: jeton(g, 'seb') });
+  const html = String(Object.values(g.elements).find(e => e.type === 'fichier' && e.nom === r.data.nom).contenu);
+  assert.ok(html.indexOf('ANCIENNE') > -1 && html.indexOf('ANCIENNE') < html.indexOf('RECENTE'));
+});
 test('Franck trie l’onglet : les gestes retrouvent la note par son numéro', () => {
   const g = environnement();
   const a = creer(g, 'thomas27', { texte: 'A' }), b = creer(g, 'thomas27', { texte: 'B' });
@@ -357,10 +393,7 @@ test('Franck trie l’onglet : les gestes retrouvent la note par son numéro', (
 test('serveur occupé pendant un geste : le téléphone réessaiera, et Franck ne reçoit PAS le mail « fiche non traitée »', () => {
   const g = environnement();
   const id = creer(g, 'thomas27'), idGeste = idFiche();
-  const vrai = g.ctx.noteLue_;
-  let appels = 0;
-  // le contrôle d'entrée passe (1er appel), puis le verrou est pris par quelqu'un d'autre
-  g.etat.verrouOccupe = false;
+  // le contrôle d'entrée passe, puis le verrou est pris par quelqu'un d'autre au moment d'écrire
   const service = g.contexte.LockService.getScriptLock;
   let n = 0;
   g.contexte.LockService.getScriptLock = () => { const v = service(); n++; return n === 2 ? Object.assign({}, v, { tryLock: () => false, releaseLock: () => {} }) : v; };
@@ -371,7 +404,6 @@ test('serveur occupé pendant un geste : le téléphone réessaiera, et Franck n
   assert.strictEqual(N(g)[0][C.fait], '');
   assert.ok(envoyer(g, 'lucas', geste(id, 'fait'), idGeste).ok, 'le nouvel essai passe');
   assert.strictEqual(N(g)[0][C.fait], 'Oui');
-  void vrai; void appels;
 });
 
 console.log('Lot 3 — photos, historique, PDF');

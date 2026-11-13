@@ -87,6 +87,9 @@ function scenario() {
   await clic('Marquer « Fait »'); await page.waitForTimeout(3000);
   r.fait = await etat();
   await clic('Modifier'); await page.waitForTimeout(500);
+  await page.fill('.note-edit', 'TEXTE EN COURS DE FRAPPE');
+  await page.evaluate(() => { charger(); majAttente(true); }); await page.waitForTimeout(3000);   // la liste est relue pendant la frappe
+  r.frappe = await page.evaluate(() => (document.querySelector('.note-edit') || {}).value || '(zone disparue)');
   await page.fill('.note-edit', 'Cales de 8'); await clic('Enregistrer'); await page.waitForTimeout(3500);
   r.modifiee = await etat();
   // 6. deux gestes HORS RÉSEAU sur la même note (annuler « Fait », puis « Fait ») : ils partent dans l'ordre
@@ -101,6 +104,19 @@ function scenario() {
   await ctx.setOffline(false);
   await page.evaluate(() => LOUE.viderFile(true)); await attendreFileVide(); await page.waitForTimeout(2500);
   r.apresDeuxGestes = (await serveur()).notes.slice(1).map(l => [l[5], l[7]]);
+  // 7 bis. AVEC du réseau : le serveur refuse passagèrement (panne), deux gestes attendent ; le plus ancien est reporté d'une heure,
+  //        le plus récent est prêt : il ne doit PAS partir avant l'autre
+  await reglage('panne');
+  await clic('✓ Fait'); await page.waitForTimeout(2000);
+  await clic('Marquer « Fait »'); await page.waitForTimeout(2000);
+  await page.evaluate(async () => { const l = (await LOUE.stockage.tout('file')).sort((a, b) => a.cree - b.cree);
+    l.forEach((e, i) => { e.prochainEssai = i ? 0 : Date.now() + 3600000; e.attenteReseau = false; e.aConfirmer = false; e.message = 'Serveur occupé'; });
+    for (const e of l) await LOUE.stockage.ecrire('file', e); });
+  await reglage('normal');
+  await page.evaluate(() => LOUE.viderFile()); await page.waitForTimeout(3000);
+  r.ordreRetenu = { file: await file(), serveur: (await serveur()).notes.slice(1).map(l => l[7]) };
+  await page.evaluate(() => LOUE.viderFile(true)); await attendreFileVide(); await page.waitForTimeout(2000);
+  r.ordreRetenu.apres = (await serveur()).notes.slice(1).map(l => l[7]);
   // 8. réseau lent (6 s par réponse) : la page reste utilisable, puis la liste arrive
   await reglage('lent');
   await page.reload(); await page.waitForTimeout(1500);
@@ -127,6 +143,18 @@ function scenario() {
   r.apresRetour = (await serveur()).notes.slice(1).map(l => [l[2], l[5]]);
 
   // 10. conducteur : tout modifiable, suppression, corbeille, restauration, export PDF
+  // 9 bis. poseur1 laisse un geste en attente sur une note ; poseur2 fait un geste sur la MÊME note : le sien part
+  await ctx.setOffline(true);
+  await page.goto(NOTES); await page.waitForTimeout(2500);
+  await clic('✓ Fait'); await page.waitForTimeout(1200);          // poseur1 annule « Fait » sur « Cales de 8 », hors réseau
+  await ctx.setOffline(false);
+  await connecter('poseur2'); await page.waitForTimeout(3000);
+  await page.reload(); await page.waitForTimeout(3000);
+  await page.evaluate(() => { const c = Array.from(document.querySelectorAll('#liste .note')).find(x => x.textContent.indexOf('NOTE EN ATTENTE') > -1); c.querySelector('.btn-fait').click(); });
+  await page.waitForTimeout(4000);
+  r.partage = { fait: (await serveur()).notes.slice(1).map(l => [l[5], l[7]]), file: await file() };
+  await connecter('poseur1'); await attendreFileVide(); await page.waitForTimeout(1500);
+  r.partage.apres = (await serveur()).notes.slice(1).map(l => [l[5], l[7]]);
   r.connexion3 = await connecter('conducteur1');
   await page.goto(NOTES); await page.waitForTimeout(3000);
   r.conducteur = await etat();
@@ -146,12 +174,19 @@ function scenario() {
   r.tous = await etat();
   await page.fill('#f-recherche', 'cales'); await page.waitForTimeout(2500);
   r.recherche = await etat();
+  // « tout marquer comme lu » : le chiffre rouge de l'accueil du conducteur repart de zéro
+  await page.evaluate(() => toutMarquerLu()); await page.waitForTimeout(3000);
+  r.toutLu = await page.evaluate(() => LOUE.notes.nouvelles().then(d => d.total));
   await connecter('poseur1'); await page.reload(); await page.waitForTimeout(3000);
   r.tousPoseur = await etat();
+  // une note de plus, écrite par poseur1 après la dernière visite de poseur2 (pour le chiffre rouge de l'accueil)
+  await page.goto(NOTES); await page.waitForTimeout(2500);
+  await page.fill('#saisie-texte', 'Note pour le badge'); await page.evaluate(() => ajouter()); await attendreFileVide(); await page.waitForTimeout(1500);
 
   // 12. accueil : badge « notes nouvelles » pour poseur2 (les notes de poseur1 arrivées depuis sa visite)
+  await page.goto(BASE + 'index.html?' + q); await page.waitForTimeout(1500);   // depuis l'accueil : se connecter sur la page des notes les marquerait « vues »
   await connecter('poseur2');
-  await page.goto(BASE + 'index.html?' + q); await page.waitForTimeout(4000);
+  await page.reload(); await page.waitForTimeout(4000);
   r.badge = await page.evaluate(() => ({ carte: (document.querySelector('.chantier-card .badge-notes') || {}).textContent || '',
     tuileConducteur: document.getElementById('tuile-notes-accueil').hidden }));
   await page.evaluate(() => { const c = document.querySelector('.chantier-card'); if (c) c.click(); }); await page.waitForTimeout(800);
@@ -201,24 +236,31 @@ setTimeout(() => {
       && r.envoyee.premier.indexOf('<b>gras</b> <img src=x onerror=') > -1 && r.envoyee.largeur === true, j(r.envoyee));
     verifier('la photo de la note se charge à la demande', r.photo === 1, j(r.photo));
     verifier('« Fait » : la note est marquée, avec le nom', r.fait.faites === 1 && /Fait par Thomas TEST/.test(r.fait.pied), j(r.fait));
+    verifier('une modification en cours de frappe n’est pas écrasée quand la liste est relue', r.frappe === 'TEXTE EN COURS DE FRAPPE', j(r.frappe));
     verifier('modification par l’auteur : nouveau texte, « Modifiée par »', r.modifiee.premier === 'Cales de 8' && /Modifiée par Thomas TEST/.test(r.modifiee.pied), j(r.modifiee));
     verifier('deux gestes hors réseau sur la même note : affichés tout de suite, deux éléments en file', r.defaitHorsReseau.faites === 0 && r.defaitHorsReseau.attente === 1 && r.deuxGestes === 2, j([r.defaitHorsReseau, r.deuxGestes]));
-    verifier('hors réseau après rechargement : dernière liste avec sa date, gestes en attente appliqués', r.listeHorsReseau.cartes === 1 && /Pas de réseau : liste du/.test(r.listeHorsReseau.info)
+    verifier('le geste le plus ancien est retardé : le plus récent sur la même note attend son tour (rien ne part dans le désordre)',
+      r.ordreRetenu.file === 2 && j(r.ordreRetenu.serveur) === j(['Oui']) && j(r.ordreRetenu.apres) === j(['Oui']), j(r.ordreRetenu));
+    verifier('hors réseau après rechargement : dernière liste avec sa date, gestes en attente appliqués', r.listeHorsReseau.cartes === 1 && /Liste du .* gardée dans le téléphone/.test(r.listeHorsReseau.info)
       && r.listeHorsReseau.faites === 1 && r.listeHorsReseau.attente === 1, j(r.listeHorsReseau));
     verifier('… ils arrivent dans l’ordre : la note est « Fait » sur le serveur', j(r.apresDeuxGestes) === j([['Cales de 8', 'Oui']]), j(r.apresDeuxGestes));
-    verifier('réseau lent : la page reste utilisable pendant l’attente, puis la liste arrive', !r.lentAvant.saisieCachee && r.lentApres.cartes === 1, j([r.lentAvant, r.lentApres]));
+    verifier('réseau lent : la liste gardée s’affiche tout de suite, la saisie reste utilisable, puis la liste du serveur arrive',
+      !r.lentAvant.saisieCachee && r.lentAvant.cartes === 1 && /gardée dans le téléphone/.test(r.lentAvant.info) && r.lentApres.cartes === 1 && r.lentApres.info === '', j([r.lentAvant, r.lentApres]));
     verifier('téléphone partagé : le second poseur ne voit ni la note en attente ni la saisie du premier', r.connexion2 === 'CONNECTE' && r.poseur2.cartes === 1 && r.poseur2.attente === 0
       && r.poseur2.saisie === '' && r.poseur2.texte.indexOf('POSEUR1') < 0 && r.poseur2.modifier === 0, j(r.poseur2));
     verifier('… la note du premier est marquée « nouveau » à sa première visite, plus à la suivante', r.poseur2Premier.nouveau === 1 && r.poseur2.nouveau === 0, j([r.poseur2Premier, r.poseur2]));
     verifier('… la note en attente du premier ne part pas sous le nom du second (elle reste dans le téléphone)', r.poseur2.file === 1 && j(r.serveurPoseur2) === j(['Cales de 8']), j([r.poseur2.file, r.serveurPoseur2]));
     verifier('… hors réseau non plus', r.poseur2HorsReseau.texte.indexOf('POSEUR1') < 0 && r.poseur2HorsReseau.saisie === '' && r.poseur2HorsReseau.attente === 0, j(r.poseur2HorsReseau));
     verifier('… elle part quand le premier se reconnecte, sous SON nom', r.connexion1 === 'CONNECTE' && j(r.apresRetour) === j([['poseur1', 'Cales de 8'], ['poseur1', 'NOTE EN ATTENTE DE POSEUR1']]), j(r.apresRetour));
+    verifier('téléphone partagé : le geste resté en attente d’un autre compte ne bloque pas le mien sur la même note', r.partage.file === 1
+      && j(r.partage.fait) === j([['Cales de 8', 'Oui'], ['NOTE EN ATTENTE DE POSEUR1', 'Oui']]) && j(r.partage.apres) === j([['Cales de 8', ''], ['NOTE EN ATTENTE DE POSEUR1', 'Oui']]), j(r.partage));
     verifier('conducteur : peut modifier toutes les notes, outils « Corbeille » et « PDF » visibles', r.connexion3 === 'CONNECTE' && r.conducteur.cartes === 2 && r.conducteur.modifier === 2 && r.conducteur.outils === true, j(r.conducteur));
     verifier('suppression : la note quitte la liste et se retrouve dans la corbeille', r.apresSuppression.cartes === 1 && r.corbeille.cartes === 1 && /Supprimée par Sébastien TEST/.test(r.corbeille.texte), j([r.apresSuppression, r.corbeille]));
     verifier('restauration : la note revient dans la liste', r.apresRestauration.cartes === 2, j(r.apresRestauration));
     verifier('export PDF : message « PDF rangé dans le dossier du chantier »', /PDF rangé dans le dossier du chantier : NOTES DE CHANTIER/.test(r.pdf), r.pdf);
     verifier('vue « Tous chantiers » (conducteur) : filtres visibles, pas de saisie ; la recherche est faite par le serveur', r.tous.cartes === 2 && r.tous.filtres === true && r.tous.saisieCachee === true
       && r.recherche.cartes === 1 && /Cales de 8/.test(r.recherche.texte), j([r.tous, r.recherche]));
+    verifier('« Tout marquer comme lu » remet à zéro les notes nouvelles du conducteur', r.toutLu === 0, j(r.toutLu));
     verifier('vue « Tous chantiers » refusée à un poseur', r.tousPoseur.cartes === 0 && /réservée aux conducteurs/.test(r.tousPoseur.info), j(r.tousPoseur));
     verifier('accueil : badge de notes nouvelles sur le chantier et sur la tuile « Notes » ; pas de tuile « tous chantiers » pour un poseur',
       r.badge.carte === '1' && r.badge.tuile.visible === true && r.badge.tuile.badge === '1' && r.badge.tuileConducteur === true, j(r.badge));

@@ -71,7 +71,7 @@ Touche **Signalements** (dans un chantier : ceux du chantier ; à l'accueil : to
 Le pense-bête de l'équipe : ce qu'il ne faut pas oublier sur ce chantier. Tout le monde sur le chantier le voit.
 
 1. Ouvre ton chantier → **Notes**.
-2. Écris en bas de l'écran (ou dicte avec le micro du clavier). Le bouton 📷 ajoute une photo (3 au plus).
+2. Écris en bas de l'écran (ou dicte avec le micro du clavier). Le bouton 📷 prend une photo, le bouton 🖼 en choisit une dans la galerie (3 au plus).
 3. Touche **Ajouter la note**. Elle apparaît tout de suite en haut de la liste.
 
 - **Pas de réseau ?** La note est gardée dans le téléphone (« ⏳ en attente d'envoi ») et part toute seule quand le réseau revient.
