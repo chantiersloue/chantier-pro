@@ -222,3 +222,56 @@ Et aussi : la liste et le PDF suivent la date des notes, pas l'ordre des lignes 
 **À vérifier à l'essai réel** (le faux serveur ne le montre pas) : une note qui commence par « + », « = », « - » ou « @ » (l'apostrophe de protection ne doit pas s'afficher dans l'appli) ; le PDF avec 12 photos ; la barre de saisie avec le clavier ouvert.
 
 **Second tour de relecture (13/11/2026)** : aucun bloquant. Corrigé : une note ou un « Fait » ajouté pendant que la liste arrivait pouvait disparaître de l'écran quelques instants (rien n'était perdu, mais on pouvait croire le contraire) ; pendant une modification, la page dit maintenant pourquoi le reste attend et les autres boutons sont inactifs ; une note renvoyée « sans rien changer » en envoi direct garde son heure, donc son numéro (jamais deux fois la même) ; « Tout marquer comme lu » écrit ses lignes en une fois. Verdict du relecteur : prêt pour les essais réels sur la copie TEST. **Laissé tel quel** : l'indicateur d'envoi du haut de l'écran parle de « fiche(s) » aussi pour les notes.
+
+---
+
+## 14. Simplification demandée par Franck (13/11/2026) : une liste « façon Google Keep » — ce chapitre remplace tout ce qui précède
+
+Après ses essais sur téléphone (tous bons sauf le PDF, introuvable dans le Drive), Franck demande plus simple.
+
+### La commande de Franck
+1. Chaque élément = **une ligne de texte avec une case à cocher**. On ajoute un élément en tapant (dictée au micro du clavier possible).
+2. **Modification libre du texte par toute personne qui a accès au chantier** (poseurs compris).
+3. **Pas de suppression.** Un élément coché quitte la liste et passe dans une section repliée **« Éléments terminés »** (avec leur nombre), d'où on peut le décocher.
+4. À l'écran : **ni auteur, ni date, ni photo, ni export PDF, ni corbeille, ni historique**. Le Sheet garde quand même qui a fait quoi et quand (onglet d'historique), invisible dans l'appli.
+5. On garde : le hors réseau, la saisie en cours gardée, la pastille « nouveau » sur l'accueil, la vue « Tous chantiers » sur PC avec la recherche.
+
+### Ce qui est retiré du code (règle 4 de CLAUDE.md : pas de code orphelin)
+Photos des notes (envoi, rangement dans Drive, action `notePhoto`, photos gardées dans le téléphone), export PDF (action `notesPdf`, modèle `modeles/notes-chantier.js`, clés `notes-photos` et `notes-chantier` de `dossiers.json`), corbeille et restauration (gestes `supprimer` et `restaurer`), historique visible (action `noteHistorique`), mention « modifiée en même temps », version du texte et sa « base », droits propres à l'auteur, auteur et dates dans les réponses du serveur, bouton de dictée 🎤, filtre par auteur.
+
+### Ce qui reste, simplifié
+- **Écriture** : toujours par la file d'attente du téléphone. Deux types de fiche : `note-chantier` (un nouvel élément : chantier, texte) et `note-action` (geste `modifier`, `fait` ou `defaire`). Les gestes sur un même élément partent toujours dans l'ordre. Un compte en règle est toujours exigé (ni sans compte, ni compte désactivé, ni téléphone partagé).
+- **Droits** : lire, ajouter, modifier, cocher, décocher = toute personne qui a accès au chantier. Vue « Tous chantiers » = conducteurs et admin.
+- **Texte** : une seule ligne, 500 caractères au plus ; un retour à la ligne collé devient une espace ; un texte vide est refusé (on ne supprime pas : on coche).
+- **Deux personnes modifient le même élément** : la dernière modification reçue par le serveur l'emporte, sans rien afficher ; les deux textes sont dans l'historique du Sheet.
+- **Lecture** `notes { chantier }` : les éléments à faire (300 au plus, le plus récent en haut) et les éléments terminés (les 100 derniers cochés) ; pour chacun : numéro, texte, fait, nouveau. Rien d'autre.
+- **« Nouveau »** : un élément à faire dont le texte a été écrit ou modifié par quelqu'un d'autre depuis ma dernière visite du chantier. Chiffre rouge sur l'accueil, point rouge dans la liste.
+- **Vue « Tous chantiers »** (conducteurs, admin) : filtres chantier, « nouveaux », « avec les terminés », recherche dans le texte, « Tout marquer comme lu ». On y coche et on y modifie comme dans un chantier.
+
+### Données (Sheet) — nouvelles colonnes
+Le lot 3 n'a jamais été en production : les onglets changent de forme sans migration. Sur la copie TEST, les onglets de la première version sont renommés « … (ancienne version) » par un geste de la porte de service (code absent de la production).
+
+- **Notes** : Numéro, Chantier, Texte, Fait (Oui / vide), Créé le, Créé par, Texte modifié le, Texte modifié par (identifiant), Coché le, Coché par.
+- **Notes historique** (le filet de sécurité, une ligne par geste) : Le, Numéro, Chantier, Geste (création / modification / coché / décoché), Ancien texte, Nouveau texte, Par (nom), Par (identifiant).
+- **Notes vues** : inchangé (Identifiant, Chantier, Vue le).
+
+### Page
+- Une ligne par élément : grosse case à cocher (zone de 48 px), puis le texte. Toucher le texte l'ouvre en modification ; « OK » ou la touche Entrée enregistre, « Annuler » referme.
+- En bas, toujours visible : un champ « Ajouter un élément… » et un bouton « Ajouter » ; la touche Entrée ajoute aussi. Le texte en cours de frappe est gardé dans le téléphone.
+- Sous la liste : « Éléments terminés (n) », replié ; on l'ouvre pour décocher.
+- Ce qui attend dans le téléphone est affiché tout de suite, avec « ⏳ ».
+- La tuile s'appelle toujours « Notes » (sous-titre : « La liste des choses à faire du chantier »).
+
+### Choix comparés
+| Sujet | Retenu | Écarté | Raison |
+|---|---|---|---|
+| Onglets du Sheet | mêmes noms, nouvelles colonnes | garder les 19 colonnes avec des colonnes vides ; nouveaux noms d'onglets | pas de colonnes mortes ; le lot n'a jamais été en production |
+| Conflit de modification | la dernière reçue gagne, sans mention | mention à l'écran, version | Franck ne veut ni historique ni mention ; l'historique du Sheet garde les deux textes |
+| Élément vidé de son texte | refusé | suppression de l'élément (comme Keep) | « pas de suppression » |
+| Ordre | le plus récent en haut | le plus récent en bas | visible tout de suite après l'ajout, sans faire défiler |
+
+### Cause du PDF introuvable (essai 8 de Franck) — hypothèse, à confirmer au prochain envoi
+Le serveur a bien fabriqué et rangé le PDF (il a rendu son nom, sans erreur). L'hypothèse : il n'est pas dans le dossier attendu. Pour trouver le dossier d'un chantier, le serveur prend, à défaut de dossier du même nom, **l'unique dossier dont le nom ressemble** (lot 1.5) : si la racine du Drive TEST a un dossier dont le nom est contenu dans « CHANTIER TEST AUTO », les documents du chantier d'essai y sont rangés, et l'onglet *Dossiers chantiers* le note « à vérifier ». Un geste de lecture ajouté à la porte de service (`dossierChantierEssai`) le dira au prochain envoi. Ce comportement est celui de toutes les fiches depuis le lot 1 ; il n'est pas propre au PDF des notes, qui disparaît de toute façon.
+
+### Tests
+Serveur et page réécrits pour la liste (mêmes garanties : droits, zéro perte, pas de doublon, ordre des gestes, téléphone partagé, hors réseau, réseau lent, texte hostile, 375 px). Toutes les séries existantes repassent. Essais réels rejoués sur la copie TEST après un envoi clasp.
