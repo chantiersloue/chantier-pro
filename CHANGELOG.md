@@ -2,7 +2,7 @@
 
 Chaque lot : **quoi**, **pourquoi**, **comment déployer**. Procédures détaillées dans `docs/lotN-procedure.md`.
 
-## Lot 3 — Notes de chantier : la liste des choses à faire — serveur v8.0, appli 8.0 — en test sur la copie TEST (rien en production)
+## Lot 3 — Notes de chantier : la liste des choses à faire — serveur v8.0, appli 8.0 — serveur en production le 13/11/2026 (déploiement « Lot 3 — production »), pages livrées par la fusion de livraison/lot-3
 
 **Quoi**
 - Page **« Notes »** (`notes.html`), ouverte depuis un chantier : la liste des choses à faire du chantier, façon « Keep ». Un élément = une ligne de texte et une case à cocher ; on ajoute en bas de l'écran ; toucher un texte permet de le corriger ; un élément coché descend dans « Éléments terminés », d'où on peut le décocher. Rien ne se supprime. Hors réseau : ajouts et gestes sont gardés dans le téléphone et partent au retour du réseau, dans l'ordre.
