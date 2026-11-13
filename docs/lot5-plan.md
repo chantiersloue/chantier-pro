@@ -1,11 +1,11 @@
 # Lot 5 — Stockage : suivi, alertes, purge — plan
 
-> Commande : `PLAN.md`, « Lot 5 — Stockage » et exigence 5 ; `docs/contrat-skills.md` et `docs/lot4c-plan.md` (relevé `mega-index.json`) ; décisions D4-7, D4-8, D4-12.
+> Commande : `PLAN.md`, « Lot 5 — Stockage » et exigence 5 ; `docs/contrat-skills.md` et `docs/lot4c-plan.md` (relevé de présence, nommé ici `releve-pc.json`) ; décisions D4-7, D4-8, D4-12.
 > Branche `lot-5`, partie de `lot-4`. **Version 2, refaite après critique par un agent indépendant** (ce qu'elle a fait changer : chapitre 11). Consigne de Franck (13/11/2026) : construit et testé contre le faux serveur seulement ; **rien qui touche à des données réelles sans lui** ; aucune action sur la copie TEST ni la production.
 
 ## 1. La commande, en clair
 
-Le compte Google gratuit a **15 Go pour Drive, Gmail et Photos ensemble**. Le lot 5 doit : (1) montrer à Franck, dans un onglet du Sheet, où en est la place et ce que pèse chaque chantier ; (2) le prévenir par mail avant que ce soit plein ; (3) lui permettre de **libérer la place des chantiers terminés** sans rien perdre : MEGA reste l'archive maître.
+Le compte Google gratuit a **15 Go pour Drive, Gmail et Photos ensemble**. Le lot 5 doit : (1) montrer à Franck, dans un onglet du Sheet, où en est la place et ce que pèse chaque chantier ; (2) le prévenir par mail avant que ce soit plein ; (3) lui permettre de **libérer la place des chantiers terminés** sans rien perdre : les fiches sont d'abord recopiées dans le dossier du chantier sur le PC (que MEGA sauvegarde).
 
 Aucune page de l'appli ne change : tout se passe dans le Sheet (utilisable depuis l'appli Google Sheets du téléphone) et dans le serveur.
 
@@ -55,7 +55,7 @@ Raisonnement **par dossier**, avec la même fonction que celle qui sert le carne
 ### 4.3 Chantier terminé
 Proposé seulement si **tout** est vrai :
 1. statut « Terminé » **depuis au moins 6 mois** ;
-2. relevé `mega-index.json` à la racine du dossier Drive, dont le **chantier** est bien celui-là, **daté de moins de 30 jours** pour la proposition et de **moins de 7 jours au moment où la case est traitée** ;
+2. relevé `releve-pc.json` (seul nom accepté) à la racine du dossier Drive, dont le **chantier** est bien celui-là, **daté de moins de 30 jours** pour la proposition et de **moins de 7 jours au moment où la case est traitée** ;
 3. **chaque fiche du Drive** correspond à **une ligne distincte** du relevé : même chemin, même taille (accents comparés sans tenir compte de leur codage). Deux fichiers de même nom dans un dossier du Drive : bloqué, avec le nom ;
 4. aucun envoi en attente ni abandonné pour ce chantier (onglet *Mails en attente*).
 
@@ -66,7 +66,7 @@ La ligne dit toujours **ce qui manque et quoi faire** (« 3 fiches absentes du r
 Ce qui part quand Franck coche :
 - **fiches et photos : fichier par fichier**, et **seulement les fichiers comparés au relevé dans la même exécution** (un fichier arrivé entre-temps n'est pas touché). Les dossiers restent en place, vides : une fiche qui arriverait plus tard d'un téléphone retrouve son dossier ;
 - **carnet** : le dossier de chaque document, puis `carnet.json` en dernier ;
-- **jamais** : le dossier du chantier, `mega-index.json`, ce qui est hors de ces sous-dossiers (signalé, laissé).
+- **jamais** : le dossier du chantier, `releve-pc.json`, ce qui est hors de ces sous-dossiers (signalé, laissé).
 
 ### 4.4 Le traitement d'une case
 - Un déclencheur dédié (`traiterPurges`, toutes les 30 minutes) qui **sort tout de suite** s'il n'y a rien à faire. Il **ne prend pas le verrou du serveur** (celui des fiches) : une purge ne retarde jamais une fiche ; il a son propre verrou.
@@ -76,7 +76,7 @@ Ce qui part quand Franck coche :
 
 ### 4.5 Ce que le serveur ne fait jamais
 - **Aucune suppression définitive.** Le plan d'origine prévoyait une case « Vider la corbeille de ce chantier maintenant ». **Je propose de ne pas la faire** : une suppression sans retour, déclenchée par une case d'un tableur, est le geste le plus dangereux du lot. Si Franck a besoin de la place avant 30 jours, il le fait dans Drive, **en sélectionnant les fichiers voulus dans la corbeille** — pas avec « Vider la corbeille », qui supprimerait aussi les autres purges encore annulables. À me dire si tu veux quand même la case.
-- Aucune purge sans case cochée ; aucune purge d'un chantier qui n'est pas « Terminé » ; rien dans MEGA.
+- Aucune purge sans case cochée ; aucune purge d'un chantier qui n'est pas « Terminé » ; rien sur le PC ni dans MEGA.
 
 ## 5. Ce que le lot change ailleurs
 
@@ -96,7 +96,7 @@ Ce qui part quand Franck coche :
 
 À 25 chantiers par an, avec une purge 6 mois après la fin : environ **7 à 10 Go en régime stable**, tenable. À 50 chantiers par an : au-delà des 15 Go, il faudra purger plus tôt. Ces chiffres seront remplacés par ceux de l'onglet *Stockage* dès la première mesure réelle.
 
-**Politique de conservation** (inchangée) : pages et code sur GitHub, toujours ; données du Sheet, toujours ; PDF des fiches, photos et carnet dans Drive **jusqu'à la purge** ; archive maîtresse dans MEGA, toujours ; anciens indices du carnet : dans MEGA seulement, purgés de Drive sur case cochée.
+**Politique de conservation** (inchangée) : pages et code sur GitHub, toujours ; données du Sheet, toujours ; PDF des fiches, photos et carnet dans Drive **jusqu'à la purge** ; archive maîtresse dans les dossiers de chantier du PC (sauvegardés par MEGA), toujours ; anciens indices du carnet : dans le dossier du chantier sur le PC seulement, purgés de Drive sur case cochée.
 
 ## 7. Technique
 
@@ -124,7 +124,7 @@ Ce qui part quand Franck coche :
 1. Un envoi sur la copie TEST ; je mesure, je compare avec lui le chiffre de Google ; purge d'essai d'un faux chantier terminé de la copie TEST ; il regarde les deux onglets depuis son téléphone, coche, annule.
 2. Si besoin : activer le service avancé Drive (une case, je guide).
 3. Production : coller le serveur v10.0, `installerLot5Production`, nouveau déploiement.
-4. Avant de cocher une purge : vérifier les lignes « À vérifier » de *Dossiers chantiers*, relancer le programme du PC (relevé de moins de 7 jours), regarder l'icône de MEGA.
+4. Avant de cocher une purge : vérifier les lignes « À vérifier » de *Dossiers chantiers*, relancer le programme du PC (relevé de moins de 7 jours), vérifier que MEGA a fini de synchroniser le dossier du chantier.
 
 **Retour arrière** : retirer les déclencheurs du lot (une fonction), recoller le serveur v9.1 ; les onglets *Stockage* et *Purges* peuvent rester ; une purge déjà faite reste annulable à la main dans la corbeille de Drive pendant 30 jours (les fichiers y sont listés dans *Purges détail*).
 
@@ -132,9 +132,9 @@ Ce qui part quand Franck coche :
 
 | Risque | Parade |
 |---|---|
-| Purger une fiche qui n'est pas dans MEGA | comparaison un pour un avec un relevé de moins de 7 jours, dans la même exécution ; corbeille seulement ; annulation 25 jours ; mail à chaque purge |
+| Purger une fiche qui n'est pas dans le dossier du chantier sur le PC | comparaison un pour un avec un relevé de moins de 7 jours, dans la même exécution ; corbeille seulement ; annulation 25 jours ; mail à chaque purge |
 | Purger le mauvais chantier | dossier pris sur une ligne explicite et unique ; relevé du bon chantier ; racine de l'environnement vérifiée |
-| Le relevé dit « présent » alors que MEGA n'a pas fini d'envoyer | rappel sur la ligne et dans le mail : « vérifiez l'icône de MEGA » |
+| Le relevé dit « présent » alors que MEGA n'a pas fini de synchroniser le dossier | rappel sur la ligne et dans le mail : « vérifiez que MEGA a fini de synchroniser le dossier » |
 | Case cochée par erreur | revérification ; corbeille ; mail immédiat ; case « Annuler » |
 | Exécution coupée en pleine purge | journal écrit avant chaque mise à la corbeille ; reprise |
 | Une fiche arrive d'un téléphone après la purge | les dossiers restent ; elle est rangée normalement, et sera rapatriée puis proposée plus tard |

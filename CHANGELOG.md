@@ -2,6 +2,31 @@
 
 Chaque lot : **quoi**, **pourquoi**, **comment déployer**. Procédures détaillées dans `docs/lotN-procedure.md`.
 
+## Lot 5 — Suivi du stockage, alertes et purge sur case cochée — serveur **v10.0**, aucune page ne change — **construit, testé contre le faux serveur seulement** (rien n'a tourné chez Google)
+
+**Quoi**
+- **Onglet « Stockage »** (rempli chaque nuit) : la place utilisée sur les 15 Go du compte, en Go et en %, la date de la mesure, une phrase d'état ; une ligne par chantier (poids total, dont carnet, fiches, photos, autres ; nombre de fichiers ; dernier dépôt au carnet ; anciens indices ; date de la mesure de la ligne) ; les lignes « Dossiers techniques », « Dossiers de la racine rattachés à aucun chantier », « Chantiers sans dossier » et « Reste du compte » (calculé seulement après un tour complet, jamais négatif).
+- **La mesure** (`mesurerStockage` vers 2 h, `poursuivreMesureStockage` vers 3 h, qui ne fait quelque chose que si le tour n'est pas fini) : lecture seule dans Drive, arrêt propre au bout de 4 minutes, reprise où elle en était. Les fichiers à la corbeille ne sont pas comptés.
+- **Deux sources pour la place du compte** : le service avancé Drive s'il est activé (total du compte, part de Drive, part de la corbeille), sinon `DriveApp` ; l'onglet dit laquelle est utilisée.
+- **Mails d'alerte** à 70 %, 85 % (deux mails par mois au plus pour ces deux seuils) et 95 % (toujours envoyé, puis un rappel par semaine). Un seuil n'est noté « prévenu » qu'après l'envoi réussi du mail.
+- **Date « Terminé »** de l'onglet *Chantiers* : posée toute seule quand le statut passe à « Terminé », effacée s'il change ; une date saisie à la main n'est jamais remplacée.
+- **Onglet « Purges »** : une ligne par chose qui peut partir à la corbeille de Drive, avec une case **« Mettre à la corbeille »** et une case **« Annuler »** (25 jours). Deux sortes de lignes : « Anciens indices du carnet » (les dossiers de documents que plus aucun document montré dans l'appli ne désigne) et « Chantier terminé » (fiches et photos, fichier par fichier ; puis le carnet).
+- **Conditions d'un chantier terminé**, toutes obligatoires, et **revérifiées quand la case est traitée** : « Terminé » depuis 6 mois ; dossier du chantier pris sur une ligne explicite de *Dossiers chantiers*, sans « À vérifier », porté par un seul chantier, et bien dans le Drive de cet environnement ; relevé `releve-pc.json` du bon chantier, de moins de 30 jours pour proposer et de **moins de 7 jours pour purger** ; chaque fiche du Drive retrouvée dans le relevé (même chemin, même taille, une ligne du relevé par fiche) ; aucun envoi en attente ni abandonné. La ligne dit toujours ce qui manque et quoi faire.
+- **Le traitement des cases** (`traiterPurges`, toutes les 30 minutes) : sort tout de suite s'il n'y a rien à faire ; a son propre verrou et ne prend jamais celui des fiches ; écrit chaque fichier « à faire » dans l'onglet technique **« Purges détail »** avant de le mettre à la corbeille, puis « fait » ; reprend après une exécution coupée ; envoie un mail à Franck à chaque purge.
+- **Ne partent jamais** : le dossier d'un chantier, les dossiers des fiches et des photos (ils restent, vides), le relevé, ce qui est hors des dossiers de l'appli. **Aucune suppression définitive nulle part** : la case « Vider la corbeille » du plan d'origine n'est pas construite.
+- **Le relevé de présence s'appelle `releve-pc.json`** (précision de Franck du 14/11/2026) : il dit ce qui est dans le dossier du chantier sur le PC ; MEGA ne fait que sauvegarder ce dossier. L'ancien nom `mega-index.json` n'est pas accepté.
+- **Programme du PC** (`outils/depot_carnet.py --verifier`) : un ancien indice dont le dossier a été purgé n'est plus signalé comme un défaut.
+- **Installation en une fonction** : `installerLot5Test` / `installerLot5Production` (trois onglets, avertissement à la modification des colonnes du serveur, déclencheurs en production seulement). `verifierConfig` contrôle les onglets, la colonne J de *Chantiers* et donne la place du compte.
+- **Porte de service de la copie TEST** : `installerLot5` et des lectures (place du compte, haut de l'onglet Stockage, lignes du chantier d'essai, examen de sa purge). Aucun geste ne met quoi que ce soit à la corbeille.
+
+**Pourquoi** : à 100 % de la place, plus aucun fichier ne se crée dans Drive et plus aucun mail ne part ni n'arrive. Il faut voir venir, et pouvoir libérer la place des chantiers terminés sans rien perdre (exigence 5 du plan).
+
+**Comment déployer** : `docs/lot5-procedure.md` (copie TEST d'abord, comparaison du chiffre avec one.google.com/storage, essais de Franck, puis production : coller `A-COLLER-DANS-APPS-SCRIPT/Code.gs`, `installerLot5Production`, nouveau déploiement). Aucune nouvelle autorisation Google n'est attendue ; le service avancé Drive est facultatif.
+
+**Comment vérifier** : `node tests/lot5-stockage.test.js`, `python -m unittest tests/test_depot_carnet.py`, et toutes les autres séries du serveur.
+
+**Reste à faire avec Franck, sur la copie TEST** : ce que mesure vraiment Google ; la durée d'un tour ; ce que devient le contenu d'un dossier mis à la corbeille, et sa restauration ; l'activation du service avancé Drive. Points à trancher : fin de `docs/lot5-procedure.md`.
+
 ## Lot 4b — Carnet de chantier : hors réseau complet, et retrait de la tuile « Plans » — appli 9.0, serveur **v9.1** — **construit, pas encore en production** (ira avec le 4a)
 
 **Quoi**
