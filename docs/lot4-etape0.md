@@ -22,14 +22,19 @@
 Essai technique pour mon appli ChantierPro. Il n'y a rien à produire ni à ranger : n'applique PAS les règles de
 gestion-documentaire à ce dossier, ne déplace et ne supprime rien.
 
-1. Écris le programme ci-dessous dans ton dossier de travail sur mon PC (pas dans un dossier connecté), sous le nom
-   essai_carnet.py, sans rien y changer.
-2. Lance-le sur mon PC avec deux arguments : le chemin du dossier CHANTIERPRO-TEST que je viens de connecter, puis le
-   chemin du plan PDF indiqué tout en bas.
-3. Donne-moi, sans rien résumer : tout ce que le programme a affiché ; l'outil que tu as utilisé pour le lancer ;
-   combien de temps la commande a duré ; et dis-moi si tu vois, depuis cet outil, un dossier nommé « chantier-pro »
-   (dans Documents\GitHub).
-Si un module manque, ne l'installe pas : dis-le-moi simplement.
+Le programme ci-dessous doit tourner LÀ OÙ SONT MES FICHIERS. Fais l'essai DEUX fois si tu as les deux moyens, et
+dis-moi clairement lequel est lequel :
+ (1) SUR MON PC WINDOWS, avec l'outil qui lance des commandes sur mon ordinateur (celui dont parle
+     gestion-documentaire pour les scripts du PC), en donnant les chemins Windows du dossier CHANTIERPRO-TEST connecté
+     et du plan PDF ;
+ (2) DANS TON ESPACE DE TRAVAIL (Linux), en donnant les chemins sous lesquels TU vois le dossier CHANTIERPRO-TEST
+     connecté et le plan PDF (dossiers montés), pas les chemins Windows.
+Pour chaque essai : écris le programme tel quel sous le nom essai_carnet.py (hors des dossiers connectés), lance-le
+avec deux arguments (le dossier CHANTIERPRO-TEST, puis le plan PDF), et donne-moi sans rien résumer : tout ce qu'il a
+affiché, l'outil utilisé, et la durée de la commande.
+Dis-moi aussi : sous quel chemin vois-tu le dossier CHANTIERPRO-TEST et le plan dans ton espace de travail ? Vois-tu,
+sur mon PC, un dossier « chantier-pro » dans DocumentsGitHub ?
+Si un module manque ou si un des deux moyens n'existe pas, n'installe rien : dis-le-moi simplement.
 
 --- essai_carnet.py ---
 # -*- coding: utf-8 -*-
@@ -46,6 +51,12 @@ def ligne(nom, fn):
 
 racine, pdf = sys.argv[1], sys.argv[2]
 essai = os.path.join(racine, "_ESSAI SKILL")
+if not os.path.isdir(racine) or not os.path.isfile(pdf):
+    print("Python %s (%s) sur %s" % (platform.python_version(), sys.executable, platform.platform()))
+    print("ARRET, rien n'est ecrit. Dossier visible d'ici : %s | PDF visible d'ici : %s" % (os.path.isdir(racine), os.path.isfile(pdf)))
+    print("Ce programme ne tourne pas la ou sont ces fichiers, ou les chemins ne sont pas ceux de cette machine.")
+    print("Dossier courant : %s | contenu du dossier personnel : %s" % (os.getcwd(), sorted(os.listdir(os.path.expanduser("~")))[:30]))
+    sys.exit(2)
 print("Python %s (%s) sur %s" % (platform.python_version(), sys.executable, platform.platform()))
 print("Dossier donne : %s | existe : %s | contient dossiers.json : %s" % (racine, os.path.isdir(racine), os.path.exists(os.path.join(racine, "dossiers.json"))))
 ligne("module Pillow avec WebP", lambda: __import__("PIL").__version__ + " webp=" + str(__import__("PIL.features").features.check("webp")))
@@ -82,6 +93,8 @@ print("Fin de l'essai. Les fichiers d'essai sont dans : " + essai)
 
 Plan PDF à utiliser : (colle ici le chemin du plan)
 ```
+
+**Premier essai (13/11/2026) : non concluant.** Le programme a tourné dans l'espace de travail de Claude (Linux, Python 3.10, avec Pillow et pypdfium2 5.14 déjà présents), pas sur le PC : les chemins Windows n'y existent pas, donc rien n'a été écrit dans le Drive et le plan n'a pas été trouvé. Enseignement utile : cet espace de travail a déjà les deux modules. Le texte ci-dessus a été corrigé (les deux moyens sont essayés, et le programme s'arrête sans rien écrire s'il ne voit pas les fichiers).
 
 Ce que l'essai nous dira : quel Python utilise un skill et s'il a les deux modules ; s'il peut créer, réécrire et renommer un fichier dans le Drive de l'appli ; s'il voit le dépôt ; et le temps réel de transformation d'un grand plan. Les fichiers d'essai restent dans `CHANTIERPRO-TEST/_ESSAI SKILL` (tu pourras supprimer ce dossier toi-même après).
 

@@ -12,6 +12,12 @@ def ligne(nom, fn):
 
 racine, pdf = sys.argv[1], sys.argv[2]
 essai = os.path.join(racine, "_ESSAI SKILL")
+if not os.path.isdir(racine) or not os.path.isfile(pdf):
+    print("Python %s (%s) sur %s" % (platform.python_version(), sys.executable, platform.platform()))
+    print("ARRET, rien n'est ecrit. Dossier visible d'ici : %s | PDF visible d'ici : %s" % (os.path.isdir(racine), os.path.isfile(pdf)))
+    print("Ce programme ne tourne pas la ou sont ces fichiers, ou les chemins ne sont pas ceux de cette machine.")
+    print("Dossier courant : %s | contenu du dossier personnel : %s" % (os.getcwd(), sorted(os.listdir(os.path.expanduser("~")))[:30]))
+    sys.exit(2)
 print("Python %s (%s) sur %s" % (platform.python_version(), sys.executable, platform.platform()))
 print("Dossier donne : %s | existe : %s | contient dossiers.json : %s" % (racine, os.path.isdir(racine), os.path.exists(os.path.join(racine, "dossiers.json"))))
 ligne("module Pillow avec WebP", lambda: __import__("PIL").__version__ + " webp=" + str(__import__("PIL.features").features.check("webp")))
