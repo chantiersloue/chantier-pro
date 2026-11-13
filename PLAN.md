@@ -95,7 +95,7 @@ Lot 3  Notes de chantier               │  dépend de 1 + 2
 Lot 9b Contrat skills (écrit)          │  AVANT 4, 5 et 8 : ils dépendent des skills mis à jour
 Lot 4  Carnet (4a dépôt, 4b lecture)   │  dépend de 1 + 2 + 9b + résultats de S1
 Lot 5  Stockage                        │  dépend de 4 (volumes réels)
-Lot 8  Note de réunion                 │  dépend de 1 + 2 + onglet Intervenants (9a + skill à jour)
+Lot 8  Note de réunion                 │  dépend de 1 + 2 + onglet Intervenants (9a + fichier du skill : D9b-1, donc du Drive connecté au lot 4)
 Lot 10 Idées                           ┘  au fil de l'eau, selon gain / effort
 ```
 
@@ -425,7 +425,7 @@ Découpé en 5 sous-lots déployables séparément.
 ### Lot 4 — Carnet de chantier
 
 #### 4a. Dépôt automatique par les skills
-- **Nommage dans le carnet** : `CARNET/<CODE DOC> <INDICE> <INTITULÉ>`, où `CODE DOC` est le n° de la nomenclature `gestion-documentaire` (`002`, `003`, `005`, `007`…). Un document non encore émis prend un code du carnet (`C01`, `C02`…), noté dans `carnet.json`. L'indice A, B, C… est donné par le skill, sinon augmenté automatiquement par `depot_carnet.py`.
+- **Nommage dans le carnet** : `CARNET/<CODE DOC> <INDICE> <INTITULÉ>`, où `CODE DOC` est le n° de la nomenclature `gestion-documentaire` (numérotation par métier du 31/10/2026 : `105`, `106`, `108`, `109`, `205`, `206`… ; liste dans `docs/contrat-skills.md`, chapitre 4). Un document non encore émis prend un code du carnet (`C01`, `C02`…), noté dans `carnet.json`. L'indice A, B, C… est donné par le skill, sinon augmenté automatiquement par `depot_carnet.py`.
 - **`carnet.json`** (un par chantier, écrit par le script) : document, intitulé, indice, date, nombre de pages, poids de chaque page et du PDF, source dans MEGA. **L'appli lit ce fichier, sans deviner à partir des noms.**
 - **`depot_carnet.py`** (dans le dépôt, `outils/`), appelé à la fin de chaque skill concerné :
   1. découpe le PDF en pages ;
@@ -514,8 +514,9 @@ Découpé en 5 sous-lots déployables séparément.
   2. **Écrire les intervenants** dans l'onglet *Intervenants* à chaque mise à jour de la FICHE INFO.
   3. **Déposer dans le carnet** avec `depot_carnet.py` : quels documents, quand, comment les nommer.
   4. **Rapatrier les fiches de l'appli** de Drive (dossiers T12) vers les mêmes dossiers dans MEGA, avec une nouvelle ligne dans la table de routage de `gestion-documentaire` et le relevé `mega-index.json`.
-  5. **Cotes vers le métré de plinthes** : le skill `metre-plinthes` lit l'onglet *Prise de Cote* (colonnes listées) pour un chantier donné.
+  5. ~~**Cotes vers le métré de plinthes** : le skill `metre-plinthes` lit l'onglet *Prise de Cote*.~~ **Abandonné par Franck le 13/11/2026** (D9b-4).
 - Texte à ajouter dans chaque skill concerné, fourni prêt à coller. **Je ne modifie pas tes skills moi-même** : tu les mets à jour.
+- **Rédigé le 12/11/2026** (`docs/contrat-skills.md`, relu par un agent indépendant). Écarts avec les points ci-dessus, décidés après la relecture (D9b-1 à D9b-3) : un skill n'écrit jamais dans le Sheet (point 2 : les intervenants passent par un fichier `intervenants.json` recopié par l'appli au lot 8) ; les points 3 et 4 seront livrés avec des scripts testés au lot 4 ; seuls les points 1 et 5 (lecture seule) se collent dès maintenant.
 
 ### Lot 10 — Idées (gain / effort, gratuites, sans outil en plus)
 

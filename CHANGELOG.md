@@ -2,7 +2,7 @@
 
 Chaque lot : **quoi**, **pourquoi**, **comment déployer**. Procédures détaillées dans `docs/lotN-procedure.md`.
 
-## Lot 3 — Notes de chantier : la liste des choses à faire — serveur v8.0, appli 8.0 — serveur en production le 13/11/2026 (déploiement « Lot 3 — production »), pages livrées par la fusion de livraison/lot-3
+## Lot 3 — Notes de chantier : la liste des choses à faire — serveur v8.0, appli 8.0 — **en production depuis le 13/11/2026** (déploiement « Lot 3 — production »)
 
 **Quoi**
 - Page **« Notes »** (`notes.html`), ouverte depuis un chantier : la liste des choses à faire du chantier, façon « Keep ». Un élément = une ligne de texte et une case à cocher ; on ajoute en bas de l'écran ; toucher un texte permet de le corriger ; un élément coché descend dans « Éléments terminés », d'où on peut le décocher. Rien ne se supprime. Hors réseau : ajouts et gestes sont gardés dans le téléphone et partent au retour du réseau, dans l'ordre.
@@ -17,6 +17,16 @@ Chaque lot : **quoi**, **pourquoi**, **comment déployer**. Procédures détaill
 **Comment déployer** : `docs/lot3-procedure.md`.
 
 **Tests** : serveur (`tests/lot3-notes.test.js`), page dans un vrai Chrome en largeur téléphone, hors réseau et en réseau lent (`tests/lot3-page.test.js`), essais réels sur la copie TEST (`tests/reel-lot3.js`) ; toutes les séries existantes repassent. **Pas testé par moi** : un vrai téléphone, en particulier le champ d'ajout avec le clavier ouvert.
+
+## Lot 9b — Contrat avec les skills (12/11/2026) — un document, rien à déployer
+
+**Quoi** : `docs/contrat-skills.md`, le contrat entre l'appli et les skills Claude de Franck : identité du chantier lue dans l'onglet *Chantiers*, intervenants transmis par un fichier que l'appli recopie, carnet, rapatriement des fiches de Drive vers MEGA avec son relevé. Textes à coller dans les skills (chapitre 8). **13/11/2026** : la règle sur les cotes de placards (métré des plinthes) est abandonnée et retirée.
+
+**Pourquoi** : les lots 4, 5 et 8 en dépendent (`PLAN.md`, lot 9). Décisions D9b-1 à D9b-3. Principe retenu après une relecture indépendante : **un skill ne modifie jamais le Sheet de l'appli**.
+
+**Comment déployer** : rien dans l'appli. **Rien n'est collé dans les skills pour l'instant** (décision de Franck du 13/11/2026, D9b-4) : tous les blocs seront mis à jour en une seule fois au lot 4.
+
+**Pas vérifié** : aucun essai avec un vrai skill ni avec le vrai Sheet (hors de ma portée). Le contrat a été relu par un agent indépendant (trois tours) : les corrections sont listées à son chapitre 11.
 
 ## Lot 7 — Signalement casse / manquant / à recommander — serveur v7.0, appli 7.0 — **en production depuis le 13/11/2026** (déploiement « Lot 7 — production »)
 

@@ -50,7 +50,7 @@ Ligne 1 : « Chantier », « Remarque (appli) », puis un identifiant de poseur 
 
 ## Onglet « Intervenants » (lot 2, 9a)
 
-Chantier, Nom, Société, Lot / fonction, Mail, Téléphone, Mis à jour le. Rempli par le skill `gestion-documentaire` (contrat 9b, plus tard).
+Chantier, Nom, Société, Lot / fonction, Mail, Téléphone, Mis à jour le. Rempli **par l'appli** (lot 8) à partir du fichier `intervenants.json` que le skill `gestion-documentaire` dépose dans le dossier Drive du chantier : `docs/contrat-skills.md`, règle 2. Aucun skill n'écrit dans le Sheet.
 
 ## Onglets techniques du lot 2
 
@@ -130,6 +130,45 @@ La liste des choses à faire de chaque chantier. Écrits par l'appli seulement. 
 ## Onglet « Installation » (outillage)
 
 Bilan des fonctions d'installation (`installerLot7…`, `controlerInstallationLot2`) : date, lot, environnement, mode, ligne du bilan. Les 50 dernières lignes sont gardées. Peut être supprimé sans risque.
+
+## Onglet « Prise de Cote »
+
+Une ligne par placard relevé, écrite par la fiche « Prise de cotes ». Les titres de la ligne 1 sont anciens et décalés : **c'est la position des colonnes qui compte**.
+
+|Colonne|Contenu|
+|-|-|
+|A|Référence de la fiche|
+|B|Chantier|
+|C|Bâtiment|
+|D|Auteur|
+|E|Date|
+|F|N° du logement|
+|G|Pièce|
+|H|Hauteur de façade (mm)|
+|I|Largeur entre plinthes (mm)|
+|J|Largeur en haut de façade (mm)|
+|K|Longueur de l'aménagement (mm)|
+|L|Profondeur de l'aménagement (mm)|
+|M|Côté de la penderie|
+|N|Hauteur de plinthe (mm)|
+|O|Sol|
+|P|Socle|
+|Q|Commentaires|
+|R|Reçu le (heure du serveur)|
+
+Aucun skill ne lit cet onglet (la règle 5 du contrat `docs/contrat-skills.md` a été abandonnée le 13/11/2026).
+
+## Onglet « Dossiers chantiers » (lot 1.5)
+
+Écrit par l'appli : pour chaque chantier, le dossier Drive où elle range ses documents.
+
+|Colonne|Contenu|
+|-|-|
+|A|Chantier|
+|B|Dossier Drive (son nom au moment où l'appli l'a noté)|
+|C|Identifiant du dossier (c'est lui qui fait foi pour l'appli)|
+|D|Trouvé par : nom exact / ressemblance / créé|
+|E|À vérifier : « OUI… » si le dossier a été trouvé par ressemblance|
 
 ## Onglet « Fonctions »
 
