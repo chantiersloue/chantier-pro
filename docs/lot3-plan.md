@@ -275,3 +275,18 @@ Le serveur a bien fabriqué et rangé le PDF (il a rendu son nom, sans erreur). 
 
 ### Tests
 Serveur et page réécrits pour la liste (mêmes garanties : droits, zéro perte, pas de doublon, ordre des gestes, téléphone partagé, hors réseau, réseau lent, texte hostile, 375 px). Toutes les séries existantes repassent. Essais réels rejoués sur la copie TEST après un envoi clasp.
+
+### Ce que la critique de ce chapitre a fait changer (13/11/2026) — l'emporte sur les lignes ci-dessus
+
+- **Hors réseau, un élément qu'on vient d'ajouter se coche et se corrige tout de suite** (point bloquant : sinon la liste ne marche pas sans réseau). L'ajout et les gestes sur un même élément partent toujours dans l'ordre, ajout compris ; un test le prouve.
+- **Vue « Tous chantiers » en lecture seule**, comme aujourd'hui (Franck n'a demandé que la recherche) : chaque élément renvoie à son chantier, où l'on coche et modifie.
+- **Cocher** : la ligne reste en place, barrée, trois secondes (un nouvel appui annule), puis descend dans « Éléments terminés ». Les lignes ne remontent pas sous le doigt.
+- **Modifier** : toucher le texte ouvre une zone ; en sortir sans rien changer la referme toute seule ; la barre d'ajout se cache pendant la modification ; un élément terminé ne se modifie pas (on le décoche d'abord).
+- **Deux modifications du même élément** : chaque modification porte le texte que le téléphone avait sous les yeux ; s'il n'est plus le texte actuel, l'historique du Sheet note « modification en même temps ». Rien à l'écran.
+- **Texte** : 2 000 caractères (une dictée longue n'est pas coupée), affiché sur plusieurs lignes ; la saisie est une zone qui grandit ; un retour à la ligne devient une espace, dans la page comme sur le serveur (jamais un refus).
+- **Ordre** : comme une liste dictée, le plus ancien en haut, le dernier ajouté en bas, juste au-dessus de la saisie ; un élément décoché reprend sa place d'origine.
+- **Éléments terminés** : le nombre affiché est le vrai total ; les 300 derniers cochés sont listés ; la section reste ouverte si on l'a ouverte.
+- **Onglets de la première version sur la copie TEST** : le serveur refuse de lire ou d'écrire dans un onglet dont les titres ne sont pas les bons (« installation à faire ») ; un geste de la porte (`rangerAnciennesNotes`) les renomme avec la date, sans rien effacer, et peut être relancé. Un autre (`purgerNotesEssai`) retire de la copie TEST les éléments écrits par mes essais automatiques, puisqu'on ne supprime plus.
+- **Téléphones d'essai** : la liste gardée par l'ancienne version n'est plus relue, les photos gardées sont effacées ; une ancienne note en attente avec photo part sans sa photo.
+- **Mots** : « élément » dans la page, « Notes » pour la tuile.
+- **PDF introuvable** : l'hypothèse de la ressemblance est écartée par le relecteur (le dossier du chantier d'essai était déjà connu par son identifiant). Causes plus probables : un sous-dossier en double (« 05 - CHANTIER » ou « COMPTE RENDU » créé une seconde fois si le nom existant diffère d'une espace), un dossier déplacé, ou une recherche sous un autre nom (le fichier s'appelle « NOTES DE CHANTIER … »). Un geste de lecture de la porte (`dossierChantierEssai`) dira au prochain envoi où le serveur range réellement les documents du chantier d'essai : le point concerne toutes les fiches, pas seulement ce PDF.

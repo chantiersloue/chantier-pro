@@ -383,12 +383,14 @@
     var vider = function () { return LOUE.stockage.tout('file').then(function (liste) {
       liste.sort(function (a, b) { return a.cree - b.cree; });
       var chaine = Promise.resolve();
-      // Lot 3 : les gestes sur une même note de chantier partent TOUJOURS dans l'ordre où ils ont été faits.
-      // Tant qu'un geste plus ancien sur la note attend encore (délai pas échu, réseau, connexion), les suivants attendent.
+      // Lot 3 : l'ajout d'un élément de la liste d'un chantier et les gestes sur cet élément (cocher, décocher, modifier)
+      // partent TOUJOURS dans l'ordre où ils ont été faits. Tant qu'un plus ancien attend encore (délai pas échu, réseau,
+      // connexion), les suivants attendent : on peut donc cocher ou corriger hors réseau ce qu'on vient d'ajouter.
       var seriesBloquees = {};
       liste.forEach(function (ancien) {
         var el = ancien;
-        var serie = el.type === 'note-action' && el.donnees ? (el.saisiPar || '') + '|' + String(el.donnees.note || '') : '';
+        var serie = el.type === 'note-chantier' ? (el.saisiPar || '') + '|' + el.id
+          : (el.type === 'note-action' && el.donnees ? (el.saisiPar || '') + '|' + String(el.donnees.note || '') : '');
         if (el.etat === 'erreur') return;                                   // attend une action de la personne
         if (el.env && el.env !== CONFIG.env) return;                        // fiche d'un autre mode (test / production)
         if (!force(el) && el.prochainEssai && Date.now() < el.prochainEssai) { if (serie) seriesBloquees[serie] = true; return; }

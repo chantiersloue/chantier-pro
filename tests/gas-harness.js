@@ -40,7 +40,10 @@ function creerGoogle(options = {}) {
       return p;
     };
     f.api = {
-      getName: () => nom,
+      getName: () => f.nom,
+      // Renommer un onglet, supprimer une ligne (utilisés par la porte de service de la copie TEST)
+      setName: n => { if (feuilles[n]) throw new Error('Un onglet porte déjà ce nom'); delete feuilles[f.nom]; f.nom = n; feuilles[n] = f; return f.api; },
+      deleteRow: r => { f.lignes.splice(r - 1, 1); },
       appendRow: l => { f.lignes.push(l.slice()); },
       getDataRange: () => plage(1, 1, Math.max(1, f.lignes.length), largeur()),
       getRange: (r, c, nr = 1, nc = 1) => plage(r, c, nr, nc),

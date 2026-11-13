@@ -9,53 +9,47 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Loué App">
 <meta name="theme-color" content="#1A2B4A">
-<link rel="stylesheet" href="commun/style.css?v=9815945ef9">
-<link rel="stylesheet" href="commun/fiche.css?v=9815945ef9">
+<link rel="stylesheet" href="commun/style.css?v=8d2883db50">
+<link rel="stylesheet" href="commun/fiche.css?v=8d2883db50">
 <style>
 [hidden]{display:none!important;}   /* un élément caché le reste, même s'il a une mise en forme « flex » */
-body.avec-saisie{padding-bottom:230px;}
-.note{background:var(--card);border:1px solid var(--border);border-left:6px solid var(--header-bg);border-radius:var(--rl);margin-bottom:12px;padding:12px 14px;}
-.note.faite{border-left-color:var(--green);background:#F7F5F1;}
-.note.attente{border-left-color:#C98A00;}
-.note.supprimee{border-left-color:var(--border2);background:#F7F5F1;}
-.note-tete{display:flex;flex-wrap:wrap;gap:6px 8px;align-items:center;margin-bottom:6px;font-size:14px;color:var(--muted);}
-.note-tete b{color:var(--text);font-size:15px;}
-.pastille{display:inline-block;padding:3px 9px;border-radius:999px;font-size:13px;font-weight:700;background:#E8EDF5;color:var(--header-bg);}
-.pastille.rouge{background:var(--red-l);color:var(--red);}
-.pastille.orange{background:#FCF1D6;color:#7A5200;}
-.pastille.gris{background:#EFECE8;color:var(--muted);}
-.note-texte{font-size:17px;line-height:1.45;overflow-wrap:anywhere;white-space:pre-wrap;}
-.note.faite .note-texte{text-decoration:line-through;color:var(--muted);}
-.note-pied{font-size:14px;color:var(--muted);margin-top:6px;line-height:1.4;overflow-wrap:anywhere;}
-.note-photos{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;}
-.note-photos img{max-width:100%;border-radius:var(--r);border:1px solid var(--border);display:block;}
-.note-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;}
-.note-actions .btn{flex:1 1 auto;}
-.btn-fait{flex:1 1 100%!important;min-height:56px;font-size:17px;border:2px solid var(--green);background:#fff;color:var(--green);}
-.note.faite .btn-fait{background:var(--green);color:#fff;}
+body.avec-saisie{padding-bottom:150px;}
+body.en-modification .saisie{display:none;}   /* pendant une modification, la barre d'ajout laisse la place au clavier */
+.liste{background:var(--card);border:1px solid var(--border);border-radius:var(--rl);overflow:hidden;}
+.el{display:flex;align-items:flex-start;gap:4px;padding:2px 10px 2px 2px;border-bottom:1px solid var(--border);}
+.el:last-child{border-bottom:none;}
+.case{flex:0 0 52px;width:52px;min-height:52px;border:none;background:none;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;}
+.case span{display:block;width:28px;height:28px;border:2.5px solid var(--border2);border-radius:6px;background:#fff;color:#fff;font-size:22px;line-height:23px;font-weight:800;text-align:center;}
+.el.faite .case span{background:var(--green);border-color:var(--green);}
+.case:disabled{cursor:default;opacity:.5;}
+.el-corps{flex:1;min-width:0;padding:13px 0 11px;}
+.el-texte{font-size:17px;line-height:1.45;overflow-wrap:anywhere;white-space:pre-wrap;cursor:pointer;}
+.el.lecture .el-texte,.el.faite .el-texte{cursor:default;}
+.el.faite .el-texte{text-decoration:line-through;color:var(--muted);}
+.el-marque{display:inline-block;margin-left:8px;font-size:13px;font-weight:700;vertical-align:middle;}
+.el-marque.nouveau{color:var(--red);}
+.el-marque.attente{color:#7A5200;}
+.el-info{font-size:14px;color:var(--muted);margin-top:4px;line-height:1.4;overflow-wrap:anywhere;}
+.el-info.erreur{color:var(--red);}
+.el-edit{width:100%;min-height:76px;resize:vertical;}
+.el-boutons{display:flex;gap:8px;margin-top:8px;}
+.el-boutons .btn{flex:1;}
 .btn:disabled{opacity:.5;cursor:default;}
-.note-edit{width:100%;min-height:110px;margin-top:6px;}
-.histo{margin-top:8px;border-top:1px dashed var(--border2);padding-top:8px;font-size:14px;line-height:1.4;}
-.histo div{margin-bottom:8px;overflow-wrap:anywhere;white-space:pre-wrap;}
+.termines{margin-top:14px;}
+.termines>summary{min-height:52px;display:flex;align-items:center;gap:8px;padding:0 6px;font-size:16px;font-weight:700;color:var(--muted);cursor:pointer;list-style:none;}
+.termines>summary::-webkit-details-marker{display:none;}
+.termines>summary::before{content:'▸';font-size:18px;}
+.termines[open]>summary::before{content:'▾';}
 .vide{text-align:center;color:var(--muted);padding:28px 10px;font-size:17px;line-height:1.5;}
 .filtres{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;align-items:center;}
 .filtres .meta-input{flex:1 1 180px;}
 .filtres label{display:flex;align-items:center;gap:6px;min-height:48px;padding:0 10px;border:1px solid var(--border2);border-radius:var(--r);background:#fff;font-weight:600;}
 .filtres input[type=checkbox]{width:22px;height:22px;}
-.outils{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0;}
-.outils .btn{flex:1 1 160px;}
 .saisie{position:fixed;bottom:0;left:0;right:0;background:var(--card);border-top:2px solid var(--header-bg);padding:8px 10px calc(8px + env(safe-area-inset-bottom,0px));z-index:15;}
-.saisie-int{max-width:860px;margin:0 auto;}
-.saisie textarea{width:100%;min-height:64px;max-height:160px;resize:none;}
-.saisie-ligne{display:flex;gap:8px;margin-top:6px;}
-.saisie-ligne .btn{min-height:56px;}
-.saisie-ligne .btn-green{flex:1;font-size:18px;}
-.saisie-photos{display:flex;gap:8px;margin-bottom:6px;flex-wrap:wrap;}
-.saisie-photos div{position:relative;}
-.saisie-photos img{height:64px;width:64px;object-fit:cover;border-radius:var(--r);border:1px solid var(--border);display:block;}
-.saisie-photos button{position:absolute;top:-8px;right:-8px;width:32px;height:32px;border-radius:50%;border:none;background:var(--red);color:#fff;font-size:18px;font-weight:800;cursor:pointer;}
-.saisie-info{font-size:13px;color:var(--muted);margin-top:4px;}
-.dictee-active{background:var(--red)!important;color:#fff!important;}
+.saisie-int{max-width:860px;margin:0 auto;display:flex;gap:8px;align-items:flex-end;}
+.saisie textarea{flex:1;min-height:56px;max-height:140px;resize:none;}
+.saisie .btn{min-height:56px;font-size:18px;}
+.saisie-info{max-width:860px;margin:4px auto 0;font-size:13px;color:var(--muted);}
 </style>
 </head>
 <body>
@@ -72,67 +66,56 @@ body.avec-saisie{padding-bottom:230px;}
 
   <div class="filtres" id="filtres" hidden>
     <select class="meta-input" id="f-chantier" data-brouillon="non" aria-label="Chantier"><option value="">Tous les chantiers</option></select>
-    <select class="meta-input" id="f-auteur" data-brouillon="non" aria-label="Auteur"><option value="">Tous les auteurs</option></select>
-    <input class="meta-input" id="f-recherche" data-brouillon="non" type="search" maxlength="100" placeholder="Chercher dans les notes…" aria-label="Chercher dans les notes">
-    <label for="f-nouveau"><input type="checkbox" id="f-nouveau" data-brouillon="non"> Nouvelles</label>
-    <label for="f-nonfait"><input type="checkbox" id="f-nonfait" data-brouillon="non"> Non faites</label>
+    <input class="meta-input" id="f-recherche" data-brouillon="non" type="search" maxlength="100" placeholder="Chercher…" aria-label="Chercher dans les notes">
+    <label for="f-nouveau"><input type="checkbox" id="f-nouveau" data-brouillon="non"> Nouveaux</label>
+    <label for="f-termines"><input type="checkbox" id="f-termines" data-brouillon="non"> Avec les terminés</label>
     <button class="btn btn-secondary" type="button" id="btn-tout-lu" onclick="toutMarquerLu()">Tout marquer comme lu</button>
   </div>
 
   <div class="listes-info" id="info" role="status"></div>
   <div id="liste"></div>
-
-  <div class="outils" id="outils" hidden>
-    <button class="btn btn-secondary" type="button" id="btn-corbeille" onclick="basculerCorbeille()">🗑 Corbeille</button>
-    <button class="btn btn-secondary" type="button" id="btn-pdf" onclick="exporter()">Exporter en PDF</button>
-  </div>
-  <div id="corbeille" hidden></div>
+  <details class="termines" id="termines" hidden>
+    <summary id="termines-titre">Éléments terminés</summary>
+    <div id="liste-termines"></div>
+  </details>
 </div>
 
 <div class="saisie no-print" id="saisie" hidden>
   <div class="saisie-int">
-    <div class="saisie-photos" id="saisie-photos"></div>
-    <textarea class="meta-input" id="saisie-texte" data-brouillon="non" maxlength="2000" placeholder="Nouvelle note… (le micro du clavier permet de dicter)" aria-label="Nouvelle note"></textarea>
-    <input type="file" id="photo-cam" accept="image/*" capture="environment" hidden onchange="ajouterPhotos(this.files);this.value=''">
-    <input type="file" id="photo-galerie" accept="image/*" multiple hidden onchange="ajouterPhotos(this.files);this.value=''">
-    <div class="saisie-ligne">
-      <button class="btn btn-secondary" type="button" id="btn-photo" onclick="document.getElementById('photo-cam').click()" aria-label="Prendre une photo">📷</button>
-      <button class="btn btn-secondary" type="button" id="btn-galerie" onclick="document.getElementById('photo-galerie').click()" aria-label="Choisir une photo dans la galerie">🖼</button>
-      <button class="btn btn-secondary" type="button" id="btn-dictee" onclick="dicter()" aria-label="Dicter la note" hidden>🎤</button>
-      <button class="btn btn-green" type="button" id="btn-ajouter" onclick="ajouter()">Ajouter la note</button>
-    </div>
-    <div class="saisie-info" id="saisie-info"></div>
+    <textarea class="meta-input" id="saisie-texte" data-brouillon="non" rows="1" maxlength="2000" placeholder="Ajouter un élément…" aria-label="Ajouter un élément à la liste" enterkeyhint="done"></textarea>
+    <button class="btn btn-green" type="button" id="btn-ajouter" onclick="ajouter()">Ajouter</button>
   </div>
+  <div class="saisie-info" id="saisie-info"></div>
 </div>
 
-<script src="commun/config.js?v=9815945ef9"></script>
-<script src="commun/api.js?v=9815945ef9"></script>
-<script src="commun/ui.js?v=9815945ef9"></script>
-<script src="commun/photos.js?v=9815945ef9"></script>
-<script src="commun/notes.js?v=9815945ef9"></script>
-<script src="commun/hors-ligne.js?v=9815945ef9"></script>
+<script src="commun/config.js?v=8d2883db50"></script>
+<script src="commun/api.js?v=8d2883db50"></script>
+<script src="commun/ui.js?v=8d2883db50"></script>
+<script src="commun/notes.js?v=8d2883db50"></script>
+<script src="commun/hors-ligne.js?v=8d2883db50"></script>
 <script>
 'use strict';
-// Notes de chantier (lot 3). Tout ce qui vient du serveur a été écrit par quelqu'un d'autre : il n'est JAMAIS inséré
-// comme du code de page. La liste est construite élément par élément, le texte posé par textContent.
-// Écrire : une note ou un geste est rangé dans la file d'envoi du téléphone (il part tout de suite, ou au retour du
-// réseau) ; ce qui attend encore est affiché tout de suite, marqué « ⏳ ».
+// Notes de chantier (lot 3) : la liste des choses à faire d'un chantier, façon « Keep ». Une ligne de texte, une case à
+// cocher. Pas de suppression : un élément coché passe dans « Éléments terminés », d'où on peut le décocher.
+// Tout ce qui vient du serveur a été écrit par quelqu'un d'autre : il n'est JAMAIS inséré comme du code de page
+// (la liste est construite élément par élément, le texte posé par textContent).
+// Écrire : un ajout ou un geste est rangé dans la file d'envoi du téléphone (il part tout de suite, ou au retour du
+// réseau, toujours dans l'ordre) ; ce qui attend encore est affiché tout de suite, marqué « ⏳ ».
 const $ = id => document.getElementById(id);
 let CHANTIER = '';
 try { CHANTIER = (new URLSearchParams(location.search).get('chantier') || '').trim().slice(0, 150); } catch (e) {}
-const TOUS = !CHANTIER;
-let DONNEES = null;      // dernière réponse du serveur : { notes, chantier, chef, heure, plein }
+const TOUS = !CHANTIER;       // vue « Tous chantiers » (conducteurs, admin) : en lecture, chaque élément renvoie à son chantier
+let DONNEES = null;           // dernière réponse du serveur : { aFaire, termines, nbTermines, chantier, heure, plein }
 let DU_TELEPHONE = false, DATE_LISTE = 0;
-let ATTENTE = [];        // notes et gestes de CE compte encore dans la file d'envoi, pour ce chantier
-let enCours = 0;         // numéro de la dernière demande : une réponse en retard n'écrase pas la plus récente
-let EDITION = '';        // numéro de la note en cours de modification
-let TEXTE_EDITION = '';  // ce qui est tapé dans la zone de modification (jamais écrasé par un rafraîchissement)
-let MESSAGE_LISTE = '';  // « liste indisponible… » : reste affiché tant que la liste n'est pas revenue
-let aRedessiner = false; // un rafraîchissement est arrivé pendant une modification : il sera appliqué après
-const DERNIER_GESTE = {}; // numéro de note → heure du dernier geste (un double appui ne fait pas deux gestes)
-let HISTO = {};          // numéro de note → anciennes versions déjà chargées
-let PHOTOS_VUES = {};    // « note|rang » → adresse locale de l'image
-let photos = [];         // photos de la saisie en cours : [{ id, blob, url }]
+let ATTENTE = [];             // ajouts et gestes de CE compte encore dans la file d'envoi, pour ce chantier
+let enCours = 0;              // numéro de la dernière demande : une réponse en retard n'écrase pas la plus récente
+let EDITION = '';             // numéro de l'élément en cours de modification
+let TEXTE_EDITION = '';       // ce qui est tapé dans la zone de modification (jamais écrasé par un rafraîchissement)
+let MESSAGE_LISTE = '';       // « liste indisponible… » : reste affiché tant que la liste n'est pas revenue
+let TERMINES_OUVERT = false;  // la section « Éléments terminés » reste ouverte si on l'a ouverte
+const COCHES = {};            // numéro → heure : un élément qu'on vient de cocher reste en place 3 s (un nouvel appui annule)
+const DERNIER_GESTE = {};     // numéro → heure du dernier geste (un double appui ne fait pas deux gestes)
+const DELAI_COCHE = 3000;
 
 function el(balise, classe, texte) {
   const e = document.createElement(balise);
@@ -147,184 +130,143 @@ function bouton(classe, texte, action) {
   return b;
 }
 const quand = ms => new Date(ms).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+const nomChantier = () => (DONNEES && DONNEES.chantier) || CHANTIER;
 
 function entete() {
   const e = $('entete');
   e.textContent = '';
-  if (TOUS) { e.textContent = 'Toutes les notes, tous chantiers. Pour écrire une note, ouvrez un chantier.'; return; }
+  if (TOUS) { e.textContent = 'Les listes de tous les chantiers. Pour cocher, modifier ou ajouter, ouvrez le chantier.'; return; }
   e.appendChild(document.createTextNode('Chantier : '));
-  e.appendChild(el('b', '', (DONNEES && DONNEES.chantier) || CHANTIER));
+  e.appendChild(el('b', '', nomChantier()));
 }
 
-// ── La liste affichée = la réponse du serveur + ce qui attend encore dans le téléphone ──
-function notesAffichees() {
-  const compte = LOUE.compte();
-  const moiNom = compte ? (compte.profil.nom || compte.profil.id) : '';
-  const notes = ((DONNEES && DONNEES.notes) || []).map(n => Object.assign({}, n));
+// ── Ce qui est affiché = la réponse du serveur + ce qui attend encore dans le téléphone ──
+function elementsAffiches() {
+  const aFaire = ((DONNEES && DONNEES.aFaire) || []).map(n => Object.assign({}, n));
+  const termines = ((DONNEES && DONNEES.termines) || []).map(n => Object.assign({}, n));
   const parId = {};
-  notes.forEach(n => { parId[n.id] = n; });
+  aFaire.concat(termines).forEach(n => { parId[n.id] = n; });
   ATTENTE.forEach(a => {
     const d = a.donnees || {}, enErreur = a.etat === 'erreur';
     if (a.type === 'note-chantier') {
-      if (parId[a.id]) return;   // déjà arrivée (la file n'a pas encore été nettoyée)
-      const n = { id: a.id, chantier: d.chantier, auteur: moiNom, cree: quand(a.cree), texte: d.texte || '', photos: (d.photos || []).length, fait: false,
-        version: 1, mien: true, peutModifier: false, enAttente: !enErreur, pasEncorePartie: true, refus: enErreur ? a.message : '' };
-      notes.unshift(n); parId[n.id] = n;
+      if (parId[a.id]) return;   // déjà arrivé (la file n'a pas encore été nettoyée)
+      const n = { id: a.id, texte: d.texte || '', fait: false, enAttente: !enErreur, refus: enErreur ? a.message : '' };
+      aFaire.push(n); parId[n.id] = n;
       return;
     }
     const n = parId[d.note];
     if (!n) return;
     if (enErreur) { n.refus = a.message; return; }
     n.enAttente = true;
-    if (d.geste === 'modifier') { n.texte = d.texte || ''; n.modifPar = moiNom; n.modifLe = quand(a.cree); }
-    if (d.geste === 'fait') { n.fait = true; n.faitPar = moiNom; n.faitLe = quand(a.cree); }
-    if (d.geste === 'defaire') { n.fait = false; n.faitPar = ''; n.faitLe = ''; }
-    if (d.geste === 'supprimer') n.cachee = true;
+    if (d.geste === 'modifier') n.texte = d.texte || '';
+    if (d.geste === 'fait') n.fait = true;
+    if (d.geste === 'defaire') n.fait = false;
   });
-  return notes.filter(n => !n.cachee);
+  // Un élément qu'on vient de cocher reste à sa place, barré, quelques secondes : les lignes ne remontent pas sous le doigt
+  const recent = n => n.fait && COCHES[n.id] && Date.now() - COCHES[n.id] < DELAI_COCHE;
+  const tout = aFaire.concat(termines);
+  const haut = tout.filter(n => !n.fait || recent(n));
+  // terminés : ceux que le téléphone vient de cocher d'abord, puis ceux du serveur (les derniers cochés en haut)
+  const bas = aFaire.filter(n => n.fait && !recent(n)).reverse().concat(termines.filter(n => n.fait && !recent(n)));
+  // (un élément décoché depuis la section « terminés » revient en bas de la liste jusqu'à la prochaine relecture, qui le remet à sa place)
+  // nombre total d'éléments terminés : celui du serveur, corrigé de ce qui a été coché ou décoché depuis sur ce téléphone
+  const nbServeur = (DONNEES && Number(DONNEES.nbTermines)) || 0;
+  return { haut: haut, bas: bas, nbTermines: Math.max(bas.length, nbServeur - termines.length + bas.length) };
 }
 
-function carte(n, corbeille) {
-  const chef = !!(DONNEES && DONNEES.chef);
-  const c = el('div', 'note' + (n.fait ? ' faite' : '') + (n.enAttente ? ' attente' : '') + (corbeille ? ' supprimee' : ''));
+function ligne(n) {
+  const c = el('div', 'el' + (n.fait ? ' faite' : '') + (TOUS ? ' lecture' : ''));
   c.dataset.note = n.id;
-  const tete = el('div', 'note-tete');
-  tete.appendChild(el('b', '', n.auteur || '—'));
-  tete.appendChild(el('span', '', n.cree || ''));
-  if (n.nouveau) tete.appendChild(el('span', 'pastille rouge', 'nouveau'));
-  if (n.enAttente) tete.appendChild(el('span', 'pastille orange', '⏳ en attente d’envoi'));
-  if (n.refus && n.pasEncorePartie) tete.appendChild(el('span', 'pastille rouge', '⚠ pas enregistrée'));
-  if (n.mien && !n.pasEncorePartie) tete.appendChild(el('span', 'pastille gris', 'la mienne'));
-  c.appendChild(tete);
-  if (TOUS) {
-    const ch = el('div', 'note-pied');
-    ch.appendChild(document.createTextNode('Chantier : '));
-    const a = el('a', '', n.chantier || '—'); a.href = 'notes.html?chantier=' + encodeURIComponent(n.chantier || ''); ch.appendChild(a);
-    c.appendChild(ch);
-  }
+  const coche = el('button', 'case');
+  coche.type = 'button';
+  coche.setAttribute('role', 'checkbox');
+  coche.setAttribute('aria-checked', n.fait ? 'true' : 'false');
+  coche.setAttribute('aria-label', (n.fait ? 'Décocher : ' : 'Cocher : ') + (n.texte || ''));
+  coche.appendChild(el('span', '', n.fait ? '✓' : ''));
+  if (TOUS) coche.disabled = true; else coche.addEventListener('click', () => cocher(n));
+  c.appendChild(coche);
+  const corps = el('div', 'el-corps');
+  c.appendChild(corps);
 
-  if (EDITION === n.id && !corbeille) {
-    const zone = el('textarea', 'meta-input note-edit');
-    zone.value = TEXTE_EDITION; zone.maxLength = 2000; zone.dataset.brouillon = 'non'; zone.setAttribute('aria-label', 'Texte de la note');
+  if (EDITION === n.id) {
+    const zone = el('textarea', 'meta-input el-edit');
+    zone.value = TEXTE_EDITION; zone.maxLength = 2000; zone.dataset.brouillon = 'non'; zone.setAttribute('aria-label', 'Texte de l’élément');
+    zone.setAttribute('enterkeyhint', 'done');
     zone.addEventListener('input', () => { TEXTE_EDITION = zone.value; });
-    c.appendChild(zone);
-    const rangee = el('div', 'note-actions');
-    rangee.appendChild(bouton('btn-green', 'Enregistrer', () => enregistrerModification(n, zone.value)));
+    zone.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); enregistrerModification(n, zone.value); } });
+    // Sortir de la zone sans avoir rien changé la referme toute seule (un appui par erreur sur un texte ne bloque rien)
+    zone.addEventListener('blur', () => setTimeout(() => { if (EDITION === n.id && LOUE.notes.nettoyer(TEXTE_EDITION) === (n.texte || '')) finEdition(); }, 250));
+    corps.appendChild(zone);
+    const rangee = el('div', 'el-boutons');
+    rangee.appendChild(bouton('btn-green', 'OK', () => enregistrerModification(n, zone.value)));
     rangee.appendChild(bouton('btn-secondary', 'Annuler', finEdition));
-    c.appendChild(rangee);
-    setTimeout(() => zone.focus(), 0);
+    corps.appendChild(rangee);
+    setTimeout(() => { zone.focus(); try { c.scrollIntoView({ block: 'center' }); } catch (e) {} }, 0);
     return c;
   }
 
-  c.appendChild(el('div', 'note-texte', n.texte || (n.photos ? '(photo sans texte)' : '')));
-
-  if (n.photos) {
-    const zone = el('div', 'note-photos');
-    for (let rang = 1; rang <= n.photos; rang++) {
-      const cle = n.id + '|' + rang;
-      if (PHOTOS_VUES[cle]) { const img = el('img'); img.src = PHOTOS_VUES[cle]; img.alt = 'Photo ' + rang + ' de la note'; zone.appendChild(img); continue; }
-      const b = bouton('btn-secondary', '📷 Voir la photo' + (n.photos > 1 ? ' ' + rang : ''), () => voirPhoto(n, rang, b));
-      if (n.pasEncorePartie) { b.disabled = true; b.textContent = '📷 Photo ' + rang + ' (dans le téléphone, pas encore envoyée)'; }
-      zone.appendChild(b);
-    }
-    c.appendChild(zone);
+  const texte = el('div', 'el-texte', n.texte || '');
+  if (n.nouveau) { const m = el('span', 'el-marque nouveau', '● nouveau'); texte.appendChild(m); }
+  if (n.enAttente) { const m = el('span', 'el-marque attente', '⏳'); m.title = 'En attente d’envoi'; m.setAttribute('aria-label', 'en attente d’envoi'); texte.appendChild(m); }
+  // Toucher le texte d'un élément à faire l'ouvre en modification (un élément terminé se décoche d'abord)
+  if (!TOUS && !n.fait) {
+    texte.setAttribute('role', 'button'); texte.tabIndex = 0;
+    texte.setAttribute('aria-label', 'Modifier : ' + (n.texte || ''));
+    const ouvrir = () => { EDITION = n.id; TEXTE_EDITION = n.texte || ''; afficher(); };
+    texte.addEventListener('click', ouvrir);
+    texte.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); ouvrir(); } });
   }
-
-  const pied = [];
-  if (n.fait) pied.push('✓ Fait par ' + (n.faitPar || '—') + (n.faitLe ? ' le ' + n.faitLe : ''));
-  if (n.modifPar) pied.push('Modifiée par ' + n.modifPar + (n.modifLe ? ' le ' + n.modifLe : ''));
-  if (n.remarque) pied.push('⚠ ' + n.remarque + ' — voir l’historique');
-  if (corbeille) pied.push('Supprimée par ' + (n.supprPar || '—') + (n.supprLe ? ' le ' + n.supprLe : ''));
-  if (n.refus) pied.push('⚠ Pas enregistré : ' + n.refus + ' (détail : indicateur en haut de l’écran)');
-  if (pied.length) c.appendChild(el('div', 'note-pied', pied.join(' · ')));
-
-  const actions = el('div', 'note-actions');
-  if (corbeille) {
-    if (chef) actions.appendChild(bouton('btn-secondary', '↩ Restaurer', () => geste(n, 'restaurer', 'Note restaurée')));
-  } else if (!TOUS) {
-    const bFait = bouton('btn-fait', n.fait ? '✓ Fait — toucher pour annuler' : 'Marquer « Fait »', () => geste(n, n.fait ? 'defaire' : 'fait', n.fait ? '« Fait » annulé' : 'Note marquée « Fait »'));
-    bFait.setAttribute('aria-pressed', n.fait ? 'true' : 'false');
-    actions.appendChild(bFait);
-    if (n.peutModifier) {
-      actions.appendChild(bouton('btn-secondary', 'Modifier', () => { EDITION = n.id; TEXTE_EDITION = n.texte || ''; afficher(); }));
-      actions.appendChild(bouton('btn-secondary', 'Supprimer', () => {
-        if (confirm('Supprimer cette note ? Elle ira à la corbeille : un conducteur pourra la restaurer.')) geste(n, 'supprimer', 'Note supprimée');
-      }));
-    }
-    // Une note pas encore partie n'existe pas pour le serveur : pas de geste dessus avant son envoi
-    if (n.pasEncorePartie) actions.querySelectorAll('button').forEach(b => { b.disabled = true; });
+  corps.appendChild(texte);
+  if (TOUS) {
+    const info = el('div', 'el-info');
+    const a = el('a', '', n.chantier || '—'); a.href = 'notes.html?chantier=' + encodeURIComponent(n.chantier || '');
+    info.appendChild(a); corps.appendChild(info);
   }
-  if (n.modifPar && !n.pasEncorePartie) actions.appendChild(bouton('btn-secondary', 'Historique', () => voirHistorique(n, c)));
-  if (actions.children.length) c.appendChild(actions);
-
-  if (HISTO[n.id]) c.appendChild(blocHistorique(HISTO[n.id]));
+  if (n.refus) corps.appendChild(el('div', 'el-info erreur', '⚠ Pas enregistré : ' + n.refus + ' (détail : indicateur en haut de l’écran)'));
   return c;
-}
-
-function blocHistorique(versions) {
-  const b = el('div', 'histo');
-  if (!versions.length) { b.textContent = 'Aucune ancienne version.'; return b; }
-  versions.forEach(v => {
-    const d = el('div');
-    d.appendChild(el('b', '', 'Version ' + v.version + ' — écrite par ' + (v.par || '—') + (v.remplacePar ? ', remplacée par ' + v.remplacePar : '') + ' le ' + v.le
-      + (v.motif && v.motif !== 'modification' ? ' (' + v.motif + ')' : '') + ' :'));
-    d.appendChild(document.createTextNode('\n' + v.texte));
-    b.appendChild(d);
-  });
-  return b;
 }
 
 function afficher() {
   const liste = $('liste');
   // Une modification est en cours : on ne redessine pas sous les doigts (le texte tapé et le curseur restent en place) ;
-  // ce qui est arrivé entre-temps sera affiché à « Enregistrer » ou « Annuler »
-  if (EDITION && liste.querySelector('.note-edit')) {
-    aRedessiner = true;
-    $('info').textContent = 'Modification en cours : la liste sera mise à jour après « Enregistrer » ou « Annuler ».';
+  // ce qui est arrivé entre-temps sera affiché à « OK » ou « Annuler »
+  if (EDITION && liste.querySelector('.el-edit')) {
+    $('info').textContent = 'Modification en cours : touchez « OK » ou « Annuler » pour retrouver le reste de la liste.';
     return;
   }
-  aRedessiner = false;
-  const notes = notesAffichees();
+  document.body.classList.toggle('en-modification', !!EDITION);
+  const e = elementsAffiches();
   liste.textContent = '';
   entete();
   $('info').textContent = MESSAGE_LISTE || (DU_TELEPHONE
-    ? 'Liste du ' + quand(DATE_LISTE) + ' gardée dans le téléphone (pas de réseau, ou réponse pas encore arrivée). Vos notes et vos « Fait » sont gardés et partiront tout seuls.'
-    : (DONNEES && DONNEES.plein ? 'Seules les notes les plus récentes sont affichées' + (TOUS ? ' : précisez avec les filtres.' : '.') : ''));
-  if (!notes.length) liste.appendChild(el('div', 'vide', TOUS ? 'Aucune note ne correspond.' : 'Aucune note pour ce chantier. Écrivez la première en bas de l’écran.'));
-  notes.forEach(n => liste.appendChild(carte(n, false)));
-  $('outils').hidden = TOUS || !(DONNEES && DONNEES.chef);
-  if (TOUS) remplirFiltres();
-  // Une note est en cours de modification : les boutons des AUTRES notes attendent (la liste ne bouge pas pendant la frappe)
-  if (EDITION) {
-    liste.querySelectorAll('.note').forEach(c => { if (c.dataset.note !== EDITION) c.querySelectorAll('button').forEach(b => { b.disabled = true; }); });
-    if (liste.querySelector('.note-edit')) $('info').textContent = 'Modification en cours : touchez « Enregistrer » ou « Annuler » pour retrouver les autres boutons.';
+    ? 'Liste du ' + quand(DATE_LISTE) + ' gardée dans le téléphone (pas de réseau, ou réponse pas encore arrivée). Ce que vous ajoutez ou cochez est gardé et partira tout seul.'
+    : (DONNEES && DONNEES.plein ? 'Seuls les 300 éléments les plus récents sont affichés' + (TOUS ? ' : précisez avec la recherche.' : '.') : ''));
+  if (!e.haut.length) liste.appendChild(el('div', 'vide', TOUS ? 'Aucun élément ne correspond.' : (e.bas.length ? 'Tout est fait.' : 'La liste de ce chantier est vide. Ajoutez le premier élément en bas de l’écran.')));
+  else { const bloc = el('div', 'liste'); e.haut.forEach(n => bloc.appendChild(ligne(n))); liste.appendChild(bloc); }
+  // « Éléments terminés (n) » : replié ; on l'ouvre pour décocher
+  const section = $('termines'), zone = $('liste-termines');
+  section.hidden = !e.bas.length;
+  $('termines-titre').textContent = 'Éléments terminés (' + e.nbTermines + ')';
+  section.open = TERMINES_OUVERT;
+  zone.textContent = '';
+  if (e.bas.length) {
+    const bloc = el('div', 'liste'); e.bas.forEach(n => bloc.appendChild(ligne(n))); zone.appendChild(bloc);
+    if (e.nbTermines > e.bas.length) zone.appendChild(el('div', 'listes-info', 'Seuls les ' + e.bas.length + ' derniers éléments cochés sont affichés.'));
   }
+  // Pendant une modification, les autres lignes attendent
+  if (EDITION) document.querySelectorAll('#liste .el, #liste-termines .el').forEach(c => { if (c.dataset.note !== EDITION) c.querySelectorAll('button').forEach(b => { b.disabled = true; }); });
 }
+$('termines').addEventListener('toggle', () => { TERMINES_OUVERT = $('termines').open; });
 // Fin d'une modification (enregistrée ou annulée) : la liste est redessinée avec ce qui est arrivé entre-temps
-function finEdition() { EDITION = ''; TEXTE_EDITION = ''; const z = $('liste').querySelector('.note-edit'); if (z) z.remove(); afficher(); }
+function finEdition() { EDITION = ''; TEXTE_EDITION = ''; const z = $('liste').querySelector('.el-edit'); if (z) z.remove(); afficher(); }
 
 function pasDeCompte(texte) {
   $('liste').textContent = ''; $('info').textContent = '';
   $('saisie').hidden = true; document.body.classList.remove('avec-saisie');
-  $('filtres').hidden = true; $('outils').hidden = true;
+  $('filtres').hidden = true; $('termines').hidden = true;
   const v = el('div', 'vide', texte + ' ');
   const a = el('a', '', 'Aller à l’accueil'); a.href = 'index.html'; v.appendChild(a);
   $('liste').appendChild(v);
-}
-
-function filtresActuels() {
-  return { chantier: $('f-chantier').value, auteur: $('f-auteur').value, recherche: $('f-recherche').value.trim(), nouveau: $('f-nouveau').checked, nonFait: $('f-nonfait').checked };
-}
-// Listes déroulantes des filtres : les chantiers du compte, et les auteurs vus dans les réponses (on n'en retire jamais)
-const AUTEURS = {};
-function remplirFiltres() {
-  ((DONNEES && DONNEES.notes) || []).forEach(n => { if (n.auteur) AUTEURS[n.auteur] = true; });
-  const sel = $('f-auteur'), choisi = sel.value;
-  Object.keys(AUTEURS).sort().forEach(a => {
-    if (Array.prototype.some.call(sel.options, o => o.value === a)) return;
-    const o = el('option', '', a); o.value = a; sel.appendChild(o);
-  });
-  sel.value = choisi;
 }
 
 function charger() {
@@ -334,7 +276,7 @@ function charger() {
   $('saisie').hidden = TOUS; document.body.classList.toggle('avec-saisie', !TOUS);
   $('filtres').hidden = !TOUS;
   $('btn-actualiser').disabled = true;
-  const demande = TOUS ? filtresActuels() : { chantier: CHANTIER };
+  const demande = TOUS ? { chantier: $('f-chantier').value, recherche: $('f-recherche').value.trim(), nouveau: $('f-nouveau').checked, termines: $('f-termines').checked } : { chantier: CHANTIER };
   // Première ouverture : la liste gardée dans le téléphone et ce qui attend d'être envoyé s'affichent TOUT DE SUITE
   // (avec une barre de réseau, la réponse du serveur peut mettre 20 secondes) ; la liste du serveur les remplace ensuite
   if (!DONNEES) {
@@ -342,27 +284,27 @@ function charger() {
     if (!TOUS) Promise.all([LOUE.notes.gardee(CHANTIER), LOUE.notes.enAttente(CHANTIER)]).then(r => {
       if (moi !== enCours || DONNEES) return;
       if (!r[0] && !r[1].length) return;
-      DONNEES = (r[0] && r[0].donnees) || { notes: [] }; DU_TELEPHONE = true; DATE_LISTE = r[0] ? r[0].date : Date.now(); ATTENTE = r[1];
+      DONNEES = (r[0] && r[0].donnees) || { aFaire: [], termines: [] }; DU_TELEPHONE = true; DATE_LISTE = r[0] ? r[0].date : Date.now(); ATTENTE = r[1];
       afficher();
     });
   }
+  // Ce qui attend dans le téléphone est relu APRÈS la réponse du serveur (elle peut arriver 20 s plus tard), jamais avant
   LOUE.notes.lire(demande).then(liste => (TOUS ? Promise.resolve([]) : LOUE.notes.enAttente(CHANTIER)).then(a => [liste, a])).then(r => {
     if (moi !== enCours) return;
-    DONNEES = r[0].donnees || { notes: [] }; DU_TELEPHONE = !!r[0].depuisLeTelephone; DATE_LISTE = r[0].date; ATTENTE = r[1]; MESSAGE_LISTE = '';
+    DONNEES = r[0].donnees || { aFaire: [], termines: [] }; DU_TELEPHONE = !!r[0].depuisLeTelephone; DATE_LISTE = r[0].date; ATTENTE = r[1]; MESSAGE_LISTE = '';
     afficher();
-    if (!TOUS && !$('corbeille').hidden) chargerCorbeille();
     // « Vu » : seulement une liste venue du serveur, réellement affichée, page visible, et qui montrait du nouveau
-    if (!TOUS && !DU_TELEPHONE && !document.hidden && DONNEES.heure && (DONNEES.notes || []).some(n => n.nouveau)) LOUE.notes.vues(DONNEES.chantier || CHANTIER, DONNEES.heure);
+    if (!TOUS && !DU_TELEPHONE && !document.hidden && DONNEES.heure && (DONNEES.aFaire || []).some(n => n.nouveau)) LOUE.notes.vues(nomChantier(), DONNEES.heure);
   }).catch(err => {
     if (moi !== enCours) return;
     if (err && err.connexion) { pasDeCompte('Session terminée : reconnectez-vous depuis l’accueil.'); return; }
-    // Liste indisponible : on montre au moins ce qui attend dans le téléphone, et la saisie reste possible
+    // Liste indisponible : on montre au moins ce qui attend dans le téléphone, et l'ajout reste possible
     LOUE.notes.enAttente(CHANTIER).then(a => {
       if (moi !== enCours) return;
-      DONNEES = (err && err.code === 'INTERDIT') ? { notes: [] } : (DONNEES || { notes: [] });   // accès retiré : la liste affichée est retirée
+      DONNEES = (err && err.code === 'INTERDIT') ? { aFaire: [], termines: [] } : (DONNEES || { aFaire: [], termines: [] });   // accès retiré : la liste affichée est retirée
       ATTENTE = TOUS ? [] : a;
       MESSAGE_LISTE = 'Liste indisponible : ' + String(LOUE.messageClair(err)).replace(/,? nouvel essai automatique/, '').replace(/[.\s]+$/, '')
-        + '.' + (TOUS ? '' : ' Vous pouvez quand même écrire une note : elle partira dès que possible.');
+        + '.' + (TOUS ? '' : ' Vous pouvez quand même ajouter un élément : il partira dès que possible.');
       afficher();
     });
   }).finally(() => { if (moi === enCours) $('btn-actualiser').disabled = false; });
@@ -373,7 +315,7 @@ function toutMarquerLu() {
   b.disabled = true;
   LOUE.notes.vues('', DONNEES && DONNEES.heure, true).then(ok => {
     b.disabled = false;
-    LOUE.message(ok ? '✓ Toutes les notes sont marquées comme lues.' : '⚠ Pas enregistré : réessayez quand il y aura du réseau.', 5000);
+    LOUE.message(ok ? '✓ Tout est marqué comme lu.' : '⚠ Pas enregistré : réessayez quand il y aura du réseau.', 5000);
     if (ok) charger();
   });
 }
@@ -385,9 +327,23 @@ function majAttente(relire) {
   LOUE.notes.enAttente(CHANTIER).then(a => { ATTENTE = a; afficher(); });
   if (relire) { clearTimeout(relecture); relecture = setTimeout(charger, 700); }
 }
+// Un ajout ou un geste vient d'être confirmé par le serveur : il est reporté tout de suite dans la liste affichée, sans attendre
+// la relecture (sinon la ligne reviendrait un instant à son ancien état, et un second appui partirait à contresens)
+function integrer(a) {
+  if (!DONNEES || TOUS) return;
+  const d = a.donnees || {};
+  DONNEES.aFaire = DONNEES.aFaire || []; DONNEES.termines = DONNEES.termines || [];
+  const tout = DONNEES.aFaire.concat(DONNEES.termines);
+  if (a.type === 'note-chantier') { if (!tout.some(n => n.id === a.id)) DONNEES.aFaire.push({ id: a.id, texte: d.texte || '', fait: false, nouveau: false }); return; }
+  const n = tout.find(x => x.id === d.note);
+  if (!n) return;
+  if (d.geste === 'modifier') n.texte = d.texte || '';
+  if (d.geste === 'fait') n.fait = true;
+  if (d.geste === 'defaire') n.fait = false;
+}
 LOUE.surEvenement(ev => {
   const estNote = ev.element && /^note-/.test(ev.element.type || '');
-  if (ev.type === 'envoyee' && estNote) majAttente(true);
+  if (ev.type === 'envoyee' && estNote) { integrer(ev.element); majAttente(true); }
   else if (ev.type === 'file' || estNote) majAttente(false);
   if (ev.type === 'compte') charger();
 });
@@ -395,205 +351,115 @@ LOUE.surEvenement(ev => {
 // ── Gestes : rangés dans la file d'envoi (ils partent dans l'ordre), affichés tout de suite ──
 let gesteEnCours = false;
 function geste(n, nom, libelle, extra) {
-  // Un double appui (ou un second appui juste après le redessin) ne fait pas deux gestes
-  if (gesteEnCours) { LOUE.message('Un envoi est en cours : réessayez dans un instant.', 4000); return Promise.resolve(); }
-  if (Date.now() - (DERNIER_GESTE[n.id] || 0) < 700) return Promise.resolve();
+  if (gesteEnCours) { LOUE.message('Un envoi est en cours : réessayez dans un instant.', 4000); return Promise.resolve(false); }
+  if (Date.now() - (DERNIER_GESTE[n.id] || 0) < 400) return Promise.resolve(false);   // double appui
   gesteEnCours = true; DERNIER_GESTE[n.id] = Date.now();
-  const d = Object.assign({ chantier: (DONNEES && DONNEES.chantier) || CHANTIER, note: n.id, geste: nom }, extra || {});
+  const d = Object.assign({ chantier: nomChantier(), note: n.id, geste: nom }, extra || {});
   return LOUE.mettreEnFile('note-action', d, [], libelle).then(() => {
     LOUE.viderFile();
-    return LOUE.notes.enAttente(CHANTIER).then(a => { ATTENTE = a; afficher(); });
+    return LOUE.notes.enAttente(CHANTIER).then(a => { ATTENTE = a; afficher(); return true; });
   }, () => {
     // Le téléphone refuse de garder le geste (navigation privée, mémoire pleine) : envoi direct, page ouverte
     LOUE.message('Envoi en cours… ne quittez pas la page', 6000);
-    return LOUE.envoyerDirect('note-action', d, []).then(() => { LOUE.message('✓ ' + libelle, 3000); charger(); })
-      .catch(err => LOUE.message('⚠ Pas enregistré : ' + LOUE.messageClair(err) + '. Réessayez quand il y aura du réseau.', 10000));
-  }).finally(() => { gesteEnCours = false; });   // la corbeille ouverte est relue quand le geste est arrivé (voir charger)
+    return LOUE.envoyerDirect('note-action', d, []).then(() => { LOUE.message('✓ ' + libelle, 3000); charger(); return true; })
+      .catch(err => { LOUE.message('⚠ Pas enregistré : ' + LOUE.messageClair(err) + '. Réessayez quand il y aura du réseau.', 10000); return false; });
+  }).finally(() => { gesteEnCours = false; });
+}
+// Cocher : l'élément reste à sa place, barré, 3 secondes (un nouvel appui annule), puis descend dans « Éléments terminés »
+function cocher(n) {
+  if (EDITION) return;
+  if (n.fait) { delete COCHES[n.id]; geste(n, 'defaire', 'Élément décoché'); return; }
+  COCHES[n.id] = Date.now();
+  geste(n, 'fait', 'Élément coché').then(ok => { if (!ok) { delete COCHES[n.id]; return; } setTimeout(afficher, DELAI_COCHE + 100); });
 }
 function enregistrerModification(n, texte) {
   const t = LOUE.notes.nettoyer(texte);
-  if (!t && !n.photos) { LOUE.message('La note ne peut pas être vide. Pour l’enlever, touchez « Supprimer ».', 6000); return; }
+  if (!t) { LOUE.message('Le texte ne peut pas être vide. Un élément ne se supprime pas : cochez-le.', 6000); return; }
   if (t === (n.texte || '')) { finEdition(); return; }
-  if (gesteEnCours) { LOUE.message('Un envoi est en cours : touchez « Enregistrer » de nouveau dans un instant (votre texte reste là).', 5000); return; }
+  if (gesteEnCours) { LOUE.message('Un envoi est en cours : touchez « OK » de nouveau dans un instant (votre texte reste là).', 5000); return; }
   finEdition();
   DERNIER_GESTE[n.id] = 0;
-  geste(n, 'modifier', 'Note modifiée', { texte: t, base: n.version || 1 });
+  // « vu » : le texte que ce téléphone avait sous les yeux (le serveur note dans son historique s'il avait changé entre-temps)
+  geste(n, 'modifier', 'Élément modifié', { texte: t, vu: n.texte || '' });
 }
 
-function voirPhoto(n, rang, b) {
-  b.disabled = true; b.textContent = 'Chargement de la photo…';
-  LOUE.notes.photo(n.id, rang).then(url => { PHOTOS_VUES[n.id + '|' + rang] = url; afficher(); if (!$('corbeille').hidden) chargerCorbeille(); })
-    .catch(err => { b.disabled = false; b.textContent = '📷 Réessayer'; LOUE.message('Photo indisponible : ' + LOUE.messageClair(err), 6000); });
-}
-function voirHistorique(n, c) {
-  if (HISTO[n.id]) { delete HISTO[n.id]; afficher(); return; }
-  LOUE.notes.historique(n.id).then(v => { HISTO[n.id] = v; afficher(); })
-    .catch(err => LOUE.message('Historique indisponible : ' + LOUE.messageClair(err), 6000));
-}
-
-// ── Corbeille et export (conducteurs, admin) ──
-function basculerCorbeille() {
-  const z = $('corbeille');
-  if (!z.hidden) { z.hidden = true; return; }
-  z.hidden = false; chargerCorbeille();
-}
-function chargerCorbeille() {
-  const z = $('corbeille');
-  z.textContent = ''; z.appendChild(el('div', 'listes-info', 'Chargement de la corbeille…'));
-  LOUE.notes.lire({ chantier: CHANTIER, corbeille: true }).then(r => {
-    z.textContent = '';
-    const notes = (r.donnees && r.donnees.notes) || [];
-    z.appendChild(el('div', 'aide', notes.length ? 'Notes supprimées de ce chantier :' : 'La corbeille de ce chantier est vide.'));
-    notes.forEach(n => z.appendChild(carte(n, true)));
-  }).catch(err => { z.textContent = ''; z.appendChild(el('div', 'vide', 'Corbeille indisponible : ' + LOUE.messageClair(err))); });
-}
-function exporter() {
-  if (!confirm('Fabriquer le PDF des notes de ce chantier ? Il sera rangé dans le dossier du chantier (COMPTE RENDU). Cela peut prendre une minute.')) return;
-  const b = $('btn-pdf');
-  b.disabled = true; b.textContent = 'Fabrication du PDF…';
-  LOUE.notes.exporter(CHANTIER).then(d => {
-    LOUE.message('✓ PDF rangé dans le dossier du chantier : ' + (d.nom || '') + (d.photosNonReprises ? ' (' + d.photosNonReprises + ' photo(s) non reprise(s) : voir le dossier PHOTOS CHANTIER/NOTES)' : ''), 0);
-  }).catch(err => LOUE.message('⚠ PDF non fabriqué : ' + LOUE.messageClair(err), 10000))
-    .finally(() => { b.disabled = false; b.textContent = 'Exporter en PDF'; });
-}
-
-// ── Saisie rapide : texte, photos (3 au plus), dictée ; gardée dans le téléphone sans rien demander ──
-function afficherPhotosSaisie() {
-  const z = $('saisie-photos');
-  z.textContent = '';
-  photos.forEach((p, i) => {
-    const d = el('div');
-    const img = el('img'); img.src = p.url; img.alt = 'Photo ' + (i + 1);
-    const b = el('button', '', '×'); b.type = 'button'; b.setAttribute('aria-label', 'Retirer la photo ' + (i + 1));
-    b.addEventListener('click', () => { URL.revokeObjectURL(photos[i].url); photos.splice(i, 1); afficherPhotosSaisie(); garderSaisie(); });
-    d.appendChild(img); d.appendChild(b); z.appendChild(d);
-  });
-  $('btn-photo').disabled = $('btn-galerie').disabled = photos.length >= LOUE.notes.MAX_PHOTOS;
-}
-async function ajouterPhotos(fichiers) {
-  for (const f of Array.from(fichiers || [])) {
-    if (photos.length >= LOUE.notes.MAX_PHOTOS) { LOUE.message(LOUE.notes.MAX_PHOTOS + ' photos au maximum par note'); break; }
-    try {
-      const blob = await LOUE.compresserPhoto(f);
-      photos.push({ id: LOUE.nouvelId('photo'), blob, url: URL.createObjectURL(blob) });
-    } catch (err) { LOUE.message(err.message, 8000); }
-  }
-  afficherPhotosSaisie(); garderSaisie();
-}
-let minuteurSaisie = null;
-function garderSaisie() {
-  clearTimeout(minuteurSaisie);
-  minuteurSaisie = setTimeout(() => {
-    const texte = $('saisie-texte').value;
-    if (!texte.trim() && !photos.length) LOUE.notes.effacerSaisie(CHANTIER);
-    else LOUE.notes.ecrireSaisie(CHANTIER, { texte: texte, photos: photos.map(p => ({ id: p.id, blob: p.blob })) }).then(ok => {
-      // Le téléphone refuse de garder la saisie (navigation privée, mémoire pleine) : on le dit, une seule fois
-      if (!ok && !garderSaisie.prevenu) { garderSaisie.prevenu = true; $('saisie-info').textContent = '⚠ Le téléphone ne peut pas garder cette note en cours : touchez « Ajouter la note » avant de quitter la page.'; }
+// ── Ajouter un élément : en bas de l'écran ; le texte en cours de frappe est gardé dans le téléphone sans rien demander ──
+const zoneAjout = $('saisie-texte');
+function hauteurAjout() { zoneAjout.style.height = 'auto'; zoneAjout.style.height = Math.min(140, zoneAjout.scrollHeight + 2) + 'px'; }
+let minuteurTexte = null, prevenu = false;
+function garderTexte() {
+  clearTimeout(minuteurTexte);
+  minuteurTexte = setTimeout(() => {
+    if (!zoneAjout.value.trim()) { LOUE.notes.effacerTexte(CHANTIER); return; }
+    LOUE.notes.ecrireTexte(CHANTIER, zoneAjout.value).then(ok => {
+      // Le téléphone refuse de garder le texte (navigation privée, mémoire pleine) : on le dit, une seule fois
+      if (!ok && !prevenu) { prevenu = true; $('saisie-info').textContent = '⚠ Le téléphone ne peut pas garder ce texte : touchez « Ajouter » avant de quitter la page.'; }
     });
   }, 400);
 }
-function restaurerSaisie() {
+zoneAjout.addEventListener('input', () => { if (!prevenu) $('saisie-info').textContent = ''; hauteurAjout(); garderTexte(); });
+zoneAjout.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); ajouter(); } });
+function restaurerTexte() {
   if (TOUS || !LOUE.compte()) return;
-  LOUE.notes.lireSaisie(CHANTIER).then(s => {
-    if (!s || $('saisie-texte').value || photos.length) return;
-    $('saisie-texte').value = String(s.texte || '').slice(0, 2000);
-    photos = (s.photos || []).filter(p => p && p.blob).slice(0, LOUE.notes.MAX_PHOTOS).map(p => ({ id: p.id, blob: p.blob, url: URL.createObjectURL(p.blob) }));
-    afficherPhotosSaisie();
-    if ($('saisie-texte').value || photos.length) $('saisie-info').textContent = 'Note commencée retrouvée : touchez « Ajouter la note » pour l’enregistrer.';
+  LOUE.notes.lireTexte(CHANTIER).then(t => {
+    if (!t || zoneAjout.value) return;
+    zoneAjout.value = t.slice(0, 2000); hauteurAjout();
+    $('saisie-info').textContent = 'Texte commencé retrouvé : touchez « Ajouter » pour l’enregistrer.';
   });
 }
-$('saisie-texte').addEventListener('input', () => { $('saisie-info').textContent = ''; garderSaisie(); });
 
 let ajoutEnCours = false;
-// La même note renvoyée sans rien changer (après « pas encore confirmé ») garde ses données, heure comprise :
-// le serveur reconnaît son numéro et ne l'enregistre pas deux fois
-let DERNIER_AJOUT = {};
 async function ajouter() {
   if (ajoutEnCours) return;
-  const texte = LOUE.notes.nettoyer($('saisie-texte').value);
-  if (!texte && !photos.length) { LOUE.message('Écrivez un texte ou ajoutez une photo.', 5000); $('saisie-texte').focus(); return; }
-  arreterDictee();
+  const texte = LOUE.notes.nettoyer(zoneAjout.value);
+  if (!texte) { LOUE.message('Écrivez d’abord le texte de l’élément.', 4000); zoneAjout.focus(); return; }
   ajoutEnCours = true;
   const b = $('btn-ajouter');
-  b.disabled = true; b.textContent = 'Rangement dans le téléphone…';
-  const now = new Date(), p = n => String(n).padStart(2, '0');
-  const cleSaisie = texte + '|' + photos.map(x => x.id).join(',');
-  const d = DERNIER_AJOUT.cle === cleSaisie ? DERNIER_AJOUT.d : { chantier: (DONNEES && DONNEES.chantier) || CHANTIER, texte: texte, photos: photos.map(x => ({ photoRef: x.id })),
-    date: p(now.getDate()) + '/' + p(now.getMonth() + 1) + '/' + now.getFullYear(), heure: p(now.getHours()) + 'h' + p(now.getMinutes()) };
-  const lesPhotos = photos.map(x => ({ id: x.id, blob: x.blob }));
-  DERNIER_AJOUT = { cle: cleSaisie, d: d };
-  const vider = () => {
-    DERNIER_AJOUT = {};
-    clearTimeout(minuteurSaisie);
-    $('saisie-texte').value = ''; photos.forEach(x => URL.revokeObjectURL(x.url)); photos = []; afficherPhotosSaisie(); $('saisie-info').textContent = '';
-    return LOUE.notes.effacerSaisie(CHANTIER);
-  };
-  const finir = () => { b.disabled = false; b.textContent = 'Ajouter la note'; ajoutEnCours = false; };
+  b.disabled = true;
+  const d = { chantier: nomChantier(), texte: texte };
+  const vider = () => { clearTimeout(minuteurTexte); zoneAjout.value = ''; hauteurAjout(); $('saisie-info').textContent = ''; prevenu = false; return LOUE.notes.effacerTexte(CHANTIER); };
+  const finir = () => { b.disabled = false; ajoutEnCours = false; };
   let enFile = false;
   try {
-    await LOUE.mettreEnFile('note-chantier', d, lesPhotos, 'Note');
+    await LOUE.mettreEnFile('note-chantier', d, [], 'Note');
     enFile = true;
     await vider();
     LOUE.viderFile();
     ATTENTE = await LOUE.notes.enAttente(CHANTIER);
-    afficher(); window.scrollTo(0, 0);
-    finir();
+    afficher();
+    window.scrollTo(0, document.documentElement.scrollHeight);   // le nouvel élément est en bas de la liste, juste au-dessus de la saisie
+    finir(); zoneAjout.focus();
   } catch (err) {
     if (enFile) { try { await vider(); } catch (e2) {} majAttente(false); finir(); return; }   // déjà dans la file : surtout pas d'envoi direct (doublon)
-    // Le téléphone refuse de garder la note (navigation privée, mémoire pleine) : envoi direct, page ouverte
-    b.textContent = 'Envoi direct… ne quittez pas la page';
+    // Le téléphone refuse de garder l'élément (navigation privée, mémoire pleine) : envoi direct, page ouverte
+    LOUE.message('Envoi en cours… ne quittez pas la page', 6000);
     try {
-      await LOUE.envoyerDirect('note-chantier', d, lesPhotos);
+      await LOUE.envoyerDirect('note-chantier', d, []);
       await vider();
-      LOUE.message('✓ Note enregistrée', 4000);
+      LOUE.message('✓ Ajouté à la liste', 4000);
       charger();
     } catch (err2) {
-      LOUE.message(err2.stockageBloque ? '⚠ La note n’est pas partie : ' + err2.message + '.'
-        : err2.aConfirmer ? '⏳ Pas encore confirmé par le bureau (la note est peut-être déjà arrivée). Touchez « Ajouter la note » de nouveau, SANS RIEN CHANGER : elle ne sera pas enregistrée deux fois.'
-        : err2.connexion ? '⚠ Note pas envoyée : il faut se connecter, et le téléphone n’a PAS pu la garder. Ne quittez pas cette page : touchez « Ajouter la note » de nouveau.'
-        : '⚠ La note n’est pas partie : ' + err2.message + '. Gardez la page ouverte et réessayez quand il y aura du réseau.', err2.stockageBloque ? 0 : 12000);
+      LOUE.message(err2.stockageBloque ? '⚠ Pas ajouté : ' + err2.message + '.'
+        : err2.aConfirmer ? '⏳ Pas encore confirmé par le bureau (l’élément est peut-être déjà arrivé). Touchez « Ajouter » de nouveau, SANS RIEN CHANGER : il ne sera pas enregistré deux fois.'
+        : err2.connexion ? '⚠ Pas ajouté : il faut se connecter, et le téléphone n’a PAS pu garder l’élément. Ne quittez pas cette page : touchez « Ajouter » de nouveau.'
+        : '⚠ Pas ajouté : ' + err2.message + '. Gardez la page ouverte et réessayez quand il y aura du réseau.', err2.stockageBloque ? 0 : 12000);
     }
     finir();
   }
 }
-
-// ── Dictée par le bouton 🎤 : seulement sur Chrome pour Android (ailleurs, le micro du clavier fait le travail) ──
-const Reco = window.SpeechRecognition || window.webkitSpeechRecognition;
-const dicteePossible = !!Reco && /Android/i.test(navigator.userAgent) && /Chrome\//.test(navigator.userAgent);
-let reco = null;
-function arreterDictee() { if (reco) { try { reco.stop(); } catch (e) {} } }
-function dicter() {
-  if (reco) { arreterDictee(); return; }
-  const zone = $('saisie-texte'), debut = zone.value ? zone.value.replace(/\s*$/, '') + ' ' : '';
-  try {
-    reco = new Reco();
-    reco.lang = 'fr-FR'; reco.continuous = true; reco.interimResults = true;
-    reco.onresult = e => {
-      let t = '';
-      for (let i = 0; i < e.results.length; i++) t += e.results[i][0].transcript;
-      zone.value = (debut + t).slice(0, 2000); garderSaisie();
-    };
-    reco.onerror = e => { if (e.error !== 'no-speech' && e.error !== 'aborted') LOUE.message('La dictée n’a pas marché (elle a besoin de réseau). Le micro du clavier marche aussi.', 7000); };
-    reco.onend = () => { reco = null; $('btn-dictee').classList.remove('dictee-active'); $('saisie-info').textContent = ''; };
-    reco.start();
-    $('btn-dictee').classList.add('dictee-active');
-    $('saisie-info').textContent = 'Dictée en cours… touchez 🎤 pour arrêter.';
-  } catch (e) { reco = null; LOUE.message('La dictée n’est pas disponible sur ce téléphone. Le micro du clavier marche aussi.', 7000); }
-}
-$('btn-dictee').hidden = !dicteePossible;
 
 // ── Filtres de la vue « Tous chantiers » (appliqués par le serveur) ──
 if (TOUS) {
   const c = LOUE.compte();
   ((c && c.chantiers) || []).forEach(x => { const o = el('option', '', x.nom); o.value = x.nom; $('f-chantier').appendChild(o); });
   let minuteurFiltre = null;
-  ['f-chantier', 'f-auteur', 'f-nouveau', 'f-nonfait'].forEach(id => $(id).addEventListener('change', charger));
+  ['f-chantier', 'f-nouveau', 'f-termines'].forEach(id => $(id).addEventListener('change', () => { TERMINES_OUVERT = $('f-termines').checked; charger(); }));
   $('f-recherche').addEventListener('input', () => { clearTimeout(minuteurFiltre); minuteurFiltre = setTimeout(charger, 500); });
 }
 
 // ── Démarrage ──
-LOUE.notes.nettoyerTelephone().then(() => { restaurerSaisie(); charger(); });
-// Au retour dans l'appli ou du réseau : la liste est rafraîchie (jamais pendant une modification en cours)
+LOUE.notes.nettoyerTelephone().then(() => { restaurerTexte(); charger(); });
+// Au retour dans l'appli ou du réseau : la liste est rafraîchie
 document.addEventListener('visibilitychange', () => { if (!document.hidden) charger(); });
 window.addEventListener('online', charger);
 </script>

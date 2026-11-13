@@ -344,13 +344,37 @@ test('porte, lot 3 : installation ; accès au chantier d’essai pour un compte 
   assert.ok(geste(g, 'accesChantier', { id: 'auto-poseur', valeur: false }).ok);
   assert.strictEqual(a.lignes[lig][col], false);
 });
+test('porte, lot 3 : onglets de la première version renommés sans rien effacer ; éléments des essais automatiques retirés, et eux seuls', () => {
+  const g = serveurLot2();
+  // onglets laissés par la première version du lot 3 (autres titres), avec des lignes
+  g.ctx.SpreadsheetApp.getActiveSpreadsheet().insertSheet('Notes').appendRow(['Numéro', 'Chantier', 'Auteur (identifiant)', 'Auteur']);
+  g.feuilles['Notes'].lignes.push(['fiche-ancienne-0001', 'CHANTIER TEST AUTO', 'franck01', 'Franck']);
+  g.ctx.SpreadsheetApp.getActiveSpreadsheet().insertSheet('Notes historique').appendRow(['Numéro', 'Enregistrée le']);
+  const refus = geste(g, 'installerLot3');
+  assert.ok(!refus.ok && /existe déjà avec d’autres titres/.test(refus.message), 'l’installation refuse d’écrire par-dessus : ' + refus.message);
+  const r = geste(g, 'rangerAnciennesNotes');
+  assert.ok(r.ok && JSON.stringify(r.data.renommes) === JSON.stringify(['Notes', 'Notes historique']), JSON.stringify(r));
+  const anciens = Object.keys(g.feuilles).filter(n => /^Notes.* \(ancienne version /.test(n));
+  assert.strictEqual(anciens.length, 2);
+  assert.ok(anciens.some(n => g.feuilles[n].lignes.length === 2 && g.feuilles[n].lignes[1][0] === 'fiche-ancienne-0001'), 'les lignes sont gardées');
+  assert.ok(geste(g, 'installerLot3').ok, 'l’installation passe ensuite');
+  assert.deepStrictEqual(geste(g, 'rangerAnciennesNotes').data.renommes, [], 'relancé : rien à renommer');
+  // éléments d'essai et vrais éléments mêlés
+  const n = g.feuilles['Notes'], h = g.feuilles['Notes historique'];
+  n.lignes.push(['fiche-auto-abc-a', 'CHANTIER TEST AUTO', 'essai'], ['fiche-vraie-0000001', 'CHANTIER TEST AUTO', 'à garder'], ['fiche-auto-abc-b', 'CHANTIER TEST AUTO', 'essai']);
+  h.lignes.push([new Date(), 'fiche-auto-abc-a', 'x'], [new Date(), 'fiche-vraie-0000001', 'x']);
+  const p = geste(g, 'purgerNotesEssai');
+  assert.ok(p.ok && p.data.lignesRetirees === 3, JSON.stringify(p));
+  assert.deepStrictEqual(n.lignes.slice(1).map(l => l[0]), ['fiche-vraie-0000001']);
+  assert.deepStrictEqual(h.lignes.slice(1).map(l => l[1]), ['fiche-vraie-0000001']);
+});
 test('porte complète hors de TEST : tous les gestes sont refusés, rien n’est écrit', () => {
   const g = serveurLot2();
   g.proprietes.ENVIRONNEMENT = '';   // même projet, mais plus « TEST » : environnement incohérent
   const avant = JSON.stringify([U(g), g.proprietes, g.declencheurs]);
   ['etat', 'preparerComptes', 'session', 'fermerSessions', 'cocher', 'poserDeclencheurs', 'retirerDeclencheurs', 'traiterComptes', 'finirTransition', 'prolongerTransition',
     'lireEnvois', 'lireBilan', 'lireChantiers', 'lireCompte', 'controlerLot2', 'essaiDeclencheur', 'retablirTransition', 'preparerChantier',
-    'installerLot7', 'lireSignalements', 'destinatairesEssai', 'installerLot3', 'accesChantier'].forEach(nom =>
+    'installerLot7', 'lireSignalements', 'destinatairesEssai', 'installerLot3', 'accesChantier', 'rangerAnciennesNotes', 'purgerNotesEssai', 'dossierChantierEssai'].forEach(nom =>
     assert.deepStrictEqual(geste(g, nom, { id: 'auto-admin', case: 'actif', valeur: true }), { ok: false, code: 'REFUSE', message: 'Refusé' }, nom));
   assert.strictEqual(JSON.stringify([U(g), g.proprietes, g.declencheurs]), avant);
 });

@@ -20,7 +20,10 @@
 //   - ce qui est changé pour un essai peut être remis : la transition d'origine est mémorisée (retablirTransition),
 //     au bout de 2 h, les déclencheurs posés se retirent et les sessions d'essai se ferment tout seuls ;
 //   - les réponses ne contiennent ni mot de passe provisoire, ni nom de personne, ni nom de vrai chantier ;
-//   - aucun geste ne touche à Drive : avant d'en ajouter un, refuser aussi si le dossier racine ne s'appelle pas « … TEST … ».
+//   - un seul geste LIT Drive (dossierChantierEssai, rien n'y est écrit) : il refuse si le dossier racine ne s'appelle pas
+//     « … TEST … » ; avant d'en ajouter un qui écrit dans Drive, garder ce même refus ;
+//   - deux gestes rangent les restes d'essais dans le Sheet TEST : rangerAnciennesNotes (renomme, n'efface rien) et
+//     purgerNotesEssai (retire les seules lignes écrites par les essais automatiques, numéros « fiche-auto-… »).
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 const OUTIL_TEST_CLE_MIN = 32;
 const OUTIL_TEST_COMPTES = { 'auto-poseur': 'Poseur', 'auto-conducteur': 'Conducteur', 'auto-admin': 'Admin', 'auto-atelier': 'Atelier' };
@@ -68,6 +71,11 @@ function outilTest_(corps) {
       // Lot 3 : case « accès au chantier d'essai » d'un compte d'essai (jamais un autre compte, jamais un autre chantier)
       case 'accesChantier': { const id = outilTestIdFixe_(corps.id);
         return ok('Accès au chantier d’essai', outilTestSousVerrou_(() => outilTestAcces_(id, corps.valeur))); }
+      // Lot 3 (liste façon Keep) : onglets de la première version renommés ; éléments des essais automatiques retirés ;
+      // où le serveur range réellement les documents du chantier d'essai (lecture seule)
+      case 'rangerAnciennesNotes': return ok('Onglets des notes de la première version', outilTestSousVerrou_(outilTestRangerNotes_));
+      case 'purgerNotesEssai':     return ok('Éléments des essais automatiques retirés', outilTestSousVerrou_(outilTestPurgerNotes_));
+      case 'dossierChantierEssai': return ok('Dossier Drive du chantier d’essai (lecture seule)', outilTestDossierEssai_());
       case 'installerLot3': { const r = installer_('Lot 3', 'TEST', etapesLot3_()); if (!r.ok) throw new Error('installation du lot 3 non terminée : ' + r.texte); return ok(r.texte); }
       case 'installerLot7': { const r = installer_('Lot 7', 'TEST', etapesLot7_()); if (!r.ok) throw new Error('installation du lot 7 non terminée : ' + r.texte); return ok(r.texte); }
       case 'poserDeclencheurs':    return ok(outilTestPoserDeclencheurs_());
@@ -192,6 +200,63 @@ function outilTestPreparerChantier_() {
   const ligne = outilTestLigneLibre_(sh);
   sh.getRange(ligne, 1, 1, 3).setValues([[OUTIL_TEST_CHANTIER, 'ESSAIS AUTOMATIQUES (outillage)', STATUTS_CHANTIER[1]]]);
   return { chantier: OUTIL_TEST_CHANTIER, cree: true, ligne: ligne };
+}
+// Un onglet des notes dont les titres ne sont pas ceux du serveur (première version du lot 3, jamais allée en production)
+// est RENOMMÉ avec la date, jamais effacé. Relançable : un onglet aux bons titres n'est pas touché.
+function outilTestRangerNotes_() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet(), renommes = [];
+  const suffixe = ' (ancienne version ' + Utilities.formatDate(new Date(), 'Europe/Paris', 'yyyy-MM-dd HHmmss') + ')';
+  [[SHEET_NOTES, NOTE_ENTETES], [SHEET_NOTES_HISTO, NOTE_HISTO_ENTETES], [SHEET_NOTES_VUES, NOTE_VUES_ENTETES]].forEach(x => {
+    const sh = ss.getSheetByName(x[0]);
+    if (!sh || noteTitresBons_(sh, x[1])) return;
+    sh.setName(x[0] + suffixe);
+    renommes.push(x[0]);
+  });
+  return { renommes: renommes };
+}
+// Sans suppression dans l'appli, les éléments écrits par les essais automatiques resteraient dans la copie TEST :
+// leurs lignes (numéro « fiche-auto-… ») sont retirées des onglets Notes et Notes historique, et aucune autre.
+function outilTestPurgerNotes_() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let retirees = 0;
+  [[SHEET_NOTES, COL_N.id], [SHEET_NOTES_HISTO, 2]].forEach(x => {
+    const sh = ss.getSheetByName(x[0]);
+    if (!sh || sh.getLastRow() < 2) return;
+    const numeros = sh.getRange(2, x[1], sh.getLastRow() - 1, 1).getValues();
+    for (let i = numeros.length - 1; i >= 0; i--) if (/^fiche-auto-/.test(String(numeros[i][0]))) { sh.deleteRow(i + 2); retirees++; }
+  });
+  return { lignesRetirees: retirees };
+}
+// Où le serveur range les documents du chantier d'essai : ce que dit l'onglet « Dossiers chantiers », et ce qu'il y a
+// réellement dans Drive (dossiers en double, PDF présents). Lecture seule.
+function outilTestDossierEssai_() {
+  const racine = DriveApp.getFolderById(driveRootId_());
+  if (!/TEST/i.test(racine.getName())) throw new Error('le dossier racine de ce serveur ne s’appelle pas « … TEST … »');
+  const noms = it => { const t = []; while (it.hasNext() && t.length < 15) { const x = it.next(); if (!x.isTrashed()) t.push(x.getName()); } return t; };
+  const lignes = lignesDossiers_().slice(1).filter(l => cleChantier_(l[0]) === cleChantier_(OUTIL_TEST_CHANTIER));
+  return { lignesOnglet: lignes.length, dossiers: lignes.map(l => {
+    const o = { nomNote: String(l[1]), trouvePar: String(l[3]), aVerifier: String(l[4]) };
+    try {
+      const d = DriveApp.getFolderById(String(l[2]));
+      o.nomActuel = d.getName(); o.corbeille = d.isTrashed();
+      const parents = d.getParents(); o.sousLaRacine = false;
+      while (parents.hasNext()) if (parents.next().getId() === racine.getId()) o.sousLaRacine = true;
+      o.sousDossiers = noms(d.getFolders());
+      o.contenu = [];
+      const niveau1 = d.getFoldersByName('05 - CHANTIER');
+      while (niveau1.hasNext()) {
+        const c = niveau1.next();
+        if (c.isTrashed()) continue;
+        const detail = { sousDossiers: noms(c.getFolders()), fichiers: {} };
+        ['COMPTE RENDU', 'SIGNALEMENTS'].forEach(n => {
+          const it = c.getFoldersByName(n);
+          while (it.hasNext()) { const s = it.next(); if (!s.isTrashed()) detail.fichiers[n] = (detail.fichiers[n] || []).concat(noms(s.getFiles())); }
+        });
+        o.contenu.push(detail);
+      }
+    } catch (e) { o.erreur = e.message; }
+    return o;
+  }) };
 }
 // Onglet « Accès chantiers » : la case du compte d'essai sur la ligne du chantier d'essai, et aucune autre
 function outilTestAcces_(id, valeur) {

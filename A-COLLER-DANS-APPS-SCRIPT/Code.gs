@@ -1,10 +1,10 @@
 // ═══════════════════════════════════════════════════════════════
 // LOUÉ APP — SERVEUR COMPLET, À COLLER DANS APPS SCRIPT (fichier « Code.gs », tout remplacer)
 // FICHIER GÉNÉRÉ AUTOMATIQUEMENT par « node outils/construire.js » — NE PAS MODIFIER À LA MAIN :
-// les sources sont dans le dossier apps-script/ du dépôt. Version du serveur 4267c942d6 (pages 9815945ef9)
+// les sources sont dans le dossier apps-script/ du dépôt. Version du serveur f524764614 (pages 8d2883db50)
 // ═══════════════════════════════════════════════════════════════
 
-const EMPREINTE_SERVEUR = '4267c942d6';
+const EMPREINTE_SERVEUR = 'f524764614';
 
 // ████ Config.gs ████
 // ═══════════════════════════════════════════════════════════════
@@ -1399,8 +1399,8 @@ const TRAITEMENTS = {
   'attestation'        : 'traiterAttestation',
   'cotes'              : 'traiterFicheCotes',
   'signalement'        : 'traiterSignalement',   // lot 7 (Signalements.gs)
-  'note-chantier'      : 'traiterNoteChantier',  // lot 3 (Notes.gs) : une note de chantier
-  'note-action'        : 'traiterNoteAction',    // lot 3 : un geste sur une note (modifier, fait, supprimer…)
+  'note-chantier'      : 'traiterNoteChantier',  // lot 3 (Notes.gs) : un nouvel élément de la liste du chantier
+  'note-action'        : 'traiterNoteAction',    // lot 3 : un geste sur un élément (modifier, cocher, décocher)
 };
 
 function doPost(e) {
@@ -1454,7 +1454,7 @@ function routerV5_(corps) {
     if (corps.action === 'connexion')  return connexion_(corps);
     if (corps.action === 'motDePasse') return motDePasse_(corps);
     if (['photo', 'fiche', 'moi', 'listes', 'dossiers', 'signalements', 'signalementStatut',
-      'notes', 'notesNouvelles', 'notesVues', 'noteHistorique', 'notePhoto', 'notesPdf'].indexOf(corps.action) < 0) return { ok: false, code: 'ACTION_INCONNUE', message: 'Action inconnue' };
+      'notes', 'notesNouvelles', 'notesVues'].indexOf(corps.action) < 0) return { ok: false, code: 'ACTION_INCONNUE', message: 'Action inconnue' };
     let qui = identifier_(corps);
     const envoi = corps.action === 'photo' || corps.action === 'fiche';
     // Lot 3 : une note de chantier (ou un geste sur une note) demande TOUJOURS un compte en règle : ni « compte désactivé »,
@@ -1488,9 +1488,6 @@ function routerV5_(corps) {
     if (corps.action === 'notes')          return listerNotes_(qui.compte, corps);
     if (corps.action === 'notesNouvelles') return notesNouvelles_(qui.compte);
     if (corps.action === 'notesVues')      return marquerNotesVues_(qui.compte, corps);
-    if (corps.action === 'noteHistorique') return historiqueNote_(qui.compte, corps);
-    if (corps.action === 'notePhoto')      return photoNote_(qui.compte, corps);
-    if (corps.action === 'notesPdf')       return exporterNotes_(qui.compte, corps);
   } catch (err) {
     console.error('routerV5_:', err.message);
     return { ok: false, code: 'ERREUR', message: 'Erreur du serveur : ' + err.message };
@@ -1605,9 +1602,9 @@ function recevoirFiche_(corps, compte) {
     const shEnvois = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_ENVOIS);
     const deja = shEnvois ? chercherEnvoi_(shEnvois, corps.id) : 0;
     if (deja && String(shEnvois.getRange(deja, 5).getValue()).indexOf('traité') === 0) return { ok: true, code: 'DEJA_RECU', message: 'Déjà enregistré', data: { id: corps.id, note: true } };
-    // Téléphone partagé : une note rangée par X ne part jamais sous le nom de Y (elle attend que X se reconnecte)
+    // Téléphone partagé : ce qu'a écrit X ne part jamais sous le nom de Y (cela attend que X se reconnecte)
     if (compte && saisiPar && saisiPar !== compte.id) return { ok: false, code: 'COMPTE_REFUSE',
-      message: 'En attente : cette note a été écrite par « ' + saisiPar + ' ». Elle partira quand cette personne se reconnectera sur ce téléphone.' };
+      message: 'En attente : écrit par « ' + saisiPar + ' ». Cela partira quand cette personne se reconnectera sur ce téléphone.' };
     const refusNote = refusNote_(donnees, compte);
     if (refusNote) return { ok: false, code: refusNote.code, message: refusNote.message };
   }
@@ -1690,10 +1687,8 @@ function recevoirFiche_(corps, compte) {
   const detail = n('envoyé') + ' mail(s) envoyé(s)' + (n('reporté') ? ', ' + n('reporté') + ' reporté(s)' : '')
     + (n('refusé') ? ', ' + n('refusé') + ' adresse(s) refusée(s)' : '');
   sh.getRange(ligne, 5, 1, 2).setValues([['traité', estNote ? 'note de chantier (aucun mail)' : detail]]);
-  if (estNote) {   // aucun mail pour une note : pas de « 0 mail envoyé » alarmant sur le téléphone
-    if (dossierPhotos) { try { dossierPhotos.setTrashed(true); } catch (e) {} }   // les photos sont rangées dans le dossier du chantier
-    return { ok: true, code: 'ENREGISTRE', message: donnees.type === 'note-chantier' ? 'Note enregistrée' : 'Enregistré', data: { id: corps.id, note: true } };
-  }
+  // aucun mail pour une note : pas de « 0 mail envoyé » alarmant sur le téléphone
+  if (estNote) return { ok: true, code: 'ENREGISTRE', message: 'Enregistré', data: { id: corps.id, note: true } };
   if (dossierPhotos) { try { dossierPhotos.setTrashed(true); } catch (e) {} }   // les photos sont dans le PDF
 
   return {
@@ -2153,8 +2148,6 @@ const DOSSIERS_DEFAUT = {
     'bordereau-materiaux': '05 - CHANTIER/BORDEREAUX MATERIAUX',
     'photos':              '05 - CHANTIER/PHOTOS CHANTIER',
     'signalement':         '05 - CHANTIER/SIGNALEMENTS',
-    'notes-photos':        '05 - CHANTIER/PHOTOS CHANTIER/NOTES',   // lot 3 : photos des notes de chantier
-    'notes-chantier':      '05 - CHANTIER/COMPTE RENDU',            // lot 3 : export PDF des notes
     'carnet':              'CARNET',
     'plans':               'Plans',
   },
@@ -2167,7 +2160,7 @@ const DOSSIERS_DEFAUT = {
     'cotes': 'PRISE DE COTES', 'fabrication': 'FICHE FABRICATION', 'note': 'COMPTE RENDU',
     'quitus': 'QUITUS', 'attestation': 'ATTESTATION', 'reception-support': 'RECEPTION SUPPORT',
     'bordereau-orga': 'BORDEREAU ORGANIGRAMME', 'bordereau-materiaux': 'BORDEREAU MATERIAUX', 'absence': 'ABSENCE',
-    'signalement': 'SIGNALEMENT', 'notes-chantier': 'NOTES DE CHANTIER',
+    'signalement': 'SIGNALEMENT',
   },
 };
 
@@ -2822,40 +2815,80 @@ function installerLot7Production() { return installerLot7_('PRODUCTION'); }
 
 // ████ Notes.gs ████
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
-// LOT 3 — NOTES DE CHANTIER (pense-bête partagé par chantier ; aucun mail)
+// LOT 3 — NOTES DE CHANTIER : la liste des choses à faire d'un chantier (façon « Google Keep ») ; aucun mail
 //
-// Une note et chaque geste sur une note arrivent comme une fiche (actions « photo » puis « fiche ») : numéro unique,
-// renvoi automatique, onglet Envois, tout cela est commun (Api.gs). Deux types de fiche :
-//   « note-chantier » : une nouvelle note ;
-//   « note-action »   : un geste (modifier, fait, defaire, supprimer, restaurer) sur une note existante.
+// Un élément = une ligne de texte et une case à cocher. Pas de suppression : un élément coché passe dans
+// « Éléments terminés », d'où on peut le décocher. À l'écran : ni auteur, ni date. Le Sheet garde qui a fait quoi
+// et quand (onglet « Notes historique »), comme filet de sécurité.
+//
+// Un nouvel élément et chaque geste arrivent comme une fiche (action « fiche ») : numéro unique, renvoi automatique,
+// onglet Envois, tout cela est commun (Api.gs). Deux types de fiche :
+//   « note-chantier » : un nouvel élément { chantier, texte } ;
+//   « note-action »   : un geste { note, geste: modifier | fait | defaire, texte? } sur un élément existant.
 // Ce fichier ajoute :
 //   - refusNote_          : contrôle des données ET des droits, AVANT de réserver un numéro (refus définitif) ;
 //   - traiterNoteChantier / traiterNoteAction : l'écriture, sous verrou, ligne retrouvée par son numéro ;
-//   - listerNotes_, notesNouvelles_, historiqueNote_, photoNote_, exporterNotes_ : les lectures (droits vérifiés ici) ;
+//   - listerNotes_, notesNouvelles_, marquerNotesVues_ : les lectures (droits vérifiés ici) ;
 //   - installerLot3Test / installerLot3Production.
-// Droits : lire, écrire, « Fait » = accès au chantier ; modifier, supprimer = l'auteur, les conducteurs, l'admin ;
-//          corbeille, restauration, export PDF = conducteurs et admin.
-// Plan : docs/lot3-plan.md. Décisions : D3-… (DECISIONS.md).
+// Droits : lire, ajouter, modifier, cocher, décocher = toute personne qui a accès au chantier ;
+//          vue « Tous chantiers » = conducteurs et admin.
+// Plan : docs/lot3-plan.md (chapitre 14). Décisions : D3-… (DECISIONS.md).
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 const SHEET_NOTES = 'Notes';
 const SHEET_NOTES_HISTO = 'Notes historique';
 const SHEET_NOTES_VUES = 'Notes vues';
-const NOTE_GESTES = ['modifier', 'fait', 'defaire', 'supprimer', 'restaurer'];
-const NOTE_MAX_TEXTE = 2000, NOTE_MAX_PHOTOS = 3, NOTE_MAX_CHANTIER = 150;
-const NOTE_MAX_LISTE = 200, NOTE_MAX_LISTE_TOUS = 300, NOTE_MAX_HISTO = 50, NOTE_MAX_PHOTOS_PDF = 12;
-const NOTE_ENTETES = ['Numéro', 'Chantier', 'Auteur (identifiant)', 'Auteur', 'Créée le', 'Texte', 'Photos (fichiers Drive)', 'Fait', 'Fait par', 'Fait le',
-  'Modifiée par', 'Modifiée le', 'Supprimée par', 'Supprimée le', 'Version', 'Remarque', 'Saisie le', 'Dernier texte le', 'Dernier texte par (identifiant)'];
-const COL_N = { id: 1, chantier: 2, auteurId: 3, auteur: 4, cree: 5, texte: 6, photos: 7, fait: 8, faitPar: 9, faitLe: 10,
-  modifPar: 11, modifLe: 12, supprPar: 13, supprLe: 14, version: 15, remarque: 16, saisi: 17, texteLe: 18, texteParId: 19 };
-const NOTE_HISTO_ENTETES = ['Numéro', 'Enregistrée le', 'Version remplacée', 'Ancien texte', 'Écrit par', 'Remplacé par', 'Motif'];
+const NOTE_GESTES = ['modifier', 'fait', 'defaire'];
+const NOTE_MAX_TEXTE = 2000, NOTE_MAX_CHANTIER = 150;
+const NOTE_MAX_A_FAIRE = 300, NOTE_MAX_TERMINES = 300, NOTE_MAX_TOUS = 300;
+const NOTE_ENTETES = ['Numéro', 'Chantier', 'Texte', 'Fait', 'Créé le', 'Créé par', 'Texte modifié le', 'Texte modifié par (identifiant)', 'Coché le', 'Coché par'];
+const COL_N = { id: 1, chantier: 2, texte: 3, fait: 4, cree: 5, creePar: 6, texteLe: 7, texteParId: 8, cocheLe: 9, cochePar: 10 };
+const NOTE_COLONNES_TEXTE = [COL_N.id, COL_N.chantier, COL_N.texte, COL_N.creePar, COL_N.texteParId, COL_N.cochePar];
+const NOTE_HISTO_ENTETES = ['Le', 'Numéro', 'Chantier', 'Geste', 'Ancien texte', 'Nouveau texte', 'Par', 'Par (identifiant)'];
+const NOTE_HISTO_TEXTE = [2, 3, 4, 5, 6, 7, 8];
 const NOTE_VUES_ENTETES = ['Identifiant', 'Chantier', 'Vue le'];
-const NOTE_REFUS_DROIT = 'Cette note n’existe plus, ou vous n’avez pas le droit de faire cela.';
+const NOTE_REFUS_DROIT = 'Cet élément n’existe pas, ou ce chantier ne fait pas partie de vos chantiers.';
 
 // ── Petits outils ──
 function noteTexte_(v) { return typeof v === 'string' ? v.trim() : ''; }
+// Texte d'un élément : une seule ligne. Un retour à la ligne ou une tabulation devient une espace (jamais un refus :
+// une dictée ou un collage ne doit pas faire perdre l'élément).
+function noteLigne_(v) { return typeof v === 'string' ? v.replace(/[\r\n\t\u2028\u2029]+/g, ' ').replace(/ {2,}/g, ' ').trim() : ''; }
 // Erreurs que recevoirFiche_ ne signale PAS à Franck par mail : « occupé » (le téléphone réessaie) et « refus » (définitif)
 function noteOccupe_() { return Object.assign(new Error('Serveur occupé, nouvel essai automatique'), { occupe: true }); }
 function noteRefus_(message) { return Object.assign(new Error(message), { refusDefinitif: true }); }
+function noteChef_(compte) { return !!compte && ROLES_TOUS_CHANTIERS.indexOf(compte.role) > -1; }
+function noteMs_(v) { return v instanceof Date ? v.getTime() : 0; }
+function noteQui_(compte) { return (compte.nom || compte.id) + ' (' + compte.id + ')'; }
+// Nom du chantier tel qu'il est écrit dans l'onglet Chantiers ('' s'il n'y est pas)
+function noteChantierConnu_(nom) { const l = ligneChantier_(nom); return l ? String(l[0]).trim() : ''; }
+// Accès au chantier : conducteurs et admin partout, les autres seulement si la case du chantier est cochée
+function notePeutLire_(compte, chantier) { return !!compte && !!compte.id && !!chantier && peutLireChantier_(compte, chantier); }
+
+// ── Onglets ──
+// Colonnes de texte en « texte brut » : Sheets ne transforme pas « 1/2 » en date ni « 0123 » en nombre
+function noteFormats_(sh, colonnesTexte) {
+  const lignes = Math.max(1, sh.getMaxRows() - 1);
+  colonnesTexte.forEach(c => sh.getRange(2, c, lignes, 1).setNumberFormat('@'));
+}
+function noteFeuille_(nom, entetes, colonnesTexte) {
+  const existait = !!SpreadsheetApp.getActiveSpreadsheet().getSheetByName(nom);
+  const sh = feuille_(nom, entetes);
+  if (!existait) noteFormats_(sh, colonnesTexte);
+  return sh;
+}
+// Un onglet du même nom mais aux autres titres (première version du lot, restée sur la copie TEST) n'est JAMAIS lu ni
+// écrit : le téléphone réessaiera, et l'installation dira quoi faire.
+function noteTitresBons_(sh, entetes) {
+  const titres = sh.getRange(1, 1, 1, entetes.length).getValues()[0];
+  return entetes.every((t, i) => String(titres[i]) === t);
+}
+function noteOngletVerifie_(sh, entetes) {
+  if (!noteTitresBons_(sh, entetes)) throw Object.assign(new Error('Les onglets des notes ne sont pas à jour sur le serveur (installation du lot 3 à faire).'), { occupe: true });
+  return sh;
+}
+function feuilleNotes_() { return noteOngletVerifie_(noteFeuille_(SHEET_NOTES, NOTE_ENTETES, NOTE_COLONNES_TEXTE), NOTE_ENTETES); }
+function feuilleNotesHisto_() { return noteOngletVerifie_(noteFeuille_(SHEET_NOTES_HISTO, NOTE_HISTO_ENTETES, NOTE_HISTO_TEXTE), NOTE_HISTO_ENTETES); }
+function feuilleNotesVues_() { return noteFeuille_(SHEET_NOTES_VUES, NOTE_VUES_ENTETES, [1, 2]); }
 // Nouvelle ligne en bas de l'onglet, colonnes de texte mises en « texte brut » AVANT l'écriture (au-delà des lignes
 // formatées à l'installation, Sheets transformerait « 12/11 » en date). À appeler sous verrou.
 function noteAjouterLigne_(sh, valeurs, colonnesTexte) {
@@ -2865,42 +2898,22 @@ function noteAjouterLigne_(sh, valeurs, colonnesTexte) {
   sh.getRange(ligne, 1, 1, valeurs.length).setValues([valeurs.map(cellule_)]);
   return ligne;
 }
-function noteChef_(compte) { return !!compte && ROLES_TOUS_CHANTIERS.indexOf(compte.role) > -1; }
-function noteDate_(v) { return v instanceof Date ? texteDate_(v.getTime()) : String(v || ''); }
-function noteMs_(v) { return v instanceof Date ? v.getTime() : 0; }
-// Nom du chantier tel qu'il est écrit dans l'onglet Chantiers ('' s'il n'y est pas)
-function noteChantierConnu_(nom) { const l = ligneChantier_(nom); return l ? String(l[0]).trim() : ''; }
-// Accès au chantier : conducteurs et admin partout, les autres seulement si la case du chantier est cochée
-function notePeutLire_(compte, chantier) { return !!compte && !!compte.id && !!chantier && peutLireChantier_(compte, chantier); }
-
-// ── Onglets ──
-function noteFeuille_(nom, entetes, colonnesTexte) {
-  const existait = !!SpreadsheetApp.getActiveSpreadsheet().getSheetByName(nom);
-  const sh = feuille_(nom, entetes);
-  if (!existait) noteFormats_(sh, colonnesTexte);
-  return sh;
+// Le filet de sécurité : une ligne par geste (qui, quand, quoi). Jamais lu par l'appli. À appeler sous verrou.
+function noteHistorique_(id, chantier, geste, ancien, nouveau, compte) {
+  noteAjouterLigne_(feuilleNotesHisto_(), [new Date(), id, chantier, geste, ancien, nouveau, compte.nom || compte.id, compte.id], NOTE_HISTO_TEXTE);
 }
-// Colonnes de texte en « texte brut » : Sheets ne transforme pas « 1/2 » en date ni « 0123 » en nombre
-function noteFormats_(sh, colonnesTexte) {
-  const lignes = Math.max(1, sh.getMaxRows() - 1);
-  colonnesTexte.forEach(c => sh.getRange(2, c, lignes, 1).setNumberFormat('@'));
-}
-const NOTE_COLONNES_TEXTE = [COL_N.id, COL_N.chantier, COL_N.auteurId, COL_N.auteur, COL_N.texte, COL_N.photos, COL_N.faitPar,
-  COL_N.modifPar, COL_N.supprPar, COL_N.remarque, COL_N.saisi, COL_N.texteParId];
-function feuilleNotes_() { return noteFeuille_(SHEET_NOTES, NOTE_ENTETES, NOTE_COLONNES_TEXTE); }
-const NOTE_HISTO_TEXTE = [1, 4, 5, 6, 7];
-function feuilleNotesHisto_() { return noteFeuille_(SHEET_NOTES_HISTO, NOTE_HISTO_ENTETES, NOTE_HISTO_TEXTE); }
-function feuilleNotesVues_() { return noteFeuille_(SHEET_NOTES_VUES, NOTE_VUES_ENTETES, [1, 2]); }
 
-// Toutes les lignes de l'onglet Notes (sans les titres), de la plus ancienne à la plus récente d'après « Créée le »
+// Toutes les lignes de l'onglet Notes (sans les titres), de la plus ancienne à la plus récente d'après « Créé le »
 // (jamais d'après leur position : Franck peut trier l'onglet) ; [] si l'onglet n'existe pas encore
 function lignesNotes_() {
   const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NOTES);
+  if (sh) noteOngletVerifie_(sh, NOTE_ENTETES);
   const derniere = sh ? sh.getLastRow() : 0;
   const lignes = derniere > 1 ? sh.getRange(2, 1, derniere - 1, NOTE_ENTETES.length).getValues() : [];
-  return lignes.map((r, i) => ({ r: r, i: i, t: noteMs_(r[COL_N.cree - 1]) })).sort((a, b) => (a.t - b.t) || (a.i - b.i)).map(x => x.r);
+  return lignes.filter(r => String(r[COL_N.id - 1] || '')).map((r, i) => ({ r: r, i: i, t: noteMs_(r[COL_N.cree - 1]) }))
+    .sort((a, b) => (a.t - b.t) || (a.i - b.i)).map(x => x.r);
 }
-// Ligne d'une note d'après son numéro (colonne A), ou 0. Jamais par position : Franck peut trier l'onglet.
+// Ligne d'un élément d'après son numéro (colonne A), ou 0. Jamais par position : Franck peut trier l'onglet.
 function chercherNote_(sh, id) {
   const derniere = sh ? sh.getLastRow() : 0;
   if (derniere < 2) return 0;
@@ -2910,161 +2923,107 @@ function chercherNote_(sh, id) {
 }
 function noteLue_(id) {
   const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NOTES);
+  if (sh) noteOngletVerifie_(sh, NOTE_ENTETES);
   const ligne = chercherNote_(sh, id);
   return ligne ? { sh: sh, ligne: ligne, r: sh.getRange(ligne, 1, 1, NOTE_ENTETES.length).getValues()[0] } : null;
 }
-function notePhotosIds_(r) { return String(r[COL_N.photos - 1] || '').split(/\s+/).filter(Boolean); }
-function noteSupprimee_(r) { return !!String(r[COL_N.supprPar - 1] || '').trim() || r[COL_N.supprLe - 1] instanceof Date; }
+function noteFaite_(r) { return String(r[COL_N.fait - 1] || '') === 'Oui'; }
 
 // ── Contrôle AVANT tout traitement : null si tout va bien, sinon { code, message } ──
 // DONNEES_INVALIDES = refus définitif (la fiche reste dans le téléphone, marquée « à vérifier ») ;
-// CONNEXION_REQUISE = la fiche attend dans le téléphone que la personne se reconnecte (jamais de note sans auteur).
-// photosJointes : vrai quand le serveur a déjà remplacé les références des photos par leurs images (2e passage)
-function refusNote_(d, compte, photosJointes) {
+// CONNEXION_REQUISE = la fiche attend dans le téléphone que la personne se reconnecte (jamais d'élément sans auteur).
+function refusNote_(d, compte) {
   d = d || {};
   const refus = m => ({ code: 'DONNEES_INVALIDES', message: m });
-  const CONTROLE = /[\u0000-\u001f\u007f-\u009f\u2028\u2029]/, CONTROLE_SAUF_LIGNES = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f-\u009f\u2028\u2029]/;
-  if (!compte || !compte.id) return { code: 'CONNEXION_REQUISE', message: 'Connectez-vous depuis l’accueil : la note est gardée dans le téléphone et partira ensuite.' };
+  const CONTROLE = /[\u0000-\u001f\u007f-\u009f\u2028\u2029]/;   // après nettoyage des retours à la ligne : plus aucun caractère invisible
+  if (!compte || !compte.id) return { code: 'CONNEXION_REQUISE', message: 'Connectez-vous depuis l’accueil : votre élément est gardé dans le téléphone et partira ensuite.' };
   if (d.texte != null && typeof d.texte !== 'string') return refus('Texte invalide');
-  const texte = noteTexte_(d.texte);
-  if (texte.length > NOTE_MAX_TEXTE) return refus('Note trop longue (' + NOTE_MAX_TEXTE + ' caractères au plus)');
-  if (CONTROLE_SAUF_LIGNES.test(texte)) return refus('Texte invalide');
+  const texte = noteLigne_(d.texte);
+  if (texte.length > NOTE_MAX_TEXTE) return refus('Texte trop long (' + NOTE_MAX_TEXTE + ' caractères au plus)');
+  if (CONTROLE.test(texte)) return refus('Texte invalide');
 
   if (d.type === 'note-chantier') {
-    if (typeof d.date !== 'string' || !/^\d{2}\/\d{2}\/\d{4}$/.test(d.date)) return refus('Date invalide');
-    if (typeof d.heure !== 'string' || !/^\d{2}h\d{2}$/.test(d.heure)) return refus('Heure invalide');
     const chantier = noteTexte_(d.chantier);
     if (!chantier || chantier.length > NOTE_MAX_CHANTIER || CONTROLE.test(chantier)) return refus('Chantier manquant ou invalide');
-    const photos = d.photos == null ? [] : d.photos;
-    if (!Array.isArray(photos)) return refus('Photos invalides');
-    if (photos.length > NOTE_MAX_PHOTOS) return refus(NOTE_MAX_PHOTOS + ' photos au plus par note');
-    for (let i = 0; i < photos.length; i++) {
-      const p = photos[i];
-      if (!p || typeof p !== 'object' || Array.isArray(p)) return refus('Photo invalide');
-      // À la réception : seulement une référence à une photo déposée par l'action « photo »
-      if (!photosJointes && (!idValide_(p.photoRef) || Object.keys(p).some(k => k !== 'photoRef'))) return refus('Photo invalide');
-    }
-    if (!texte && !photos.length) return refus('Note vide : écrivez un texte ou ajoutez une photo');
+    if (!texte) return refus('Élément vide : écrivez un texte');
     // Même réponse pour « chantier inconnu » et « chantier interdit » : on n'apprend pas qu'un chantier existe
     const connu = noteChantierConnu_(chantier);
-    if (!connu || !notePeutLire_(compte, connu)) return refus('Ce chantier ne fait pas partie de vos chantiers : la note n’est pas enregistrée. Voyez avec le bureau.');
+    if (!connu || !notePeutLire_(compte, connu)) return refus('Ce chantier ne fait pas partie de vos chantiers : l’élément n’est pas enregistré. Voyez avec le bureau.');
     return null;
   }
 
   if (d.type === 'note-action') {
     if (NOTE_GESTES.indexOf(d.geste) < 0) return refus('Geste inconnu');
-    if (typeof d.note !== 'string' || !idValide_(d.note)) return refus('Numéro de note invalide');
-    if (d.base != null && !(typeof d.base === 'number' && isFinite(d.base) && d.base >= 1 && d.base < 1e6 && Math.floor(d.base) === d.base)) return refus('Version invalide');
+    if (typeof d.note !== 'string' || !idValide_(d.note)) return refus('Numéro d’élément invalide');
     const n = noteLue_(d.note);
     if (!n || !notePeutLire_(compte, String(n.r[COL_N.chantier - 1]))) return refus(NOTE_REFUS_DROIT);
-    const auteur = String(n.r[COL_N.auteurId - 1] || '') === compte.id, chef = noteChef_(compte);
-    if ((d.geste === 'modifier' || d.geste === 'supprimer') && !auteur && !chef) return refus(NOTE_REFUS_DROIT);
-    if (d.geste === 'restaurer' && !chef) return refus(NOTE_REFUS_DROIT);
-    if (d.geste === 'modifier' && !texte && !notePhotosIds_(n.r).length) return refus('Note vide : écrivez un texte (ou supprimez la note)');
+    if (d.geste === 'modifier' && !texte) return refus('Le texte ne peut pas être vide (un élément ne se supprime pas : cochez-le)');
     return null;
   }
   return refus('Type de fiche inconnu');
 }
 
-// ── Nouvelle note (appelé par traiterFiche_) ──
-// contexte : { id (numéro de la fiche = numéro de la note), compte (profil vérifié par le jeton), auteurNom }
+// ── Nouvel élément (appelé par traiterFiche_) ──
+// contexte : { id (numéro de la fiche = numéro de l'élément), compte (profil vérifié par le jeton) }
 function traiterNoteChantier(data, brut, contexte) {
-  if (!contexte || !contexte.id) throw new Error('Note refusée : numéro de fiche absent (page trop ancienne)');
+  if (!contexte || !contexte.id) throw new Error('Élément refusé : numéro de fiche absent (page trop ancienne)');
   const compte = contexte.compte;
-  const refus = refusNote_(brut, compte, true);
+  const refus = refusNote_(brut, compte);
   if (refus) throw noteRefus_(refus.message);
-  const chantier = noteChantierConnu_(brut.chantier);
-  const texte = noteTexte_(brut.texte);
-  const saisi = (noteTexte_(brut.date) + ' ' + noteTexte_(brut.heure)).trim().slice(0, 30);
-  const auteurNom = compte.nom || contexte.auteurNom || compte.id;
-
-  // Déjà écrite (nouvel essai après une coupure) : rien à refaire
-  if (chercherNote_(SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NOTES), contexte.id)) return;
-
-  // 1. Les photos, rangées dans le dossier du chantier sous un nom fixe : un nouvel essai ne les range pas deux fois
-  const photos = (Array.isArray(brut.photos) ? brut.photos : []).filter(Boolean);
-  const ids = [];
-  if (photos.length) {
-    const dossier = dossierParChemin_(dossierChantier_(chantier, true), dossiers_().documents['notes-photos'] || '05 - CHANTIER/PHOTOS CHANTIER/NOTES', true);
-    photos.forEach((p, i) => {
-      const mime = /^image\/(jpeg|png|webp)$/.test(String(p.mimeType || p.mime || '')) ? String(p.mimeType || p.mime) : '';
-      const b64 = String(p.data || '').replace(/\s+/g, '');
-      if (!mime || !/^[A-Za-z0-9+\/=]+$/.test(b64) || b64.length * 0.75 > MAX_PHOTO_OCTETS) throw noteRefus_('Photo de la note illisible');
-      const nom = 'NOTE ' + contexte.id + '-' + (i + 1) + '.' + mime.split('/')[1];
-      let fichier = null;
-      const it = dossier.getFilesByName(nom);
-      while (it.hasNext()) { const f = it.next(); if (!f.isTrashed()) { fichier = f; break; } }
-      if (!fichier) fichier = dossier.createFile(Utilities.newBlob(Utilities.base64Decode(b64), mime, nom));
-      ids.push(fichier.getId());
-    });
-  }
-
-  // 2. La ligne, une seule fois (onglet créé sous verrou s'il manque)
+  const chantier = noteChantierConnu_(brut.chantier), texte = noteLigne_(brut.texte);
   const verrou = LockService.getScriptLock();
   if (!verrou.tryLock(15000)) throw noteOccupe_();
   try {
     const sh = feuilleNotes_();
-    if (chercherNote_(sh, contexte.id)) return;
+    if (chercherNote_(sh, contexte.id)) return;   // déjà écrit (nouvel essai après une coupure) : rien à refaire
     const maintenant = new Date(), ligne = [];
     for (let c = 1; c <= NOTE_ENTETES.length; c++) ligne.push('');
-    ligne[COL_N.id - 1] = contexte.id; ligne[COL_N.chantier - 1] = chantier; ligne[COL_N.auteurId - 1] = compte.id; ligne[COL_N.auteur - 1] = auteurNom;
-    ligne[COL_N.cree - 1] = maintenant; ligne[COL_N.texte - 1] = texte; ligne[COL_N.photos - 1] = ids.join(' ');
-    ligne[COL_N.version - 1] = 1; ligne[COL_N.saisi - 1] = saisi; ligne[COL_N.texteLe - 1] = maintenant; ligne[COL_N.texteParId - 1] = compte.id;
+    ligne[COL_N.id - 1] = contexte.id; ligne[COL_N.chantier - 1] = chantier; ligne[COL_N.texte - 1] = texte;
+    ligne[COL_N.cree - 1] = maintenant; ligne[COL_N.creePar - 1] = noteQui_(compte);
+    ligne[COL_N.texteLe - 1] = maintenant; ligne[COL_N.texteParId - 1] = compte.id;
     noteAjouterLigne_(sh, ligne, NOTE_COLONNES_TEXTE);
+    noteHistorique_(contexte.id, chantier, 'création', '', texte, compte);
   } finally { verrou.releaseLock(); }
 }
 
-// ── Geste sur une note (appelé par traiterFiche_) ──
+// ── Geste sur un élément (appelé par traiterFiche_) : modifier le texte, cocher, décocher ──
+// Deux personnes modifient le même élément : la dernière modification reçue l'emporte (heure du serveur) ;
+// l'historique garde les deux textes. Un geste répété ne change rien.
 function traiterNoteAction(data, brut, contexte) {
   const compte = contexte && contexte.compte;
-  const refus = refusNote_(brut, compte, true);
+  const refus = refusNote_(brut, compte);
   if (refus) throw noteRefus_(refus.message);
-  const nom = compte.nom || compte.id, geste = brut.geste;
   const verrou = LockService.getScriptLock();
   if (!verrou.tryLock(15000)) throw noteOccupe_();
   try {
-    const n = noteLue_(brut.note);   // relue sous verrou
+    const n = noteLue_(brut.note);   // relu sous verrou
     if (!n) throw noteRefus_(NOTE_REFUS_DROIT);
-    const r = n.r, sh = n.sh, maintenant = new Date();
-    const histo = valeurs => noteAjouterLigne_(feuilleNotesHisto_(), valeurs, NOTE_HISTO_TEXTE);
-    const ecrire = (col, valeurs) => sh.getRange(n.ligne, col, 1, valeurs.length).setValues([valeurs.map(cellule_)]);
-    const supprimee = noteSupprimee_(r);
-
-    if (geste === 'modifier') {
-      const texte = noteTexte_(brut.texte), ancien = String(r[COL_N.texte - 1] || '');
-      const version = Number(r[COL_N.version - 1]) || 1;
-      const dernierId = String(r[COL_N.texteParId - 1] || ''), dernierNom = String(r[COL_N.modifPar - 1] || r[COL_N.auteur - 1] || '');
-      if (supprimee) {
-        // Reçue après la suppression de la note : le texte n'est pas perdu, il est gardé dans l'historique
-        histo([brut.note, maintenant, version, texte, nom, '', 'reçue après suppression (texte non appliqué)']);
-        return;
-      }
-      if (texte === ancien) return;   // rien à changer (geste répété)
-      // Quelqu'un d'AUTRE a changé le texte depuis la version que ce téléphone avait sous les yeux :
-      // la modification reçue en dernier l'emporte (heure du serveur), l'autre version reste dans l'historique
-      const conflit = brut.base != null && Number(brut.base) !== version && dernierId !== compte.id;
-      histo([brut.note, maintenant, version, ancien, dernierNom, nom, conflit ? 'modification en même temps' : 'modification']);
+    const r = n.r, maintenant = new Date(), chantier = String(r[COL_N.chantier - 1] || '');
+    const ecrire = (col, valeurs) => n.sh.getRange(n.ligne, col, 1, valeurs.length).setValues([valeurs.map(cellule_)]);
+    if (brut.geste === 'modifier') {
+      const texte = noteLigne_(brut.texte), ancien = String(r[COL_N.texte - 1] || '');
+      if (texte === ancien) return;
+      // « vu » = le texte que le téléphone avait sous les yeux. S'il n'est plus le texte actuel, quelqu'un d'autre l'a changé
+      // entre-temps : la modification reçue l'emporte quand même, et l'historique le dit (rien à l'écran).
+      const enMemeTemps = typeof brut.vu === 'string' && noteLigne_(brut.vu) !== ancien && String(r[COL_N.texteParId - 1] || '') !== compte.id;
       ecrire(COL_N.texte, [texte]);
-      ecrire(COL_N.modifPar, [nom, maintenant]);
-      // La mention de conflit ne s'efface que quand quelqu'un modifie EN AYANT VU la version actuelle (base = version) :
-      // une 2e modification du même téléphone, écrite hors réseau sur l'ancienne base, ne la fait pas disparaître
-      const remarque = conflit ? 'modifiée en même temps par ' + dernierNom
-        : (brut.base != null && Number(brut.base) === version ? '' : String(r[COL_N.remarque - 1] || ''));
-      ecrire(COL_N.version, [version + 1, remarque]);
       ecrire(COL_N.texteLe, [maintenant, compte.id]);
-    } else if (geste === 'fait') {
-      if (String(r[COL_N.fait - 1] || '') !== 'Oui') ecrire(COL_N.fait, ['Oui', nom, maintenant]);
-    } else if (geste === 'defaire') {
-      if (String(r[COL_N.fait - 1] || '') === 'Oui') ecrire(COL_N.fait, ['', '', '']);
-    } else if (geste === 'supprimer') {
-      if (!supprimee) ecrire(COL_N.supprPar, [nom, maintenant]);
-    } else if (geste === 'restaurer') {
-      if (supprimee) ecrire(COL_N.supprPar, ['', '']);
+      noteHistorique_(brut.note, chantier, enMemeTemps ? 'modification en même temps' : 'modification', ancien, texte, compte);
+    } else if (brut.geste === 'fait') {
+      if (noteFaite_(r)) return;
+      ecrire(COL_N.fait, ['Oui']);
+      ecrire(COL_N.cocheLe, [maintenant, noteQui_(compte)]);
+      noteHistorique_(brut.note, chantier, 'coché', '', '', compte);
+    } else {
+      if (!noteFaite_(r)) return;
+      ecrire(COL_N.fait, ['']);
+      ecrire(COL_N.cocheLe, ['', '']);
+      noteHistorique_(brut.note, chantier, 'décoché', '', '', compte);
     }
   } finally { verrou.releaseLock(); }
 }
 
-// ── Notes vues (badge « nouveau ») ──
+// ── Notes vues (chiffre rouge « nouveau » de l'accueil) ──
 // Dernière visite de chaque chantier par ce compte : { cléDuChantier: millisecondes }
 function notesVues_(id) {
   const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NOTES_VUES);
@@ -3075,16 +3034,22 @@ function notesVues_(id) {
   });
   return res;
 }
+// « Nouveau » pour ce compte : un élément À FAIRE dont le texte a été écrit ou modifié par quelqu'un d'autre
+// après sa dernière visite du chantier
+function noteNouvelle_(r, compte, vues) {
+  if (noteFaite_(r) || String(r[COL_N.texteParId - 1] || '') === compte.id) return false;
+  return noteMs_(r[COL_N.texteLe - 1]) > (vues[cleChantier_(r[COL_N.chantier - 1])] || 0);
+}
 // Action « notesVues » { chantier, jusqua } : envoyée par la page APRÈS l'affichage de la liste, avec l'heure du serveur
 // de cette liste (jamais celle du téléphone). La visite ne recule jamais et ne dépasse jamais l'heure du serveur.
-// Avec { tous: true } (conducteurs et admin, depuis la vue « Tous chantiers ») : tous les chantiers qui ont des notes.
+// Avec { tous: true } (conducteurs et admin, depuis la vue « Tous chantiers ») : tous les chantiers qui ont des éléments.
 function marquerNotesVues_(compte, corps) {
   const REFUS = { ok: false, code: 'INTERDIT', message: 'Ce chantier ne fait pas partie de vos chantiers : voyez avec le bureau.' };
   let chantiers;
   if (corps.tous === true) {
     if (!noteChef_(compte)) return avecJeton_(REFUS, compte);
     const vus = {};
-    lignesNotes_().forEach(r => { const n = String(r[COL_N.chantier - 1] || '').trim(); if (n && String(r[COL_N.id - 1] || '')) vus[cleChantier_(n)] = n; });
+    lignesNotes_().forEach(r => { const n = String(r[COL_N.chantier - 1] || '').trim(); if (n) vus[cleChantier_(n)] = n; });
     chantiers = Object.keys(vus).map(k => vus[k]);
   } else {
     const chantier = noteChantierConnu_(typeof corps.chantier === 'string' ? corps.chantier.trim().slice(0, NOTE_MAX_CHANTIER) : '');
@@ -3117,148 +3082,63 @@ function marquerNotesVues_(compte, corps) {
   } finally { verrou.releaseLock(); }
   return avecJeton_({ ok: true, code: 'OK', message: 'Visite notée' }, compte);
 }
-// « Nouveau » pour ce compte : texte écrit ou modifié par quelqu'un d'autre après sa dernière visite du chantier
-function noteNouvelle_(r, compte, vues) {
-  if (noteSupprimee_(r) || String(r[COL_N.texteParId - 1] || '') === compte.id) return false;
-  return noteMs_(r[COL_N.texteLe - 1]) > (vues[cleChantier_(r[COL_N.chantier - 1])] || 0);
-}
 
 // ── Lecture ──
-function noteObjet_(r, compte, vues) {
-  const chef = noteChef_(compte), mien = String(r[COL_N.auteurId - 1] || '') === compte.id;
-  return { id: String(r[COL_N.id - 1]), chantier: String(r[COL_N.chantier - 1] || ''), auteur: String(r[COL_N.auteur - 1] || ''),
-    cree: noteDate_(r[COL_N.cree - 1]), texte: String(r[COL_N.texte - 1] || ''), photos: notePhotosIds_(r).length,
-    fait: String(r[COL_N.fait - 1] || '') === 'Oui', faitPar: String(r[COL_N.faitPar - 1] || ''), faitLe: noteDate_(r[COL_N.faitLe - 1]),
-    modifPar: String(r[COL_N.modifPar - 1] || ''), modifLe: noteDate_(r[COL_N.modifLe - 1]),
-    supprPar: String(r[COL_N.supprPar - 1] || ''), supprLe: noteDate_(r[COL_N.supprLe - 1]),
-    version: Number(r[COL_N.version - 1]) || 1, remarque: String(r[COL_N.remarque - 1] || ''),
-    mien: mien, peutModifier: mien || chef, nouveau: noteNouvelle_(r, compte, vues) };
+// Ce que l'appli reçoit d'un élément : son numéro, son texte, s'il est fait, s'il est nouveau. Ni auteur, ni date.
+function noteObjet_(r, compte, vues, avecChantier) {
+  const o = { id: String(r[COL_N.id - 1]), texte: String(r[COL_N.texte - 1] || ''), fait: noteFaite_(r), nouveau: noteNouvelle_(r, compte, vues) };
+  if (avecChantier) o.chantier = String(r[COL_N.chantier - 1] || '');
+  return o;
 }
-// corps : { chantier?, corbeille?, recherche?, nonFait?, nouveau?, auteur? }.
-// Avec un chantier : ses notes (accès au chantier). Sans : vue « Tous chantiers », réservée aux conducteurs et à l'admin.
-// Les filtres sont appliqués ICI, avant le plafond : la recherche porte sur toutes les notes, pas sur les plus récentes.
+// corps : { chantier?, recherche?, nouveau?, termines? }.
+// Avec un chantier (accès au chantier) : ses éléments à faire (dans l'ordre où ils ont été ajoutés), puis ses éléments terminés
+// (les derniers cochés en haut). Sans chantier : vue « Tous chantiers », réservée aux conducteurs et à l'admin ;
+// les éléments terminés n'y sont rendus que sur demande (termines: true).
+// Les filtres sont appliqués ICI, avant les plafonds : la recherche porte sur tous les éléments.
 function listerNotes_(compte, corps) {
   const REFUS = { ok: false, code: 'INTERDIT', message: 'Ce chantier ne fait pas partie de vos chantiers : voyez avec le bureau.' };
-  const chef = noteChef_(compte);
   const demande = typeof corps.chantier === 'string' ? corps.chantier.trim().slice(0, NOTE_MAX_CHANTIER) : '';
-  const corbeille = corps.corbeille === true;
-  if (corbeille && !chef) return avecJeton_(REFUS, compte);
   let chantier = '';
   if (demande) {
     chantier = noteChantierConnu_(demande);
     if (!chantier || !notePeutLire_(compte, chantier)) return avecJeton_(REFUS, compte);
-  } else if (!chef) {
+  } else if (!noteChef_(compte)) {
     return avecJeton_({ ok: false, code: 'INTERDIT', message: 'La vue « Tous chantiers » est réservée aux conducteurs : ouvrez les notes depuis un chantier.' }, compte);
   }
   const minus = v => String(v || '').toLowerCase();
   const recherche = typeof corps.recherche === 'string' ? minus(corps.recherche.trim().slice(0, 100)) : '';
-  const auteur = typeof corps.auteur === 'string' ? minus(corps.auteur.trim().slice(0, 100)) : '';
-  const nonFait = corps.nonFait === true, nouveau = corps.nouveau === true;
+  const nouveau = corps.nouveau === true, avecTermines = !!demande || corps.termines === true;
   const heure = Date.now();   // heure du serveur de cette liste : la page la renvoie dans « notesVues »
-  const vues = notesVues_(compte.id);
-  const lignes = lignesNotes_(), max = demande ? NOTE_MAX_LISTE : NOTE_MAX_LISTE_TOUS, res = [];
-  for (let i = lignes.length - 1; i >= 0 && res.length < max; i--) {   // les plus récentes d'abord
+  const vues = notesVues_(compte.id), lignes = lignesNotes_();
+  const maxAFaire = demande ? NOTE_MAX_A_FAIRE : NOTE_MAX_TOUS, aFaire = [], termines = [];
+  let plein = false;
+  for (let i = lignes.length - 1; i >= 0; i--) {   // du plus récent au plus ancien : au-delà du plafond, ce sont les plus anciens qui manquent
     const r = lignes[i];
-    if (!String(r[COL_N.id - 1] || '')) continue;
-    const cle = cleChantier_(r[COL_N.chantier - 1]);
-    if (demande && cle !== cleChantier_(chantier)) continue;
-    if (noteSupprimee_(r) !== corbeille) continue;
-    if (nonFait && String(r[COL_N.fait - 1] || '') === 'Oui') continue;
-    if (auteur && minus(r[COL_N.auteur - 1]) !== auteur) continue;
-    if (recherche && minus(r[COL_N.texte - 1]).indexOf(recherche) < 0 && minus(r[COL_N.auteur - 1]).indexOf(recherche) < 0
-      && minus(r[COL_N.chantier - 1]).indexOf(recherche) < 0) continue;
+    if (demande && cleChantier_(r[COL_N.chantier - 1]) !== cleChantier_(chantier)) continue;
+    if (recherche && minus(r[COL_N.texte - 1]).indexOf(recherche) < 0 && minus(r[COL_N.chantier - 1]).indexOf(recherche) < 0) continue;
     if (nouveau && !noteNouvelle_(r, compte, vues)) continue;
-    res.push(noteObjet_(r, compte, vues));
+    if (noteFaite_(r)) { if (avecTermines) termines.push(r); continue; }
+    if (aFaire.length < maxAFaire) aFaire.push(noteObjet_(r, compte, vues, !demande)); else plein = true;
   }
-  return avecJeton_({ ok: true, code: 'OK', message: res.length + ' note(s)',
-    data: { notes: res, chantier: chantier, corbeille: corbeille, chef: chef, heure: heure, plein: res.length >= max } }, compte);
+  aFaire.reverse();   // affichés comme une liste dictée : le plus ancien en haut, le dernier ajouté en bas
+  // Éléments terminés : les derniers cochés en haut ; le nombre total est rendu même au-delà du plafond
+  termines.sort((a, b) => noteMs_(b[COL_N.cocheLe - 1]) - noteMs_(a[COL_N.cocheLe - 1]));
+  return avecJeton_({ ok: true, code: 'OK', message: aFaire.length + ' élément(s) à faire',
+    data: { aFaire: aFaire, termines: termines.slice(0, NOTE_MAX_TERMINES).map(r => noteObjet_(r, compte, vues, !demande)), nbTermines: termines.length,
+      chantier: chantier, heure: heure, plein: plein } }, compte);
 }
-// Nombre de notes nouvelles par chantier visible (badges de l'accueil)
+// Nombre d'éléments nouveaux par chantier visible (chiffres rouges de l'accueil)
 function notesNouvelles_(compte) {
   const visibles = {};   // les chantiers que l'accueil montre à ce compte (un poseur ne voit pas un chantier « Terminé »)
   chantiersVisibles_(compte).forEach(c => { visibles[cleChantier_(c.nom)] = true; });
   const vues = notesVues_(compte.id), parChantier = {};
   let total = 0;
   lignesNotes_().forEach(r => {
-    if (!String(r[COL_N.id - 1] || '')) return;
-    const cle = cleChantier_(r[COL_N.chantier - 1]);
-    if (!visibles[cle]) return;
-    if (!noteNouvelle_(r, compte, vues)) return;
+    if (!visibles[cleChantier_(r[COL_N.chantier - 1])] || !noteNouvelle_(r, compte, vues)) return;
     const nom = String(r[COL_N.chantier - 1]).trim();
     parChantier[nom] = (parChantier[nom] || 0) + 1; total++;
   });
-  return avecJeton_({ ok: true, code: 'OK', message: total + ' note(s) nouvelle(s)', data: { parChantier: parChantier, total: total } }, compte);
-}
-// Note retrouvée et droit de lecture vérifié (une note à la corbeille : conducteurs et admin seulement), sinon null
-function noteAutorisee_(compte, id) {
-  if (typeof id !== 'string' || !idValide_(id)) return null;
-  const n = noteLue_(id);
-  if (!n || !notePeutLire_(compte, String(n.r[COL_N.chantier - 1]))) return null;
-  if (noteSupprimee_(n.r) && !noteChef_(compte)) return null;
-  return n;
-}
-function historiqueNote_(compte, corps) {
-  const n = noteAutorisee_(compte, corps.note);
-  if (!n) return avecJeton_({ ok: false, code: 'INTERDIT', message: NOTE_REFUS_DROIT }, compte);
-  const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NOTES_HISTO);
-  const lignes = sh && sh.getLastRow() > 1 ? sh.getRange(2, 1, sh.getLastRow() - 1, NOTE_HISTO_ENTETES.length).getValues() : [];
-  const res = [];
-  for (let i = lignes.length - 1; i >= 0 && res.length < NOTE_MAX_HISTO; i--) {
-    const r = lignes[i];
-    if (String(r[0]) !== corps.note) continue;
-    res.push({ le: noteDate_(r[1]), version: Number(r[2]) || 0, texte: String(r[3] || ''), par: String(r[4] || ''), remplacePar: String(r[5] || ''), motif: String(r[6] || '') });
-  }
-  return avecJeton_({ ok: true, code: 'OK', message: res.length + ' ancienne(s) version(s)', data: { versions: res } }, compte);
-}
-// Une photo d'une note : rendue par le serveur après contrôle (jamais de lien public, jamais d'identifiant Drive)
-function photoNote_(compte, corps) {
-  const REFUS = { ok: false, code: 'INTERDIT', message: NOTE_REFUS_DROIT };
-  const n = noteAutorisee_(compte, corps.note);
-  const rang = Number(corps.rang);
-  if (!n || !(rang >= 1 && rang <= NOTE_MAX_PHOTOS && Math.floor(rang) === rang)) return avecJeton_(REFUS, compte);
-  const idFichier = notePhotosIds_(n.r)[rang - 1];
-  if (!idFichier) return avecJeton_(REFUS, compte);
-  try {
-    const f = DriveApp.getFileById(idFichier);
-    if (f.isTrashed()) throw new Error('à la corbeille');
-    const blob = f.getBlob(), octets = blob.getBytes();
-    if (octets.length > MAX_PHOTO_OCTETS) throw new Error('trop lourde');
-    return avecJeton_({ ok: true, code: 'OK', message: 'Photo', data: { mime: f.getMimeType(), data: Utilities.base64Encode(octets) } }, compte);
-  } catch (e) {
-    console.error('photoNote_ :', e.message);
-    return avecJeton_({ ok: false, code: 'INTROUVABLE', message: 'Cette photo n’est plus disponible.' }, compte);
-  }
-}
-
-// ── Export PDF des notes d'un chantier (conducteurs et admin) : rangé dans le dossier du chantier ──
-function exporterNotes_(compte, corps) {
-  const chantier = noteChantierConnu_(typeof corps.chantier === 'string' ? corps.chantier.trim().slice(0, NOTE_MAX_CHANTIER) : '');
-  if (!noteChef_(compte) || !chantier) return avecJeton_({ ok: false, code: 'INTERDIT', message: 'L’export en PDF est réservé aux conducteurs.' }, compte);
-  const lignes = lignesNotes_().filter(r => String(r[COL_N.id - 1] || '') && cleChantier_(r[COL_N.chantier - 1]) === cleChantier_(chantier) && !noteSupprimee_(r));
-  if (!lignes.length) return avecJeton_({ ok: false, code: 'VIDE', message: 'Aucune note à exporter pour ce chantier.' }, compte);
-  let reste = NOTE_MAX_PHOTOS_PDF, nonReprises = 0;
-  const notes = lignes.map(r => {   // de la plus ancienne à la plus récente
-    const photos = [];
-    notePhotosIds_(r).forEach(id => {
-      if (reste <= 0) { nonReprises++; return; }
-      try {
-        const f = DriveApp.getFileById(id);
-        if (f.isTrashed()) return;
-        photos.push({ data: Utilities.base64Encode(f.getBlob().getBytes()), mimeType: f.getMimeType() });
-        reste--;
-      } catch (e) { nonReprises++; }
-    });
-    return { cree: noteDate_(r[COL_N.cree - 1]), auteur: String(r[COL_N.auteur - 1] || ''), texte: String(r[COL_N.texte - 1] || ''),
-      fait: String(r[COL_N.fait - 1] || '') === 'Oui', faitPar: String(r[COL_N.faitPar - 1] || ''), faitLe: noteDate_(r[COL_N.faitLe - 1]),
-      modifPar: String(r[COL_N.modifPar - 1] || ''), modifLe: noteDate_(r[COL_N.modifLe - 1]), photos: photos };
-  });
-  const jour = Utilities.formatDate(new Date(), 'Europe/Paris', 'dd/MM/yyyy');
-  const d = validerImages_({ chantier: chantier, date: jour, exportePar: compte.nom || compte.id, notes: notes, nonReprises: nonReprises });
-  const blob = pdfDuModele_(modele_notes_chantier, d, nomFichier_('Notes_' + chantier + '_' + jour.replace(/\//g, '-') + '.pdf'));
-  const fichier = classerDocument_('notes-chantier', blob, chantier, jour, '');
-  if (!fichier) return avecJeton_({ ok: false, code: 'ERREUR', message: 'Le PDF n’a pas pu être rangé dans Drive : réessayez plus tard.' }, compte);
-  return avecJeton_({ ok: true, code: 'OK', message: 'PDF rangé dans le dossier du chantier : ' + fichier.getName(),
-    data: { nom: fichier.getName(), notes: notes.length, photosNonReprises: nonReprises } }, compte);
+  return avecJeton_({ ok: true, code: 'OK', message: total + ' élément(s) nouveau(x)', data: { parChantier: parChantier, total: total } }, compte);
 }
 
 // ── Installation du lot 3 (une fonction par environnement ; relançable sans danger) ──
@@ -3266,15 +3146,12 @@ function etapesLot3_() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const etape = (nom, entetes, colonnesTexte) => ({
     nom: 'Onglet « ' + nom + ' »',
-    fait: () => {
-      const sh = ss.getSheetByName(nom);
-      return !!sh && entetes.every((t, i) => String(sh.getRange(1, i + 1).getValue()) === t);
-    },
+    fait: () => { const sh = ss.getSheetByName(nom); return !!sh && noteTitresBons_(sh, entetes); },
     action: () => {
       const sh = ss.getSheetByName(nom);
       if (!sh) { noteFeuille_(nom, entetes, colonnesTexte); return 'onglet créé'; }
       // Onglet déjà là : jamais rien réécrire par-dessus des données
-      const titres = sh.getRange(1, 1, 1, entetes.length).getValues()[0];
+      const titres = sh.getRange(1, 1, 1, Math.max(entetes.length, sh.getLastColumn())).getValues()[0];
       if (sh.getLastRow() > 1 || titres.some(t => String(t).trim() !== '')) throw new Error('un onglet « ' + nom + ' » existe déjà avec d’autres titres : le renommer, puis relancer');
       sh.getRange(1, 1, 1, entetes.length).setValues([entetes]);
       noteFormats_(sh, colonnesTexte);
@@ -3282,7 +3159,7 @@ function etapesLot3_() {
     } });
   return [
     etape(SHEET_NOTES, NOTE_ENTETES, NOTE_COLONNES_TEXTE),
-    etape(SHEET_NOTES_HISTO, NOTE_HISTO_ENTETES, [1, 4, 5, 6, 7]),
+    etape(SHEET_NOTES_HISTO, NOTE_HISTO_ENTETES, NOTE_HISTO_TEXTE),
     etape(SHEET_NOTES_VUES, NOTE_VUES_ENTETES, [1, 2]),
   ];
 }
@@ -4511,61 +4388,6 @@ function modele_note(d, esc) {
     + '</td></tr></table>'
     + commentaires
     + photosHtml
-    + '</body></html>';
-}
-
-// ── modeles/notes-chantier.js ──
-// ═══════════════════════════════════════════════════════════════
-// MODÈLE du PDF « Notes de chantier » (export d'un chantier) — lot 3
-// Utilisé par le serveur (PDF rangé dans le dossier du chantier) :
-// apps-script/Modeles.gs est une COPIE générée par « node outils/construire.js » — ne jamais la modifier à la main.
-// Règles : tableaux et styles en ligne seulement (le convertisseur PDF de Google ne connaît ni flex ni grid),
-// pas de backticks imbriqués, tout texte saisi passe par esc().
-// d : { chantier, date, exportePar, notes: [{ cree, auteur, texte, fait, faitPar, faitLe, modifPar, modifLe,
-//       photos: [{ data, mimeType }] }], nonReprises } (textes bruts ; images déjà contrôlées) ; esc : échappement
-// ═══════════════════════════════════════════════════════════════
-function modele_notes_chantier(d, esc) {
-  var notes = Array.isArray(d.notes) ? d.notes : [];
-  function photos(liste) {
-    var ok = (Array.isArray(liste) ? liste : []).filter(function (p) { return p && p.data; });
-    if (!ok.length) return '';
-    var cases = ok.map(function (p) {
-      return '<td style="padding:4px 6px 0 0;vertical-align:top"><img src="data:' + esc(p.mimeType || 'image/jpeg') + ';base64,' + p.data
-        + '" style="width:165px;height:auto;border:1px solid #D8D4CE"></td>';
-    }).join('');
-    return '<table style="border-collapse:collapse;margin-top:4px"><tr>' + cases + '</tr></table>';
-  }
-  var lignes = notes.map(function (n) {
-    var pied = [];
-    if (n.fait) pied.push('Fait' + (n.faitPar ? ' par ' + esc(n.faitPar) : '') + (n.faitLe ? ' le ' + esc(n.faitLe) : ''));
-    if (n.modifPar) pied.push('Modifiée par ' + esc(n.modifPar) + (n.modifLe ? ' le ' + esc(n.modifLe) : ''));
-    return '<tr style="page-break-inside:avoid">'
-      + '<td style="width:24%;vertical-align:top;padding:8px 8px 8px 0;border-bottom:1px solid #D8D4CE">'
-      + '<div style="font-size:10px;font-weight:700;color:#1A2B4A">' + esc(n.cree || '—') + '</div>'
-      + '<div style="font-size:10px;color:#6A6460">' + esc(n.auteur || '—') + '</div>'
-      + (n.fait ? '<div style="font-size:9px;font-weight:700;color:#2E7D4F;margin-top:3px">FAIT</div>' : '') + '</td>'
-      + '<td style="vertical-align:top;padding:8px 0;border-bottom:1px solid #D8D4CE">'
-      + '<div style="font-size:11px;line-height:1.6;white-space:pre-wrap;word-break:break-word;overflow-wrap:break-word'
-      + (n.fait ? ';color:#6A6460' : '') + '">' + (n.texte ? esc(n.texte) : '<i>(photo sans texte)</i>') + '</div>'
-      + photos(n.photos)
-      + (pied.length ? '<div style="font-size:9px;color:#6A6460;margin-top:4px">' + pied.join(' · ') + '</div>' : '')
-      + '</td></tr>';
-  }).join('');
-  var nb = notes.length, faites = notes.filter(function (n) { return n.fait; }).length;
-
-  return '<html><head><meta charset="utf-8"><style>@page{size:A4;margin:1.5cm}body{font-family:Arial,sans-serif;font-size:10px;margin:0}*{box-sizing:border-box}</style></head><body>'
-    + '<table style="width:100%;border-collapse:collapse;margin-bottom:12px;border-bottom:3px solid #1A2B4A"><tr>'
-    + '<td style="vertical-align:middle;width:40%;padding-bottom:10px"><div style="font-weight:800;font-size:16px;color:#1A2B4A">Loué Menuiserie</div>'
-    + '<div style="font-size:9px;color:#6A6460">Menuiserie · Charpente · Agencement</div></td>'
-    + '<td style="vertical-align:middle;text-align:center;width:40%;padding-bottom:10px"><div style="font-weight:800;font-size:15px;color:#1A2B4A">NOTES DE CHANTIER</div>'
-    + '<div style="font-size:11px;color:#6A6460;margin-top:4px">Chantier : <b>' + esc(d.chantier || '—') + '</b></div></td>'
-    + '<td style="vertical-align:middle;text-align:right;width:20%;padding-bottom:10px"><div style="font-size:9px;color:#6A6460">Export du ' + esc(d.date || '—') + '</div>'
-    + '<div style="font-size:9px;color:#6A6460">par ' + esc(d.exportePar || '—') + '</div></td>'
-    + '</tr></table>'
-    + '<div style="font-size:10px;color:#6A6460;margin-bottom:8px">' + nb + ' note' + (nb > 1 ? 's' : '') + ', dont ' + faites + ' faite' + (faites > 1 ? 's' : '')
-    + ', de la plus ancienne à la plus récente.'
-    + (d.nonReprises ? ' ' + Number(d.nonReprises) + ' photo(s) non reprise(s) dans ce PDF : voir le dossier PHOTOS CHANTIER/NOTES du chantier.' : '') + '</div>'
-    + '<table style="width:100%;border-collapse:collapse">' + lignes + '</table>'
     + '</body></html>';
 }
 

@@ -204,8 +204,8 @@ const TRAITEMENTS = {
   'attestation'        : 'traiterAttestation',
   'cotes'              : 'traiterFicheCotes',
   'signalement'        : 'traiterSignalement',   // lot 7 (Signalements.gs)
-  'note-chantier'      : 'traiterNoteChantier',  // lot 3 (Notes.gs) : une note de chantier
-  'note-action'        : 'traiterNoteAction',    // lot 3 : un geste sur une note (modifier, fait, supprimer…)
+  'note-chantier'      : 'traiterNoteChantier',  // lot 3 (Notes.gs) : un nouvel élément de la liste du chantier
+  'note-action'        : 'traiterNoteAction',    // lot 3 : un geste sur un élément (modifier, cocher, décocher)
 };
 
 function doPost(e) {
@@ -259,7 +259,7 @@ function routerV5_(corps) {
     if (corps.action === 'connexion')  return connexion_(corps);
     if (corps.action === 'motDePasse') return motDePasse_(corps);
     if (['photo', 'fiche', 'moi', 'listes', 'dossiers', 'signalements', 'signalementStatut',
-      'notes', 'notesNouvelles', 'notesVues', 'noteHistorique', 'notePhoto', 'notesPdf'].indexOf(corps.action) < 0) return { ok: false, code: 'ACTION_INCONNUE', message: 'Action inconnue' };
+      'notes', 'notesNouvelles', 'notesVues'].indexOf(corps.action) < 0) return { ok: false, code: 'ACTION_INCONNUE', message: 'Action inconnue' };
     let qui = identifier_(corps);
     const envoi = corps.action === 'photo' || corps.action === 'fiche';
     // Lot 3 : une note de chantier (ou un geste sur une note) demande TOUJOURS un compte en règle : ni « compte désactivé »,
@@ -293,9 +293,6 @@ function routerV5_(corps) {
     if (corps.action === 'notes')          return listerNotes_(qui.compte, corps);
     if (corps.action === 'notesNouvelles') return notesNouvelles_(qui.compte);
     if (corps.action === 'notesVues')      return marquerNotesVues_(qui.compte, corps);
-    if (corps.action === 'noteHistorique') return historiqueNote_(qui.compte, corps);
-    if (corps.action === 'notePhoto')      return photoNote_(qui.compte, corps);
-    if (corps.action === 'notesPdf')       return exporterNotes_(qui.compte, corps);
   } catch (err) {
     console.error('routerV5_:', err.message);
     return { ok: false, code: 'ERREUR', message: 'Erreur du serveur : ' + err.message };
@@ -410,9 +407,9 @@ function recevoirFiche_(corps, compte) {
     const shEnvois = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_ENVOIS);
     const deja = shEnvois ? chercherEnvoi_(shEnvois, corps.id) : 0;
     if (deja && String(shEnvois.getRange(deja, 5).getValue()).indexOf('traité') === 0) return { ok: true, code: 'DEJA_RECU', message: 'Déjà enregistré', data: { id: corps.id, note: true } };
-    // Téléphone partagé : une note rangée par X ne part jamais sous le nom de Y (elle attend que X se reconnecte)
+    // Téléphone partagé : ce qu'a écrit X ne part jamais sous le nom de Y (cela attend que X se reconnecte)
     if (compte && saisiPar && saisiPar !== compte.id) return { ok: false, code: 'COMPTE_REFUSE',
-      message: 'En attente : cette note a été écrite par « ' + saisiPar + ' ». Elle partira quand cette personne se reconnectera sur ce téléphone.' };
+      message: 'En attente : écrit par « ' + saisiPar + ' ». Cela partira quand cette personne se reconnectera sur ce téléphone.' };
     const refusNote = refusNote_(donnees, compte);
     if (refusNote) return { ok: false, code: refusNote.code, message: refusNote.message };
   }
@@ -495,10 +492,8 @@ function recevoirFiche_(corps, compte) {
   const detail = n('envoyé') + ' mail(s) envoyé(s)' + (n('reporté') ? ', ' + n('reporté') + ' reporté(s)' : '')
     + (n('refusé') ? ', ' + n('refusé') + ' adresse(s) refusée(s)' : '');
   sh.getRange(ligne, 5, 1, 2).setValues([['traité', estNote ? 'note de chantier (aucun mail)' : detail]]);
-  if (estNote) {   // aucun mail pour une note : pas de « 0 mail envoyé » alarmant sur le téléphone
-    if (dossierPhotos) { try { dossierPhotos.setTrashed(true); } catch (e) {} }   // les photos sont rangées dans le dossier du chantier
-    return { ok: true, code: 'ENREGISTRE', message: donnees.type === 'note-chantier' ? 'Note enregistrée' : 'Enregistré', data: { id: corps.id, note: true } };
-  }
+  // aucun mail pour une note : pas de « 0 mail envoyé » alarmant sur le téléphone
+  if (estNote) return { ok: true, code: 'ENREGISTRE', message: 'Enregistré', data: { id: corps.id, note: true } };
   if (dossierPhotos) { try { dossierPhotos.setTrashed(true); } catch (e) {} }   // les photos sont dans le PDF
 
   return {

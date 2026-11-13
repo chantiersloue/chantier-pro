@@ -1,19 +1,19 @@
 // ═══════════════════════════════════════════════════════════════
-// Loué App — notes de chantier (lot 3) : lectures, liste et photos gardées dans le téléphone, saisie en cours
+// Loué App — notes de chantier (lot 3) : la liste des choses à faire d'un chantier
 // Nécessite commun/config.js et commun/api.js.
 //
-// Écriture : une note ou un geste part par la file d'attente commune (LOUE.mettreEnFile, types « note-chantier »
-// et « note-action ») ; ce fichier ne fait que LIRE et GARDER.
-// Ce qui est gardé dans le téléphone l'est dans une base À PART (« loue_notes_… ») : la base des fiches et des
-// brouillons n'est pas modifiée. Tout y est rangé par compte et jamais rendu à quelqu'un d'autre ; listes et photos sont effacées à la déconnexion
-// (une saisie en cours, elle, attend le retour de son auteur, comme un brouillon de fiche).
+// Écriture : un nouvel élément ou un geste (cocher, décocher, modifier) part par la file d'attente commune
+// (LOUE.mettreEnFile, types « note-chantier » et « note-action ») ; ce fichier ne fait que LIRE et GARDER.
+// Ce qui est gardé dans le téléphone (dernière liste reçue, texte en cours de frappe) l'est dans une base À PART
+// (« loue_notes_… ») : la base des fiches et des brouillons n'est pas modifiée. Tout y est rangé par compte et jamais
+// rendu à quelqu'un d'autre ; les listes sont effacées à la déconnexion (un texte en cours de frappe, lui, attend le
+// retour de son auteur, comme un brouillon de fiche).
 // ═══════════════════════════════════════════════════════════════
 (function () {
   'use strict';
   var LOUE = window.LOUE = window.LOUE || {};
   var CONFIG = window.LOUE_CONFIG || {};
   var NOM_BASE = 'loue_notes_' + (CONFIG.env || 'prod');
-  var PHOTOS_GARDEES = 60;
   var N = LOUE.notes = {};
 
   function moi() { var c = LOUE.compte && LOUE.compte(); return c ? c.profil.id : ''; }
@@ -66,38 +66,29 @@
     if (!id) return Promise.resolve();
     return magasin('readwrite', function (s) { return s.delete(id + '|' + cle); }).catch(function () {});
   }
-  // Efface les listes et les photos gardées qui n'appartiennent pas au compte connecté (toutes, si personne n'est connecté).
-  // Une saisie en cours n'est JAMAIS effacée ici : comme un brouillon de fiche, elle attend le retour de son auteur
-  // (elle n'est rendue qu'à lui).
+  // Ménage : les listes gardées d'un autre compte sont effacées (toutes, si personne n'est connecté), ainsi que tout ce
+  // qu'a laissé la première version de la page sur les téléphones d'essai (photos, listes et saisies de l'ancienne forme).
+  // Un texte en cours de frappe n'est jamais effacé ici : il attend le retour de son auteur.
   N.nettoyerTelephone = function () {
     var id = moi();
     return magasin('readwrite', function (s) {
       var req = s.openCursor();
       req.onsuccess = function () {
         var c = req.result; if (!c) return;
-        if (c.value.sorte !== 'saisie' && (!id || c.value.compte !== id)) c.delete();
+        var e = c.value;
+        if (e.sorte === 'texte') { c.continue(); return; }
+        if (e.sorte !== 'elements' || !id || e.compte !== id) c.delete();
         c.continue();
       };
     }).catch(function () {});
   };
-  // Pas plus de 60 photos gardées : les plus anciennes sont retirées
-  function limiterPhotos() {
-    return magasin('readwrite', function (s) {
-      var req = s.getAll();
-      req.onsuccess = function () {
-        var photos = (req.result || []).filter(function (e) { return e.sorte === 'photo'; }).sort(function (a, b) { return b.date - a.date; });
-        photos.slice(PHOTOS_GARDEES).forEach(function (e) { s.delete(e.cle); });
-      };
-    }).catch(function () {});
-  }
   if (LOUE.surEvenement) LOUE.surEvenement(function (ev) { if (ev.type === 'compte') N.nettoyerTelephone(); });
 
-  // ── Texte : 2 000 caractères au plus ; tabulations et caractères invisibles remplacés par une espace ;
-  //    les retours à la ligne sont gardés (le serveur refuse le reste, et un refus est définitif) ──
+  // ── Texte d'un élément : une seule ligne, 2 000 caractères au plus. Un retour à la ligne, une tabulation ou un
+  //    caractère invisible (collage, dictée) devient une espace. ──
   N.MAX_TEXTE = 2000;
-  N.MAX_PHOTOS = 3;
   N.nettoyer = function (t) {
-    return String(t || '').replace(/\r\n?/g, '\n').replace(/[\u0000-\u0009\u000b\u000c\u000e-\u001f\u007f-\u009f\u2028\u2029]+/g, ' ').trim().slice(0, N.MAX_TEXTE).trim();
+    return String(t || '').replace(/[\u0000-\u001f\u007f-\u009f\u2028\u2029]+/g, ' ').replace(/ {2,}/g, ' ').trim().slice(0, N.MAX_TEXTE).trim();
   };
 
   // ── Appels au serveur ──
@@ -109,60 +100,40 @@
       return rep.data || {};
     });
   }
-  // o : { chantier, corbeille, recherche, nonFait, nouveau, auteur }
-  // → { donnees: { notes, chantier, chef, moi, heure, plein }, date, depuisLeTelephone }
-  // La liste simple (un chantier, ou tous sans filtre) est gardée dans le téléphone et sert quand il n'y a pas de réseau.
+  // o : { chantier, recherche, nouveau, termines }
+  // → { donnees: { aFaire, termines, nbTermines, chantier, heure, plein }, date, depuisLeTelephone }
+  // La liste d'un chantier (sans filtre) est gardée dans le téléphone et sert quand il n'y a pas de réseau.
   N.lire = function (o) {
     o = o || {};
-    var simple = !o.corbeille && !o.recherche && !o.nonFait && !o.nouveau && !o.auteur;
-    var cle = 'liste|' + cleChantier(o.chantier), qui = moi();
-    return appel({ action: 'notes', chantier: o.chantier || '', corbeille: !!o.corbeille, recherche: o.recherche || '', nonFait: !!o.nonFait,
-      nouveau: !!o.nouveau, auteur: o.auteur || '' }, 20000, 'Notes indisponibles').then(function (d) {
-      if (simple && qui === moi()) ecrireEntree(cle, 'liste', d);
+    var gardable = !!o.chantier && !o.recherche && !o.nouveau;
+    var cle = 'elements|' + cleChantier(o.chantier), qui = moi();
+    return appel({ action: 'notes', chantier: o.chantier || '', recherche: o.recherche || '', nouveau: !!o.nouveau, termines: !!o.termines }, 20000, 'Notes indisponibles').then(function (d) {
+      if (gardable && qui === moi()) ecrireEntree(cle, 'elements', d);
       return { donnees: d, date: Date.now(), depuisLeTelephone: false };
     }, function (err) {
-      if (err && err.code === 'INTERDIT' && simple) effacerEntree(cle);   // accès retiré : la liste gardée ne doit plus se lire hors réseau
-      if (err && (err.connexion || err.serveur) || !simple) throw err;
-      return lireEntree(cle).then(function (e) {   // pas de réseau : la dernière liste de CE compte
-        if (e && e.valeur) return { donnees: e.valeur, date: e.date, depuisLeTelephone: true };
-        throw err;
-      });
+      if (err && err.code === 'INTERDIT' && gardable) effacerEntree(cle);   // accès retiré : la liste gardée ne doit plus se lire hors réseau
+      if (err && (err.connexion || err.serveur) || !gardable) throw err;
+      return N.gardee(o.chantier).then(function (g) { if (g) return g; throw err; });   // pas de réseau : la dernière liste de CE compte
     });
   };
   // La dernière liste gardée dans le téléphone pour ce chantier (ou null) : affichée tout de suite, avant la réponse du serveur
   N.gardee = function (chantier) {
-    return lireEntree('liste|' + cleChantier(chantier)).then(function (e) { return e && e.valeur ? { donnees: e.valeur, date: e.date, depuisLeTelephone: true } : null; });
+    return lireEntree('elements|' + cleChantier(chantier)).then(function (e) { return e && e.valeur ? { donnees: e.valeur, date: e.date, depuisLeTelephone: true } : null; });
   };
-  // Après l'affichage : « j'ai vu les notes de ce chantier jusqu'à telle heure du serveur ». Un échec est sans gravité.
+  // Après l'affichage : « j'ai vu la liste de ce chantier jusqu'à telle heure du serveur ». Un échec est sans gravité.
   // chantier vide + tous = vrai : tous les chantiers (vue « Tous chantiers » des conducteurs).
   N.vues = function (chantier, jusqua, tous) {
     return appel({ action: 'notesVues', chantier: chantier || '', jusqua: jusqua, tous: !!tous }, 15000, '').then(function () { return true; }, function () { return false; });
   };
-  // Badges : { parChantier: { nom: n }, total }
+  // Chiffres rouges de l'accueil : { parChantier: { nom: n }, total }
   N.nouvelles = function () { return appel({ action: 'notesNouvelles' }, 15000, 'Indisponible'); };
-  N.historique = function (id) { return appel({ action: 'noteHistorique', note: id }, 20000, 'Historique indisponible').then(function (d) { return d.versions || []; }); };
-  N.exporter = function (chantier) { return appel({ action: 'notesPdf', chantier: chantier }, 120000, 'Export impossible'); };
-  // Photo d'une note → adresse locale de l'image. Chargée à la demande (90 s : une barre de réseau), puis gardée.
-  N.photo = function (id, rang) {
-    var cle = 'photo|' + id + '|' + rang, qui = moi();
-    return lireEntree(cle).then(function (e) {
-      if (e && e.valeur) return URL.createObjectURL(e.valeur);
-      return appel({ action: 'notePhoto', note: id, rang: rang }, 90000, 'Photo indisponible').then(function (d) {
-        var binaire = atob(d.data), octets = new Uint8Array(binaire.length);
-        for (var i = 0; i < binaire.length; i++) octets[i] = binaire.charCodeAt(i);
-        var blob = new Blob([octets], { type: /^image\/(jpeg|png|webp)$/.test(d.mime) ? d.mime : 'image/jpeg' });
-        if (qui === moi()) ecrireEntree(cle, 'photo', blob).then(limiterPhotos);   // gardée seulement si c'est toujours le même compte
-        return URL.createObjectURL(blob);
-      });
-    });
-  };
 
-  // ── Saisie en cours (texte et photos pas encore ajoutés), par compte et par chantier : gardée sans rien demander ──
-  N.lireSaisie = function (chantier) { return lireEntree('saisie|' + cleChantier(chantier)).then(function (e) { return e ? e.valeur : null; }); };
-  N.ecrireSaisie = function (chantier, valeur) { return ecrireEntree('saisie|' + cleChantier(chantier), 'saisie', valeur); };
-  N.effacerSaisie = function (chantier) { return effacerEntree('saisie|' + cleChantier(chantier)); };
+  // ── Texte en cours de frappe (pas encore ajouté), par compte et par chantier : gardé sans rien demander ──
+  N.lireTexte = function (chantier) { return lireEntree('texte|' + cleChantier(chantier)).then(function (e) { return e && typeof e.valeur === 'string' ? e.valeur : ''; }); };
+  N.ecrireTexte = function (chantier, texte) { return ecrireEntree('texte|' + cleChantier(chantier), 'texte', String(texte || '')); };
+  N.effacerTexte = function (chantier) { return effacerEntree('texte|' + cleChantier(chantier)); };
 
-  // ── Notes et gestes encore dans la file d'envoi, pour CE compte et ce chantier (du plus ancien au plus récent) ──
+  // ── Ajouts et gestes encore dans la file d'envoi, pour CE compte et ce chantier (du plus ancien au plus récent) ──
   N.enAttente = function (chantier) {
     var id = moi(), cle = cleChantier(chantier);
     if (!id || !LOUE.stockage) return Promise.resolve([]);
