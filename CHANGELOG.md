@@ -2,6 +2,26 @@
 
 Chaque lot : **quoi**, **pourquoi**, **comment déployer**. Procédures détaillées dans `docs/lotN-procedure.md`.
 
+## Lot 4c — Le programme du PC : carnet depuis les bordereaux, recopie automatique des fiches de l'appli — **construit, pas encore utilisé sur de vraies données**
+
+**Quoi**
+- Un programme sur le PC de Franck, `outils/appli_pc.py`. Il fait le pont entre le Drive de l'appli et les **dossiers de chantier du PC** (ceux où travaillent les skills ; MEGA ne fait que les synchroniser).
+- **Recopie automatique des fiches** (décision de Franck) : une tâche du Planificateur de tâches de Windows lance le programme **toutes les heures et à l'ouverture de session**, sans fenêtre et sans question. Les fiches que l'appli a rangées dans le Drive sont recopiées, au même chemin, dans le bon dossier de chantier du PC. Mise en place une seule fois, sans droits d'administrateur : double-clic sur **`outils\installer-tache.bat`** ; arrêt : `outils\retirer-tache.bat`.
+- **Le bon dossier est trouvé par le numéro du chantier**, en tête du nom des dossiers (`403 - …`, `403-…`, `403 …`). Rien n'est deviné : aucun dossier pour ce numéro, ou plusieurs, et rien n'est copié pour ce chantier. Une correspondance écrite à la main (`_prive/depot.json`, commande « Associer les chantiers ») règle les cas que le numéro ne règle pas.
+- **Copie seulement** : sous un nom temporaire, taille vérifiée, **jamais d'écrasement, de déplacement, de renommage ni de suppression**. Signalés sans copie : fichiers hors des dossiers de fiches, `_À CLASSER`, raccourcis Google, doublons `nom (1)`, chemins trop longs, fichiers illisibles, même nom mais autre taille. Jamais les demandes d'absence.
+- **`CHANTIERPRO - A VOIR.txt`**, à côté des dossiers de chantier, réécrit à chaque passage : ce qui demande l'attention de Franck, ou « Rien à signaler ».
+- Deux autres fichiers écrits : dans chaque dossier de chantier du PC, **`CHANTIERPRO - fiches rapatriees.json`** (la liste cumulée des fiches venues de l'appli, que les skills lisent) ; dans le Drive, **`releve-pc.json`** (le relevé de présence que le lot 5 lira avant toute purge ; il s'appelait « mega-index.json » dans le contrat précédent).
+- **Carnet** (double-clic sur **`outils\appli-pc.bat`**) : le programme lit les PDF figés dans `08 - DOCUMENTS ENVOYES AVEC BORDEREAU/BORDEREAU n`, ne retient que les documents du carnet (anciens numéros convertis par une table), et demande pour chacun : **o** (le mettre au carnet, avec `depot_carnet.py`, inchangé), **n** (l'écarter pour de bon) ou **Entrée** (plus tard). Il signale un document qui a changé depuis qu'il est au carnet, un PDF d'un autre chantier, un numéro non reconnu. Le même menu permet de voir sans rien écrire, de lire « A VOIR », de retirer un document du carnet, et de lancer la recopie à la demande.
+- Un seul traitement à la fois (verrou repris s'il est orphelin), refus avant toute écriture si un réglage est faux, journaux dans `_prive/appli-pc/` (celui des passages automatiques ne grossit pas sans fin).
+- `docs/contrat-skills.md` passe en **version 5** : un skill n'écrit jamais dans le Drive de l'appli, qui n'a plus à être relié à Claude ; les textes à coller ne concernent plus que `gestion-documentaire` (chapitre 8) ; « dossier du chantier sur le PC » remplace « MEGA ».
+- Ni le serveur ni les pages de l'appli ne changent.
+
+**Pourquoi** : un skill voit le dossier du chantier sur le PC, pas le Drive de l'appli (essai A2, `docs/lot4-etape0.md`) ; le PC voit les deux. Plutôt que de faire écrire des « demandes » par neuf skills, le programme lit ce qu'ils produisent déjà : les bordereaux. Seule une version validée, et confirmée par Franck, part aux poseurs. Et les fiches des téléphones rejoignent l'archive sans aucune manipulation. Plan et critique indépendante : `docs/lot4c-plan.md`.
+
+**Comment déployer** : rien à envoyer sur le serveur ni sur GitHub Pages. Marche à suivre de Franck (réglages, lignes à coller dans le skill, essais, installation de la tâche, limites, retour arrière) : `docs/lot4c-procedure.md`.
+
+**Tests** : `python -m unittest tests/test_appli_pc.py` (54 tests, faux dossiers temporaires, aucune tâche planifiée créée) ; `python -m unittest tests/test_depot_carnet.py` (26, inchangés). **Pas testé par moi** : le vrai Drive, les vrais dossiers de chantier, la copie TEST, la création réelle de la tâche planifiée et son lancement sans fenêtre, le double-clic sur les `.bat` au-delà du menu, et les lignes du contrat avec le vrai skill (essais obligatoires de la procédure).
+
 ## Lot 4b — Carnet de chantier : hors réseau complet, et retrait de la tuile « Plans » — appli 9.0, serveur **v9.1** — **construit, pas encore en production** (ira avec le 4a)
 
 **Quoi**
