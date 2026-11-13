@@ -554,7 +554,7 @@ def main(argv=None):
         return 0
     except OSError as e:
         # disque plein, Drive pour ordinateur arrêté, chemin trop long, fichier verrouillé… : rien n'est annoncé dans la liste
-        print("ARRÊT : le dossier n'a pas pu être lu ou écrit (%s). Rien n'est ajouté à la liste du carnet ; vérifiez que Google Drive pour ordinateur tourne, puis relancez la même commande." % e, file=sys.stderr)
+        print("ARRÊT : le dossier n'a pas pu être lu ou écrit (%s). Vérifiez que Google Drive pour ordinateur tourne, puis relancez la même commande (si elle répond « déjà au carnet », le document y est : contrôlez avec --verifier)." % e, file=sys.stderr)
         return 2
     except Refus as e:
         print("REFUS : %s" % e, file=sys.stderr)

@@ -210,15 +210,31 @@
   //    sinon le téléphone continuerait de montrer l'ancien plan ;
   //  - document remplacé par un nouvel indice : l'ancien reste lisible (marqué « ancien ») tant que le nouveau n'a pas
   //    été ouvert sur ce téléphone — une barre de réseau ne doit pas laisser le poseur sans aucun plan ;
-  //  - liste vide alors que la précédente ne l'était pas : rien n'est effacé avant une SECONDE liste vide.
+  //  - liste vide alors que la précédente ne l'était pas (dossier renommé ou déplacé dans le Drive, par exemple) : la
+  //    liste gardée reste affichée, avec un message, et rien n'est effacé tant que cela ne dure pas depuis 24 heures.
+  var majConnue = {};   // date de la liste du serveur, par chantier, telle que ce téléphone l'a reçue pendant cette visite
+  // quand un document a été déposé (instant du dépôt s'il est connu, sinon son jour)
+  function quand(d) { return /^[0-9]{4}-[0-9]{2}-[0-9]{2}T/.test(String(d.empreinte || '')) ? String(d.empreinte) : String(d.date || ''); }
+  // Le serveur dit de quelle liste viennent ses images : si elle a changé depuis celle que le téléphone a reçue (nouveau
+  // dépôt pendant la lecture), l'image n'est ni affichée ni gardée — la page recharge la liste.
+  function listeChangee(chantier, rep) {
+    var connue = majConnue[cleChantier(chantier)], recue = rep && rep.data && rep.data.maj;
+    return !!connue && !!recue && connue !== recue;
+  }
+  var CHANGE = { ok: false, code: 'CARNET_INCONNU', message: 'Ce document a changé : rouvrez la liste.' };
   function recevoir(chantier, k, data, ancienne) {
     var recus = data.documents || [];
     var avant = (ancienne && ancienne.documents) || [];
-    var vides = recus.length ? 0 : ((ancienne && ancienne.vides) || 0) + 1;
-    if (!recus.length && avant.length && vides < 2) {
-      ancienne.vides = vides;
-      return transaction(['listes'], 'readwrite', function (m) { m('listes').put(ancienne); }).catch(function () {})
-        .then(function () { return { documents: [], maj: data.maj || 0, date: Date.now(), horsReseau: false }; });
+    majConnue[k] = data.maj || 0;
+    if (!recus.length && avant.length) {
+      var videLe = ancienne.videLe || Date.now();
+      if (Date.now() - videLe < 24 * 3600000) {
+        ancienne.videLe = videLe;
+        return transaction(['listes'], 'readwrite', function (m) { m('listes').put(ancienne); }).catch(function () {}).then(function () {
+          return { documents: avant, maj: ancienne.maj, date: ancienne.date, horsReseau: false,
+            message: 'Le serveur ne trouve plus le carnet de ce chantier. Si cela dure, prévenez le bureau.' };
+        });
+      }
     }
     return index().then(function (ix) {
       var apercuGarde = function (id) { return !!(ix.lignes[k + '|' + id + '|1|leger'] || ix.lignes[k + '|' + id + '|1|net']); };
@@ -228,16 +244,16 @@
         var neuf = presents[a.id];
         if (neuf) { if (String(a.empreinte || '') !== String(neuf.empreinte || '')) effaces[a.id] = true; return; }
         var remplacant = a.code ? recus.filter(function (d) { return d.code === a.code; })[0] : null;
-        if (remplacant && apercuGarde(a.id) && !apercuGarde(remplacant.id)) anciens.push(Object.assign({}, a, { ancien: true, remplacePar: remplacant.indice || '' }));
+        if (remplacant && quand(remplacant) > quand(a) && apercuGarde(a.id) && !apercuGarde(remplacant.id)) anciens.push(Object.assign({}, a, { ancien: true, remplacePar: remplacant.indice || '' }));
       });
       var gardes = {}; anciens.forEach(function (a) { gardes[a.id] = true; });
       var docs = recus.concat(anciens);
-      var liste = { cle: k, chantier: data.chantier || chantier, documents: docs, maj: data.maj || 0, date: Date.now(), vides: vides };
-      return transaction(['listes'], 'readwrite', function (m) { m('listes').put(liste); }).then(function () {
-        return supprimer(Object.keys(ix.lignes).filter(function (c) {
-          var l = ix.lignes[c];
-          return l.chantier === k && (effaces[l.doc] || (!presents[l.doc] && !gardes[l.doc]));
-        }));
+      var liste = { cle: k, chantier: data.chantier || chantier, documents: docs, maj: data.maj || 0, date: Date.now() };
+      return supprimer(Object.keys(ix.lignes).filter(function (c) {
+        var l = ix.lignes[c];
+        return l.chantier === k && (effaces[l.doc] || (!presents[l.doc] && !gardes[l.doc]));
+      })).then(function () {
+        return transaction(['listes'], 'readwrite', function (m) { m('listes').put(liste); });
       }).catch(function () {}).then(function () { return { documents: docs, maj: liste.maj, date: liste.date, horsReseau: false }; });
     }, function () { return { documents: recus, maj: data.maj || 0, date: Date.now(), horsReseau: false }; });
   }
@@ -301,6 +317,7 @@
           return LOUE.appeler({ action: 'carnetTuiles', chantier: chantier, doc: doc, page: page, quoi: quoi }, 60000).then(function (rep) {
             var im = rep && rep.ok && rep.data.images && rep.data.images[0];
             if (!im) throw erreurDe(rep);
+            if (listeChangee(chantier, rep)) throw erreurDe(CHANGE);
             var octets = octetsDe(im.b64);
             ok(octets);
             return garder(chantier, doc, page, quoi, octets);
@@ -327,6 +344,7 @@
             if (gen !== generation) { fini(); return Promise.resolve(); }
             return LOUE.appeler({ action: 'carnetTuiles', chantier: chantier, doc: doc, page: page, quoi: 'tuiles', niveau: niveau, tuiles: lot }, 60000).then(function (rep) {
               if (!rep || !rep.ok) throw erreurDe(rep);
+              if (listeChangee(chantier, rep)) throw erreurDe(CHANGE);
               var suites = [];
               (rep.data.images || []).forEach(function (im) {
                 var octets = octetsDe(im.b64);

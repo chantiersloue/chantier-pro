@@ -99,6 +99,11 @@ http.createServer((req, res) => {
       const c = dossierCarnet(); if (c) c.enfants.forEach(x => { if (x.nom === 'carnet.json') x.corbeille = m === 'carnet-sans-liste'; });
       viderCacheCarnet(); res.writeHead(200, entetes); return res.end('{"liste":"' + m + '"}');
     }
+    if (m === 'carnet-introuvable' || m === 'carnet-retrouve') {
+      const ch = google.elements.RACINE.enfants.find(x => x.nom === 'CHANTIER TEST 1' && !x.corbeille);
+      if (ch) ch.enfants.forEach(x => { if (x.nom === 'CARNET') x.corbeille = m === 'carnet-introuvable'; });
+      viderCacheCarnet(); res.writeHead(200, entetes); return res.end('{"carnet":"' + m + '"}');
+    }
     if (m === 'carnet-2') {
       const c = dossierCarnet(); if (c) c.enfants.forEach(x => { x.corbeille = true; });
       if (process.env.LOUE_RACINE_ESSAI_2) recopier(process.env.LOUE_RACINE_ESSAI_2, google.elements.RACINE);

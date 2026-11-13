@@ -210,6 +210,11 @@ function scenario() {
   await page.evaluate(() => charger()); await page.waitForTimeout(2500);
   r.sansListe = { liste: await liste(), a105: await images('105-A'), avant: avant.a105 };
   await reglage('carnet-liste');
+  await reglage('carnet-introuvable');   // dossier CARNET introuvable : le serveur rend une liste vide
+  await page.evaluate(() => charger()); await page.waitForTimeout(2500);
+  await page.evaluate(() => charger()); await page.waitForTimeout(2500);   // deux fois de suite : toujours rien d'effacé
+  r.introuvable = { liste: await liste(), a105: await images('105-A'), avant: avant.a105 };
+  await reglage('carnet-retrouve');
   await reglage('carnet-2');
   await page.evaluate(() => charger()); await page.waitForTimeout(2500);
   r.second = { liste: await liste(), a105: await images('105-A'), a001: await images('001-A'), avant: avant };
@@ -290,6 +295,8 @@ setTimeout(() => {
     verifier('accès au chantier retiré : refus affiché, plans de ce chantier effacés du téléphone', r.refus.avant > 0 && r.refus.apres === 0 && r.refus.liste.visible === false && /ne fait pas partie de vos chantiers/.test(r.refus.liste.info), j(r.refus));
     verifier('liste absente du Drive (en cours d’arrivée) : le serveur le dit, la liste gardée reste affichée, aucun plan gardé n’est effacé', r.connexion3 === 'CONNECTE' && r.sansListe.avant > 0
       && r.sansListe.a105 === r.sansListe.avant && r.sansListe.liste.docs.length === 2 && /en cours d’arrivée/.test(r.sansListe.liste.info) && !/Pas de réseau/.test(r.sansListe.liste.info), j(r.sansListe));
+    verifier('carnet introuvable côté serveur (liste vide), deux fois de suite : la liste gardée reste affichée avec un message, aucun plan n’est effacé', r.introuvable.a105 === r.introuvable.avant
+      && r.introuvable.liste.docs.length === 2 && /ne trouve plus le carnet de ce chantier/.test(r.introuvable.liste.info), j(r.introuvable));
     verifier('document REDÉPOSÉ sous le même identifiant : ce que le téléphone en gardait est effacé, le nouveau plan est demandé au serveur', r.second.avant.a105 > 0 && r.second.a105 === 0
       && r.redepose.fondCharge === true && r.redepose.largeurPlan !== r.redepose.ancienne, j([r.second.avant, r.second.a105, r.redepose.largeurPlan, r.redepose.ancienne]));
     verifier('NOUVEL INDICE pas encore ouvert : l’ancien reste lisible, marqué « ANCIEN INDICE — l’indice B est sorti »', r.second.a001 === r.second.avant.a001 && r.second.liste.docs.length === 3
