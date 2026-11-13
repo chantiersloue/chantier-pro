@@ -8,8 +8,8 @@
 ## Ce que le lot 5 change, en bref
 
 - Le compte Google gratuit a **15 Go pour Drive, Gmail et Photos ensemble**. S'il est plein, plus aucun fichier ne se crée dans Drive et **plus aucun mail ne part ni n'arrive** (les fiches resteraient dans les téléphones, sans être perdues).
-- Un onglet ***Stockage*** : où en est la place, et ce que pèse chaque chantier. Rempli chaque nuit.
-- Des **mails d'alerte** à 70 %, 85 % et 95 %.
+- Un onglet ***Stockage*** : où en est la place, ce que pèse chaque chantier, et **combien de chantiers en cours tiennent encore** avant l'alerte (ton objectif : 35 à 40 chantiers en cours en même temps). Rempli chaque nuit.
+- Des **mails d'alerte** à **80 %** (il est temps de purger) et à **95 %** (urgent).
 - Un onglet ***Purges*** : ce qui **peut** être mis à la corbeille de Drive, avec une case à cocher. **Rien ne part sans ta case.**
 - Un onglet technique ***Purges détail*** : la liste exacte de ce que chaque purge a mis à la corbeille.
 - La colonne **Date « Terminé »** de l'onglet *Chantiers* se remplit toute seule quand tu passes un chantier à « Terminé » (et s'efface si tu changes d'avis).
@@ -22,7 +22,7 @@
 
 Quelques mots utilisés plus bas :
 - **déclencheur** : un réveil qui lance une fonction du serveur tout seul (la nuit, toutes les 30 minutes…) ;
-- **relevé** : le fichier `releve-pc.json` que le programme du PC pose dans le dossier Drive du chantier ; il liste les fiches présentes dans le dossier du chantier sur le PC ;
+- **relevé** : le fichier `releve-pc.json` que la recopie automatique du PC (toutes les heures) pose dans le dossier Drive du chantier ; il liste les fiches présentes dans le dossier du chantier sur le PC, et il est refait au moins une fois par jour ;
 - **ancien indice** : une ancienne version d'un plan du carnet (indice A quand l'indice B est déposé). L'appli ne la montre plus.
 
 ## Étape A — Copie TEST (toi : 2 minutes par envoi)
@@ -43,7 +43,7 @@ Quelques mots utilisés plus bas :
 
 ## Étape B — Tes essais sur la copie TEST (20 min, depuis le téléphone)
 
-Ouvre le Sheet **ChantierPro TEST** dans l'appli Google Sheets du téléphone. Nous aurons préparé ensemble un faux chantier terminé (« CHANTIER TEST AUTO ») : quelques fiches envoyées depuis l'appli d'essai, un petit document au carnet, la date « Terminé » reculée de 7 mois dans l'onglet *Chantiers*, et son relevé `releve-pc.json` (aucun outil d'essai n'écrit ces fichiers dans Drive à ta place : je te guiderai).
+Ouvre le Sheet **ChantierPro TEST** dans l'appli Google Sheets du téléphone. Nous aurons préparé ensemble un faux chantier terminé (« CHANTIER TEST AUTO ») : quelques fiches envoyées depuis l'appli d'essai, un petit document au carnet, la date « Terminé » reculée de 2 mois dans l'onglet *Chantiers*, et son relevé `releve-pc.json` (aucun outil d'essai n'écrit ces fichiers dans Drive à ta place : je te guiderai).
 
 | N° | Essai | Ce que tu dois voir |
 |---|---|---|
@@ -82,12 +82,15 @@ Quand tout est vert, écris-moi : **« Lot 5 validé sur TEST »**. Je retire al
 
 | Ligne | Ce que ça dit |
 |---|---|
-| Stockage du compte Google | L'état en une phrase : « Tout va bien : 41 % », « Attention : 72 % », « URGENT : 96 % », ou « Mesure en cours : 12 dossier(s) sur 31 » |
+| Stockage du compte Google | L'état en une phrase : « Tout va bien : 41 % (alerte à 80 %) », « Attention : 82 % », « URGENT : 96 % », ou « Mesure en cours : 12 dossier(s) sur 31 » |
 | Place utilisée | En Go, sur 15 Go, et en % |
 | Mesurée le | La date de ce chiffre |
 | D'où vient ce chiffre | « Service avancé Drive » (total du compte, sûr) ou « DriveApp » (à comparer avec one.google.com/storage) |
 | Dont Drive / Dont Gmail et Photos / Dont corbeille de Drive | Connus seulement avec le service avancé Drive |
 | Dossiers de l'appli | Le poids de tout ce que l'appli range dans Drive, et la date du dernier tour complet |
+| Chantiers en cours | Le nombre de chantiers au statut « En cours » dans l'onglet *Chantiers* |
+| Poids moyen d'un chantier en cours | Après un tour de mesure complet : la moyenne des chantiers en cours mesurés |
+| Place pour d'autres chantiers | « À ce rythme, place pour environ n chantiers en cours de plus avant 80 % ». Calcul prudent : chaque nouveau chantier est compté une fois et demie le poids moyen d'aujourd'hui (un chantier en cours est à mi-parcours, il pèsera plus à sa clôture). Vide si les données manquent |
 | À savoir | Le rappel sur Gmail (voir plus bas) |
 
 **Le tableau** : une ligne par chantier — statut, date « Terminé », poids total en Mo, dont carnet, fiches, photos, autres ; nombre de fichiers ; date du dernier dépôt au carnet ; anciens indices (nombre et poids) ; **date de la mesure de cette ligne** ; ce que dit l'onglet *Purges* pour ce chantier.
@@ -102,12 +105,12 @@ Quand tout est vert, écris-moi : **« Lot 5 validé sur TEST »**. Je retire al
 Une ligne par chose qui **peut** partir à la corbeille :
 
 - **« Anciens indices du carnet »** : les anciennes versions des plans, que l'appli ne montre plus. Les PDF d'origine sont dans le dossier du chantier sur le PC. Possible à tout moment, même sur un chantier en cours.
-- **« Chantier terminé »** : les fiches, les photos et le carnet d'un chantier « Terminé » depuis au moins 6 mois.
+- **« Chantier terminé »** : les fiches, les photos et le carnet d'un chantier « Terminé » depuis au moins **30 jours**.
 
 | Colonne | Ce que ça dit |
 |---|---|
 | Possible ? | « oui » ou « non » |
-| Pourquoi (ou ce qui manque) | Si c'est non : ce qui manque **et quoi faire** (« 3 fiche(s) absente(s) du relevé : relancez le programme du PC, puis attendez la prochaine mesure ») |
+| Pourquoi (ou ce qui manque) | Si c'est non : ce qui manque **et quoi faire** (« 3 fiche(s) absente(s) du relevé : vérifiez que la recopie automatique tourne sur le PC (fichier « CHANTIERPRO - A VOIR.txt »), puis attendez la prochaine mesure ») |
 | Mettre à la corbeille | **La case que tu coches** |
 | État | Proposé, Impossible, En cours, Fait, Annulé |
 | Message | Ce que le serveur a fait la dernière fois sur cette ligne |
@@ -119,7 +122,7 @@ Une ligne par chose qui **peut** partir à la corbeille :
 ### Avant de cocher une purge de chantier terminé
 
 1. Onglet ***Dossiers chantiers*** : la ligne du chantier ne doit pas porter « À vérifier ». Si elle le porte, ouvre le dossier dans Drive, vérifie que c'est bien celui du chantier, puis **efface la cellule « À vérifier »**. (L'appli ne prend jamais un dossier « par ressemblance de nom » pour une purge.)
-2. **Relance le programme du PC** (celui qui recopie les fiches de Drive dans les dossiers de chantier du PC) : le relevé doit avoir **moins de 7 jours** au moment où la case est traitée.
+2. **La recopie automatique du PC doit tourner** (elle recopie toutes les heures les fiches de Drive dans les dossiers de chantier du PC, et refait le relevé) : le relevé doit avoir **moins de 7 jours** pour que la purge soit proposée, et **moins de 48 heures** au moment où la case est traitée. Si la ligne dit que le relevé est trop vieux : sur le PC, ouvre le fichier **« CHANTIERPRO - A VOIR.txt »**, qui dit ce qui ne va pas.
 3. Sur le PC, **vérifie que MEGA a fini de synchroniser le dossier du chantier** (icône de MEGA : « à jour »). Le relevé prouve que les fiches sont sur le PC, pas que MEGA les a déjà sauvegardées.
 4. Attends la mesure de la nuit (ou lance `mesurerStockage`) : la ligne doit dire « Possible ? oui ».
 
@@ -147,9 +150,8 @@ L'appli ne vide jamais la corbeille. Si tu as besoin de la place tout de suite :
 
 | Seuil | Mail | Combien |
 |---|---|---|
-| 70 % | « Place Google : 72 % utilisés » | Deux mails par mois au plus pour 70 % et 85 % ensemble |
-| 85 % | idem | idem |
-| 95 % | « URGENT — place Google presque pleine » | Toujours envoyé, puis un rappel par semaine tant que cela dure |
+| 80 % | « Place Google : 82 % utilisés » | Un mail quand le seuil est franchi, puis un par mois au plus tant que la place reste au-dessus |
+| 95 % | « URGENT — place Google presque pleine » | Toujours envoyé quand le seuil est franchi, puis un rappel par semaine tant que cela dure |
 
 Si la place est déjà au-dessus d'un seuil le jour de l'installation, le mail part à la première mesure. Si un mail ne peut pas partir (panne, quota du jour épuisé), il repart à la mesure suivante.
 
@@ -175,10 +177,15 @@ Les PDF de ces mails sont dans Drive (jusqu'à la purge) et dans le dossier du c
 ## Ce que je te demande de trancher (plan, chapitre 12)
 
 1. **Pas de suppression définitive par le serveur.** Le plan d'origine prévoyait une case « Vider la corbeille de ce chantier maintenant ». Je ne l'ai pas construite : une suppression sans retour, déclenchée par une case d'un tableur, est le geste le plus dangereux du lot. Dis-moi si tu la veux quand même.
-2. **Les seuils** : alertes à 70 %, 85 % et 95 % ; purge d'un chantier 6 mois après « Terminé » ; relevé de moins de 7 jours au moment de la purge (30 jours pour la proposer). Ces chiffres se changent en une ligne chacun.
-3. **Le carnet d'un chantier terminé** part en même temps que ses fiches. Préfères-tu qu'il reste plus longtemps (un poseur qui revient en SAV un an après retrouverait les plans dans l'appli) ?
+2. **La durée de 30 jours** entre le passage à « Terminé » et la purge (tes consignes du 14/11/2026). Elle tient en une ligne du serveur : dis-moi si tu veux une autre durée.
+3. **Le seuil d'alerte de 80 %** (et le seuil critique de 95 %).
+4. **Les deux mesures pour Gmail**, qui ne sont PAS dans ce lot tant que tu ne les as pas validées. D'après l'estimation (plan, chapitre 6), Drive tient l'objectif de 40 chantiers en cours, mais **Gmail fait déborder le compte en deux à trois ans** : chaque fiche part en pièce jointe, aujourd'hui un mail par destinataire.
+   - (a) un seul mail par fiche pour tous les destinataires, au lieu d'un mail par adresse ;
+   - (b) une ligne de plus dans l'onglet *Purges*, « Mails envoyés de plus de 3 mois », avec la même case à cocher (corbeille de Gmail, vidée par Google après 30 jours). Les PDF restent dans le dossier du chantier sur le PC.
+5. **Le carnet d'un chantier clôturé** part en même temps que ses fiches. Préfères-tu qu'il reste plus longtemps (un poseur qui revient en SAV retrouverait les plans dans l'appli) ?
 
-Deux autres points, apparus pendant la construction :
+Déjà tranché par toi le 14/11/2026 : les **anciens indices** sont proposés à la purge même sur un chantier en cours.
 
-4. **Anciens indices sur un chantier en cours** : je les propose à la purge dès qu'un nouvel indice les remplace, sans attendre la fin du chantier (c'est là que la place se gagne). La case reste à toi.
-5. **Le nom du relevé** est `releve-pc.json`. Le contrat des skills (`docs/contrat-skills.md`) et le plan du lot 4c parlent encore de `mega-index.json` : ils sont à mettre d'accord avant de construire le programme du PC.
+Un point apparu pendant la construction :
+
+6. **Le nom du relevé** est `releve-pc.json`. Le contrat des skills (`docs/contrat-skills.md`) et le plan du lot 4c parlent encore de `mega-index.json` : ils sont à mettre d'accord avant de construire le programme du PC.

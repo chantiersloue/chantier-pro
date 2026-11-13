@@ -1,7 +1,7 @@
 # Lot 5 — Stockage : suivi, alertes, purge — plan
 
 > Commande : `PLAN.md`, « Lot 5 — Stockage » et exigence 5 ; `docs/contrat-skills.md` et `docs/lot4c-plan.md` (relevé de présence, nommé ici `releve-pc.json`) ; décisions D4-7, D4-8, D4-12.
-> Branche `lot-5`, partie de `lot-4`. **Version 2, refaite après critique par un agent indépendant** (ce qu'elle a fait changer : chapitre 11). Consigne de Franck (13/11/2026) : construit et testé contre le faux serveur seulement ; **rien qui touche à des données réelles sans lui** ; aucune action sur la copie TEST ni la production.
+> Branche `lot-5`, partie de `lot-4`. **Version 2, refaite après critique par un agent indépendant** (ce qu'elle a fait changer : chapitre 11), **puis mise à jour avec les décisions de Franck du 14/11/2026** (alerte à 80 %, purge 30 jours après la clôture, relevé `releve-pc.json` de moins de 48 heures, objectif de 35 à 40 chantiers en cours : chapitre 6). Consigne de Franck (13/11/2026) : construit et testé contre le faux serveur seulement ; **rien qui touche à des données réelles sans lui** ; aucune action sur la copie TEST ni la production.
 
 ## 1. La commande, en clair
 
@@ -14,7 +14,7 @@ Aucune page de l'appli ne change : tout se passe dans le Sheet (utilisable depui
 ## 2. Ce que Franck verra
 
 ### Onglet *Stockage* (rempli par le serveur)
-- En haut : **place utilisée / 15 Go**, en Go et en %, la date de la mesure, et une phrase d'état (« Tout va bien », « Attention : 72 % », « Mesure en cours : 12 chantiers sur 31 »). Si le serveur peut les lire (voir §3) : la part de **Drive**, celle de **Gmail et Photos**, et celle de la **corbeille de Drive**.
+- En haut : **place utilisée / 15 Go**, en Go et en %, la date de la mesure, et une phrase d'état (« Tout va bien », « Attention : 82 % », « Mesure en cours : 12 chantiers sur 31 »). Puis, pour suivre l'objectif de 35 à 40 chantiers en cours : **« Chantiers en cours : n »** et, après un tour de mesure complet, **le poids moyen d'un chantier en cours** et **« À ce rythme, place pour environ n chantiers en cours de plus avant 80 % »** (calcul prudent : chaque nouveau chantier est compté une fois et demie le poids moyen d'aujourd'hui ; rien n'est écrit si les données manquent). Si le serveur peut les lire (voir §3) : la part de **Drive**, celle de **Gmail et Photos**, et celle de la **corbeille de Drive**.
 - Une ligne par chantier : nom, statut, date « Terminé », **poids total**, dont carnet, fiches, photos, autres ; nombre de fichiers ; date du dernier dépôt au carnet ; anciens indices du carnet (nombre et poids) ; **date de la mesure de cette ligne** ; état de purge.
 - Des lignes « Dossiers techniques », « Dossiers de la racine rattachés à aucun chantier », « Chantiers sans dossier ».
 - La ligne « Reste du compte » (Gmail, Photos, corbeille, autres fichiers) n'est calculée **qu'après un tour complet** de mesure, et n'est jamais négative.
@@ -26,7 +26,7 @@ Une ligne par chose qui **peut** être mise à la corbeille : chantier, quoi («
 - Les deux cases cochées en même temps : rien n'est fait, la ligne le dit.
 
 ### Mails
-- Alerte de place : **70 %**, puis **85 %** (deux mails au plus par mois pour ces deux seuils), puis **95 %** (toujours envoyé). Un seuil n'est noté « prévenu » qu'**après** l'envoi réussi du mail. Si la place est déjà au-dessus d'un seuil à l'installation, le mail part à la première mesure.
+- Alerte de place : **80 %** (un mail au franchissement, puis un par mois au plus tant que la place reste au-dessus), puis seuil critique à **95 %** (toujours envoyé, puis un rappel tous les 7 jours). Un seuil n'est noté « prévenu » qu'**après** l'envoi réussi du mail. Si la place est déjà au-dessus d'un seuil à l'installation, le mail part à la première mesure.
 - **Un mail à chaque mise à la corbeille** : quoi, combien de fichiers, comment annuler, jusqu'à quand.
 
 ## 3. La mesure
@@ -54,12 +54,12 @@ Raisonnement **par dossier**, avec la même fonction que celle qui sert le carne
 
 ### 4.3 Chantier terminé
 Proposé seulement si **tout** est vrai :
-1. statut « Terminé » **depuis au moins 6 mois** ;
-2. relevé `releve-pc.json` (seul nom accepté) à la racine du dossier Drive, dont le **chantier** est bien celui-là, **daté de moins de 30 jours** pour la proposition et de **moins de 7 jours au moment où la case est traitée** ;
+1. statut « Terminé » **depuis au moins 30 jours** (durée de conservation après clôture : une seule constante dans le code, que Franck pourra faire changer) ;
+2. relevé `releve-pc.json` (seul nom accepté) à la racine du dossier Drive, dont le **chantier** est bien celui-là, **daté de moins de 7 jours** pour la proposition et de **moins de 48 heures au moment où la case est traitée** (la recopie des fiches vers le PC est automatique, toutes les heures : le relevé est refait au moins une fois par jour) ;
 3. **chaque fiche du Drive** correspond à **une ligne distincte** du relevé : même chemin, même taille (accents comparés sans tenir compte de leur codage). Deux fichiers de même nom dans un dossier du Drive : bloqué, avec le nom ;
 4. aucun envoi en attente ni abandonné pour ce chantier (onglet *Mails en attente*).
 
-La ligne dit toujours **ce qui manque et quoi faire** (« 3 fiches absentes du relevé : relancer le programme du PC, puis attendre la prochaine mesure »).
+La ligne dit toujours **ce qui manque et quoi faire** (« 3 fiches absentes du relevé : vérifiez que la recopie automatique tourne sur le PC (fichier « CHANTIERPRO - A VOIR.txt »), puis attendez la prochaine mesure »). Une ligne possible rappelle qu'après la mise à la corbeille, la place n'est rendue que 30 jours plus tard.
 
 **La date « Terminé »** est posée automatiquement quand le statut passe à « Terminé », effacée s'il repasse à un autre statut ; une date dans le futur est ignorée.
 
@@ -76,7 +76,8 @@ Ce qui part quand Franck coche :
 
 ### 4.5 Ce que le serveur ne fait jamais
 - **Aucune suppression définitive.** Le plan d'origine prévoyait une case « Vider la corbeille de ce chantier maintenant ». **Je propose de ne pas la faire** : une suppression sans retour, déclenchée par une case d'un tableur, est le geste le plus dangereux du lot. Si Franck a besoin de la place avant 30 jours, il le fait dans Drive, **en sélectionnant les fichiers voulus dans la corbeille** — pas avec « Vider la corbeille », qui supprimerait aussi les autres purges encore annulables. À me dire si tu veux quand même la case.
-- Aucune purge sans case cochée ; aucune purge d'un chantier qui n'est pas « Terminé » ; rien sur le PC ni dans MEGA.
+- Aucune purge sans case cochée ; rien sur le PC ni dans MEGA.
+- Les **fiches, les photos et le carnet en service** d'un chantier ne partent jamais tant qu'il n'est pas « Terminé ». Les **anciens indices du carnet**, eux, sont proposés **même sur un chantier en cours** (confirmé par Franck le 14/11/2026) : l'appli ne les montre plus, et c'est pendant le chantier qu'ils s'empilent.
 
 ## 5. Ce que le lot change ailleurs
 
@@ -84,17 +85,37 @@ Ce qui part quand Franck coche :
 - `apps-script/Carnet.gs` : son en-tête (« le serveur ne supprime rien ») est précisé : le carnet ne supprime rien ; seul le lot 5 met à la corbeille, sur case cochée.
 - Le programme du PC du lot 4c rapatrie **tous** les chantiers suivis, terminés compris : c'est lui qui rafraîchit le relevé avant une purge.
 
-## 6. Estimation recalée avec les chiffres réels du lot 4
+## 6. Estimation, pour 35 à 40 chantiers en cours (14/11/2026)
 
-| Par chantier | Estimation d'origine | Avec les mesures du lot 4 |
-|---|---|---|
-| Carnet (7 documents terrain, images seules, sans PDF) | 40 à 80 Mo | **60 à 130 Mo** (un dossier de trois grands plans : 18 Mo ; images ≈ poids du PDF + 15 %) |
-| Anciens indices gardés jusqu'à leur purge | 20 Mo | 20 à 40 Mo |
-| Fiches PDF, et leurs copies dans Gmail | 40 Mo | 40 Mo (dont la moitié dans Gmail, non libérée par la purge de Drive) |
-| Photos | 60 Mo | 60 Mo |
-| **Total** | 200 à 255 Mo | **180 à 270 Mo** |
+**Mesures réelles** (14/11/2026, programme de dépôt du lot 4, sur les documents d'essai) — poids **au carnet** (images) :
 
-À 25 chantiers par an, avec une purge 6 mois après la fin : environ **7 à 10 Go en régime stable**, tenable. À 50 chantiers par an : au-delà des 15 Go, il faudra purger plus tôt. Ces chiffres seront remplacés par ceux de l'onglet *Stockage* dès la première mesure réelle.
+| Document | Poids au carnet |
+|---|---|
+| Plans de réservations par niveau | 18,8 Mo |
+| Plans de repérage des portes | 17,9 Mo |
+| Signalétique | 18,7 Mo |
+| PPSPS | 5,5 Mo (neuf fois son PDF : les pages de texte pèsent lourd en images) |
+| Gaines techniques | 0,7 Mo |
+| Réservations de détail | 0,6 Mo |
+| Temps de tâches | 0,2 Mo |
+
+Un chantier complet : **70 à 90 Mo de carnet**. Photos des fiches : 0,2 à 0,4 Mo chacune après compression (1 600 points, qualité 0,7).
+
+**Hypothèses** (à remplacer par les chiffres de l'onglet *Stockage* dès la première mesure) : 40 à 60 fiches par chantier, 1 Mo par fiche avec ses photos ; un chantier dure environ 12 mois ; 40 chantiers en cours, donc environ 40 clôtures par an.
+
+**Budget pour 40 chantiers en cours, alerte à 80 % (12 Go)** :
+
+| Poste | Estimation |
+|---|---|
+| Chantiers en cours : carnet 80 Mo + fiches et photos 40 Mo en moyenne (à mi-vie) × 40 | 4,8 Go (6,4 Go si tous sont en fin de chantier) |
+| Chantiers clôturés gardés 30 jours avant la purge (3 à 4 par mois × 160 Mo) | 0,5 Go |
+| Corbeille de Drive (30 jours) : photos déjà intégrées aux PDF, anciens indices, purges de clôture | 0,9 Go |
+| Gmail, « Messages envoyés » : chaque fiche part en pièce jointe, aujourd'hui **un mail par destinataire** : 2 à 6 Go de plus **par an**, jamais libérés par la purge de Drive | le poste qui fait déborder |
+| Déjà utilisé aujourd'hui | 3,3 Go (dont de gros fichiers anciens, qui partiront avec leurs chantiers) |
+
+**Conclusion** : Drive seul tient l'objectif (environ 6 à 8 Go pour 40 chantiers en cours, avec une purge 30 jours après la clôture). **Ce qui ne tient pas, c'est Gmail** : sans ménage, les copies des mails envoyés remplissent le compte en deux à trois ans. Deux mesures proposées à Franck, **hors de ce lot tant qu'il ne les a pas validées** :
+1. un seul mail par fiche pour tous les destinataires au lieu d'un mail par adresse (divise ce poste par deux ou trois) ;
+2. une ligne de plus dans l'onglet *Purges*, « Mails envoyés de plus de 3 mois », avec la même case à cocher (mise à la corbeille de Gmail, vidée par Google après 30 jours) — les PDF restent dans le dossier du chantier sur le PC.
 
 **Politique de conservation** (inchangée) : pages et code sur GitHub, toujours ; données du Sheet, toujours ; PDF des fiches, photos et carnet dans Drive **jusqu'à la purge** ; archive maîtresse dans les dossiers de chantier du PC (sauvegardés par MEGA), toujours ; anciens indices du carnet : dans le dossier du chantier sur le PC seulement, purgés de Drive sur case cochée.
 
@@ -108,11 +129,11 @@ Ce qui part quand Franck coche :
 
 ## 8. Tests prévus (faux serveur seulement)
 
-**D'abord compléter le faux Drive des tests** : place du compte, corbeille d'un dossier et de son contenu, pannes simulées de mise à la corbeille, horloge réglable (6 mois, 30 jours), service avancé présent ou absent.
+**D'abord compléter le faux Drive des tests** : place du compte, corbeille d'un dossier et de son contenu, pannes simulées de mise à la corbeille, horloge réglable (30 jours, 7 jours, 48 heures), service avancé présent ou absent.
 - **Mesure** : poids par chantier et par sous-dossier ; reprise après arrêt, sans doublon ni oubli ; lignes datées ; « reste » seulement après un tour complet, jamais négatif ; chantier sans dossier ; dossier sans chantier ; corbeille non comptée ; avec et sans service avancé ; onglet aux titres modifiés → arrêt.
-- **Alertes** : 70, 85, 95 ; plafond de deux par mois pour les deux premiers ; marque posée après l'envoi seulement (panne de mail simulée) ; au-dessus du seuil à l'installation.
+- **Alertes** : 80 et 95 ; pour 80 %, un mail au franchissement puis un par mois au plus ; 95 % toujours, puis un rappel par semaine ; marque posée après l'envoi seulement (panne de mail simulée) ; au-dessus du seuil à l'installation.
 - **Propositions** : anciens indices (dernier indice, document retiré puis redéposé, dossier inconnu, deux dossiers de même nom : jamais proposés) ; chantier terminé — chaque condition manquante bloque et le dit ; dossier trouvé par ressemblance, « À vérifier », identifiant partagé par deux chantiers, relevé d'un autre chantier : jamais proposé ; date « Terminé » posée et effacée toute seule.
-- **Purge** : rien sans case ; conditions revérifiées (relevé de plus de 7 jours, fichier arrivé entre-temps laissé en place) ; fichier par fichier ; dossiers gardés ; journal écrit avant ; exécution coupée au milieu puis reprise ; **annulation qui remet tout** et compte ce qui manque ; lignes triées par Franck ; deux cases cochées ; fichier hors de la racine de l'environnement refusé ; mail envoyé ; le verrou des fiches n'est jamais pris.
+- **Purge** : rien sans case ; conditions revérifiées (relevé de plus de 48 heures, fichier arrivé entre-temps laissé en place) ; fichier par fichier ; dossiers gardés ; journal écrit avant ; exécution coupée au milieu puis reprise ; **annulation qui remet tout** et compte ce qui manque ; lignes triées par Franck ; deux cases cochées ; fichier hors de la racine de l'environnement refusé ; mail envoyé ; le verrou des fiches n'est jamais pris.
 - **Jamais** : aucun appel de suppression définitive dans le fichier assemblé (test).
 - Programme du PC : `--verifier` après purge d'un ancien indice.
 - Toutes les séries existantes repassent.
@@ -124,7 +145,7 @@ Ce qui part quand Franck coche :
 1. Un envoi sur la copie TEST ; je mesure, je compare avec lui le chiffre de Google ; purge d'essai d'un faux chantier terminé de la copie TEST ; il regarde les deux onglets depuis son téléphone, coche, annule.
 2. Si besoin : activer le service avancé Drive (une case, je guide).
 3. Production : coller le serveur v10.0, `installerLot5Production`, nouveau déploiement.
-4. Avant de cocher une purge : vérifier les lignes « À vérifier » de *Dossiers chantiers*, relancer le programme du PC (relevé de moins de 7 jours), vérifier que MEGA a fini de synchroniser le dossier du chantier.
+4. Avant de cocher une purge : vérifier les lignes « À vérifier » de *Dossiers chantiers*, vérifier que la recopie automatique tourne sur le PC (relevé de moins de 48 heures ; fichier « CHANTIERPRO - A VOIR.txt »), vérifier que MEGA a fini de synchroniser le dossier du chantier.
 
 **Retour arrière** : retirer les déclencheurs du lot (une fonction), recoller le serveur v9.1 ; les onglets *Stockage* et *Purges* peuvent rester ; une purge déjà faite reste annulable à la main dans la corbeille de Drive pendant 30 jours (les fichiers y sont listés dans *Purges détail*).
 
@@ -132,7 +153,7 @@ Ce qui part quand Franck coche :
 
 | Risque | Parade |
 |---|---|
-| Purger une fiche qui n'est pas dans le dossier du chantier sur le PC | comparaison un pour un avec un relevé de moins de 7 jours, dans la même exécution ; corbeille seulement ; annulation 25 jours ; mail à chaque purge |
+| Purger une fiche qui n'est pas dans le dossier du chantier sur le PC | comparaison un pour un avec un relevé de moins de 48 heures, dans la même exécution ; corbeille seulement ; annulation 25 jours ; mail à chaque purge |
 | Purger le mauvais chantier | dossier pris sur une ligne explicite et unique ; relevé du bon chantier ; racine de l'environnement vérifiée |
 | Le relevé dit « présent » alors que MEGA n'a pas fini de synchroniser le dossier | rappel sur la ligne et dans le mail : « vérifiez que MEGA a fini de synchroniser le dossier » |
 | Case cochée par erreur | revérification ; corbeille ; mail immédiat ; case « Annuler » |
@@ -152,11 +173,13 @@ Ce qui part quand Franck coche :
 - Gmail et la corbeille apparaissent dans l'onglet ; troisième seuil à 95 % ; ce qui arrive à 100 % est écrit.
 - La purge a son propre déclencheur et son propre verrou : elle ne retarde jamais une fiche.
 - Lignes à clé fixe ; mail à chaque purge ; annulation fermée à 25 jours.
-- Date « Terminé » posée et effacée automatiquement ; relevé de moins de 7 jours au moment de la purge.
+- Date « Terminé » posée et effacée automatiquement ; relevé récent exigé au moment de la purge (48 heures depuis les décisions du 14/11/2026).
 - Estimation recalée ; politique de conservation reprise ; retour arrière écrit.
 
 ## 12. Ce que je te demanderai de trancher
 
 1. **Pas de suppression définitive par le serveur** (§4.5).
-2. Les seuils : 70 %, 85 %, 95 % ; 6 mois après « Terminé » ; relevé de moins de 7 jours au moment de la purge.
-3. Le carnet d'un chantier terminé part en même temps que ses fiches (ou reste plus longtemps ?).
+2. **La durée de 30 jours** entre la clôture (« Terminé ») et la purge.
+3. **Le seuil d'alerte de 80 %** (et le seuil critique de 95 %).
+4. **Les deux mesures pour Gmail** (chapitre 6) : un seul mail par fiche pour tous les destinataires ; une ligne « Mails envoyés de plus de 3 mois » dans l'onglet *Purges*.
+5. **Le carnet d'un chantier clôturé** part en même temps que ses fiches (ou reste plus longtemps ?).

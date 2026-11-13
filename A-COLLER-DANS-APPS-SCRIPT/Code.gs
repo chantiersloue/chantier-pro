@@ -1,10 +1,10 @@
 // ═══════════════════════════════════════════════════════════════
 // LOUÉ APP — SERVEUR COMPLET, À COLLER DANS APPS SCRIPT (fichier « Code.gs », tout remplacer)
 // FICHIER GÉNÉRÉ AUTOMATIQUEMENT par « node outils/construire.js » — NE PAS MODIFIER À LA MAIN :
-// les sources sont dans le dossier apps-script/ du dépôt. Version du serveur 24c538bb8e (pages 17c0695f82)
+// les sources sont dans le dossier apps-script/ du dépôt. Version du serveur 02ee60fdfc (pages 17c0695f82)
 // ═══════════════════════════════════════════════════════════════
 
-const EMPREINTE_SERVEUR = '24c538bb8e';
+const EMPREINTE_SERVEUR = '02ee60fdfc';
 
 // ████ Config.gs ████
 // ═══════════════════════════════════════════════════════════════
@@ -3333,9 +3333,15 @@ function carnetTuiles_(compte, corps) {
 // Plan : docs/lot5-plan.md. Décisions : D5-… (DECISIONS.md).
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 const SHEET_STOCKAGE = 'Stockage';
-const STK_SEUILS = [70, 85, 95];            // % de la place du compte
-const STK_MAX_ALERTES_MOIS = 2;             // mails par mois pour les seuils 70 et 85 ensemble ; 95 part toujours
-const STK_RAPPEL_95_JOURS = 7;              // au-dessus de 95 % : un rappel par semaine tant que cela dure
+// Seuils d'alerte, en % de la place du compte (décisions de Franck du 14/11/2026)
+const STK_SEUIL_ALERTE = 80;                // alerte : il est temps de purger
+const STK_SEUIL_CRITIQUE = 95;              // critique : à 100 %, plus aucun mail ne part ni n'arrive
+const STK_RAPPEL_ALERTE_JOURS = 30;         // 80 % : un mail au franchissement, puis un par mois au plus tant que la place reste au-dessus
+const STK_RAPPEL_CRITIQUE_JOURS = 7;        // 95 % : un mail au franchissement (toujours), puis un rappel par semaine
+// Objectif de Franck : tenir 35 à 40 chantiers en cours. Pour dire combien de chantiers tiennent encore avant l'alerte,
+// chaque nouveau chantier est compté au poids moyen d'un chantier en cours AUJOURD'HUI, multiplié par cette marge :
+// un chantier en cours est en moyenne à mi-parcours, il pèsera plus lourd à sa clôture (calcul volontairement prudent).
+const STK_MARGE_FIN_DE_CHANTIER = 1.5;
 const STK_DUREE_MAX_MS = 4 * 60 * 1000;     // un passage s'arrête au bout de 4 minutes (limite de Google : 6)
 const STK_VERROU_MS = 7 * 60 * 1000;        // au-delà, l'exécution précédente est morte : on reprend
 const STK_LIMITE_DEFAUT = 15 * 1024 * 1024 * 1024;
@@ -3344,12 +3350,13 @@ const STK_NOMS_MAX = 300;                   // longueur des listes de noms écri
 
 // Haut de l'onglet : colonne A = ces titres (contrôlés), colonne B = les valeurs écrites par le serveur
 const STK_RESUME = ['Stockage du compte Google', 'Place utilisée', 'Mesurée le', 'D’où vient ce chiffre', 'Dont Drive',
-  'Dont Gmail et Photos', 'Dont corbeille de Drive', 'Dossiers de l’appli', 'À savoir'];
-const STK_R = { etat: 1, place: 2, date: 3, source: 4, drive: 5, gmail: 6, corbeille: 7, appli: 8, rappel: 9 };
+  'Dont Gmail et Photos', 'Dont corbeille de Drive', 'Dossiers de l’appli', 'Chantiers en cours', 'Poids moyen d’un chantier en cours',
+  'Place pour d’autres chantiers', 'À savoir'];
+const STK_R = { etat: 1, place: 2, date: 3, source: 4, drive: 5, gmail: 6, corbeille: 7, appli: 8, enCours: 9, moyenne: 10, marge: 11, rappel: 12 };
 const STK_RAPPEL = 'Les fiches envoyées par mail restent aussi dans « Messages envoyés » de Gmail, qui compte dans les 15 Go : '
   + 'la purge de Drive ne libère pas cette part (ménage de Gmail à la main : voir docs/lot5-procedure.md). '
   + 'Un fichier mis à la corbeille compte encore 30 jours.';
-const STK_LIGNE_TITRES = 11;                // la ligne de titres du tableau des chantiers
+const STK_LIGNE_TITRES = 14;                // la ligne de titres du tableau des chantiers
 const STK_ENTETES = ['Chantier', 'Statut', 'Date « Terminé »', 'Poids total (Mo)', 'dont carnet (Mo)', 'dont fiches (Mo)', 'dont photos (Mo)',
   'dont autres (Mo)', 'Fichiers', 'Dernier dépôt au carnet', 'Anciens indices (nombre)', 'Anciens indices (Mo)', 'Mesuré le', 'Purge',
   'Clé (ne pas modifier)'];
@@ -3487,35 +3494,42 @@ function stkPlaceTexte_(place) {
   return stkGoTexte_(place.utilise) + ' sur ' + stkGoTexte_(place.limite) + ' (' + Math.floor(place.pourcent) + ' %)';
 }
 
-// ── Alertes de place : 70 %, 85 %, 95 % ──
-// État gardé dans la propriété STOCKAGE_ALERTES : { niveau (dernier seuil prévenu), mois, envois (70 et 85 ce mois-ci), dernier95 }.
+// ── Alertes de place : 80 % (alerte) et 95 % (critique) ──
+// État gardé dans la propriété STOCKAGE_ALERTES : { niveau (dernier seuil prévenu), dernierAlerte, dernierCritique (dates des derniers mails) }.
+// 80 % : un mail au franchissement, puis un par mois au plus tant que la place reste au-dessus (jamais deux mails « 80 % » en
+// moins de 30 jours, même si la place passe et repasse le seuil). 95 % : toujours au franchissement, puis un rappel par semaine.
 // La marque n'est écrite qu'APRÈS l'envoi réussi : un mail qui n'est pas parti repartira au passage suivant.
 function stkAlertes_(place) {
   const props = PropertiesService.getScriptProperties();
   let e = {};
   try { e = JSON.parse(props.getProperty('STOCKAGE_ALERTES') || '{}') || {}; } catch (x) { e = {}; }
-  const maintenant = maintenant_(), mois = Utilities.formatDate(new Date(maintenant), 'Europe/Paris', 'yyyy-MM');
-  let niveau = Number(e.niveau) || 0, envois = e.mois === mois ? Number(e.envois) || 0 : 0, dernier95 = Number(e.dernier95) || 0;
-  const seuil = STK_SEUILS.filter(s => place.pourcent >= s).pop() || 0;
-  let ecrire = e.mois !== mois, envoye = false;
+  const maintenant = maintenant_(), JOUR = 24 * 3600 * 1000;
+  let niveau = Number(e.niveau) || 0, dernierAlerte = Number(e.dernierAlerte) || 0, dernierCritique = Number(e.dernierCritique) || 0;
+  const seuil = place.pourcent >= STK_SEUIL_CRITIQUE ? STK_SEUIL_CRITIQUE : place.pourcent >= STK_SEUIL_ALERTE ? STK_SEUIL_ALERTE : 0;
+  const critique = seuil === STK_SEUIL_CRITIQUE;
+  let ecrire = false, envoye = false;
   if (seuil < niveau) { niveau = seuil; ecrire = true; }   // la place est redescendue : le seuil pourra prévenir de nouveau
-  const rappel = seuil === 95 && niveau === 95 && maintenant - dernier95 >= STK_RAPPEL_95_JOURS * 24 * 3600 * 1000;
-  const aEnvoyer = seuil > niveau ? (seuil === 95 || envois < STK_MAX_ALERTES_MOIS) : rappel;
+  const franchi = seuil > niveau;
+  const attendu = critique ? maintenant - dernierCritique >= STK_RAPPEL_CRITIQUE_JOURS * JOUR
+    : !dernierAlerte || maintenant - dernierAlerte >= STK_RAPPEL_ALERTE_JOURS * JOUR;
+  const rappel = !franchi && attendu;
+  const aEnvoyer = seuil > 0 && (franchi ? (critique || attendu) : attendu);
   if (aEnvoyer && stkMail_(stkSujetAlerte_(seuil, place), stkTexteAlerte_(seuil, place, rappel))) {
     niveau = seuil; envoye = true; ecrire = true;
-    if (seuil === 95) dernier95 = maintenant; else envois++;
+    dernierAlerte = maintenant;                 // un mail « 95 % » vaut aussi pour « 80 % »
+    if (critique) dernierCritique = maintenant;
   }
-  if (ecrire) props.setProperty('STOCKAGE_ALERTES', JSON.stringify({ niveau: niveau, mois: mois, envois: envois, dernier95: dernier95 }));
+  if (ecrire) props.setProperty('STOCKAGE_ALERTES', JSON.stringify({ niveau: niveau, dernierAlerte: dernierAlerte, dernierCritique: dernierCritique }));
   return { seuil: seuil, envoye: envoye, niveau: niveau };
 }
 function stkSujetAlerte_(seuil, place) {
-  return seuil === 95 ? '[Loué App] URGENT — place Google presque pleine (' + Math.floor(place.pourcent) + ' %)'
+  return seuil === STK_SEUIL_CRITIQUE ? '[Loué App] URGENT — place Google presque pleine (' + Math.floor(place.pourcent) + ' %)'
     : '[Loué App] Place Google : ' + Math.floor(place.pourcent) + ' % utilisés';
 }
 function stkTexteAlerte_(seuil, place, rappel) {
   const lignes = [(rappel ? 'Rappel : la' : 'La') + ' place du compte Google de l’appli est utilisée à ' + Math.floor(place.pourcent) + ' % : ' + stkPlaceTexte_(place) + '.',
     'Ce chiffre vient de : ' + place.source + '. Le détail par chantier est dans l’onglet « ' + SHEET_STOCKAGE + ' » du Sheet.', ''];
-  if (seuil === 95) lignes.push('À 100 %, plus aucun fichier ne peut être créé dans Drive et PLUS AUCUN MAIL NE PART NI N’ARRIVE : les fiches des poseurs '
+  if (seuil === STK_SEUIL_CRITIQUE) lignes.push('À 100 %, plus aucun fichier ne peut être créé dans Drive et PLUS AUCUN MAIL NE PART NI N’ARRIVE : les fiches des poseurs '
     + 'resteraient dans leurs téléphones (elles ne sont pas perdues), mais plus rien n’arriverait au bureau, pas même ce mail.', '');
   lignes.push('Pour libérer de la place :',
     '1. onglet « Purges » du Sheet : cochez « Mettre à la corbeille » sur les lignes où c’est possible (anciens indices du carnet, chantiers terminés) ;',
@@ -3523,7 +3537,8 @@ function stkTexteAlerte_(seuil, place, rappel) {
       + '(pas « Vider la corbeille », qui supprimerait aussi les purges encore annulables) ;',
     '3. Gmail compte aussi : supprimez les anciens « Messages envoyés » avec pièce jointe (les PDF sont dans Drive et dans le dossier du chantier sur le PC), puis videz la corbeille de Gmail.',
     '', 'Mode d’emploi : docs/lot5-procedure.md.');
-  if (seuil !== 95) lignes.push('Pour 70 % et 85 %, vous recevez ' + STK_MAX_ALERTES_MOIS + ' mails par mois au plus ; à 95 %, le mail part toujours.');
+  lignes.push(seuil === STK_SEUIL_CRITIQUE ? 'Vous recevrez un rappel par semaine tant que la place reste au-dessus de ' + STK_SEUIL_CRITIQUE + ' %.'
+    : 'Alerte à ' + STK_SEUIL_ALERTE + ' % : vous recevrez ce mail une fois par mois au plus tant que la place reste au-dessus ; à ' + STK_SEUIL_CRITIQUE + ' %, un mail urgent part toujours.');
   return lignes.join('\n');
 }
 
@@ -3693,7 +3708,8 @@ function stkMesurer_() {
   let suite = stkSuite_();
   if (!suite) {
     suite = { debut: maintenant, apres: '', faits: 0, octets: 0, fichiers: 0, incomplets: 0, octetsRacine: 0,
-      tech: { octets: 0, fichiers: 0, noms: [] }, orph: { octets: 0, fichiers: 0, noms: [] }, racine: false };
+      tech: { octets: 0, fichiers: 0, noms: [] }, orph: { octets: 0, fichiers: 0, noms: [] }, racine: false,
+      enCours: { n: 0, octets: 0 } };   // chantiers « En cours » mesurés en entier pendant ce tour
   }
   const cats = stkCategories_(), ctx = prgContexte_(liste.chantiers, cats);
   const date = new Date(maintenant);
@@ -3715,6 +3731,7 @@ function stkMesurer_() {
     if (!inv.complet) suite.incomplets++;
     if (u.type === 'chantier') {
       const c = u.cles.length === 1 ? liste.chantiers[u.cles[0]] : null;
+      if (c && c.statut === STATUTS_CHANTIER[1] && inv.complet && suite.enCours) { suite.enCours.n++; suite.enCours.octets += inv.total; }
       // Propositions de purge de ce chantier (Purges.gs) : seulement pour un dossier porté par un seul chantier
       let p = { indices: '', indicesMo: '', depot: '', texte: u.cles.length > 1 ? 'dossier porté par plusieurs chantiers : aucune purge proposée' : '' };
       if (u.cles.length === 1) {
@@ -3736,7 +3753,7 @@ function stkMesurer_() {
     props.setProperty('STOCKAGE_SUITE', JSON.stringify(suite));
   }
   // 3. Fin de tour : lignes d'ensemble, et « Reste du compte » (jamais avant un tour complet, jamais négatif)
-  let appli;
+  let appli, moyenne = null, marge = null;
   if (fini) {
     const special = (cle, nom, s) => stkEcrireLigne_(sh, cle, [nom, '', '', stkMo_(s.octets), '', '', '', stkMo_(s.octets), s.fichiers, '', '', '', date, '']);
     special(STK_CLE_TECHNIQUES, 'Dossiers techniques' + (suite.tech.noms.length ? ' (' + stkCourt_(suite.tech.noms) + ', fichiers de la racine)' : ' (fichiers de la racine)'), suite.tech);
@@ -3750,6 +3767,17 @@ function stkMesurer_() {
     stkLignesDisparues_(sh, liste.unites);
     appli = stkGoTexte_(total) + ' dans ' + suite.fichiers + ' fichier(s) — tour complet du ' + stkJour_(maintenant)
       + (suite.incomplets ? ' (⚠ ' + suite.incomplets + ' dossier(s) trop gros, mesuré(s) en partie)' : '');
+    // Suivi de l'objectif (35 à 40 chantiers en cours) : rien si les données manquent (aucun chantier en cours mesuré, ou mesure en partie)
+    const ec = suite.enCours;
+    if (ec && ec.n > 0 && ec.octets > 0 && !suite.incomplets) {
+      const poids = ec.octets / ec.n, prudent = poids * STK_MARGE_FIN_DE_CHANTIER;
+      moyenne = String(stkMo_(poids)).replace('.', ',') + ' Mo (moyenne de ' + ec.n + ' chantier(s) en cours, mesuré(s) le ' + stkJour_(maintenant) + ')';
+      // place qui reste avant le seuil d'alerte, divisée par le poids prudent d'un chantier (arrondi vers le bas)
+      const libre = place.limite * STK_SEUIL_ALERTE / 100 - place.utilise;
+      marge = libre <= 0 ? 'Le seuil de ' + STK_SEUIL_ALERTE + ' % est atteint : plus de place pour un chantier de plus sans purge.'
+        : 'À ce rythme, place pour environ ' + Math.floor(libre / prudent) + ' chantier(s) en cours de plus avant ' + STK_SEUIL_ALERTE
+          + ' % (calcul prudent : chaque nouveau chantier compté ' + String(stkMo_(prudent)).replace('.', ',') + ' Mo).';
+    }
     props.deleteProperty('STOCKAGE_SUITE');
   } else {
     appli = 'Mesure en cours : ' + suite.faits + ' dossier(s) sur ' + liste.unites.length + ' (la suite au prochain passage)';
@@ -3758,18 +3786,22 @@ function stkMesurer_() {
   // 4. Le haut de l'onglet
   const pct = Math.floor(place.pourcent);
   const etat = !fini ? 'Mesure en cours : ' + suite.faits + ' dossier(s) sur ' + liste.unites.length + ' — place utilisée : ' + pct + ' %'
-    : alerte.seuil === 95 ? 'URGENT : ' + pct + ' % — à 100 %, plus aucun mail ne part ni n’arrive. Libérez de la place (onglet « Purges »).'
-    : alerte.seuil ? 'Attention : ' + pct + ' % — pensez aux purges (onglet « Purges »).' : 'Tout va bien : ' + pct + ' %';
+    : alerte.seuil === STK_SEUIL_CRITIQUE ? 'URGENT : ' + pct + ' % — à 100 %, plus aucun mail ne part ni n’arrive. Libérez de la place (onglet « Purges »).'
+    : alerte.seuil ? 'Attention : ' + pct + ' % (alerte à ' + STK_SEUIL_ALERTE + ' %) — il est temps de purger (onglet « Purges »).'
+    : 'Tout va bien : ' + pct + ' % (alerte à ' + STK_SEUIL_ALERTE + ' %)';
   const avance = place.source !== 'DriveApp';
   const source = avance ? 'Service avancé Drive : total du compte (Drive, Gmail et Photos)'
     : 'DriveApp : Google ne garantit pas que ce chiffre compte Gmail et Photos — à comparer avec one.google.com/storage'
       + (place.erreurAvance ? ' (service avancé Drive en panne : ' + place.erreurAvance + ')' : ' (service avancé Drive non activé)');
   const inconnu = 'non connu sans le service avancé Drive';
+  const enCours = Object.keys(liste.chantiers).filter(k => liste.chantiers[k].statut === STATUTS_CHANTIER[1]).length;
+  // Tour pas fini : le poids moyen et la place pour d'autres chantiers restent ceux du dernier tour complet
+  const avant = fini ? null : sh.getRange(STK_R.moyenne, 2, 2, 1).getValues();
   sh.getRange(1, 2, STK_RESUME.length, 1).setValues([[etat], [stkPlaceTexte_(place)], [date], [source],
     [place.drive == null ? inconnu : stkGoTexte_(place.drive)],
     [place.drive == null ? inconnu : stkGoTexte_(Math.max(0, place.utilise - place.drive))],
     [place.corbeille == null ? inconnu : stkGoTexte_(place.corbeille)],
-    [appli], [STK_RAPPEL]].map(l => l.map(cellule_)));
+    [appli], [enCours], [fini ? (moyenne || '') : avant[0][0]], [fini ? (marge || '') : avant[1][0]], [STK_RAPPEL]].map(l => l.map(cellule_)));
   return (fini ? 'Tour de mesure terminé' : 'À suivre') + ' : ' + suite.faits + ' dossier(s) mesuré(s) sur ' + liste.unites.length + ', place utilisée ' + pct + ' % (' + place.source + ').'
     + (alerte.envoye ? ' Mail d’alerte envoyé (seuil ' + alerte.seuil + ' %).' : '')
     + (dates.posees || dates.effacees ? ' Dates « Terminé » : ' + dates.posees + ' posée(s), ' + dates.effacees + ' effacée(s).' : '');
@@ -3837,9 +3869,13 @@ function verifierStockage_() {
 const SHEET_PURGES = 'Purges';
 const SHEET_PURGES_DETAIL = 'Purges détail';
 const PRG_RELEVE = 'releve-pc.json';        // relevé de présence écrit par le programme du PC (seul nom accepté)
-const PRG_MOIS_TERMINE = 6;                 // « Terminé » depuis au moins 6 mois
-const PRG_RELEVE_PROPOSITION_JOURS = 30;    // âge maximal du relevé pour PROPOSER la purge
-const PRG_RELEVE_PURGE_JOURS = 7;           // … et au moment où la case est traitée
+// Durée de conservation dans Drive après la clôture : un chantier « Terminé » n'est proposé à la purge qu'au bout de ce
+// nombre de jours (décision de Franck du 14/11/2026 ; à changer ici, et nulle part ailleurs, s'il veut une autre durée)
+const PRG_JOURS_APRES_TERMINE = 30;
+// Le relevé releve-pc.json est refait par la recopie automatique du PC (toutes les heures), donc au moins une fois par jour :
+const PRG_RELEVE_PROPOSITION_JOURS = 7;     // âge maximal du relevé pour PROPOSER la purge d'un chantier terminé
+const PRG_RELEVE_PURGE_HEURES = 48;         // … et au moment où la case est traitée
+const PRG_FICHIER_A_VOIR = 'CHANTIERPRO - A VOIR.txt';   // sur le PC : le fichier où la recopie automatique dit ce qui ne va pas
 const PRG_ANNULATION_JOURS = 25;            // la case « Annuler » sert 25 jours
 const PRG_CORBEILLE_JOURS = 30;             // Drive vide sa corbeille au bout de 30 jours : la place est libérée à ce moment-là
 const PRG_PAQUET = 40;                      // éléments journalisés puis mis à la corbeille par paquet
@@ -3856,8 +3892,9 @@ const PRG_COLONNES_TEXTE = [COL_P.chantier, COL_P.quoi, COL_P.possible, COL_P.po
 const PRG_COLONNES_DATE = [COL_P.faitLe, COL_P.libere, COL_P.jusquau, COL_P.maj];
 const PRG_DETAIL_ENTETES = ['Clé de la ligne', 'Type', 'Identifiant', 'Chemin', 'Taille (octets)', 'Fichiers', 'Noté le', 'État', 'Mis à jour le'];
 const COL_D = { cle: 1, type: 2, id: 3, chemin: 4, taille: 5, fichiers: 6, note: 7, etat: 8, maj: 9 };
-const PRG_AVANT_DE_COCHER = 'Avant de cocher : vérifiez sur le PC que MEGA a fini de synchroniser le dossier du chantier, et relancez le programme du PC si le relevé a plus de '
-  + PRG_RELEVE_PURGE_JOURS + ' jours.';
+const PRG_RECOPIE = 'vérifiez que la recopie automatique tourne sur le PC (fichier « ' + PRG_FICHIER_A_VOIR + ' »)';
+const PRG_AVANT_DE_COCHER = 'Avant de cocher : vérifiez sur le PC que MEGA a fini de synchroniser le dossier du chantier. Le relevé devra avoir moins de '
+  + PRG_RELEVE_PURGE_HEURES + ' heures au moment du traitement. Après la mise à la corbeille, la place n’est rendue que ' + PRG_CORBEILLE_JOURS + ' jours plus tard.';
 
 // ── Onglets (titres contrôlés avant toute lecture et toute écriture) ──
 function prgFeuille_(nom, entetes, colonnesTexte, colonnesDate, avertir) {
@@ -3970,24 +4007,23 @@ function prgDossierSur_(c, ctx) {
   return { ok: true, dossier: d, id: ids[0] };
 }
 
-// §4.3-1 — « Terminé » depuis au moins 6 mois : '' si c'est le cas, sinon ce qui manque
+// §4.3-1 — « Terminé » depuis au moins PRG_JOURS_APRES_TERMINE jours : '' si c'est le cas, sinon ce qui manque
 function prgTermineDepuis_(c) {
   if (!c || c.statut !== STATUTS_CHANTIER[2]) return 'le chantier n’est pas au statut « Terminé »';
-  if (c.termine === null) return 'pas de date « Terminé » dans l’onglet Chantiers (elle se pose toute seule à la prochaine mesure, puis il faut attendre ' + PRG_MOIS_TERMINE + ' mois)';
+  if (c.termine === null) return 'pas de date « Terminé » dans l’onglet Chantiers (elle se pose toute seule à la prochaine mesure, puis il faut attendre ' + PRG_JOURS_APRES_TERMINE + ' jours)';
   if (isNaN(c.termine)) return 'date « Terminé » illisible dans l’onglet Chantiers : écrivez-la sous la forme 31/12/2026';
   const maintenant = maintenant_();
   if (c.termine > maintenant) return 'date « Terminé » dans le futur (' + stkJour_(c.termine) + ') : elle est ignorée, corrigez-la';
-  const possible = new Date(c.termine);
-  possible.setMonth(possible.getMonth() + PRG_MOIS_TERMINE);
-  if (possible.getTime() > maintenant) return 'terminé depuis le ' + stkJour_(c.termine) + ' : purge possible à partir du ' + stkJour_(possible.getTime()) + ' (' + PRG_MOIS_TERMINE + ' mois)';
+  const possible = c.termine + PRG_JOURS_APRES_TERMINE * PRG_JOUR_MS;
+  if (possible > maintenant) return 'terminé depuis le ' + stkJour_(c.termine) + ' : purge possible à partir du ' + stkJour_(possible) + ' (' + PRG_JOURS_APRES_TERMINE + ' jours après la clôture)';
   return '';
 }
 
 // §4.3-2 — Le relevé releve-pc.json : ce qui est dans le dossier du chantier sur le PC (format : docs/contrat-skills.md) à la racine du dossier du chantier.
-// Rend { ok, raison, lignes: { '/chemin': [tailles] }, date }.
-function prgReleve_(dossier, c, joursMax) {
+// ageMaxMs : âge maximal du relevé, en millisecondes. Rend { ok, raison, lignes: { '/chemin': [tailles] }, date }.
+function prgReleve_(dossier, c, ageMaxMs) {
   const non = raison => ({ ok: false, raison: raison });
-  const relancer = ' : relancez le programme du PC, puis attendez la prochaine mesure';
+  const relancer = ' : ' + PRG_RECOPIE + ', puis attendez la prochaine mesure';
   const it = dossier.getFilesByName(PRG_RELEVE), trouves = [];
   while (it.hasNext()) { const f = it.next(); if (!f.isTrashed()) trouves.push(f); }
   if (!trouves.length) return non('pas de relevé « ' + PRG_RELEVE + ' » dans le dossier du chantier' + relancer);
@@ -4002,7 +4038,8 @@ function prgReleve_(dossier, c, joursMax) {
   if (isNaN(date)) return non('date du relevé illisible' + relancer);
   const maintenant = maintenant_();
   if (date > maintenant + 3600 * 1000) return non('relevé daté du futur (' + stkJour_(date) + ') : vérifiez l’horloge du PC' + relancer);
-  if (maintenant - date > joursMax * PRG_JOUR_MS) return non('relevé du ' + stkJour_(date) + ' : il a plus de ' + joursMax + ' jours' + relancer);
+  const limite = ageMaxMs >= 3 * PRG_JOUR_MS ? Math.round(ageMaxMs / PRG_JOUR_MS) + ' jours' : Math.round(ageMaxMs / 3600000) + ' heures';
+  if (maintenant - date > ageMaxMs) return non('relevé du ' + texteDate_(date) + ' : il a plus de ' + limite + relancer);
   const lignes = {};
   for (let i = 0; i < lu.fichiers.length; i++) {
     const f = lu.fichiers[i];
@@ -4140,7 +4177,7 @@ function prgExaminerIndices_(c, ctx, depasse, dossierMesure) {
   r.possible = ident.ok && !r.raisons.length && r.items.length > 0;
   return r;
 }
-function prgExaminerTermine_(c, ctx, joursReleve, depasse, inv, dossierMesure) {
+function prgExaminerTermine_(c, ctx, ageReleveMs, depasse, inv, dossierMesure) {
   const r = { possible: false, raisons: [], infos: [], items: [], octets: 0, nb: 0, dossierId: '', garde: null, carnet: null };
   const quand = prgTermineDepuis_(c);
   if (quand) r.raisons.push(quand);
@@ -4149,15 +4186,15 @@ function prgExaminerTermine_(c, ctx, joursReleve, depasse, inv, dossierMesure) {
   r.dossierId = ident.id;
   const attente = prgEnvoisEnAttente_(c);
   if (attente) r.raisons.push(attente + ' envoi(s) en attente ou abandonné(s) pour ce chantier (onglet « ' + SHEET_ATTENTE + ' ») : attendez qu’ils partent, ou réglez-les');
-  const releve = prgReleve_(ident.dossier, c, joursReleve);
+  const releve = prgReleve_(ident.dossier, c, ageReleveMs);
   if (!releve.ok) r.raisons.push(releve.raison);
   if (!inv || !dossierMesure || dossierMesure.getId() !== ident.id) inv = stkInventaire_(ident.dossier, ctx.cats, depasse, true);
   if (!inv.complet) r.raisons.push(PRG_TROP_GROS);
   if (releve.ok) {
     const cmp = prgComparer_(inv.liste, releve), exemples = t => stkCourt_(t.slice(0, 3).map(x => '« ' + x + ' »')) + (t.length > 3 ? '…' : '');
-    if (cmp.doublons.length) r.raisons.push('deux fichiers de même nom dans un dossier du Drive (' + exemples(cmp.doublons) + ') : renommez-en un, relancez le programme du PC, puis attendez la prochaine mesure');
-    if (cmp.absents.length) r.raisons.push(cmp.absents.length + ' fiche(s) ou photo(s) absente(s) du relevé (' + exemples(cmp.absents) + ') : relancez le programme du PC, puis attendez la prochaine mesure');
-    if (cmp.tailles.length) r.raisons.push(cmp.tailles.length + ' fichier(s) dont la taille n’est pas celle du relevé (' + exemples(cmp.tailles) + ') : relancez le programme du PC, puis attendez la prochaine mesure');
+    if (cmp.doublons.length) r.raisons.push('deux fichiers de même nom dans un dossier du Drive (' + exemples(cmp.doublons) + ') : renommez-en un, puis attendez la prochaine recopie du PC et la prochaine mesure');
+    if (cmp.absents.length) r.raisons.push(cmp.absents.length + ' fiche(s) ou photo(s) absente(s) du relevé (' + exemples(cmp.absents) + ') : ' + PRG_RECOPIE + ', puis attendez la prochaine mesure');
+    if (cmp.tailles.length) r.raisons.push(cmp.tailles.length + ' fichier(s) dont la taille n’est pas celle du relevé (' + exemples(cmp.tailles) + ') : ' + PRG_RECOPIE + ', puis attendez la prochaine mesure');
   }
   // Fiches et photos : fichier par fichier, seulement ceux qui viennent d'être comparés. Les dossiers restent en place.
   inv.liste.forEach(f => { r.items.push({ type: 'fichier', id: f.id, chemin: f.chemin, taille: f.taille, fichiers: 1 }); r.octets += f.taille; r.nb++; });
@@ -4179,8 +4216,8 @@ function prgExaminerTermine_(c, ctx, joursReleve, depasse, inv, dossierMesure) {
   r.possible = !r.raisons.length && r.items.length > 0;
   return r;
 }
-function prgExaminer_(nature, c, ctx, jours, depasse, inv, dossierMesure) {
-  return nature === 'termine' ? prgExaminerTermine_(c, ctx, jours, depasse, inv, dossierMesure) : prgExaminerIndices_(c, ctx, depasse, dossierMesure);
+function prgExaminer_(nature, c, ctx, ageReleveMs, depasse, inv, dossierMesure) {
+  return nature === 'termine' ? prgExaminerTermine_(c, ctx, ageReleveMs, depasse, inv, dossierMesure) : prgExaminerIndices_(c, ctx, depasse, dossierMesure);
 }
 function prgPourquoi_(nature, exam) {
   const phrase = t => t.charAt(0).toUpperCase() + t.slice(1);
@@ -4206,7 +4243,7 @@ function prgProposerChantier_(u, inv, ctx, depasse) {
   const termine = c.statut === STATUTS_CHANTIER[2];
   const active = prgActive_(prgLignes_(sh), prgCleBase_('termine', c, u.id));
   if (termine || (active && !prgEstFait_(active.r[COL_P.etat - 1]))) {
-    textes.push(prgProposer_(sh, 'termine', c, u.id, prgExaminerTermine_(c, ctx, PRG_RELEVE_PROPOSITION_JOURS, depasse, inv, u.dossier), termine));
+    textes.push(prgProposer_(sh, 'termine', c, u.id, prgExaminerTermine_(c, ctx, PRG_RELEVE_PROPOSITION_JOURS * PRG_JOUR_MS, depasse, inv, u.dossier), termine));
   }
   rendu.texte = textes.filter(Boolean).join(' ; ');
   return rendu;
@@ -4391,7 +4428,7 @@ function prgPurger_(sh, shD, cle, r, enCours, cochee, ctx, depasse) {
   let refus = '', exam = null;
   if (!k || !c) refus = 'Ce chantier n’est plus dans l’onglet Chantiers.';
   else {
-    exam = prgExaminer_(k.nature, c, ctx, PRG_RELEVE_PURGE_JOURS, depasse, null, null);
+    exam = prgExaminer_(k.nature, c, ctx, PRG_RELEVE_PURGE_HEURES * 3600 * 1000, depasse, null, null);
     if (exam.dossierId && exam.dossierId !== k.dossier) refus = 'Le dossier du chantier n’est plus celui de cette ligne.';
     else if (!exam.possible) refus = prgPourquoi_(k.nature, exam);
   }

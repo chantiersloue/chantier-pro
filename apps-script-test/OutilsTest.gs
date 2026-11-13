@@ -386,9 +386,9 @@ function outilTestExaminerPurge_() {
   const ctx = prgContexte_(), c = ctx.chantiers[cleChantier_(OUTIL_TEST_CHANTIER)];
   if (!c) throw new Error('chantier d’essai absent : geste preparerChantier d’abord');
   const jamais = () => false;
-  const resume = (nature, jours) => { const e = prgExaminer_(nature, c, ctx, jours, jamais, null, null);
+  const resume = (nature, ageReleveMs) => { const e = prgExaminer_(nature, c, ctx, ageReleveMs, jamais, null, null);
     return { possible: e.possible, elements: e.items.length, fichiers: e.nb, octets: e.octets, texte: prgPourquoi_(nature, e) }; };
-  return { statut: c.statut, indices: resume('indices', 0), termineProposition: resume('termine', PRG_RELEVE_PROPOSITION_JOURS), terminePurge: resume('termine', PRG_RELEVE_PURGE_JOURS) };
+  return { statut: c.statut, indices: resume('indices', 0), termineProposition: resume('termine', PRG_RELEVE_PROPOSITION_JOURS * PRG_JOUR_MS), terminePurge: resume('termine', PRG_RELEVE_PURGE_HEURES * 3600 * 1000) };
 }
 // Onglet « Accès chantiers » : la case du compte d'essai sur la ligne du chantier d'essai, et aucune autre
 function outilTestAcces_(id, valeur) {

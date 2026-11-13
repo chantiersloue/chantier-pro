@@ -47,7 +47,7 @@ const doc = (id, code, indice, dossier, extra) => Object.assign({ id: id, code: 
 const liste = (nom, documents) => JSON.stringify({ version: 1, chantier: nom, documents: documents });
 function releve(g, dossier, nom, fichiers, quand, nomFichier) {
   return fichier(g, dossier, nomFichier || RELEVE, undefined, { contenu: JSON.stringify({ version: 1, chantier: nom, numero: '12',
-    releve_le: new Date(quand === undefined ? g.now - 2 * JOUR : quand).toISOString(), fichiers: fichiers.map(f => ({ chemin: f[0], taille: f[1] })) }) });
+    releve_le: new Date(quand === undefined ? g.now - JOUR : quand).toISOString(), fichiers: fichiers.map(f => ({ chemin: f[0], taille: f[1] })) }) });
 }
 // Un chantier terminé depuis 200 jours où TOUT est réuni pour la purge. o.sans : ce qu'on ne fabrique pas.
 function chantierFini(g, nom, o = {}) {
@@ -70,8 +70,9 @@ function chantierFini(g, nom, o = {}) {
 const K = { nom: 0, statut: 1, termine: 2, total: 3, carnet: 4, fiches: 5, photos: 6, autres: 7, fichiers: 8, depot: 9, indices: 10, indicesMo: 11, mesure: 12, purge: 13, cle: 14 };
 const P = { chantier: 0, quoi: 1, poids: 2, fichiers: 3, possible: 4, pourquoi: 5, corbeille: 6, etat: 7, message: 8, faitLe: 9, nbFaits: 10, libere: 11, annuler: 12, jusquau: 13, maj: 14, cle: 15 };
 const D = { cle: 0, type: 1, id: 2, chemin: 3, taille: 4, fichiers: 5, note: 6, etat: 7, maj: 8 };
-const resume = g => g.feuilles['Stockage'].lignes.slice(0, 9).map(l => l[1]);
-const tableau = g => g.feuilles['Stockage'].lignes.slice(11).filter(l => l && l[K.cle]);
+const TITRES_STOCKAGE = 14;   // ligne de titres du tableau de l'onglet Stockage (12 lignes de résumé au-dessus)
+const resume = g => g.feuilles['Stockage'].lignes.slice(0, 12).map(l => l[1]);
+const tableau = g => g.feuilles['Stockage'].lignes.slice(TITRES_STOCKAGE).filter(l => l && l[K.cle]);
 const ligneS = (g, cle) => tableau(g).filter(l => l[K.cle] === cle)[0];
 const purges = g => (g.feuilles['Purges'] ? g.feuilles['Purges'].lignes.slice(1).filter(l => l && l[P.cle]) : []);
 const ligneP = (g, nom, quoi) => purges(g).filter(l => l[P.chantier] === nom && l[P.quoi] === (quoi || 'Chantier terminé')).pop();
@@ -126,13 +127,17 @@ test('poids par chantier et par sous-dossier, lignes datées, corbeille non comp
   assert.ok(/^Chantiers sans dossier \(1\) : GAMMA SANS DOSSIER/.test(sans[K.nom]), sans[K.nom]);
   assert.ok(/^Reste du compte/.test(reste[K.nom]) && reste[K.total] === 85, 'reste = 100 − 10 − 1 − 2 − 2 : ' + reste[K.total]);
   const r = resume(g);
-  assert.ok(/^Tout va bien : 0 %/.test(r[0]), r[0]);
+  assert.ok(/^Tout va bien : 0 % \(alerte à 80 %\)/.test(r[0]), r[0]);
   assert.strictEqual(r[1], '0,1 Go sur 15 Go (0 %)');
   assert.strictEqual(r[2].getTime(), MAINTENANT);
   assert.ok(/^DriveApp/.test(r[3]) && /one\.google\.com\/storage/.test(r[3]) && /non activé/.test(r[3]), r[3]);
   assert.ok(/non connu/.test(r[4]) && /non connu/.test(r[5]) && /non connu/.test(r[6]), 'sans le service avancé : parts inconnues');
   assert.ok(/tour complet du 13\/11\/2026/.test(r[7]), r[7]);
-  assert.ok(/Messages envoyés/.test(r[8]) && /Gmail/.test(r[8]), 'rappel fixe sur Gmail');
+  assert.strictEqual(r[8], 2, 'chantiers en cours : ALPHA et BETA (GAMMA est en préparation)');
+  assert.ok(/^5,5 Mo \(moyenne de 2 chantier\(s\) en cours, mesuré\(s\) le 13\/11\/2026\)/.test(r[9]), r[9]);
+  // place avant 80 % : 12 288 Mo − 100 Mo utilisés ; un nouveau chantier compté 5,5 Mo × 1,5 → 1 477
+  assert.ok(/^À ce rythme, place pour environ 1477 chantier\(s\) en cours de plus avant 80 % \(calcul prudent : chaque nouveau chantier compté 8,3 Mo\)/.test(r[10]), r[10]);
+  assert.ok(/Messages envoyés/.test(r[11]) && /Gmail/.test(r[11]), 'rappel fixe sur Gmail');
   assert.strictEqual(g.proprietes.STOCKAGE_SUITE, undefined, 'tour fini : plus de reprise en attente');
   assert.strictEqual(g.proprietes.STOCKAGE_EN_COURS, undefined, 'verrou de la mesure rendu');
 });
@@ -158,6 +163,7 @@ test('reprise après arrêt (4 minutes) : sans doublon ni oubli ; « reste » se
   assert.ok(/^À suivre/.test(m), m);
   assert.ok(g.proprietes.STOCKAGE_SUITE, 'où l’on en est : noté');
   assert.ok(!ligneS(g, 'special:reste'), 'pas de « reste » avant la fin du tour');
+  assert.deepStrictEqual([resume(g)[8], resume(g)[9], resume(g)[10]], [6, '', ''], 'chantiers en cours comptés ; poids moyen et place restante seulement après un tour complet');
   assert.ok(/^Mesure en cours : \d+ dossier\(s\) sur 6/.test(resume(g)[0]), resume(g)[0]);
   const faitsAuPremier = tableau(g).length;
   assert.ok(faitsAuPremier >= 1 && faitsAuPremier < 6, 'une partie seulement : ' + faitsAuPremier);
@@ -169,6 +175,7 @@ test('reprise après arrêt (4 minutes) : sans doublon ni oubli ; « reste » se
     assert.strictEqual(l[0][K.total], i + 2, n + ' : poids juste');
   });
   assert.strictEqual(ligneS(g, 'special:reste')[K.total], 500 - 27, 'reste après le tour complet');
+  assert.ok(/^4,5 Mo \(moyenne de 6 chantier/.test(resume(g)[9]) && /^À ce rythme, place pour environ \d+ chantier/.test(resume(g)[10]), resume(g)[9] + ' / ' + resume(g)[10]);
   assert.ok(!/incomplète/.test(tableau(g).map(l => l[K.nom]).join()), 'aucun dossier mesuré en partie');
   assert.ok(/^Rien à poursuivre/.test(g.ctx.poursuivreMesureStockage()));
 });
@@ -182,6 +189,7 @@ test('un dossier trop gros pour un passage : mesuré en partie, la ligne et le �
   while (/^À suivre/.test(m) && n++ < 10) { appels = 0; m = g.ctx.poursuivreMesureStockage(); }
   assert.ok(/mesure incomplète/.test(ligneS(g, 'chantier:' + x.d.id)[K.nom]));
   assert.ok(/approximatif/.test(ligneS(g, 'special:reste')[K.nom]));
+  assert.deepStrictEqual([resume(g)[9], resume(g)[10]], ['', ''], 'mesure en partie : ni poids moyen, ni place restante');
   assert.strictEqual(ligneP(g, 'GROS')[P.possible], 'non');
   assert.ok(/trop gros/.test(ligneP(g, 'GROS')[P.pourquoi]), ligneP(g, 'GROS')[P.pourquoi]);
 });
@@ -202,13 +210,16 @@ test('avec le service avancé Drive : total du compte, part de Drive, de Gmail e
   mesurer(g);
   r = resume(g);
   assert.strictEqual(r[1], '4 Go sur 15 Go (26 %)');
+  // au-dessus de 80 % : plus de place pour un chantier de plus
+  g.etat.stockage.utilise = 13 * GO; mesurer(g);
+  assert.ok(/^Le seuil de 80 % est atteint/.test(resume(g)[10]), resume(g)[10]);
   assert.ok(/^DriveApp/.test(r[3]) && /en panne/.test(r[3]), r[3]);
 });
 test('onglet « Stockage » aux titres modifiés à la main : arrêt, rien n’est écrit, un mail (un seul par jour)', () => {
   const g = driveDeMesure();
   mesurer(g);
   const f = g.feuilles['Stockage'];
-  f.lignes[10][3] = 'Poids';   // un titre renommé
+  f.lignes[TITRES_STOCKAGE - 1][3] = 'Poids';   // un titre renommé
   const avant = JSON.stringify(f.lignes), mails = g.mails.length;
   const m = mesurer(g);
   assert.ok(/^Mesure arrêtée/.test(m) && /titres/.test(m), m);
@@ -235,33 +246,40 @@ test('onglet « Purges » aux titres modifiés : ni mesure, ni traitement des ca
 console.log('\nLot 5 — les alertes de place');
 const placer = (g, pourcent) => { g.etat.stockage.utilise = Math.round(15 * GO * (pourcent + 0.2) / 100); return mesurer(g); };
 const alertes = g => mailsDe(g, /Place Google|URGENT/);
-test('70 %, 85 %, 95 % : un mail par seuil franchi ; deux mails par mois au plus pour 70 et 85 ; 95 part toujours, puis un rappel par semaine', () => {
+test('80 % : un mail au franchissement, puis un par mois au plus ; 95 % : toujours envoyé, puis un rappel par semaine', () => {
   const g = environnement();
-  placer(g, 50);
-  assert.strictEqual(alertes(g).length, 0);
-  assert.ok(/Mail d’alerte envoyé \(seuil 70 %\)/.test(placer(g, 72)));
+  placer(g, 50); placer(g, 79);
+  assert.strictEqual(alertes(g).length, 0, 'sous 80 % : rien (les anciens seuils de 70 % et 85 % n’existent plus)');
+  assert.ok(/Mail d’alerte envoyé \(seuil 80 %\)/.test(placer(g, 82)));
   assert.strictEqual(alertes(g).length, 1);
-  assert.ok(/72 %/.test(alertes(g)[0].sujet) && alertes(g)[0].to === 'franck@loue.test' && /onglet « Purges »/.test(alertes(g)[0].texte));
-  assert.ok(/^Attention : 72 %/.test(resume(g)[0]), resume(g)[0]);
-  placer(g, 73);
-  assert.strictEqual(alertes(g).length, 1, 'même seuil : pas de second mail');
-  placer(g, 86);
-  assert.strictEqual(alertes(g).length, 2, '85 % : deuxième mail du mois');
-  placer(g, 60); placer(g, 72);
-  assert.strictEqual(alertes(g).length, 2, 'troisième franchissement du mois : pas de mail');
+  assert.ok(/82 %/.test(alertes(g)[0].sujet) && alertes(g)[0].to === 'franck@loue.test' && /onglet « Purges »/.test(alertes(g)[0].texte) && /une fois par mois au plus/.test(alertes(g)[0].texte), alertes(g)[0].texte);
+  assert.ok(/^Attention : 82 % \(alerte à 80 %\)/.test(resume(g)[0]), resume(g)[0]);
+  placer(g, 83); placer(g, 88);
+  assert.strictEqual(alertes(g).length, 1, 'toujours au-dessus (85 % n’est plus un seuil) : pas de second mail');
+  placer(g, 60); placer(g, 82);
+  assert.strictEqual(alertes(g).length, 1, 'repassé sous 80 % puis franchi de nouveau dans le mois : pas de mail');
   assert.strictEqual(JSON.parse(g.proprietes.STOCKAGE_ALERTES).niveau, 0, 'et le seuil n’est pas noté « prévenu »');
-  assert.ok(/^Attention : 72 %/.test(resume(g)[0]), 'mais l’onglet le dit toujours');
+  assert.ok(/^Attention : 82 %/.test(resume(g)[0]), 'mais l’onglet le dit toujours');
+  g.now += 31 * JOUR; placer(g, 82);
+  assert.strictEqual(alertes(g).length, 2, 'un mois plus tard : le mail part');
+  g.now += 10 * JOUR; placer(g, 84);
+  assert.strictEqual(alertes(g).length, 2);
+  g.now += 21 * JOUR; placer(g, 84);
+  assert.strictEqual(alertes(g).length, 3, 'toujours au-dessus un mois après : rappel');
+  assert.ok(/^Rappel/.test(alertes(g)[2].texte));
   placer(g, 96);
-  assert.strictEqual(alertes(g).length, 3, '95 % : toujours envoyé');
-  assert.ok(/URGENT/.test(alertes(g)[2].sujet) && /PLUS AUCUN MAIL NE PART NI N’ARRIVE/.test(alertes(g)[2].texte));
+  assert.strictEqual(alertes(g).length, 4, '95 % : toujours envoyé');
+  assert.ok(/URGENT/.test(alertes(g)[3].sujet) && /PLUS AUCUN MAIL NE PART NI N’ARRIVE/.test(alertes(g)[3].texte) && /un rappel par semaine/.test(alertes(g)[3].texte));
   assert.ok(/^URGENT : 96 %/.test(resume(g)[0]), resume(g)[0]);
   placer(g, 96);
-  assert.strictEqual(alertes(g).length, 3, 'pas tous les jours');
+  assert.strictEqual(alertes(g).length, 4, 'pas tous les jours');
   g.now += 8 * JOUR; placer(g, 97);
-  assert.strictEqual(alertes(g).length, 4, 'rappel au bout d’une semaine');
-  assert.ok(/^Rappel/.test(alertes(g)[3].texte));
-  g.now += 30 * JOUR; placer(g, 60); placer(g, 71);
-  assert.strictEqual(alertes(g).length, 5, 'mois suivant : le compteur repart');
+  assert.strictEqual(alertes(g).length, 5, 'rappel au bout d’une semaine');
+  assert.ok(/^Rappel/.test(alertes(g)[4].texte));
+  placer(g, 85);
+  assert.strictEqual(alertes(g).length, 5, 'redescendu entre 80 % et 95 % : pas de mail de plus avant un mois');
+  placer(g, 96);
+  assert.strictEqual(alertes(g).length, 6, 'franchit de nouveau 95 % : part toujours');
 });
 test('la marque « prévenu » n’est posée qu’après l’envoi réussi : mail en panne, puis quota épuisé → le mail part au passage suivant', () => {
   const g = environnement();
@@ -275,7 +293,7 @@ test('la marque « prévenu » n’est posée qu’après l’envoi réussi : ma
   g.etat.quota = 50;
   placer(g, 88);
   assert.strictEqual(alertes(g).length, 1);
-  assert.strictEqual(JSON.parse(g.proprietes.STOCKAGE_ALERTES).niveau, 85);
+  assert.strictEqual(JSON.parse(g.proprietes.STOCKAGE_ALERTES).niveau, 80);
 });
 test('déjà au-dessus d’un seuil à l’installation : le mail part à la première mesure', () => {
   const g = environnement({ stockage: { utilise: Math.round(15 * GO * 0.9) } });
@@ -387,7 +405,7 @@ test('tout est réuni : proposé, avec le poids, le nombre de fichiers et le rap
   const l = ligneP(g, 'FINI');
   assert.deepStrictEqual([l[P.possible], l[P.etat], l[P.fichiers], l[P.corbeille], l[P.annuler]], ['oui', 'Proposé', 6, false, false], l[P.pourquoi]);
   assert.ok(/^Possible : 6 élément\(s\), 6 fichier\(s\)/.test(l[P.pourquoi]), l[P.pourquoi]);
-  assert.ok(/MEGA a fini de synchroniser le dossier du chantier/.test(l[P.pourquoi]) && /1 fichier\(s\) hors des dossiers de l’appli/.test(l[P.pourquoi]) === false, l[P.pourquoi]);
+  assert.ok(/MEGA a fini de synchroniser le dossier du chantier/.test(l[P.pourquoi]) && /moins de 48 heures/.test(l[P.pourquoi]) && /la place n’est rendue que 30 jours plus tard/.test(l[P.pourquoi]), l[P.pourquoi]);
   assert.ok(/2 fichier\(s\) hors des dossiers de l’appli \(relevé compris\)/.test(l[P.pourquoi]), l[P.pourquoi]);
   assert.strictEqual(l[P.cle], 'termine|fini|' + x.d.id + '|1');
   assert.ok(/chantier terminé : purge possible/.test(ligneS(g, 'chantier:' + x.d.id)[K.purge]));
@@ -407,19 +425,19 @@ const refuse = (nom, o, motif, apres) => test('jamais proposé : ' + nom, () => 
   assert.strictEqual(g.etat.corbeilles.length, 0, 'rien à la corbeille');
   assert.strictEqual(ligneP(g, 'FINI')[P.corbeille], false, 'case décochée');
 });
-refuse('« Terminé » depuis moins de 6 mois (la ligne dit à partir de quand)', { termine: new Date(MAINTENANT - 100 * JOUR) }, /purge possible à partir du \d\d\/\d\d\/2027 \(6 mois\)/);
+refuse('« Terminé » depuis moins de 30 jours (la ligne dit à partir de quand)', { termine: new Date(MAINTENANT - 10 * JOUR) }, /Terminé depuis le 03\/11\/2026 : purge possible à partir du 03\/12\/2026 \(30 jours après la clôture\)/);
 refuse('date « Terminé » dans le futur : ignorée', { termine: new Date(MAINTENANT + 10 * JOUR) }, /dans le futur/);
 refuse('date « Terminé » illisible', { termine: 'l’an dernier' }, /illisible/);
-refuse('statut « Terminé » sans date (elle vient d’être posée : 6 mois à attendre)', { termine: '' }, /terminé depuis le 13\/11\/2026/i);
-refuse('pas de relevé', { releve: false }, /Pas de relevé « releve-pc\.json ».*relancez le programme du PC, puis attendez la prochaine mesure/);
+refuse('statut « Terminé » sans date (elle vient d’être posée : 30 jours à attendre)', { termine: '' }, /terminé depuis le 13\/11\/2026/i);
+refuse('pas de relevé (la ligne dit quoi faire)', { releve: false }, /Pas de relevé « releve-pc\.json ».*vérifiez que la recopie automatique tourne sur le PC \(fichier « CHANTIERPRO - A VOIR\.txt »\), puis attendez la prochaine mesure/);
 refuse('relevé sous l’ancien nom mega-index.json : pas accepté', { nomReleve: 'mega-index.json' }, /Pas de relevé « releve-pc\.json »/);
-refuse('relevé de plus de 30 jours', { dateReleve: MAINTENANT - 31 * JOUR }, /plus de 30 jours/);
+refuse('relevé de plus de 7 jours', { dateReleve: MAINTENANT - 8 * JOUR }, /Relevé du 05\/11\/2026 10:00 : il a plus de 7 jours : vérifiez que la recopie automatique tourne sur le PC \(fichier « CHANTIERPRO - A VOIR\.txt »\)/);
 refuse('relevé daté du futur', { dateReleve: MAINTENANT + 3 * JOUR }, /daté du futur/);
 refuse('relevé d’un autre chantier', { chantierReleve: 'UN AUTRE CHANTIER' }, /celui d’un autre chantier \(« UN AUTRE CHANTIER »\)/);
 refuse('relevé illisible', {}, /illisible/, (g, x) => { x.releve.contenu = '{ pas du json'; });
 refuse('deux relevés', {}, /Deux relevés/, (g, x) => releve(g, x.d, 'FINI', x.lignesReleve));
 refuse('une fiche absente du relevé (la ligne dit quoi faire)', { lignesReleve: [[QUITUS + '/QUITUS A 2026-01-10.pdf', 1000], [PHOTOS + '/photo 1.jpg', 5000]] },
-  /1 fiche\(s\) ou photo\(s\) absente\(s\) du relevé \(« .*QUITUS B 2026-01-11\.pdf »\) : relancez le programme du PC, puis attendez la prochaine mesure/);
+  /1 fiche\(s\) ou photo\(s\) absente\(s\) du relevé \(« .*QUITUS B 2026-01-11\.pdf »\) : vérifiez que la recopie automatique tourne sur le PC .*, puis attendez la prochaine mesure/);
 refuse('une fiche dont la taille n’est pas celle du relevé', { lignesReleve: [[QUITUS + '/QUITUS A 2026-01-10.pdf', 1000], [QUITUS + '/QUITUS B 2026-01-11.pdf', 2001], [PHOTOS + '/photo 1.jpg', 5000]] }, /taille n’est pas celle du relevé/);
 refuse('deux fichiers de même nom dans un dossier du Drive (bloqué, avec le nom), même si le relevé a deux lignes',
   { lignesReleve: [[QUITUS + '/QUITUS A 2026-01-10.pdf', 1000], [QUITUS + '/QUITUS A 2026-01-10.pdf', 1000], [QUITUS + '/QUITUS B 2026-01-11.pdf', 2000], [PHOTOS + '/photo 1.jpg', 5000]] },
@@ -546,15 +564,15 @@ test('chantier terminé : fiches et photos fichier par fichier, dossiers gardés
   assert.deepStrictEqual([ligneP(g, 'FINI')[P.cle], ligneP(g, 'FINI')[P.possible], ligneP(g, 'FINI')[P.fichiers]], ['termine|fini|' + x.d.id + '|2', 'oui', 1]);
   assert.ok(!corbeille(tard));
 });
-test('conditions revérifiées quand la case est traitée : un relevé de plus de 7 jours (proposé, car de moins de 30) est refusé', () => {
-  const g = environnement(), x = chantierFini(g, 'FINI', { dateReleve: MAINTENANT - 10 * JOUR });
+test('conditions revérifiées quand la case est traitée : un relevé de plus de 48 heures (proposé, car de moins de 7 jours) est refusé', () => {
+  const g = environnement(), x = chantierFini(g, 'FINI', { dateReleve: MAINTENANT - 3 * JOUR });
   mesurer(g);
   assert.strictEqual(ligneP(g, 'FINI')[P.possible], 'oui');
   cocher(g, 'FINI');
   g.ctx.traiterPurges();
   const l = ligneP(g, 'FINI');
   assert.deepStrictEqual([l[P.possible], l[P.etat], l[P.corbeille]], ['non', 'Impossible', false]);
-  assert.ok(/plus de 7 jours/.test(l[P.pourquoi]) && /^Refusé le/.test(l[P.message]) && /Rien n’a été mis à la corbeille/.test(l[P.message]), l[P.pourquoi] + ' / ' + l[P.message]);
+  assert.ok(/plus de 48 heures/.test(l[P.pourquoi]) && /CHANTIERPRO - A VOIR\.txt/.test(l[P.pourquoi]) && /^Refusé le/.test(l[P.message]) && /Rien n’a été mis à la corbeille/.test(l[P.message]), l[P.pourquoi] + ' / ' + l[P.message]);
   assert.strictEqual(g.etat.corbeilles.length, 0);
   assert.strictEqual(detail(g).length, 0);
   assert.strictEqual(g.mails.length, 0, 'pas de mail : rien n’est parti');
@@ -687,7 +705,7 @@ test('lignes triées par Franck (avant, et pendant le traitement) : la bonne lig
   mesurer(g);
   cocher(g, 'FINI X');
   const trier = (nom, titres) => { const f = g.feuilles[nom], n = titres || 1; f.lignes = f.lignes.slice(0, n).concat(f.lignes.slice(n).reverse()); };   // Franck trie les données, sous les titres
-  trier('Purges'); trier('Stockage', 11);
+  trier('Purges'); trier('Stockage', TITRES_STOCKAGE);
   let n = 0;
   g.etat.avantCorbeille = () => { if (++n === 2) { trier('Purges'); trier('Purges détail'); } };
   g.ctx.traiterPurges();
@@ -810,7 +828,8 @@ test('installerLot5Production : trois onglets, cases, avertissements, déclenche
   assert.ok(/✅ Lot 5 : installation terminée/.test(r) && /Place du compte/.test(r) && /Service avancé Drive : non activé/.test(r), r);
   ['Stockage', 'Purges', 'Purges détail'].forEach(n => assert.ok(g.feuilles[n], n));
   assert.strictEqual(g.feuilles['Purges'].lignes[0].length, 16);
-  assert.deepStrictEqual(g.feuilles['Stockage'].lignes[10].slice(0, 3), ['Chantier', 'Statut', 'Date « Terminé »']);
+  assert.deepStrictEqual(g.feuilles['Stockage'].lignes[TITRES_STOCKAGE - 1].slice(0, 3), ['Chantier', 'Statut', 'Date « Terminé »']);
+  assert.deepStrictEqual(g.feuilles['Stockage'].lignes.slice(8, 11).map(l => l[0]), ['Chantiers en cours', 'Poids moyen d’un chantier en cours', 'Place pour d’autres chantiers']);
   assert.ok(g.feuilles['Purges'].protections.length === 3 && g.feuilles['Purges'].protections.every(p => p.avertissement === true), 'avertissement seulement : Franck n’est pas bloqué');
   assert.ok(g.feuilles['Purges'].protections.every(p => !(p.c <= 7 && p.c + p.nc > 7) && !(p.c <= 13 && p.c + p.nc > 13)), 'les deux colonnes de cases ne sont pas sous avertissement');
   assert.deepStrictEqual(Array.from(g.declencheurs).sort(), ['mesurerStockage', 'poursuivreMesureStockage', 'renvoyerMailsEnAttente', 'surModificationSheet', 'traiterComptes', 'traiterPurges']);
@@ -854,7 +873,7 @@ test('porte de service (copie TEST) : installerLot5 et des lectures seulement �
   r = geste('mesurerStockage');
   assert.ok(r.ok && /^Tour de mesure terminé/.test(r.message) && !/DUPONT/.test(JSON.stringify(r)), JSON.stringify(r));
   r = geste('lireStockage');
-  assert.ok(r.ok && r.data.titresBons && r.data.resume.length === 9 && !/DUPONT/.test(JSON.stringify(r)), JSON.stringify(r));
+  assert.ok(r.ok && r.data.titresBons && r.data.resume.length === 12 && !/DUPONT/.test(JSON.stringify(r)), JSON.stringify(r));
   r = geste('lirePurgesEssai');
   assert.ok(r.ok && r.data.lignes.length === 2 && r.data.lignesEnTout === 4 && !/DUPONT/.test(JSON.stringify(r)) && JSON.stringify(r).indexOf(x.d.id) < 0, JSON.stringify(r));
   r = geste('examinerPurgeEssai');
@@ -865,7 +884,7 @@ test('porte de service (copie TEST) : installerLot5 et des lectures seulement �
 });
 test('livraison : le serveur à coller contient le lot 5 en version v10.0, dans le bon ordre, sans les outils d’essai', () => {
   const code = fs.readFileSync(path.join(RACINE, 'A-COLLER-DANS-APPS-SCRIPT', 'Code.gs'), 'utf8');
-  ["const VERSION_API = 'v10.0'", 'function mesurerStockage(', 'function poursuivreMesureStockage(', 'function traiterPurges(', 'function installerLot5Test(', 'function installerLot5Production(',
+  ["const VERSION_API = 'v10.0'", 'const STK_SEUIL_ALERTE = 80;', 'const STK_SEUIL_CRITIQUE = 95;', 'const PRG_JOURS_APRES_TERMINE = 30;', 'const PRG_RELEVE_PROPOSITION_JOURS = 7;', 'const PRG_RELEVE_PURGE_HEURES = 48;', 'function mesurerStockage(', 'function poursuivreMesureStockage(', 'function traiterPurges(', 'function installerLot5Test(', 'function installerLot5Production(',
     "const PRG_RELEVE = 'releve-pc.json'", '████ Stockage.gs ████', '████ Purges.gs ████'].forEach(t => assert.ok(code.indexOf(t) > -1, t));
   assert.ok(code.indexOf('████ Carnet.gs ████') < code.indexOf('████ Stockage.gs ████') && code.indexOf('████ Purges.gs ████') < code.indexOf('████ Admin.gs ████'));
   assert.ok(!/mega-index/.test(code), 'l’ancien nom du relevé n’est plus dans le serveur');

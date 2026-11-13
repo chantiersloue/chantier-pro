@@ -22,7 +22,7 @@
 |G|Adresse|Affichée dans « Mes chantiers »|
 |H|Client||
 |I|Architecte||
-|J|Date « Terminé »|Remplie toute seule par le serveur quand le statut passe à « Terminé », effacée s'il change (lot 5) ; une date saisie à la main est gardée. Sert à la purge (6 mois après)|
+|J|Date « Terminé »|Remplie toute seule par le serveur quand le statut passe à « Terminé », effacée s'il change (lot 5) ; une date saisie à la main est gardée. Sert à la purge (30 jours après)|
 |K|Chemin MEGA|Dossier du chantier dans MEGA|
 
 Statut (C) : liste En préparation / En cours / Terminé (avertissement seulement). Un chantier « Terminé » n'apparaît plus dans « Mes chantiers » des poseurs.
@@ -180,11 +180,11 @@ Remplis par le serveur. Franck ne coche que les deux cases de l'onglet *Purges* 
 
 ### « Stockage »
 
-Le haut de l'onglet (lignes 1 à 9) : le titre en colonne A, la valeur en colonne B.
+Le haut de l'onglet (lignes 1 à 12) : le titre en colonne A, la valeur en colonne B.
 
 |Ligne|Titre (colonne A)|Valeur (colonne B)|
 |-|-|-|
-|1|Stockage du compte Google|L'état en une phrase : « Tout va bien : 41 % », « Attention : 72 % », « URGENT : 96 % », « Mesure en cours : 12 dossier(s) sur 31 »|
+|1|Stockage du compte Google|L'état en une phrase : « Tout va bien : 41 % (alerte à 80 %) », « Attention : 82 % », « URGENT : 96 % », « Mesure en cours : 12 dossier(s) sur 31 »|
 |2|Place utilisée|En Go, sur 15 Go, et en %|
 |3|Mesurée le|Date de ce chiffre|
 |4|D'où vient ce chiffre|Service avancé Drive, ou DriveApp (à comparer avec one.google.com/storage)|
@@ -192,9 +192,12 @@ Le haut de l'onglet (lignes 1 à 9) : le titre en colonne A, la valeur en colonn
 |6|Dont Gmail et Photos|idem|
 |7|Dont corbeille de Drive|idem|
 |8|Dossiers de l'appli|Poids et nombre de fichiers mesurés, date du dernier tour complet (ou « Mesure en cours »)|
-|9|À savoir|Rappel fixe : les mails envoyés restent dans Gmail, qui compte dans les 15 Go|
+|9|Chantiers en cours|Nombre de chantiers au statut « En cours » (objectif de Franck : 35 à 40)|
+|10|Poids moyen d'un chantier en cours|Après un tour de mesure complet seulement ; vide si les données manquent|
+|11|Place pour d'autres chantiers|« À ce rythme, place pour environ n chantiers en cours de plus avant 80 % » (calcul prudent : chaque nouveau chantier compté une fois et demie le poids moyen)|
+|12|À savoir|Rappel fixe : les mails envoyés restent dans Gmail, qui compte dans les 15 Go|
 
-Le tableau : titres en ligne 11, une ligne par dossier de chantier à partir de la ligne 12.
+Le tableau : titres en ligne 14, une ligne par dossier de chantier à partir de la ligne 15.
 
 |Colonne|Titre|Contenu|
 |-|-|-|

@@ -23,9 +23,13 @@
 const SHEET_PURGES = 'Purges';
 const SHEET_PURGES_DETAIL = 'Purges détail';
 const PRG_RELEVE = 'releve-pc.json';        // relevé de présence écrit par le programme du PC (seul nom accepté)
-const PRG_MOIS_TERMINE = 6;                 // « Terminé » depuis au moins 6 mois
-const PRG_RELEVE_PROPOSITION_JOURS = 30;    // âge maximal du relevé pour PROPOSER la purge
-const PRG_RELEVE_PURGE_JOURS = 7;           // … et au moment où la case est traitée
+// Durée de conservation dans Drive après la clôture : un chantier « Terminé » n'est proposé à la purge qu'au bout de ce
+// nombre de jours (décision de Franck du 14/11/2026 ; à changer ici, et nulle part ailleurs, s'il veut une autre durée)
+const PRG_JOURS_APRES_TERMINE = 30;
+// Le relevé releve-pc.json est refait par la recopie automatique du PC (toutes les heures), donc au moins une fois par jour :
+const PRG_RELEVE_PROPOSITION_JOURS = 7;     // âge maximal du relevé pour PROPOSER la purge d'un chantier terminé
+const PRG_RELEVE_PURGE_HEURES = 48;         // … et au moment où la case est traitée
+const PRG_FICHIER_A_VOIR = 'CHANTIERPRO - A VOIR.txt';   // sur le PC : le fichier où la recopie automatique dit ce qui ne va pas
 const PRG_ANNULATION_JOURS = 25;            // la case « Annuler » sert 25 jours
 const PRG_CORBEILLE_JOURS = 30;             // Drive vide sa corbeille au bout de 30 jours : la place est libérée à ce moment-là
 const PRG_PAQUET = 40;                      // éléments journalisés puis mis à la corbeille par paquet
@@ -42,8 +46,9 @@ const PRG_COLONNES_TEXTE = [COL_P.chantier, COL_P.quoi, COL_P.possible, COL_P.po
 const PRG_COLONNES_DATE = [COL_P.faitLe, COL_P.libere, COL_P.jusquau, COL_P.maj];
 const PRG_DETAIL_ENTETES = ['Clé de la ligne', 'Type', 'Identifiant', 'Chemin', 'Taille (octets)', 'Fichiers', 'Noté le', 'État', 'Mis à jour le'];
 const COL_D = { cle: 1, type: 2, id: 3, chemin: 4, taille: 5, fichiers: 6, note: 7, etat: 8, maj: 9 };
-const PRG_AVANT_DE_COCHER = 'Avant de cocher : vérifiez sur le PC que MEGA a fini de synchroniser le dossier du chantier, et relancez le programme du PC si le relevé a plus de '
-  + PRG_RELEVE_PURGE_JOURS + ' jours.';
+const PRG_RECOPIE = 'vérifiez que la recopie automatique tourne sur le PC (fichier « ' + PRG_FICHIER_A_VOIR + ' »)';
+const PRG_AVANT_DE_COCHER = 'Avant de cocher : vérifiez sur le PC que MEGA a fini de synchroniser le dossier du chantier. Le relevé devra avoir moins de '
+  + PRG_RELEVE_PURGE_HEURES + ' heures au moment du traitement. Après la mise à la corbeille, la place n’est rendue que ' + PRG_CORBEILLE_JOURS + ' jours plus tard.';
 
 // ── Onglets (titres contrôlés avant toute lecture et toute écriture) ──
 function prgFeuille_(nom, entetes, colonnesTexte, colonnesDate, avertir) {
@@ -156,24 +161,23 @@ function prgDossierSur_(c, ctx) {
   return { ok: true, dossier: d, id: ids[0] };
 }
 
-// §4.3-1 — « Terminé » depuis au moins 6 mois : '' si c'est le cas, sinon ce qui manque
+// §4.3-1 — « Terminé » depuis au moins PRG_JOURS_APRES_TERMINE jours : '' si c'est le cas, sinon ce qui manque
 function prgTermineDepuis_(c) {
   if (!c || c.statut !== STATUTS_CHANTIER[2]) return 'le chantier n’est pas au statut « Terminé »';
-  if (c.termine === null) return 'pas de date « Terminé » dans l’onglet Chantiers (elle se pose toute seule à la prochaine mesure, puis il faut attendre ' + PRG_MOIS_TERMINE + ' mois)';
+  if (c.termine === null) return 'pas de date « Terminé » dans l’onglet Chantiers (elle se pose toute seule à la prochaine mesure, puis il faut attendre ' + PRG_JOURS_APRES_TERMINE + ' jours)';
   if (isNaN(c.termine)) return 'date « Terminé » illisible dans l’onglet Chantiers : écrivez-la sous la forme 31/12/2026';
   const maintenant = maintenant_();
   if (c.termine > maintenant) return 'date « Terminé » dans le futur (' + stkJour_(c.termine) + ') : elle est ignorée, corrigez-la';
-  const possible = new Date(c.termine);
-  possible.setMonth(possible.getMonth() + PRG_MOIS_TERMINE);
-  if (possible.getTime() > maintenant) return 'terminé depuis le ' + stkJour_(c.termine) + ' : purge possible à partir du ' + stkJour_(possible.getTime()) + ' (' + PRG_MOIS_TERMINE + ' mois)';
+  const possible = c.termine + PRG_JOURS_APRES_TERMINE * PRG_JOUR_MS;
+  if (possible > maintenant) return 'terminé depuis le ' + stkJour_(c.termine) + ' : purge possible à partir du ' + stkJour_(possible) + ' (' + PRG_JOURS_APRES_TERMINE + ' jours après la clôture)';
   return '';
 }
 
 // §4.3-2 — Le relevé releve-pc.json : ce qui est dans le dossier du chantier sur le PC (format : docs/contrat-skills.md) à la racine du dossier du chantier.
-// Rend { ok, raison, lignes: { '/chemin': [tailles] }, date }.
-function prgReleve_(dossier, c, joursMax) {
+// ageMaxMs : âge maximal du relevé, en millisecondes. Rend { ok, raison, lignes: { '/chemin': [tailles] }, date }.
+function prgReleve_(dossier, c, ageMaxMs) {
   const non = raison => ({ ok: false, raison: raison });
-  const relancer = ' : relancez le programme du PC, puis attendez la prochaine mesure';
+  const relancer = ' : ' + PRG_RECOPIE + ', puis attendez la prochaine mesure';
   const it = dossier.getFilesByName(PRG_RELEVE), trouves = [];
   while (it.hasNext()) { const f = it.next(); if (!f.isTrashed()) trouves.push(f); }
   if (!trouves.length) return non('pas de relevé « ' + PRG_RELEVE + ' » dans le dossier du chantier' + relancer);
@@ -188,7 +192,8 @@ function prgReleve_(dossier, c, joursMax) {
   if (isNaN(date)) return non('date du relevé illisible' + relancer);
   const maintenant = maintenant_();
   if (date > maintenant + 3600 * 1000) return non('relevé daté du futur (' + stkJour_(date) + ') : vérifiez l’horloge du PC' + relancer);
-  if (maintenant - date > joursMax * PRG_JOUR_MS) return non('relevé du ' + stkJour_(date) + ' : il a plus de ' + joursMax + ' jours' + relancer);
+  const limite = ageMaxMs >= 3 * PRG_JOUR_MS ? Math.round(ageMaxMs / PRG_JOUR_MS) + ' jours' : Math.round(ageMaxMs / 3600000) + ' heures';
+  if (maintenant - date > ageMaxMs) return non('relevé du ' + texteDate_(date) + ' : il a plus de ' + limite + relancer);
   const lignes = {};
   for (let i = 0; i < lu.fichiers.length; i++) {
     const f = lu.fichiers[i];
@@ -326,7 +331,7 @@ function prgExaminerIndices_(c, ctx, depasse, dossierMesure) {
   r.possible = ident.ok && !r.raisons.length && r.items.length > 0;
   return r;
 }
-function prgExaminerTermine_(c, ctx, joursReleve, depasse, inv, dossierMesure) {
+function prgExaminerTermine_(c, ctx, ageReleveMs, depasse, inv, dossierMesure) {
   const r = { possible: false, raisons: [], infos: [], items: [], octets: 0, nb: 0, dossierId: '', garde: null, carnet: null };
   const quand = prgTermineDepuis_(c);
   if (quand) r.raisons.push(quand);
@@ -335,15 +340,15 @@ function prgExaminerTermine_(c, ctx, joursReleve, depasse, inv, dossierMesure) {
   r.dossierId = ident.id;
   const attente = prgEnvoisEnAttente_(c);
   if (attente) r.raisons.push(attente + ' envoi(s) en attente ou abandonné(s) pour ce chantier (onglet « ' + SHEET_ATTENTE + ' ») : attendez qu’ils partent, ou réglez-les');
-  const releve = prgReleve_(ident.dossier, c, joursReleve);
+  const releve = prgReleve_(ident.dossier, c, ageReleveMs);
   if (!releve.ok) r.raisons.push(releve.raison);
   if (!inv || !dossierMesure || dossierMesure.getId() !== ident.id) inv = stkInventaire_(ident.dossier, ctx.cats, depasse, true);
   if (!inv.complet) r.raisons.push(PRG_TROP_GROS);
   if (releve.ok) {
     const cmp = prgComparer_(inv.liste, releve), exemples = t => stkCourt_(t.slice(0, 3).map(x => '« ' + x + ' »')) + (t.length > 3 ? '…' : '');
-    if (cmp.doublons.length) r.raisons.push('deux fichiers de même nom dans un dossier du Drive (' + exemples(cmp.doublons) + ') : renommez-en un, relancez le programme du PC, puis attendez la prochaine mesure');
-    if (cmp.absents.length) r.raisons.push(cmp.absents.length + ' fiche(s) ou photo(s) absente(s) du relevé (' + exemples(cmp.absents) + ') : relancez le programme du PC, puis attendez la prochaine mesure');
-    if (cmp.tailles.length) r.raisons.push(cmp.tailles.length + ' fichier(s) dont la taille n’est pas celle du relevé (' + exemples(cmp.tailles) + ') : relancez le programme du PC, puis attendez la prochaine mesure');
+    if (cmp.doublons.length) r.raisons.push('deux fichiers de même nom dans un dossier du Drive (' + exemples(cmp.doublons) + ') : renommez-en un, puis attendez la prochaine recopie du PC et la prochaine mesure');
+    if (cmp.absents.length) r.raisons.push(cmp.absents.length + ' fiche(s) ou photo(s) absente(s) du relevé (' + exemples(cmp.absents) + ') : ' + PRG_RECOPIE + ', puis attendez la prochaine mesure');
+    if (cmp.tailles.length) r.raisons.push(cmp.tailles.length + ' fichier(s) dont la taille n’est pas celle du relevé (' + exemples(cmp.tailles) + ') : ' + PRG_RECOPIE + ', puis attendez la prochaine mesure');
   }
   // Fiches et photos : fichier par fichier, seulement ceux qui viennent d'être comparés. Les dossiers restent en place.
   inv.liste.forEach(f => { r.items.push({ type: 'fichier', id: f.id, chemin: f.chemin, taille: f.taille, fichiers: 1 }); r.octets += f.taille; r.nb++; });
@@ -365,8 +370,8 @@ function prgExaminerTermine_(c, ctx, joursReleve, depasse, inv, dossierMesure) {
   r.possible = !r.raisons.length && r.items.length > 0;
   return r;
 }
-function prgExaminer_(nature, c, ctx, jours, depasse, inv, dossierMesure) {
-  return nature === 'termine' ? prgExaminerTermine_(c, ctx, jours, depasse, inv, dossierMesure) : prgExaminerIndices_(c, ctx, depasse, dossierMesure);
+function prgExaminer_(nature, c, ctx, ageReleveMs, depasse, inv, dossierMesure) {
+  return nature === 'termine' ? prgExaminerTermine_(c, ctx, ageReleveMs, depasse, inv, dossierMesure) : prgExaminerIndices_(c, ctx, depasse, dossierMesure);
 }
 function prgPourquoi_(nature, exam) {
   const phrase = t => t.charAt(0).toUpperCase() + t.slice(1);
@@ -392,7 +397,7 @@ function prgProposerChantier_(u, inv, ctx, depasse) {
   const termine = c.statut === STATUTS_CHANTIER[2];
   const active = prgActive_(prgLignes_(sh), prgCleBase_('termine', c, u.id));
   if (termine || (active && !prgEstFait_(active.r[COL_P.etat - 1]))) {
-    textes.push(prgProposer_(sh, 'termine', c, u.id, prgExaminerTermine_(c, ctx, PRG_RELEVE_PROPOSITION_JOURS, depasse, inv, u.dossier), termine));
+    textes.push(prgProposer_(sh, 'termine', c, u.id, prgExaminerTermine_(c, ctx, PRG_RELEVE_PROPOSITION_JOURS * PRG_JOUR_MS, depasse, inv, u.dossier), termine));
   }
   rendu.texte = textes.filter(Boolean).join(' ; ');
   return rendu;
@@ -577,7 +582,7 @@ function prgPurger_(sh, shD, cle, r, enCours, cochee, ctx, depasse) {
   let refus = '', exam = null;
   if (!k || !c) refus = 'Ce chantier n’est plus dans l’onglet Chantiers.';
   else {
-    exam = prgExaminer_(k.nature, c, ctx, PRG_RELEVE_PURGE_JOURS, depasse, null, null);
+    exam = prgExaminer_(k.nature, c, ctx, PRG_RELEVE_PURGE_HEURES * 3600 * 1000, depasse, null, null);
     if (exam.dossierId && exam.dossierId !== k.dossier) refus = 'Le dossier du chantier n’est plus celui de cette ligne.';
     else if (!exam.possible) refus = prgPourquoi_(k.nature, exam);
   }
