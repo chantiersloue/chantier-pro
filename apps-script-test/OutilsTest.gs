@@ -65,6 +65,9 @@ function outilTest_(corps) {
       // ── Lancer (fonctions existantes, sans paramètre) : ok seulement si l'effet est constaté ──
       case 'controlerLot2':        return ok(controlerInstallationLot2());
       // (le bilan seul : les informations « chantiers sans conducteur » de installerLot7Test restent dans l'éditeur)
+      // Lot 3 : case « accès au chantier d'essai » d'un compte d'essai (jamais un autre compte, jamais un autre chantier)
+      case 'accesChantier': { const id = outilTestIdFixe_(corps.id);
+        return ok('Accès au chantier d’essai', outilTestSousVerrou_(() => outilTestAcces_(id, corps.valeur))); }
       case 'installerLot3': { const r = installer_('Lot 3', 'TEST', etapesLot3_()); if (!r.ok) throw new Error('installation du lot 3 non terminée : ' + r.texte); return ok(r.texte); }
       case 'installerLot7': { const r = installer_('Lot 7', 'TEST', etapesLot7_()); if (!r.ok) throw new Error('installation du lot 7 non terminée : ' + r.texte); return ok(r.texte); }
       case 'poserDeclencheurs':    return ok(outilTestPoserDeclencheurs_());
@@ -189,6 +192,21 @@ function outilTestPreparerChantier_() {
   const ligne = outilTestLigneLibre_(sh);
   sh.getRange(ligne, 1, 1, 3).setValues([[OUTIL_TEST_CHANTIER, 'ESSAIS AUTOMATIQUES (outillage)', STATUTS_CHANTIER[1]]]);
   return { chantier: OUTIL_TEST_CHANTIER, cree: true, ligne: ligne };
+}
+// Onglet « Accès chantiers » : la case du compte d'essai sur la ligne du chantier d'essai, et aucune autre
+function outilTestAcces_(id, valeur) {
+  if (valeur !== true && valeur !== false) throw new Error('valeur refusée (vrai ou faux)');
+  const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_ACCES);
+  if (!sh || sh.getLastRow() < 2) throw new Error('onglet « ' + SHEET_ACCES + ' » absent ou vide');
+  const larg = sh.getLastColumn();
+  const col = sh.getRange(1, 1, 1, larg).getValues()[0].map(normaliserId_).indexOf(id);
+  if (col < 2) throw new Error('le compte d’essai n’a pas encore sa colonne dans « ' + SHEET_ACCES + ' » : lancer « traiterComptes » d’abord');
+  const noms = sh.getRange(2, 1, sh.getLastRow() - 1, 1).getValues();
+  let ligne = 0;
+  for (let i = 0; i < noms.length; i++) if (String(noms[i][0]).trim() === OUTIL_TEST_CHANTIER) { ligne = i + 2; break; }
+  if (!ligne) throw new Error('le chantier d’essai n’a pas encore sa ligne dans « ' + SHEET_ACCES + ' » : lancer « traiterComptes » d’abord');
+  sh.getRange(ligne, col + 1).setValue(valeur);
+  return { id: id, chantier: OUTIL_TEST_CHANTIER, acces: valeur };
 }
 function outilTestCocher_(id, nomCase, valeur) {
   if (typeof nomCase !== 'string' || !Object.prototype.hasOwnProperty.call(OUTIL_TEST_CASES, nomCase)) throw new Error('case refusée (reinit, deconnecter ou actif)');

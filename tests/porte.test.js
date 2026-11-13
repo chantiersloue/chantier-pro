@@ -321,13 +321,36 @@ test('porte, lot 7 : installation, lecture des signalements sans texte saisi, de
   g.feuilles['Contacts'].lignes.pop();
   assert.deepStrictEqual([geste(g, 'destinatairesEssai').data.chefsAtelier, geste(g, 'destinatairesEssai').data.chefsAtelierSontFranck], [0, false]);
 });
+test('porte, lot 3 : installation ; accès au chantier d’essai pour un compte d’essai seulement, sans toucher aux autres cases', () => {
+  const g = serveurLot2();
+  g.feuilles['Chantiers'].lignes.push(['VRAI CHANTIER', 'LIEU', 'En cours', '']);
+  const i = geste(g, 'installerLot3');
+  assert.ok(i.ok && /Lot 3 — installation — environnement : TEST/.test(i.message) && /installation terminée/.test(i.message), i.message);
+  ['Notes', 'Notes historique', 'Notes vues'].forEach(n => assert.ok(g.feuilles[n], n));
+  assert.ok(geste(g, 'installerLot3').ok, 'relançable');
+  geste(g, 'preparerComptes'); geste(g, 'preparerChantier');
+  assert.strictEqual(geste(g, 'accesChantier', { id: 'auto-poseur', valeur: true }).ok, false, 'colonne pas encore créée : refus clair');
+  assert.ok(geste(g, 'session', { id: 'auto-poseur' }).ok);   // le compte d'essai est activé : traiterComptes lui donne sa colonne
+  assert.ok(geste(g, 'traiterComptes').ok);
+  const a = g.feuilles['Accès chantiers'], avant = JSON.stringify(a.lignes);
+  const r = geste(g, 'accesChantier', { id: 'auto-poseur', valeur: true });
+  assert.ok(r.ok && r.data.acces === true && r.data.chantier === 'CHANTIER TEST AUTO', JSON.stringify(r));
+  const col = a.lignes[0].indexOf('auto-poseur'), lig = a.lignes.findIndex(l => l[0] === 'CHANTIER TEST AUTO');
+  assert.strictEqual(a.lignes[lig][col], true);
+  const sauf = JSON.parse(JSON.stringify(a.lignes)); sauf[lig][col] = JSON.parse(avant)[lig][col];
+  assert.strictEqual(JSON.stringify(sauf), avant, 'aucune autre case modifiée');
+  assert.strictEqual(geste(g, 'accesChantier', { id: 'poseur-reel', valeur: true }).ok, false, 'un vrai compte est refusé');
+  assert.strictEqual(geste(g, 'accesChantier', { id: 'auto-poseur', valeur: 'oui' }).ok, false);
+  assert.ok(geste(g, 'accesChantier', { id: 'auto-poseur', valeur: false }).ok);
+  assert.strictEqual(a.lignes[lig][col], false);
+});
 test('porte complète hors de TEST : tous les gestes sont refusés, rien n’est écrit', () => {
   const g = serveurLot2();
   g.proprietes.ENVIRONNEMENT = '';   // même projet, mais plus « TEST » : environnement incohérent
   const avant = JSON.stringify([U(g), g.proprietes, g.declencheurs]);
   ['etat', 'preparerComptes', 'session', 'fermerSessions', 'cocher', 'poserDeclencheurs', 'retirerDeclencheurs', 'traiterComptes', 'finirTransition', 'prolongerTransition',
     'lireEnvois', 'lireBilan', 'lireChantiers', 'lireCompte', 'controlerLot2', 'essaiDeclencheur', 'retablirTransition', 'preparerChantier',
-    'installerLot7', 'lireSignalements', 'destinatairesEssai'].forEach(nom =>
+    'installerLot7', 'lireSignalements', 'destinatairesEssai', 'installerLot3', 'accesChantier'].forEach(nom =>
     assert.deepStrictEqual(geste(g, nom, { id: 'auto-admin', case: 'actif', valeur: true }), { ok: false, code: 'REFUSE', message: 'Refusé' }, nom));
   assert.strictEqual(JSON.stringify([U(g), g.proprietes, g.declencheurs]), avant);
 });
