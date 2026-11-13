@@ -199,6 +199,67 @@ function scenario() {
   await page.evaluate(() => charger()); await page.waitForTimeout(2500);
   r.refus = { avant: avantRefus, apres: (await page.evaluate(() => LOUE.carnet.etat('CHANTIER TEST 1', '105-A'))).images, liste: await liste() };
   await reglage('acces&id=poseur2&valeur=1');
+  // ── Lot 4b : « Tout télécharger » (compte poseur2, rien de gardé pour l'instant) ──
+  await page.goto(CARNET); await attendre(() => document.querySelectorAll('#docs .doc').length > 0);
+  const boutons = () => page.evaluate(() => ({ dl: Array.from(document.querySelectorAll('#docs .dl')).map(t => ({ id: t.dataset.dl, texte: t.textContent, h: t.getBoundingClientRect().height, inactif: t.disabled })),
+    tout: { visible: getComputedStyle(document.getElementById('dl-tout')).display !== 'none', texte: document.getElementById('dl-tout').textContent },
+    auto: getComputedStyle(document.getElementById('auto-wifi')).display !== 'none', info: document.getElementById('info').textContent, enCours: !!TELE }));
+  const bilan = id => page.evaluate(d => LOUE.carnet.bilan('CHANTIER TEST 1', DOCS.filter(x => x.id === d)[0]), id);
+  const finTele = () => attendre(() => !TELE, 240);
+  r.b_avant = await boutons();
+  // a) un document seul
+  let debutDemandes = demandes.length;
+  await page.evaluate(() => document.querySelector('#docs .dl[data-dl="001-A"]').click()); await finTele(); await page.waitForTimeout(400);
+  r.b_un = { bilan: await bilan('001-A'), boutons: await boutons(), liste: await liste(), demandes: demandes.slice(debutDemandes) };
+  // b) le chantier entier, arrêté en route (serveur lent), puis repris
+  await reglage('lent');
+  await page.evaluate(() => toutTelecharger()); await page.waitForTimeout(1500);
+  r.b_enCours = await boutons();
+  await page.evaluate(() => charger()); await page.waitForTimeout(300);
+  r.b_actualiser = (await boutons()).info;
+  await page.evaluate(() => toutTelecharger());   // second appui = arrêter
+  await finTele(); await page.waitForTimeout(400);
+  r.b_arrete = { bilan: await bilan('105-A'), boutons: await boutons() };
+  await reglage('normal');
+  debutDemandes = demandes.length;
+  await page.evaluate(() => document.querySelector('#docs .dl[data-dl="105-A"]').click()); await finTele(); await page.waitForTimeout(400);
+  r.b_repris = { bilan: await bilan('105-A'), boutons: await boutons(), liste: await liste(), demandes: demandes.slice(debutDemandes) };
+  // c) HORS RÉSEAU : une zone jamais regardée s'affiche, à tous les grossissements
+  await ctx.setOffline(true);
+  await page.goto(CARNET); await attendre(() => document.querySelectorAll('#docs .doc').length > 0);
+  await ouvrir('105-A');
+  await zoomerSur(330, 420, 3);
+  const loin = await vue();
+  await page.evaluate(() => { cadrer(); for (let i = 0; i < 2; i++) zoomerAutour(2, 60, 500); }); await page.waitForTimeout(2500);
+  r.b_horsReseau = { loin: loin, ailleurs: await vue(), liste: null };
+  await page.evaluate(() => fermerVue()); await page.waitForTimeout(300);
+  r.b_horsReseau.liste = await liste();
+  await ctx.setOffline(false);
+  // d) le téléphone a fait du ménage dans un document complet : « plus disponible en entier »
+  await page.evaluate(() => new Promise((ok, ko) => { const q = indexedDB.open('loue_carnet_' + LOUE.env); q.onsuccess = () => { const db = q.result, tx = db.transaction(['index', 'octets'], 'readwrite');
+    const g = tx.objectStore('index').getAllKeys(); g.onsuccess = () => { const k = g.result.filter(x => x.indexOf('|105-A|1|z0:') > -1)[0]; tx.objectStore('index').delete(k); tx.objectStore('octets').delete(k); };
+    tx.oncomplete = () => { db.close(); ok(); }; tx.onerror = ko; }; q.onerror = ko; }));
+  await page.goto(CARNET); await attendre(() => document.querySelectorAll('#docs .doc').length > 0);
+  r.b_perdu = { liste: await liste(), boutons: await boutons() };
+  // e) carnet plein pendant un téléchargement : il s'arrête, le dit, et une fiche est toujours gardée
+  await page.evaluate(() => { LOUE.carnet.PLAFOND = 1024; });
+  await page.evaluate(() => document.querySelector('#docs .dl[data-dl="105-A"]').click()); await finTele(); await page.waitForTimeout(400);
+  r.b_plein = { boutons: await boutons(), bilan: await bilan('105-A') };
+  r.b_fichePlein = await page.evaluate(() => LOUE.stockage.tout('file').then(avant => LOUE.mettreEnFile('note-chantier', { chantier: 'CHANTIER TEST 1', texte: 'Fiche gardée pendant un téléchargement arrêté par manque de place' }, [], 'Note')
+    .then(() => LOUE.stockage.tout('file')).then(apres => apres.length - avant.length)).catch(e => String(e && e.message)));
+  await page.evaluate(async () => { LOUE.carnet.PLAFOND = 400 * 1024 * 1024; for (const e of await LOUE.stockage.tout('file')) await LOUE.abandonner(e.id); });
+  // f) Wi-Fi (Android) : case décochée → rien ne part ; case cochée → le document incomplet se télécharge tout seul
+  await page.evaluate(() => { Object.defineProperty(navigator, 'connection', { value: { type: 'wifi', saveData: false }, configurable: true }); LOUE.carnet.reglerAuto(false); });
+  await page.evaluate(() => charger()); await page.waitForTimeout(2500);
+  r.b_wifiNon = await boutons();
+  await page.evaluate(() => { LOUE.carnet.reglerAuto(true); charger(); }); await page.waitForTimeout(1200);
+  await finTele(); await page.waitForTimeout(400);
+  r.b_wifiOui = { boutons: await boutons(), bilan: await bilan('105-A'), liste: await liste() };
+  // g) en données mobiles : rien ne part tout seul
+  await page.evaluate(() => { Object.defineProperty(navigator, 'connection', { value: { type: 'cellular', saveData: false }, configurable: true }); });
+  r.b_mobile = await page.evaluate(() => ({ wifi: LOUE.carnet.wifi(), sait: LOUE.carnet.saitWifi() }));
+  await page.evaluate(() => { delete navigator.connection; });
+
   // 12. Liste absente du Drive (en cours d'arrivée), redépôt sous le même identifiant, nouvel indice, compte désactivé
   r.connexion3 = await connecter('poseur1');
   await page.goto(CARNET); await attendre(() => document.querySelectorAll('#docs .doc').length > 0);
@@ -293,6 +354,30 @@ setTimeout(() => {
       && r.expiree.liste.docs.length === 2 && r.expireeOuvert.fondCharge === true && r.reconnexion === 'CONNECTE' && r.apresExpiration.avant > 0 && r.apresExpiration.apres === r.apresExpiration.avant, j([r.expiree, r.reconnexion, r.apresExpiration]));
     verifier('un AUTRE compte sur le même téléphone : rien de ce que le premier avait gardé', r.connexion2 === 'CONNECTE' && r.autreCompte.images === 0 && /demande du réseau/.test(r.autreCompte.liste.docs[0].texte), j(r.autreCompte));
     verifier('accès au chantier retiré : refus affiché, plans de ce chantier effacés du téléphone', r.refus.avant > 0 && r.refus.apres === 0 && r.refus.liste.visible === false && /ne fait pas partie de vos chantiers/.test(r.refus.liste.info), j(r.refus));
+    console.log('  — lot 4b : hors réseau complet —');
+    const masse = d => /^carnetTuiles:(leger|net|tuiles):\d+$/.test(d);
+    verifier('un bouton « Tout télécharger » par document (poids annoncé, au moins 48 px) et un pour le chantier ; pas de case Wi-Fi quand le téléphone ne sait pas dire s’il est en Wi-Fi',
+      r.b_avant.dl.length === 2 && r.b_avant.dl.every(t => /^⬇ Tout télécharger \([\d,]+ (Ko|Mo)\)$/.test(t.texte) && t.h >= 48) && r.b_avant.tout.visible
+      && /Tout télécharger pour ce chantier \([\d,]+ (Ko|Mo)\)/.test(r.b_avant.tout.texte) && r.b_avant.auto === false && r.b_avant.enCours === false, j(r.b_avant));
+    verifier('un document téléchargé en entier : « disponible sans réseau, en entier », son bouton disparaît, message de fin', r.b_un.bilan.complet === true && r.b_un.bilan.gardees === r.b_un.bilan.total
+      && r.b_un.boutons.dl.length === 1 && /disponible sans réseau, en entier/.test(r.b_un.liste.docs.filter(d => d.id === '001-A')[0].texte) && /Téléchargement terminé/.test(r.b_un.boutons.info)
+      && r.b_un.demandes.length >= 2 && r.b_un.demandes.every(masse), j(r.b_un));
+    verifier('téléchargement du chantier en cours : bouton « Arrêter », les autres boutons attendent, « Actualiser » ne casse rien', r.b_enCours.enCours === true && /Arrêter le téléchargement du chantier/.test(r.b_enCours.tout.texte)
+      && r.b_enCours.dl.some(t => /^⏸ Arrêter — \d+ % téléchargé$/.test(t.texte)) && /arrêtez-le pour actualiser/.test(r.b_actualiser), j([r.b_enCours, r.b_actualiser]));
+    verifier('arrêt en route : message clair, ce qui est déjà là est gardé, le bouton redevient « Tout télécharger » avec un poids plus petit', /Téléchargement arrêté/.test(r.b_arrete.boutons.info) && r.b_arrete.boutons.enCours === false
+      && r.b_arrete.bilan.complet === false && r.b_arrete.bilan.gardees > 0 && r.b_arrete.boutons.dl.length === 1, j(r.b_arrete));
+    verifier('reprise : ce qui était déjà gardé n’est pas redemandé, le document finit complet', r.b_repris.bilan.complet === true && r.b_repris.boutons.dl.length === 0 && r.b_repris.boutons.tout.visible === false
+      && r.b_repris.demandes.length >= 1 && r.b_repris.demandes.every(masse) && r.b_repris.demandes.filter(d => /:leger:/.test(d)).length === 1, j(r.b_repris.demandes));   // l'aperçu léger de la page 1, déjà gardé, n'est pas redemandé (celui de la page 2, si)
+    verifier('HORS RÉSEAU après téléchargement complet : des zones jamais regardées s’affichent nettes, sans message d’absence', r.b_horsReseau.loin.tuiles > 0 && r.b_horsReseau.loin.tuilesChargees === r.b_horsReseau.loin.tuiles
+      && r.b_horsReseau.loin.info === '' && r.b_horsReseau.ailleurs.tuiles > 0 && r.b_horsReseau.ailleurs.info === '' && r.b_horsReseau.liste.docs.every(d => /disponible sans réseau, en entier/.test(d.texte)), j(r.b_horsReseau));
+    verifier('le téléphone a fait du ménage dans un document complet : « ⚠ plus disponible en entier sans réseau », et le bouton revient', /plus disponible en entier sans réseau/.test(r.b_perdu.liste.docs.filter(d => d.id === '105-A')[0].texte)
+      && r.b_perdu.boutons.dl.length === 1 && r.b_perdu.boutons.dl[0].id === '105-A', j(r.b_perdu));
+    verifier('carnet plein pendant un téléchargement : il s’arrête et le dit ; une fiche est quand même gardée par le téléphone', /Plus de place pour les plans/.test(r.b_plein.boutons.info) && r.b_plein.bilan.complet === false
+      && r.b_plein.boutons.enCours === false && r.b_fichePlein === 1, j([r.b_plein, r.b_fichePlein]));
+    verifier('Wi-Fi, case décochée : la case est proposée, rien ne part tout seul', r.b_wifiNon.auto === true && r.b_wifiNon.enCours === false && r.b_wifiNon.dl.length === 1 && !/Wi-Fi/.test(r.b_wifiNon.info), j(r.b_wifiNon));
+    verifier('Wi-Fi, case cochée : le document incomplet se télécharge tout seul jusqu’au bout', r.b_wifiOui.bilan.complet === true && r.b_wifiOui.boutons.dl.length === 0 && /Téléchargement terminé/.test(r.b_wifiOui.boutons.info), j(r.b_wifiOui));
+    verifier('en données mobiles, le téléphone n’est pas « en Wi-Fi »', r.b_mobile.wifi === false && r.b_mobile.sait === true, j(r.b_mobile));
+    console.log('  — suite du lot 4a —');
     verifier('liste absente du Drive (en cours d’arrivée) : le serveur le dit, la liste gardée reste affichée, aucun plan gardé n’est effacé', r.connexion3 === 'CONNECTE' && r.sansListe.avant > 0
       && r.sansListe.a105 === r.sansListe.avant && r.sansListe.liste.docs.length === 2 && /en cours d’arrivée/.test(r.sansListe.liste.info) && !/Pas de réseau/.test(r.sansListe.liste.info), j(r.sansListe));
     verifier('carnet introuvable côté serveur (liste vide), deux fois de suite : la liste gardée reste affichée avec un message, aucun plan n’est effacé', r.introuvable.a105 === r.introuvable.avant

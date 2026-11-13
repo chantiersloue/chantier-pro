@@ -365,4 +365,151 @@
       return Promise.all(lots.map(function (l) { return demander(l, 0); })).then(function () { return bilan; });
     });
   };
+
+  // ═══════════════ Lot 4b : hors réseau complet ═══════════════
+  // « Tout télécharger » va chercher TOUTES les images d'un document (aperçus et tuiles de chaque niveau), une seule
+  // demande à la fois (le serveur est partagé par toute l'entreprise), par lots d'environ 1,2 Mo. Il s'arrête sur
+  // demande, reprend où il en était (ce qui est gardé n'est jamais redemandé), et s'arrête de lui-même si le carnet
+  // n'a plus de place — les fiches passent toujours avant.
+  C.LOT_MASSE = 1200 * 1024;   // octets d'images par demande (le serveur en accepte 1 500 Ko)
+  C.TUILES_MASSE = 60;         // tuiles par demande (le serveur en accepte 64)
+  // Toutes les images d'un document : [{ page, quoi, o, niveau, c, l }]
+  function imagesDe(d) {
+    var t = [];
+    (d.pages || []).forEach(function (p, i) {
+      ['leger', 'net'].forEach(function (q) { if (p[q] && p[q].f) t.push({ page: i + 1, quoi: q, o: Number(p[q].o) || 0 }); });
+      (p.niveaux || []).forEach(function (nv) {
+        (nv.paquets || []).forEach(function (pq) {
+          (pq.tuiles || []).forEach(function (tu) { t.push({ page: i + 1, quoi: 'z' + nv.z + ':' + tu[0] + ',' + tu[1], o: Number(tu[3]) || 0, niveau: nv.z, c: tu[0], l: tu[1] }); });
+        });
+      });
+    });
+    return t;
+  }
+  function cleComplet(chantier, id) { return 'complet|' + cleChantier(chantier) + '|' + id; }
+  // Où en est un document : { total, gardees, octets, octetsGardes, complet, etaitComplet }
+  //  - complet : toutes ses images sont dans le téléphone ;
+  //  - etaitComplet : il a été téléchargé en entier (ce dépôt-là) ; s'il ne l'est plus, le téléphone a fait du ménage.
+  C.bilan = function (chantier, d) {
+    return index().then(function (ix) {
+      return transaction(['meta'], 'readonly', function (m) { return m('meta').get(cleComplet(chantier, d.id)); }).catch(function () { return null; }).then(function (marque) {
+        var b = { total: 0, gardees: 0, octets: 0, octetsGardes: 0 };
+        imagesDe(d).forEach(function (im) {
+          b.total++; b.octets += im.o;
+          if (ix.lignes[cleImage(chantier, d.id, im.page, im.quoi)]) { b.gardees++; b.octetsGardes += im.o; }
+        });
+        b.complet = b.total > 0 && b.gardees === b.total;
+        b.etaitComplet = !!marque && String(marque.empreinte || '') === String(d.empreinte || '');
+        return b;
+      });
+    }).catch(function () { return { total: 0, gardees: 0, octets: 0, octetsGardes: 0, complet: false, etaitComplet: false }; });
+  };
+  var enCoursMasse = null;   // { arret } : un seul téléchargement complet à la fois
+  C.telechargementEnCours = function () { return !!enCoursMasse; };
+  C.arreterTelechargement = function () { if (enCoursMasse) enCoursMasse.arret = true; };
+  function attendreMs(ms) { return new Promise(function (ok) { setTimeout(ok, ms); }); }
+  // Une demande « de masse », reprise deux fois si le serveur est occupé (attente au hasard : tous les téléphones ne
+  // reviennent pas à la même seconde)
+  function demanderMasse(corps, essai) {
+    return LOUE.appeler(corps, 120000).then(function (rep) {
+      if (rep && rep.code === 'SERVEUR_OCCUPE' && (essai || 0) < 2) return attendreMs(5000 + Math.random() * 10000).then(function () { return demanderMasse(corps, (essai || 0) + 1); });
+      return rep;
+    });
+  }
+  // Télécharge tout ce qui manque d'un document. « progres(octetsGardes, octets) » est appelé au fil de l'eau.
+  // Rend { fini, arrete, plein, erreur } (jamais de rejet) ; « erreur » porte le message à montrer.
+  C.telecharger = function (chantier, d, progres) {
+    if (enCoursMasse) return Promise.resolve({ fini: false, erreur: 'Un téléchargement est déjà en cours.' });
+    var moiMeme = enCoursMasse = { arret: false };
+    var finir = function (r) { if (enCoursMasse === moiMeme) enCoursMasse = null; return r; };
+    return index().then(function (ix) {
+      var toutes = imagesDe(d), fait = 0, total = 0;
+      var manque = toutes.filter(function (im) {
+        total += im.o;
+        if (ix.lignes[cleImage(chantier, d.id, im.page, im.quoi)]) { fait += im.o; return false; }
+        return true;
+      });
+      var dire = function () { try { if (progres) progres(fait, total); } catch (e) {} };
+      dire();
+      // les lots : chaque aperçu seul ; les tuiles d'une même page et d'un même niveau ensemble, jusqu'à la taille d'un lot
+      var lots = [];
+      manque.filter(function (im) { return im.niveau === undefined; }).forEach(function (im) { lots.push({ page: im.page, quoi: im.quoi, images: [im] }); });
+      var courant = null;
+      manque.filter(function (im) { return im.niveau !== undefined; }).forEach(function (im) {
+        if (!courant || courant.page !== im.page || courant.niveau !== im.niveau || courant.o + im.o > C.LOT_MASSE || courant.images.length >= C.TUILES_MASSE) {
+          courant = { page: im.page, quoi: 'tuiles', niveau: im.niveau, images: [], o: 0 }; lots.push(courant);
+        }
+        courant.images.push(im); courant.o += im.o;
+      });
+      var suivant = function () {
+        if (moiMeme.arret) return { fini: false, arrete: true };
+        var lot = lots.shift();
+        if (!lot) return null;
+        var corps = { action: 'carnetTuiles', chantier: chantier, doc: d.id, page: lot.page, quoi: lot.quoi, masse: true };
+        if (lot.quoi === 'tuiles') { corps.niveau = lot.niveau; corps.tuiles = lot.images.map(function (im) { return [im.c, im.l]; }); }
+        return demanderMasse(corps).then(function (rep) {
+          if (!rep || !rep.ok) return { fini: false, erreur: (rep && rep.message) || 'Le serveur ne répond pas.', reponse: rep };
+          if (listeChangee(chantier, rep)) return { fini: false, erreur: CHANGE.message, reponse: CHANGE };
+          var recues = rep.data.images || [];
+          if (!recues.length) return { fini: false, erreur: 'Le serveur n’a rien rendu pour une partie du document : réessayez plus tard.' };
+          // rangées l'une après l'autre : si le carnet n'a plus de place, on s'arrête là
+          var ranger = function (i) {
+            if (i >= recues.length) return Promise.resolve(true);
+            var im = recues[i], quoi = lot.quoi === 'tuiles' ? 'z' + lot.niveau + ':' + im.c + ',' + im.l : lot.quoi, octets = octetsDe(im.b64);
+            return garder(chantier, d.id, lot.page, quoi, octets).then(function (gardee) {
+              if (!gardee) return false;
+              fait += octets.byteLength; dire();
+              return ranger(i + 1);
+            });
+          };
+          return ranger(0).then(function (place) {
+            if (!place) return { fini: false, plein: true };
+            // ce que le serveur n'a pas rendu cette fois (plafond par réponse) repart en tête
+            var reste = rep.data.reste || [];
+            if (lot.quoi === 'tuiles' && reste.length) {
+              var cles = {}; reste.forEach(function (t) { cles[t[0] + ',' + t[1]] = true; });
+              lots.unshift({ page: lot.page, quoi: 'tuiles', niveau: lot.niveau, o: 0, images: lot.images.filter(function (im) { return cles[im.c + ',' + im.l]; }) });
+            }
+            return suivant();
+          });
+        });
+      };
+      return Promise.resolve(suivant()).then(function (r) {
+        if (r) return r;
+        // tout y est : on le note, pour pouvoir dire plus tard « plus disponible » si le téléphone fait du ménage
+        return transaction(['meta'], 'readwrite', function (m) { m('meta').put({ cle: cleComplet(chantier, d.id), empreinte: String(d.empreinte || ''), date: Date.now() }); })
+          .catch(function () {}).then(function () { return { fini: true }; });
+      });
+    }).then(finir, function (err) { return finir({ fini: false, erreur: LOUE.messageClair ? LOUE.messageClair(err) : 'Pas de réseau.' }); });
+  };
+
+  // ── Wi-Fi : seul Chrome sur Android sait dire si le téléphone est en Wi-Fi ──
+  C.saitWifi = function () { var c = navigator.connection; return !!c && typeof c.type === 'string' && c.type !== ''; };
+  C.wifi = function () { var c = navigator.connection; return !!c && c.type === 'wifi' && !c.saveData; };
+  var CLE_AUTO = 'loue_carnet_auto_' + (CONFIG.env || 'prod');
+  C.autoActif = function () { try { return localStorage.getItem(CLE_AUTO) !== 'non'; } catch (e) { return true; } };
+  C.reglerAuto = function (oui) { try { localStorage.setItem(CLE_AUTO, oui ? 'oui' : 'non'); } catch (e) {} };
+  // Télécharge tout seul, EN WI-FI SEULEMENT, les documents incomplets des chantiers donnés (5 au plus), l'un après l'autre.
+  // « suivi({ chantier, doc, fait, total }) » est appelé au fil de l'eau ; rend le nombre de documents complétés.
+  // Départ retardé au hasard : le lundi matin, tous les téléphones du dépôt ne partent pas à la même seconde.
+  C.autoWifi = function (chantiers, suivi, delaiMax) {
+    if (!C.wifi() || !C.autoActif() || enCoursMasse || !LOUE.compte || !LOUE.compte()) return Promise.resolve(0);
+    var noms = (chantiers || []).slice(0, 5), faits = 0;
+    var doc = function (chantier, docs) {
+      var d = docs.shift();
+      if (!d || !C.wifi() || document.visibilityState === 'hidden') return Promise.resolve();
+      return C.bilan(chantier, d).then(function (b) {
+        if (b.complet || d.ancien) return doc(chantier, docs);
+        return C.telecharger(chantier, d, function (fait, total) { try { if (suivi) suivi({ chantier: chantier, doc: d, fait: fait, total: total }); } catch (e) {} }).then(function (r) {
+          if (r.fini) { faits++; return doc(chantier, docs); }   // arrêt, plein, erreur : on n'insiste pas
+        });
+      });
+    };
+    var chantier = function () {
+      var nom = noms.shift();
+      if (!nom || !C.wifi()) return Promise.resolve();
+      return C.liste(nom).then(function (r) { return r && r.documents && !r.horsReseau && !r.message ? doc(nom, r.documents.slice()) : null; }, function () {}).then(chantier);
+    };
+    return attendreMs(Math.random() * (delaiMax === undefined ? 30000 : delaiMax)).then(chantier).then(function () { return faits; });
+  };
 })();
