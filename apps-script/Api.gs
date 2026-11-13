@@ -259,7 +259,7 @@ function routerV5_(corps) {
     if (corps.action === 'connexion')  return connexion_(corps);
     if (corps.action === 'motDePasse') return motDePasse_(corps);
     if (['photo', 'fiche', 'moi', 'listes', 'dossiers', 'signalements', 'signalementStatut',
-      'notes', 'notesNouvelles', 'notesVues'].indexOf(corps.action) < 0) return { ok: false, code: 'ACTION_INCONNUE', message: 'Action inconnue' };
+      'notes', 'notesNouvelles', 'notesVues', 'carnet', 'carnetTuiles'].indexOf(corps.action) < 0) return { ok: false, code: 'ACTION_INCONNUE', message: 'Action inconnue' };
     let qui = identifier_(corps);
     const envoi = corps.action === 'photo' || corps.action === 'fiche';
     // Lot 3 : une note de chantier (ou un geste sur une note) demande TOUJOURS un compte en règle : ni « compte désactivé »,
@@ -293,6 +293,9 @@ function routerV5_(corps) {
     if (corps.action === 'notes')          return listerNotes_(qui.compte, corps);
     if (corps.action === 'notesNouvelles') return notesNouvelles_(qui.compte);
     if (corps.action === 'notesVues')      return marquerNotesVues_(qui.compte, corps);
+    // Lot 4 : carnet de chantier (droits vérifiés dans Carnet.gs)
+    if (corps.action === 'carnet')       return carnetLister_(qui.compte, corps);
+    if (corps.action === 'carnetTuiles') return carnetTuiles_(qui.compte, corps);
   } catch (err) {
     console.error('routerV5_:', err.message);
     return { ok: false, code: 'ERREUR', message: 'Erreur du serveur : ' + err.message };

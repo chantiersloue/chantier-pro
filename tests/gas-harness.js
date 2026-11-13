@@ -83,7 +83,8 @@ function creerGoogle(options = {}) {
     el.api = {
       getId: () => id, getName: () => el.nom, getUrl: () => 'https://drive.google.com/' + id,
       getMimeType: () => (extra && extra.mime) || 'application/pdf',
-      getLastUpdated: () => new Date(2026, 9, 29),
+      getLastUpdated: () => new Date(el.maj || new Date(2026, 9, 29).getTime()),
+      getSize: () => (Buffer.isBuffer(el.contenu) ? el.contenu.length : Buffer.byteLength(String(el.contenu || ''), 'utf8')),
       getDateCreated: () => new Date(el.cree || Date.now()),
       getParents: () => it(el.parents),
       setSharing: (a, p) => {
@@ -142,7 +143,8 @@ function creerGoogle(options = {}) {
     const b = { contenu, nom, mime,
       setName: n => { b.nom = n; return b; }, getName: () => b.nom,
       getDataAsString: () => Buffer.isBuffer(contenu) ? contenu.toString('utf8') : String(contenu),
-      getBytes: () => Array.from(Buffer.from(typeof contenu === 'string' ? contenu : contenu, typeof contenu === 'string' ? 'utf8' : undefined)),
+      // comme le vrai Apps Script : des octets SIGNÉS, de −128 à 127
+      getBytes: () => Array.from(Buffer.from(typeof contenu === 'string' ? contenu : contenu, typeof contenu === 'string' ? 'utf8' : undefined)).map(o => o > 127 ? o - 256 : o),
       copyBlob: () => blob(contenu, b.nom, mime) };
     return b;
   }
@@ -173,8 +175,8 @@ function creerGoogle(options = {}) {
   const deux = n => String(n).padStart(2, '0');
   const Utilities = {
     base64Decode: s => Array.from(Buffer.from(s, 'base64')),
-    base64Encode: octets => Buffer.from(octets).toString('base64'),
-    newBlob: (octets, mime, nom) => blob(Buffer.from(octets), nom, mime),
+    base64Encode: octets => (typeof octets === 'string' ? Buffer.from(octets, 'utf8') : Buffer.from(octets.map(x => x & 0xFF))).toString('base64'),
+    newBlob: (octets, mime, nom) => blob(typeof octets === 'string' ? Buffer.from(octets, 'utf8') : Buffer.from(octets.map(x => x & 0xFF)), nom, mime),
     // Lot 2 : signature HMAC, identifiants aléatoires, base64 « sûr pour les adresses », pause
     computeHmacSha256Signature: (valeur, cle) => {
       const enOctets = x => Array.isArray(x) ? Buffer.from(x.map(o => o & 0xFF)) : Buffer.from(String(x), 'utf8');

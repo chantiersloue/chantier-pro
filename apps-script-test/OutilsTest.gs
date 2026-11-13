@@ -77,6 +77,8 @@ function outilTest_(corps) {
       case 'purgerNotesEssai':     return ok('Éléments des essais automatiques retirés', outilTestSousVerrou_(outilTestPurgerNotes_));
       case 'dossierChantierEssai': return ok('Dossier Drive du chantier d’essai (lecture seule)', outilTestDossierEssai_());
       case 'titresNotes':          return ok('Ligne de titres des onglets des notes (lecture seule)', outilTestTitresNotes_());
+      case 'carnetFauxDepot':      return ok('Faux document de mesure déposé dans le carnet du chantier d’essai', outilTestSousVerrou_(() => outilTestCarnetFauxDepot_(corps)));
+      case 'carnetRetirerFauxDepot': return ok('Faux document de mesure retiré', outilTestSousVerrou_(outilTestCarnetRetirer_));
       case 'installerLot3': { const r = installer_('Lot 3', 'TEST', etapesLot3_()); if (!r.ok) throw new Error('installation du lot 3 non terminée : ' + r.texte); return ok(r.texte); }
       case 'installerLot7': { const r = installer_('Lot 7', 'TEST', etapesLot7_()); if (!r.ok) throw new Error('installation du lot 7 non terminée : ' + r.texte); return ok(r.texte); }
       case 'poserDeclencheurs':    return ok(outilTestPoserDeclencheurs_());
@@ -227,6 +229,67 @@ function outilTestPurgerNotes_() {
     for (let i = numeros.length - 1; i >= 0; i--) if (/^fiche-auto-/.test(String(numeros[i][0]))) { sh.deleteRow(i + 2); retirees++; }
   });
   return { lignesRetirees: retirees };
+}
+// ── Lot 4, étape 4.0 : un faux document dans le carnet du chantier d'essai, pour mesurer la rapidité du serveur ──
+// Octets tirés au hasard (aussi peu compressibles qu'une image WebP). Rien d'autre n'est touché dans le Drive de TEST.
+const OUTIL_TEST_CARNET_DOC = { id: '999-Z', dossier: '999 Z ESSAI DE MESURE' };
+function outilTestCarnetDossier_(creer) {
+  const racine = DriveApp.getFolderById(driveRootId_());
+  if (!/TEST/i.test(racine.getName())) throw new Error('le dossier racine de ce serveur ne s’appelle pas « … TEST … »');
+  const chantier = dossierChantier_(OUTIL_TEST_CHANTIER, creer);
+  return chantier ? dossierParChemin_(chantier, dossiers_().documents.carnet, creer) : null;
+}
+function outilTestOctets_(n) { const t = new Array(n); for (let i = 0; i < n; i++) t[i] = Math.floor(Math.random() * 256) - 128; return t; }
+function outilTestSomme_(octets, debut, longueur) { let s = 0; for (let i = debut; i < debut + longueur; i++) s = (s * 31 + (octets[i] & 255)) % 1000000007; return s; }
+function outilTestCarnetRetirer_() {
+  const carnet = outilTestCarnetDossier_(false);
+  let retires = 0;
+  if (carnet) {
+    const it = carnet.getFoldersByName(OUTIL_TEST_CARNET_DOC.dossier);
+    while (it.hasNext()) { const d = it.next(); if (!d.isTrashed()) { d.setTrashed(true); retires++; } }
+    const fichiers = carnet.getFilesByName(CARNET_FICHIER);
+    while (fichiers.hasNext()) {
+      const f = fichiers.next();
+      let liste = null;
+      try { liste = JSON.parse(f.getBlob().getDataAsString('UTF-8')); } catch (e) {}
+      // la liste n'est mise à la corbeille que si elle ne contient QUE le faux document
+      if (liste && Array.isArray(liste.documents) && liste.documents.every(d => d && d.id === OUTIL_TEST_CARNET_DOC.id)) { f.setTrashed(true); retires++; }
+    }
+    cacheScript_().remove('carnet:liste:1:' + carnet.getId());
+  }
+  return { retires: retires };
+}
+// corps : colonnes, lignes (tuiles du niveau 0), koTuile, bloc (côté d'un paquet, en tuiles), koLeger, koNet
+function outilTestCarnetFauxDepot_(corps) {
+  outilTestCarnetRetirer_();
+  const entier = (v, defaut, max) => Math.max(1, Math.min(max, Math.floor(Number(v)) || defaut));
+  const cols = entier(corps.colonnes, 8, 12), ligs = entier(corps.lignes, 6, 12), ko = entier(corps.koTuile, 25, 60), bloc = entier(corps.bloc, 4, 12);
+  const carnet = outilTestCarnetDossier_(true), dossier = carnet.createFolder(OUTIL_TEST_CARNET_DOC.dossier);
+  const deposer = (nom, octets) => { dossier.createFile(Utilities.newBlob(octets, 'application/octet-stream', nom)); return octets.length; };
+  const sommes = {}, page = { l: cols * 512, h: ligs * 512, niveaux: [{ z: 0, cols: cols, ligs: ligs, paquets: [] }] };
+  const leger = outilTestOctets_(entier(corps.koLeger, 70, 200) * 1024), net = outilTestOctets_(entier(corps.koNet, 250, 600) * 1024);
+  page.leger = { f: 'p1-leger.webp', o: deposer('p1-leger.webp', leger) }; sommes.leger = outilTestSomme_(leger, 0, leger.length);
+  page.net = { f: 'p1-net.webp', o: deposer('p1-net.webp', net) }; sommes.net = outilTestSomme_(net, 0, net.length);
+  let poids = leger.length + net.length, numero = 0;
+  for (let bl = 0; bl < ligs; bl += bloc) for (let bc = 0; bc < cols; bc += bloc) {
+    const tuiles = [];
+    let octets = [];
+    for (let l = bl; l < Math.min(ligs, bl + bloc); l++) for (let c = bc; c < Math.min(cols, bc + bloc); c++) {
+      const t = outilTestOctets_((ko - 5 + Math.floor(Math.random() * 11)) * 1024);
+      tuiles.push([c, l, octets.length, t.length]);
+      sommes[c + ',' + l] = outilTestSomme_(t, 0, t.length);
+      octets = octets.concat(t);
+    }
+    const nom = 'p1-z0-' + (numero++) + '.pak';
+    page.niveaux[0].paquets.push({ f: nom, o: deposer(nom, octets), tuiles: tuiles });
+    poids += octets.length;
+  }
+  const liste = { version: 1, chantier: OUTIL_TEST_CHANTIER, documents: [{ id: OUTIL_TEST_CARNET_DOC.id, code: '999', indice: 'Z',
+    intitule: 'ESSAI DE MESURE', dossier: OUTIL_TEST_CARNET_DOC.dossier, date: new Date().toISOString().slice(0, 10), poids: poids, pages: [page] }] };
+  if (carnet.getFilesByName(CARNET_FICHIER).hasNext()) throw new Error('un carnet.json existe déjà dans le chantier d’essai : rien n’est écrasé');
+  carnet.createFile(CARNET_FICHIER, JSON.stringify(liste), 'application/json');
+  cacheScript_().remove('carnet:liste:1:' + carnet.getId());
+  return { doc: OUTIL_TEST_CARNET_DOC.id, paquets: numero, poids: poids, colonnes: cols, lignes: ligs, sommes: sommes };
 }
 // Ce que le vrai Sheets renvoie pour la ligne de titres des onglets des notes (et de leurs anciennes versions) : sert à
 // comprendre un « titres changés ». Lecture seule ; les titres ne sont pas des données de chantier.

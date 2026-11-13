@@ -3,7 +3,7 @@
 > Commande : `PLAN.md`, exigence 9 et « Lot 4 — Carnet de chantier » ; résultats de l'essai S1 (`docs/essai-s1.md`) ; contrat avec les skills (`docs/contrat-skills.md`).
 > Réponses de Franck à l'interview du 13/11/2026 : D4-1 et D9b-5 (`DECISIONS.md`).
 > **Version 2**, après critique par un agent indépendant (ce qu'elle a fait changer : chapitre 13).
-> **Rien n'est construit tant que ce plan n'est pas validé par Franck. Aucun envoi ne lui est demandé avant.**
+> **Plan validé par Franck le 13/11/2026**, avec ses réponses au chapitre 12 (décision D4-2). Suivi de l'étape 4.0 : `docs/lot4-etape0.md`.
 
 ## 1. La commande, en clair
 
@@ -107,6 +107,7 @@ Actions réservées à un compte qui a accès au chantier (même contrôle que l
 **La visionneuse** :
 - l'aperçu léger s'affiche d'abord, puis l'aperçu net ; au zoom, seules les tuiles de la zone regardée sont demandées ;
 - gros boutons « page précédente / suivante », numéro de page ; utilisable aussi sur PC (molette) ;
+- un **bouton de rotation** (quart de tour) : les gars peuvent avoir verrouillé la rotation de leur téléphone (demande de Franck) ;
 - bouton **« Signaler ici »** : ouvre le signalement (lot 7) avec le chantier et le repère « <document>, page n » déjà remplis. Cela touche `signaler.html` : test que le brouillon d'un signalement en cours **n'est pas écrasé** ;
 - tout ce qui a été affiché est gardé dans le téléphone, dans la limite de place du §3-C.
 
@@ -184,7 +185,7 @@ Retour arrière à chaque étape : revenir aux pages précédentes par une fusio
 ## 12. Ce que je te demande de trancher en validant ce plan
 
 1. **Une étape de vérification (4.0) puis trois livraisons** (4a, 4b, 4c), plutôt qu'une seule.
-2. **Pas de bouton de rotation** : tourner le téléphone suffit. À savoir : si tes poseurs verrouillent la rotation de leur téléphone, il faudra le bouton — dis-le-moi.
+2. ~~Pas de bouton de rotation~~ → **Franck : il faut un bouton de rotation** (rotation du téléphone parfois verrouillée). Ajouté au §6.
 3. **Pas de « garder le PDF »** : les images à 200 dpi se lisent (essai S1) ; servir un PDF de 17 Mo par le serveur, sans lien public, n'est pas raisonnable sur un compte gratuit. Le PDF reste dans MEGA.
 4. **Les anciens indices restent dans Drive jusqu'au lot 5** (invisibles dans l'appli) : pas de suppression automatique dans ce lot.
 5. **Simplifications par rapport au plan d'origine** (dis-moi si l'une te manque) :
@@ -192,7 +193,9 @@ Retour arrière à chaque étape : revenir aux pages précédentes par une fusio
    - `--verifier` compare le carnet à sa liste, **pas MEGA au Drive** (le rapprochement MEGA ↔ Drive relève du rapatriement, en 4c) ;
    - **pas d'onglet « Carnet index » dans le Sheet** : la liste est le fichier `carnet.json` (qui note aussi le nom et le poids du PDF d'origine) ;
    - la **date du dernier dépôt par chantier** dans le Sheet et le suivi du stockage attendent le **lot 5** ;
-   - la tuile « Plans » actuelle (liens Drive) **reste** pour l'instant.
+   - la tuile « Plans » actuelle (liens Drive) **reste** pour l'instant ; **son retrait sera proposé à Franck à la fin de 4b**, une fois le carnet en production (sa demande).
+
+**Réponses de Franck (13/11/2026)** : 1 oui ; 2 bouton de rotation à ajouter ; 3 oui ; 4 oui ; 5 oui, avec le retrait de la tuile « Plans » à lui proposer à la fin de 4b.
 
 ## 13. Ce que la critique indépendante a fait changer (13/11/2026)
 
