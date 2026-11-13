@@ -318,7 +318,7 @@ test('commentaire tapé sur téléphone (« Ligne 1<div>Ligne 2</div><div><br></
 test('estimations : chantier long, zone, précision, commentaire agrandi comptés (fabrication) ; chantier long (note)', () => {
   const base = { chantier: 'C', blocs: [], photosBase64: [photo(1600, 1200)] };
   const est = (m, d) => Number(M[m](d, esc).match(/data-estime="(\d+)"/)[1]);
-  const long = '403-OPALE / STEEN RAIMONDEAU — ST GILLES X DE VIE ET ENCORE DU TEXTE';
+  const long = '999-EXEMPLE / RESIDENCE ESSAI — VILLE EXEMPLE DE VIE ET ENCORE DU TEXTE';
   assert.ok(est('modele_fabrication', Object.assign({}, base, { chantier: long, zone: 'R+1 bâtiment A logements 101 à 115 et circulations', delaiPrecision: 'a\nb\nc' })) >= 55, 'mesuré dans Chrome : 57,7 mm (44 sans ces lignes)');
   assert.ok(est('modele_fabrication', Object.assign({}, base, { commentaires: '<span style="font-size:1.4em">A</span>' })) > est('modele_fabrication', Object.assign({}, base, { commentaires: 'A' })));
   assert.ok(est('modele_note', { chantier: long, photosBase64: [photo(1600, 1200)] }) >= 45);
