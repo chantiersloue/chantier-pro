@@ -455,6 +455,38 @@ class Verification(Base):
         self.assertIn("« 105 Z INCONNU » n'est dans aucun document", texte)
         self.assertEqual(contenu(racine), avant)
 
+    def test_ancien_indice_purge_par_l_appli(self):
+        """Lot 5 : le dossier d'un ancien indice mis à la corbeille par l'appli n'est pas une anomalie."""
+        racine = nouvelle_racine(self.temp)
+        self.deposer_petit(racine, indice="A")
+        self.deposer_petit(racine, indice="B", intitule="PETIT PLAN MODIFIE")
+        carnet = self.carnet(racine)
+        self.assertEqual(dc.verifier(racine, CHANTIER)["purges"], 0)
+        shutil.rmtree(os.path.join(carnet, "105 A PETIT PLAN"))
+        avant = contenu(racine)
+        v = dc.verifier(racine, CHANTIER)
+        self.assertTrue(v["bon"], v["problemes"])
+        self.assertEqual((v["documents"], v["purges"], v["retires"]), (1, 1, 0))
+        self.assertEqual(contenu(racine), avant, "--verifier n'écrit rien")
+        # Le dossier du DERNIER indice (celui que l'appli montre) absent : toujours un défaut
+        shutil.rmtree(os.path.join(carnet, "105 B PETIT PLAN MODIFIE"))
+        v = dc.verifier(racine, CHANTIER)
+        self.assertFalse(v["bon"])
+        self.assertTrue(any("105-B" in p and "absent" in p for p in v["problemes"]), v["problemes"])
+        self.assertEqual(v["purges"], 1)
+
+    def test_ancien_indice_present_et_abime_reste_signale(self):
+        """Un ancien indice dont le dossier est encore là est contrôlé comme avant."""
+        racine = nouvelle_racine(self.temp)
+        self.deposer_petit(racine, indice="A")
+        self.deposer_petit(racine, indice="B", intitule="PETIT PLAN MODIFIE")
+        dossier = os.path.join(self.carnet(racine), "105 A PETIT PLAN")
+        os.remove(os.path.join(dossier, "p1-net.webp"))
+        v = dc.verifier(racine, CHANTIER)
+        self.assertFalse(v["bon"])
+        self.assertEqual(v["purges"], 0)
+        self.assertTrue(any("p1-net.webp" in p for p in v["problemes"]), v["problemes"])
+
     def test_chantier_sans_carnet(self):
         racine = nouvelle_racine(self.temp)
         v = dc.verifier(racine, CHANTIER)

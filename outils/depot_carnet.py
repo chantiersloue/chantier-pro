@@ -394,10 +394,14 @@ def retirer(racine, dossier, ident):
 
 
 def verifier(racine, dossier):
-    """Compare carnet.json et les fichiers présents. N'écrit rien. Rend {"bon", "problemes", "documents", "retires", "poids"}."""
+    """Compare carnet.json et les fichiers présents. N'écrit rien.
+
+    Rend {"bon", "problemes", "documents", "retires", "purges", "poids"}. « purges » : les anciens indices (documents
+    qui ne sont plus montrés dans l'appli) dont le dossier n'est plus là : l'appli l'a mis à la corbeille sur une case
+    cochée par Franck (lot 5). Ce n'est pas un défaut."""
     carnet = dossier_carnet(racine, dossier)
     problemes = []
-    rendu = {"bon": False, "problemes": problemes, "documents": 0, "retires": 0, "poids": 0}
+    rendu = {"bon": False, "problemes": problemes, "documents": 0, "retires": 0, "purges": 0, "poids": 0}
     if not os.path.isdir(carnet):
         problemes.append("Ce chantier n'a pas encore de dossier de carnet.")
         return rendu
@@ -429,11 +433,15 @@ def verifier(racine, dossier):
             documents = []
             problemes.append("La liste « %s » est illisible (%s)." % (CARNET_FICHIER, e))
     connus = set()
+    montres = documents_montres(documents)
     for d in documents:
         if isinstance(d, dict) and isinstance(d.get("dossier"), str):
             connus.add(d["dossier"].lower())
         if isinstance(d, dict) and d.get("retire") is True:
             rendu["retires"] += 1
+            continue
+        if ancien_indice_purge(carnet, d, montres):
+            rendu["purges"] += 1
             continue
         rendu["documents"] += 1
         problemes.extend(defauts_document(carnet, d))
@@ -443,6 +451,31 @@ def verifier(racine, dossier):
             problemes.append("Le dossier « %s » n'est dans aucun document de la liste%s." % (n, " (dépôt commencé et pas fini : relancez-le)" if en_cours else ""))
     rendu["bon"] = not problemes
     return rendu
+
+
+def document_bien_forme(d):
+    """La même règle que le serveur (carnetDocuments_) : identifiant sûr, dossier sans « / », liste de pages."""
+    return (isinstance(d, dict) and isinstance(d.get("id"), str) and bool(NOM_SUR.match(d["id"])) and isinstance(d.get("dossier"), str)
+            and bool(d["dossier"].strip()) and not re.search(r"[/\\]", d["dossier"]) and isinstance(d.get("pages"), list))
+
+
+def documents_montres(documents):
+    """Les documents que l'appli montre : jamais un document retiré, et pour chaque code seulement le DERNIER déposé."""
+    par_code = {}
+    for d in documents:
+        if document_bien_forme(d) and d.get("retire") is not True:
+            par_code[str(d.get("code") or d["id"])] = d
+    return list(par_code.values())
+
+
+def ancien_indice_purge(carnet, d, montres):
+    """Vrai pour un ancien indice (bien formé, plus montré, et dont aucun document montré n'utilise le dossier)
+    dont le dossier est absent : il a été purgé de Drive par l'appli (lot 5)."""
+    if not document_bien_forme(d) or any(d is m for m in montres):
+        return False
+    if any(m["dossier"].lower() == d["dossier"].lower() for m in montres):
+        return False
+    return not os.path.isdir(os.path.join(carnet, d["dossier"]))
 
 
 def defauts_document(carnet, d):
@@ -532,7 +565,9 @@ def main(argv=None):
             r = verifier(racine, o.dossier)
             for p in r["problemes"]:
                 print("  ! " + p)
-            print("Carnet : %d document(s) montré(s), %d retiré(s) ; %.1f Mo en tout." % (r["documents"], r["retires"], r["poids"] / 1048576))
+            print("Carnet : %d document(s) présent(s), %d retiré(s) ; %.1f Mo en tout." % (r["documents"], r["retires"], r["poids"] / 1048576))
+            if r["purges"]:
+                print("%d ancien(s) indice(s) purgé(s) de Drive par l'appli (dossier absent : c'est normal)." % r["purges"])
             print("Tout est bon." if r["bon"] else "%d défaut(s) trouvé(s)." % len(r["problemes"]))
             return 0 if r["bon"] else 1
         if o.retirer:

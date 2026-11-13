@@ -35,6 +35,10 @@ function creerGoogle(options = {}) {
         setDataValidation: v => { f.validations = (f.validations || []).concat([{ r, c, nr, nc, v }]); return p; },
         getDataValidation: () => { const t = (f.validations || []).filter(x => r >= x.r && r < x.r + x.nr && c >= x.c && c < x.c + x.nc); return t.length ? t[t.length - 1].v : null; },
         setNote: () => p, setWrap: () => p, setNumberFormat: () => p,
+        // Lot 5 : protection « avertissement seulement » d'une plage (gardée pour les tests)
+        protect: () => { const pr = { avertissement: false, description: '', r, c, nr, nc,
+          setDescription: d => { pr.description = d; return pr; }, setWarningOnly: b => { pr.avertissement = b; return pr; } };
+          f.protections = (f.protections || []).concat([pr]); return pr; },
         getRow: () => r, getColumn: () => c, getNumRows: () => nr, getNumColumns: () => nc,
       };
       return p;
@@ -80,11 +84,15 @@ function creerGoogle(options = {}) {
     elements[id] = el;
     const it = arr => { let i = 0; return { hasNext: () => i < arr.length, next: () => arr[i++].api,
       getContinuationToken: () => 'jeton:' + i }; };
+    if (extra && typeof extra.taille === 'number') el.taille = extra.taille;
+    if (extra && extra.maj) el.maj = extra.maj;
     el.api = {
       getId: () => id, getName: () => el.nom, getUrl: () => 'https://drive.google.com/' + id,
       getMimeType: () => (extra && extra.mime) || 'application/pdf',
       getLastUpdated: () => new Date(el.maj || new Date(2026, 9, 29).getTime()),
-      getSize: () => (Buffer.isBuffer(el.contenu) ? el.contenu.length : Buffer.byteLength(String(el.contenu || ''), 'utf8')),
+      // Lot 5 : « taille » (octets) donnée à la création ou posée ensuite sur l'élément l'emporte sur le contenu
+      getSize: () => (typeof el.taille === 'number' ? el.taille
+        : Buffer.isBuffer(el.contenu) ? el.contenu.length : Buffer.byteLength(String(el.contenu || ''), 'utf8')),
       getDateCreated: () => new Date(el.cree || Date.now()),
       getParents: () => it(el.parents),
       setSharing: (a, p) => {
@@ -94,7 +102,15 @@ function creerGoogle(options = {}) {
         el.acces = a; el.permission = p;
       },
       getSharingAccess: () => accesEffectif(el), getSharingPermission: () => el.permission,
-      isTrashed: () => el.corbeille, setTrashed: v => { el.corbeille = v; },
+      // Lot 5 : comme Drive, ce que contient un dossier mis à la corbeille est à la corbeille lui aussi, et en sort avec lui ;
+      // les parcours (getFiles, getFolders, getFoldersByName) RENDENT ces éléments : c'est au code de tester isTrashed().
+      // etat.avantCorbeille(el, valeur) : appelée avant chaque setTrashed ; si elle lève une erreur, c'est une panne simulée.
+      isTrashed: () => aLaCorbeille(el),
+      setTrashed: v => {
+        if (typeof etat.avantCorbeille === 'function') etat.avantCorbeille(el, v);
+        el.corbeille = v; etat.corbeilles.push({ id: id, nom: el.nom, valeur: v });
+        return el.api;
+      },
       getBlob: () => blob(el.contenu || '', el.nom, extra && extra.mime),
       getFiles: () => it(el.enfants.filter(e => e.type === 'fichier')),
       getFolders: () => it(el.enfants.filter(e => e.type === 'dossier')),
@@ -115,6 +131,11 @@ function creerGoogle(options = {}) {
     };
     return el;
   }
+  // À la corbeille : lui-même, ou l'un des dossiers qui le contiennent
+  function aLaCorbeille(el) {
+    for (let p = el, n = 0; p && n < 50; p = p.parents[0], n++) if (p.corbeille) return true;
+    return false;
+  }
   // Accès réel d'un élément : le sien, ou (option « heritage ») celui d'un dossier parent partagé
   function accesEffectif(el) {
     if (!options.heritage || el.acces !== 'PRIVATE') return el.acces;
@@ -130,6 +151,9 @@ function creerGoogle(options = {}) {
     searchFolders: () => recherche('dossier', 0),
     continueFileIterator: j => recherche('fichier', Number(j.split(':')[1])),
     continueFolderIterator: j => recherche('dossier', Number(j.split(':')[1])),
+    // Lot 5 : place du compte (octets), réglable par etat.stockage = { utilise, limite }
+    getStorageUsed: () => etat.stockage.utilise,
+    getStorageLimit: () => etat.stockage.limite,
   };
   function recherche(type, depart) {
     const liste = Object.values(elements).filter(e => e.type === type && !e.corbeille &&
@@ -152,10 +176,14 @@ function creerGoogle(options = {}) {
 
   // ── Mails ──
   const mails = [];
-  const etat = { quota: options.quota === undefined ? 100 : options.quota };
+  const etat = { quota: options.quota === undefined ? 100 : options.quota,
+    // Lot 5 : place du compte vue par DriveApp ; service avancé Drive (null = non activé) ; mises à la corbeille faites ;
+    // nombre de fois où le verrou du script a été demandé ; écritures forcées (flush)
+    stockage: Object.assign({ utilise: 0, limite: 15 * 1024 * 1024 * 1024 }, options.stockage || {}),
+    driveAvance: options.driveAvance || null, corbeilles: [], verrousScript: 0, flush: 0, avantCorbeille: null };
   const GmailApp = {
     sendEmail: (to, sujet, texte, opts) => {
-      if (options.mailEnPanne) throw new Error('Service Gmail indisponible');
+      if (options.mailEnPanne || etat.mailEnPanne) throw new Error('Service Gmail indisponible');
       const n = 1 + (opts && opts.bcc ? 1 : 0);
       if (etat.quota < n) throw new Error('Quota dépassé');
       etat.quota -= n;
@@ -196,18 +224,20 @@ function creerGoogle(options = {}) {
     // comme le vrai : ne retire QUE le déclencheur donné (un seul, s'il y en a plusieurs du même nom)
     deleteTrigger: d => { const i = declencheurs.indexOf(d.getHandlerFunction()); if (i > -1) declencheurs.splice(i, 1); },
     newTrigger: fn => ({
-      timeBased: () => ({ everyHours: () => ({ create: () => declencheurs.push(fn) }), everyMinutes: () => ({ create: () => declencheurs.push(fn) }),
-        after: () => ({ create: () => declencheurs.push(fn) }) }),
+      // réglages enchaînables, comme le vrai : everyHours, everyMinutes, after, atHour, everyDays, nearMinute, inTimezone
+      timeBased: () => { const b = { create: () => declencheurs.push(fn) };
+        ['everyHours', 'everyMinutes', 'after', 'atHour', 'everyDays', 'nearMinute', 'inTimezone'].forEach(m => { b[m] = () => b; });
+        return b; },
       forSpreadsheet: () => ({ onEdit: () => ({ create: () => declencheurs.push(fn) }) }),
     }),
   };
   const contexte = {
-    SpreadsheetApp: { getActiveSpreadsheet: () => ss,
+    SpreadsheetApp: { getActiveSpreadsheet: () => ss, flush: () => { etat.flush++; },
       newDataValidation: () => { const v = { liste: null, invalide: true,
         requireValueInList: l => { v.liste = l; return v; }, requireValueInRange: () => v, requireCheckbox: () => { v.liste = [true, false]; return v; },
         setAllowInvalid: b => { v.invalide = b; return v; }, setHelpText: () => v, build: () => v }; return v; } },
     DriveApp, HtmlService, GmailApp, MailApp, PropertiesService, Utilities, ScriptApp,
-    LockService: { getScriptLock: () => ({ tryLock: () => !options.verrouOccupe, releaseLock: () => {} }),
+    LockService: { getScriptLock: () => { etat.verrousScript++; return { tryLock: () => !options.verrouOccupe, releaseLock: () => {} }; },
                    getDocumentLock: () => ({ tryLock: () => !options.verrouOccupe, releaseLock: () => {} }) },
     CacheService: { getScriptCache: () => ({
       get: k => (cache[k] === undefined ? null : cache[k]), put: (k, v) => { cache[k] = String(v); },
@@ -220,6 +250,14 @@ function creerGoogle(options = {}) {
     Logger: { log: () => {} },
     console: { log: () => {}, error: () => {} },
   };
+  // Lot 5 : service avancé « Drive » (API Drive v3), présent seulement si l'option driveAvance est donnée à la création.
+  // etat.driveAvance = { usage, usageInDrive, usageInDriveTrash, limit } (octets) ; l'API rend des textes, comme la vraie.
+  // etat.driveAvance = null ensuite : l'appel échoue (service en panne).
+  if (options.driveAvance) contexte.Drive = { About: { get: () => {
+    if (!etat.driveAvance) throw new Error('Service avancé Drive indisponible');
+    const q = {}; Object.keys(etat.driveAvance).forEach(k => { q[k] = String(etat.driveAvance[k]); });
+    return { storageQuota: q };
+  } } };
   return { contexte, feuilles, elements, mails, etat, proprietes, creerElement, declencheurs, cache };
 }
 

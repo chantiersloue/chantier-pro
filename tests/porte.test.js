@@ -198,9 +198,9 @@ test('porte : lectures bornées (20 lignes au plus), déclencheurs, transition, 
   assert.strictEqual(g.feuilles['Chantiers'].lignes[1][0], 'CHANTIER TEST 1', 'la ligne existante n’est pas touchée');
   assert.strictEqual(geste(g, 'lireChantiers').data.chantierEssaiPresent, true);
   assert.ok(geste(g, 'poserDeclencheurs').ok);
-  assert.deepStrictEqual(Array.from(geste(g, 'etat').data.declencheurs), ['outilTestFinEssaiAuto', 'renvoyerMailsEnAttente', 'surModificationSheet', 'traiterComptes'], 'avec la fin d’essai automatique dans 2 h');
+  assert.deepStrictEqual(Array.from(geste(g, 'etat').data.declencheurs), ['mesurerStockage', 'outilTestFinEssaiAuto', 'poursuivreMesureStockage', 'renvoyerMailsEnAttente', 'surModificationSheet', 'traiterComptes', 'traiterPurges'], 'avec la fin d’essai automatique dans 2 h');
   geste(g, 'poserDeclencheurs');
-  assert.strictEqual(geste(g, 'etat').data.declencheurs.length, 4, 'reposer ne les double pas');
+  assert.strictEqual(geste(g, 'etat').data.declencheurs.length, 7, 'reposer ne les double pas');
   geste(g, 'preparerComptes'); const jeton = geste(g, 'session', { id: 'auto-admin' }).data.jeton;
   assert.strictEqual(geste(g, 'etat').data.declencheurs.filter(d => d === 'outilTestFinEssaiAuto').length, 1, 'une seule fin d’essai programmée');
   g.ctx.outilTestFinEssaiAuto();   // ce que fait le déclencheur de fin d'essai
