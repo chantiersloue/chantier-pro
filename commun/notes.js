@@ -16,6 +16,8 @@
   var NOM_BASE = 'loue_notes_' + (CONFIG.env || 'prod');
   var N = LOUE.notes = {};
 
+  var misesAJour = Promise.resolve();   // écritures de la liste gardée, l'une après l'autre
+  var dernierEnvoi = 0;                 // heure du dernier ajout ou geste confirmé par le serveur
   function moi() { var c = LOUE.compte && LOUE.compte(); return c ? c.profil.id : ''; }
   function cleChantier(nom) { return String(nom || '').trim().toLowerCase(); }
 
@@ -107,8 +109,11 @@
     o = o || {};
     var gardable = !!o.chantier && !o.recherche && !o.nouveau;
     var cle = 'elements|' + cleChantier(o.chantier), qui = moi();
+    var depart = Date.now();
     return appel({ action: 'notes', chantier: o.chantier || '', recherche: o.recherche || '', nouveau: !!o.nouveau, termines: !!o.termines }, 20000, 'Notes indisponibles').then(function (d) {
-      if (gardable && qui === moi()) ecrireEntree(cle, 'elements', d);
+      // gardée seulement si aucun envoi n'a été confirmé depuis le départ de la demande : une réponse partie avant un ajout
+      // et arrivée après ne doit pas remplacer la liste gardée par une liste sans cet ajout
+      if (gardable && qui === moi() && depart > dernierEnvoi) misesAJour = misesAJour.then(function () { return ecrireEntree(cle, 'elements', d); });
       return { donnees: d, date: Date.now(), depuisLeTelephone: false };
     }, function (err) {
       if (err && err.code === 'INTERDIT' && gardable) effacerEntree(cle);   // accès retiré : la liste gardée ne doit plus se lire hors réseau
@@ -125,6 +130,36 @@
   N.vues = function (chantier, jusqua, tous) {
     return appel({ action: 'notesVues', chantier: chantier || '', jusqua: jusqua, tous: !!tous }, 15000, '').then(function () { return true; }, function () { return false; });
   };
+  // Un ajout ou un geste que le serveur vient de confirmer, reporté dans une liste (celle affichée, ou celle gardée) :
+  // l'élément ajouté y entre, le texte corrigé y est, la case y est cochée ou décochée — à sa place, sans rien déplacer.
+  N.integrer = function (donnees, a) {
+    if (!donnees || !a) return donnees;
+    var d = a.donnees || {};
+    donnees.aFaire = donnees.aFaire || []; donnees.termines = donnees.termines || [];
+    var tout = donnees.aFaire.concat(donnees.termines);
+    if (a.type === 'note-chantier') {
+      if (!tout.some(function (n) { return n.id === a.id; })) donnees.aFaire.push({ id: a.id, texte: d.texte || '', fait: false, nouveau: false });
+      return donnees;
+    }
+    var n = null;
+    tout.forEach(function (x) { if (x.id === d.note) n = x; });
+    if (!n) return donnees;
+    if (d.geste === 'modifier') n.texte = d.texte || '';
+    if (d.geste === 'fait') n.fait = true;
+    if (d.geste === 'defaire') n.fait = false;
+    return donnees;
+  };
+  // … et la liste GARDÉE du chantier est mise à jour à chaque envoi confirmé, quelle que soit la page ouverte (la file peut
+  // partir depuis l'accueil) : hors réseau, on retrouve ce qu'on a ajouté ou coché, même si la liste n'a pas été relue depuis.
+  if (LOUE.surEvenement) LOUE.surEvenement(function (ev) {
+    var a = ev.element;
+    if (ev.type !== 'envoyee' || !a || !/^note-/.test(a.type || '') || !a.donnees || a.saisiPar !== moi()) return;
+    dernierEnvoi = Date.now();
+    var cle = 'elements|' + cleChantier(a.donnees.chantier);
+    misesAJour = misesAJour.then(function () {   // l'une après l'autre : deux envois de suite ne s'écrasent pas
+      return lireEntree(cle).then(function (e) { if (e && e.valeur && a.saisiPar === moi()) return ecrireEntree(cle, 'elements', N.integrer(e.valeur, a)); });
+    }).catch(function () {});
+  });
   // Chiffres rouges de l'accueil : { parChantier: { nom: n }, total }
   N.nouvelles = function () { return appel({ action: 'notesNouvelles' }, 15000, 'Indisponible'); };
 

@@ -290,3 +290,15 @@ Serveur et page réécrits pour la liste (mêmes garanties : droits, zéro perte
 - **Téléphones d'essai** : la liste gardée par l'ancienne version n'est plus relue, les photos gardées sont effacées ; une ancienne note en attente avec photo part sans sa photo.
 - **Mots** : « élément » dans la page, « Notes » pour la tuile.
 - **PDF introuvable** : l'hypothèse de la ressemblance est écartée par le relecteur (le dossier du chantier d'essai était déjà connu par son identifiant). Causes plus probables : un sous-dossier en double (« 05 - CHANTIER » ou « COMPTE RENDU » créé une seconde fois si le nom existant diffère d'une espace), un dossier déplacé, ou une recherche sous un autre nom (le fichier s'appelle « NOTES DE CHANTIER … »). Un geste de lecture de la porte (`dossierChantierEssai`) dira au prochain envoi où le serveur range réellement les documents du chantier d'essai : le point concerne toutes les fiches, pas seulement ce PDF.
+
+### Ce que la relecture du code simplifié a fait changer (13/11/2026)
+
+Deux relecteurs indépendants (le second a relu les corrections du premier). Aucun bloquant. Corrigé :
+- **Un élément déjà parti ne « disparaît » plus hors réseau** : la liste gardée dans le téléphone est mise à jour à chaque envoi confirmé, même si la file part depuis l'accueil.
+- **L'historique est écrit avant la ligne**, et son onglet vérifié avant toute écriture : jamais un ajout ou une coche sans sa trace.
+- **Titre d'un onglet changé à la main** : même réponse pour un ajout et pour un geste (le téléphone garde et réessaie), et **un mail prévient Franck** (une fois par jour).
+- **Modification ouverte, appui sur une autre ligne** : la première se referme si rien n'a changé ; sinon la frappe n'est pas perdue.
+- **Vue « Tous chantiers » avec un chantier choisi** : le lien de chaque élément mène bien à ce chantier.
+- Deux cases cochées coup sur coup : aucune n'est perdue. Double appui avec des gants : la ligne ne bouge pas. Un ajout refusé retient les gestes sur cet élément. Moins d'appels à Sheets par geste.
+
+**Laissé tel quel, assumé** : une correction en cours de frappe (zone de modification) n'est pas gardée si l'appli est fermée, seul le champ d'ajout l'est ; un poseur dont la case est restée cochée peut encore ouvrir, par son adresse, la liste d'un chantier « Terminé » ; un élément coché puis « Actualiser » dans les trois secondes s'affiche un instant en bas de liste ; chaque geste coûte une ligne dans *Envois* et une dans *Notes historique* (2 à 4 secondes par geste sur le vrai serveur, à mesurer).

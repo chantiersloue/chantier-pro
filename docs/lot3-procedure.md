@@ -80,7 +80,10 @@ Le serveur du lot 3 a sa **propre adresse** : le déploiement du lot 7 continue 
 - **Compte désactivé** : ce qu'il avait ajouté sans réseau ne part plus (cela reste dans son téléphone). C'est différent des fiches, acceptées pendant 7 jours.
 - **Téléphone partagé** : ce que Paul a ajouté et qui n'est pas encore parti ne part jamais sous le nom de Pierre ; cela attend que Paul se reconnecte sur ce téléphone.
 - **Tu renommes un chantier dans le Sheet** : remplace aussi son nom dans la colonne B de l'onglet *Notes* (Édition → Rechercher et remplacer, « Rechercher dans cette feuille »), sinon sa liste reste sous l'ancien nom.
-- Tu peux trier et filtrer les trois onglets ; ne modifie rien d'autre à la main.
+- Tu peux trier et filtrer les trois onglets, **sans toucher à la ligne de titres** : si un titre est changé ou déplacé, les listes se bloquent sur tous les téléphones (rien n'est perdu, ils gardent tout) et tu reçois un mail « Listes Notes bloquées ». Remets le titre ; un élément resté plus de 8 heures en attente passe « à vérifier » dans le téléphone : il repart avec « Réessayer ».
+- Quand tu renommes un chantier, remplace aussi son nom dans la colonne B de l'onglet *Notes vues*, sinon toute sa liste redevient « nouvelle » pour tout le monde.
+- Une ligne supprimée à la main dans l'onglet *Notes* reste affichée sur les téléphones jusqu'à leur prochaine relecture de la liste.
+- Ne modifie rien d'autre à la main.
 
 ## Retour arrière
 

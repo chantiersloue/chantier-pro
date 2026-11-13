@@ -98,6 +98,19 @@ function scenario() {
   await page.evaluate(() => document.querySelector('.el-edit').blur()); await page.waitForTimeout(900);
   r.refermee = await page.evaluate(() => ({ zone: !!document.querySelector('.el-edit'), casesInactives: document.querySelectorAll('#liste .case:disabled').length,
     saisieVisible: getComputedStyle(document.getElementById('saisie')).display !== 'none' }));
+  // 6 bis. une modification ouverte sans changement, puis un appui sur le texte d'une AUTRE ligne : la première se referme,
+  //        la seconde s'ouvre ; avec un changement en cours, on ne perd pas la frappe
+  await toucherTexte('Seuil A12'); await page.waitForTimeout(400);
+  await toucherTexte('Cales de 8'); await page.waitForTimeout(600);
+  r.autreLigne = await page.evaluate(() => ({ zones: document.querySelectorAll('.el-edit').length, valeur: (document.querySelector('.el-edit') || {}).value }));
+  await page.fill('.el-edit', 'Cales de 8 modifié'); await toucherTexte('Seuil A12'); await page.waitForTimeout(600);
+  r.autreLigneFrappe = await page.evaluate(() => ({ zones: document.querySelectorAll('.el-edit').length, valeur: (document.querySelector('.el-edit') || {}).value }));
+  await page.evaluate(() => { Array.from(document.querySelectorAll('.el-boutons button')).find(b => b.textContent === 'Annuler').click(); }); await page.waitForTimeout(400);
+  // 6 ter. deux cases cochées coup sur coup : aucune n'est perdue
+  await page.evaluate(() => { const c = document.querySelectorAll('#liste .case'); c[0].click(); c[2].click(); }); await page.waitForTimeout(5000);
+  r.deuxCoches = await etat(); r.deuxCochesServeur = (await serveur()).map(l => l[1]);
+  await page.evaluate(() => { if (!document.getElementById('termines').open) document.querySelector('#termines summary').click(); }); await page.waitForTimeout(300);
+  await cocher('Cales de 8'); await page.waitForTimeout(1500); await cocher('Seuil A12'); await page.waitForTimeout(4000);
   // 7. AVEC du réseau, le serveur refuse passagèrement : un ajout et un geste sur cet ajout attendent ; l'ajout est reporté
   //    d'une heure, le geste est prêt : il ne doit PAS partir avant l'ajout
   await reglage('panne');
@@ -123,6 +136,18 @@ function scenario() {
   r.lentApres = await etat();
   await reglage('normal');
 
+  // 8 bis. un élément ajouté hors réseau part depuis l'ACCUEIL (la page Notes est fermée), puis le réseau retombe :
+  //        en rouvrant Notes hors réseau, l'élément est bien là (la liste gardée a suivi), il n'a pas « disparu »
+  await page.reload(); await page.waitForTimeout(2500);
+  await ctx.setOffline(true);
+  await ajouter('Parti depuis l’accueil'); await page.waitForTimeout(1200);
+  await page.goto(BASE + 'index.html?' + q); await page.waitForTimeout(1500);
+  await ctx.setOffline(false);
+  await page.evaluate(() => LOUE.viderFile(true)); await attendreFileVide(); await page.waitForTimeout(1500);
+  await ctx.setOffline(true);
+  await page.goto(NOTES); await page.waitForTimeout(3000);
+  r.partiAccueil = await etat(); r.partiAccueil.file = await file();
+  await ctx.setOffline(false); await page.reload(); await page.waitForTimeout(2500);
   // 9. téléphone partagé : poseur1 laisse un ajout en attente et un texte commencé ; poseur2 se connecte
   await ctx.setOffline(true);
   await ajouter('AJOUT EN ATTENTE DE POSEUR1'); await page.waitForTimeout(1500);
@@ -155,7 +180,10 @@ function scenario() {
   r.tousLiens = await page.evaluate(() => Array.from(document.querySelectorAll('#liste .el-info a')).map(a => a.getAttribute('href')).slice(0, 1));
   await page.fill('#f-recherche', 'seuil'); await page.waitForTimeout(2500);
   r.recherche = await etat();
-  await page.fill('#f-recherche', ''); await page.check('#f-termines'); await page.waitForTimeout(2500);
+  await page.fill('#f-recherche', ''); await page.selectOption('#f-chantier', 'CHANTIER TEST 1'); await page.waitForTimeout(2500);
+  r.unChantier = await etat();
+  r.unChantierLiens = await page.evaluate(() => Array.from(document.querySelectorAll('#liste .el-info a')).map(a => a.textContent + ' → ' + a.getAttribute('href')).slice(0, 1));
+  await page.selectOption('#f-chantier', ''); await page.check('#f-termines'); await page.waitForTimeout(2500);
   r.avecTermines = await etat();
   r.nouvellesAvant = await page.evaluate(() => LOUE.notes.nouvelles().then(d => d.total));
   await page.evaluate(() => toutMarquerLu()); await page.waitForTimeout(3000);
@@ -228,15 +256,20 @@ setTimeout(() => {
     verifier('« Éléments terminés » ouvert : décocher remet l’élément dans la liste ; la section reste ouverte tant qu’elle a du contenu', j(r.decoche.haut) === j(['Cales de 8', HOSTILE, 'Seuil A12'])
       && r.decoche.bas.length === 0 && j(r.serveur2.map(l => l[1])) === j(['', '', '']), j([r.decoche, r.serveur2]));
     verifier('un appui par erreur sur un texte : sortir sans rien changer referme la zone, rien ne reste bloqué', r.refermee.zone === false && r.refermee.casesInactives === 0 && r.refermee.saisieVisible === true, j(r.refermee));
+    verifier('modification ouverte sans changement, appui sur une autre ligne : la première se referme, la seconde s’ouvre', r.autreLigne.zones === 1 && r.autreLigne.valeur === 'Cales de 8', j(r.autreLigne));
+    verifier('… avec une frappe en cours, l’appui sur une autre ligne ne fait rien perdre', r.autreLigneFrappe.zones === 1 && r.autreLigneFrappe.valeur === 'Cales de 8 modifié', j(r.autreLigneFrappe));
+    verifier('deux cases cochées coup sur coup : les deux sont enregistrées', j(r.deuxCoches.bas.slice().sort()) === j(['Cales de 8', 'Seuil A12']) && j(r.deuxCochesServeur) === j(['Oui', '', 'Oui']), j([r.deuxCoches.bas, r.deuxCochesServeur]));
     verifier('l’ajout est retardé : le geste sur cet élément attend son tour (rien ne part dans le désordre)', r.ordreRetenu.file === 2 && r.ordreRetenu.serveur === 3
       && j(r.ordreRetenu.types) === j(['note-chantier:en attente', 'note-action:en attente']) && j(r.ordreRetenu.apres.map(l => l[1])) === j(['Oui']), j(r.ordreRetenu));
     verifier('hors réseau après rechargement : dernière liste gardée, avec sa date', r.listeHorsReseau.haut.length === 3 && /Liste du .* gardée dans le téléphone/.test(r.listeHorsReseau.info)
       && r.listeHorsReseau.titreTermines === 'Éléments terminés (1)', j(r.listeHorsReseau));
     verifier('réseau lent : la liste gardée s’affiche tout de suite, l’ajout reste possible, puis la liste du serveur arrive',
       !r.lentAvant.saisieCachee && r.lentAvant.haut.length === 3 && /gardée dans le téléphone/.test(r.lentAvant.info) && r.lentApres.haut.length === 3 && r.lentApres.info === '', j([r.lentAvant, r.lentApres]));
-    verifier('téléphone partagé : le second poseur ne voit ni l’ajout en attente ni le texte commencé du premier', r.connexion2 === 'CONNECTE' && r.poseur2.haut.length === 3 && r.poseur2.attente === 0
+    verifier('un élément parti depuis l’accueil est retrouvé hors réseau en rouvrant la liste (il ne « disparaît » pas)', r.partiAccueil.file === 0 && r.partiAccueil.haut.indexOf('Parti depuis l’accueil') > -1
+      && /gardée dans le téléphone/.test(r.partiAccueil.info), j(r.partiAccueil));
+    verifier('téléphone partagé : le second poseur ne voit ni l’ajout en attente ni le texte commencé du premier', r.connexion2 === 'CONNECTE' && r.poseur2.haut.length === 4 && r.poseur2.attente === 0
       && r.poseur2.saisie === '' && r.poseur2.tout.indexOf('POSEUR1') < 0, j(r.poseur2));
-    verifier('… les éléments des autres sont « nouveaux » à sa première visite, plus à la suivante', r.poseur2Premier.nouveau === 3 && r.poseur2.nouveau === 0, j([r.poseur2Premier.nouveau, r.poseur2.nouveau]));
+    verifier('… les éléments des autres sont « nouveaux » à sa première visite, plus à la suivante', r.poseur2Premier.nouveau === 4 && r.poseur2.nouveau === 0, j([r.poseur2Premier.nouveau, r.poseur2.nouveau]));
     verifier('… ce que le premier a laissé en attente ne part pas sous le nom du second', r.poseur2.file === 2 && !r.serveurPoseur2.some(l => /POSEUR1/.test(l[0])), j([r.poseur2.file, r.serveurPoseur2]));
     verifier('modification libre : le second poseur corrige un élément écrit par le premier ; son geste part même si celui du premier attend encore sur le même élément',
       r.partage.file === 2 && r.partage.serveur.some(l => l[0] === 'Seuil A12 à reprendre' && l[3] === 'poseur2') && r.partage.serveur.some(l => l[0] === 'Cales de 8' && l[1] === 'Oui'), j(r.partage));
@@ -244,6 +277,8 @@ setTimeout(() => {
     verifier('… tout part quand le premier se reconnecte, sous SON nom', r.connexion1 === 'CONNECTE' && r.apresRetour.some(l => l[0] === 'AJOUT EN ATTENTE DE POSEUR1' && /\(poseur1\)$/.test(l[2])), j(r.apresRetour));
     verifier('vue « Tous chantiers » (conducteur) : en lecture (cases inactives, pas d’ajout), chaque élément renvoie à son chantier', r.connexion3 === 'CONNECTE' && r.tous.haut.length >= 3
       && r.tous.filtres === true && r.tous.saisieCachee === true && r.tous.casesInactives === r.tous.haut.length && /notes\.html\?chantier=CHANTIER%20TEST%201/.test(r.tousLiens[0] || ''), j([r.tous, r.tousLiens]));
+    verifier('… avec un chantier choisi dans le filtre : chaque élément renvoie toujours à ce chantier, et les terminés restent cachés', r.unChantier.haut.length >= 3 && r.unChantier.terminesVisible === false
+      && /^CHANTIER TEST 1 → notes\.html\?chantier=CHANTIER%20TEST%201$/.test(r.unChantierLiens[0] || ''), j([r.unChantier.haut, r.unChantier.terminesVisible, r.unChantierLiens]));
     verifier('… la recherche est faite par le serveur ; « Avec les terminés » les ajoute', j(r.recherche.haut) === j(['Seuil A12 à reprendre']) && r.avecTermines.terminesVisible === true
       && r.avecTermines.bas.length >= 2, j([r.recherche.haut, r.avecTermines.bas]));
     verifier('… « Tout marquer comme lu » remet à zéro les éléments nouveaux du conducteur', r.nouvellesAvant > 0 && r.toutLu === 0, j([r.nouvellesAvant, r.toutLu]));

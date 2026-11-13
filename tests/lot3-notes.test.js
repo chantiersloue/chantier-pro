@@ -71,7 +71,7 @@ console.log('Lot 3 — ajouter un élément');
 test('un élément : une ligne dans Notes, une ligne « création » dans l’historique, aucun mail, Envois « traité »', () => {
   const g = environnement(), id = idFiche();
   const r = envoyer(g, 'thomas27', element(), id);
-  assert.deepStrictEqual([r.ok, r.code, r.message, r.data.note, r.data.envoyes], [true, 'ENREGISTRE', 'Enregistré', true, undefined], JSON.stringify(r));
+  assert.deepStrictEqual([r.ok, r.code, r.message, r.data.envoyes, Object.keys(r.data).join()], [true, 'ENREGISTRE', 'Enregistré', undefined, 'id'], JSON.stringify(r));
   const l = N(g);
   assert.strictEqual(l.length, 1);
   assert.deepStrictEqual([l[0][C.id], l[0][C.chantier], l[0][C.texte], l[0][C.fait], l[0][C.creePar], l[0][C.texteParId], l[0][C.cocheLe], l[0][C.cochePar]],
@@ -380,12 +380,25 @@ test('un onglet « Notes » aux autres titres (première version, restée sur la
   g.ctx.SpreadsheetApp.getActiveSpreadsheet().insertSheet('Notes').appendRow(['Numéro', 'Chantier', 'Auteur (identifiant)', 'Auteur', 'Créée le', 'Texte']);
   g.feuilles['Notes'].lignes.push(['fiche-ancienne-0001', 'CHANTIER TEST 1', 'thomas27', 'Thomas', new Date(), 'ancienne note']);
   const ecriture = envoyer(g, 'thomas27', element());
-  assert.deepStrictEqual([ecriture.ok, ecriture.code], [false, 'SERVEUR_OCCUPE'], JSON.stringify(ecriture));
+  const unGeste = envoyer(g, 'thomas27', geste('fiche-ancienne-0001', 'fait'));
+  [ecriture, unGeste].forEach(x => assert.deepStrictEqual([x.ok, x.code, /titres changés/.test(x.message)], [false, 'SERVEUR_OCCUPE', true], 'même réponse pour un ajout et pour un geste : ' + JSON.stringify(x)));
   const lecture = lire(g, 'thomas27', { chantier: 'CHANTIER TEST 1' });
   assert.ok(!lecture.ok && /installation du lot 3/.test(lecture.message), JSON.stringify(lecture));
   assert.deepStrictEqual(g.feuilles['Notes'].lignes.length, 2, 'l’ancien onglet n’est pas touché');
-  assert.strictEqual(g.mails.length, 0);
+  assert.strictEqual(g.mails.length, 1, 'Franck est prévenu, une seule fois dans la journée');
+  assert.ok(/Notes.*bloquées/.test(g.mails[0].sujet) && /Rien n’est perdu/.test(g.mails[0].texte), JSON.stringify(g.mails[0]));
   assert.ok(/❌/.test(g.ctx.installerLot3Production()), 'l’installation le dit');
+});
+test('un titre de l’onglet « Notes historique » changé à la main : rien n’est écrit sans sa ligne d’historique (ni ajout, ni coche)', () => {
+  const g = environnement();
+  const id = creer(g, 'thomas27');
+  g.feuilles['Notes historique'].lignes[0][3] = 'Geste ?';
+  const ajout = envoyer(g, 'thomas27', element({ texte: 'second' })), coche = envoyer(g, 'lucas', geste(id, 'fait'));
+  assert.deepStrictEqual([ajout.code, coche.code], ['SERVEUR_OCCUPE', 'SERVEUR_OCCUPE']);
+  assert.deepStrictEqual([N(g).length, N(g)[0][C.fait], H(g).length], [1, '', 1], 'ni élément écrit, ni case cochée, sans historique');
+  g.feuilles['Notes historique'].lignes[0][3] = 'Geste';
+  assert.ok(envoyer(g, 'lucas', geste(id, 'fait')).ok);
+  assert.deepStrictEqual([N(g)[0][C.fait], H(g).map(h => h[HC.geste])], ['Oui', ['création', 'coché']]);
 });
 test('installation : trois onglets créés ; relancée, elle ne change rien ; refuse le mauvais environnement', () => {
   const g = environnement({ sansInstallation: true });

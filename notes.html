@@ -9,8 +9,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Loué App">
 <meta name="theme-color" content="#1A2B4A">
-<link rel="stylesheet" href="commun/style.css?v=8d2883db50">
-<link rel="stylesheet" href="commun/fiche.css?v=8d2883db50">
+<link rel="stylesheet" href="commun/style.css?v=75dff299ba">
+<link rel="stylesheet" href="commun/fiche.css?v=75dff299ba">
 <style>
 [hidden]{display:none!important;}   /* un élément caché le reste, même s'il a une mise en forme « flex » */
 body.avec-saisie{padding-bottom:150px;}
@@ -88,11 +88,11 @@ body.en-modification .saisie{display:none;}   /* pendant une modification, la ba
   <div class="saisie-info" id="saisie-info"></div>
 </div>
 
-<script src="commun/config.js?v=8d2883db50"></script>
-<script src="commun/api.js?v=8d2883db50"></script>
-<script src="commun/ui.js?v=8d2883db50"></script>
-<script src="commun/notes.js?v=8d2883db50"></script>
-<script src="commun/hors-ligne.js?v=8d2883db50"></script>
+<script src="commun/config.js?v=75dff299ba"></script>
+<script src="commun/api.js?v=75dff299ba"></script>
+<script src="commun/ui.js?v=75dff299ba"></script>
+<script src="commun/notes.js?v=75dff299ba"></script>
+<script src="commun/hors-ligne.js?v=75dff299ba"></script>
 <script>
 'use strict';
 // Notes de chantier (lot 3) : la liste des choses à faire d'un chantier, façon « Keep ». Une ligne de texte, une case à
@@ -191,11 +191,12 @@ function ligne(n) {
   if (EDITION === n.id) {
     const zone = el('textarea', 'meta-input el-edit');
     zone.value = TEXTE_EDITION; zone.maxLength = 2000; zone.dataset.brouillon = 'non'; zone.setAttribute('aria-label', 'Texte de l’élément');
+    zone.dataset.origine = n.texte || '';
     zone.setAttribute('enterkeyhint', 'done');
     zone.addEventListener('input', () => { TEXTE_EDITION = zone.value; });
-    zone.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); enregistrerModification(n, zone.value); } });
+    zone.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); enregistrerModification(n, zone.value); } });
     // Sortir de la zone sans avoir rien changé la referme toute seule (un appui par erreur sur un texte ne bloque rien)
-    zone.addEventListener('blur', () => setTimeout(() => { if (EDITION === n.id && LOUE.notes.nettoyer(TEXTE_EDITION) === (n.texte || '')) finEdition(); }, 250));
+    zone.addEventListener('blur', () => setTimeout(() => { if (EDITION === n.id && LOUE.notes.nettoyer(TEXTE_EDITION) === LOUE.notes.nettoyer(n.texte)) finEdition(); }, 250));
     corps.appendChild(zone);
     const rangee = el('div', 'el-boutons');
     rangee.appendChild(bouton('btn-green', 'OK', () => enregistrerModification(n, zone.value)));
@@ -212,14 +213,23 @@ function ligne(n) {
   if (!TOUS && !n.fait) {
     texte.setAttribute('role', 'button'); texte.tabIndex = 0;
     texte.setAttribute('aria-label', 'Modifier : ' + (n.texte || ''));
-    const ouvrir = () => { EDITION = n.id; TEXTE_EDITION = n.texte || ''; afficher(); };
+    const ouvrir = () => {
+      if (EDITION && EDITION !== n.id) {
+        // une autre modification est ouverte : sans changement, elle se referme et celle-ci s'ouvre ; sinon on ne perd pas la frappe
+        const zone = document.querySelector('.el-edit'), origine = zone ? zone.dataset.origine : '';
+        if (zone && LOUE.notes.nettoyer(TEXTE_EDITION) !== LOUE.notes.nettoyer(origine)) { LOUE.message('Terminez d’abord la modification en cours (« OK » ou « Annuler »).', 4000); return; }
+        finEdition();
+      }
+      EDITION = n.id; TEXTE_EDITION = n.texte || ''; afficher();
+    };
     texte.addEventListener('click', ouvrir);
     texte.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); ouvrir(); } });
   }
   corps.appendChild(texte);
   if (TOUS) {
     const info = el('div', 'el-info');
-    const a = el('a', '', n.chantier || '—'); a.href = 'notes.html?chantier=' + encodeURIComponent(n.chantier || '');
+    const chantier = n.chantier || $('f-chantier').value || '';   // un chantier choisi dans le filtre : le serveur ne le répète pas sur chaque élément
+    const a = el('a', '', chantier || '—'); a.href = 'notes.html' + (chantier ? '?chantier=' + encodeURIComponent(chantier) : '');
     info.appendChild(a); corps.appendChild(info);
   }
   if (n.refus) corps.appendChild(el('div', 'el-info erreur', '⚠ Pas enregistré : ' + n.refus + ' (détail : indicateur en haut de l’écran)'));
@@ -245,6 +255,12 @@ function afficher() {
   else { const bloc = el('div', 'liste'); e.haut.forEach(n => bloc.appendChild(ligne(n))); liste.appendChild(bloc); }
   // « Éléments terminés (n) » : replié ; on l'ouvre pour décocher
   const section = $('termines'), zone = $('liste-termines');
+  if (TOUS && !$('f-termines').checked) e.bas = [];   // vue « Tous chantiers » : les terminés seulement si la case est cochée
+  // … et la liste déroulante propose aussi les chantiers vus dans les éléments reçus (en plus de ceux du compte)
+  if (TOUS) e.haut.concat(e.bas).forEach(n => {
+    if (!n.chantier || Array.prototype.some.call($('f-chantier').options, o => o.value === n.chantier)) return;
+    const o = el('option', '', n.chantier); o.value = n.chantier; $('f-chantier').appendChild(o);
+  });
   section.hidden = !e.bas.length;
   $('termines-titre').textContent = 'Éléments terminés (' + e.nbTermines + ')';
   section.open = TERMINES_OUVERT;
@@ -325,36 +341,32 @@ let relecture = null;
 function majAttente(relire) {
   if (TOUS || !LOUE.compte()) return;
   LOUE.notes.enAttente(CHANTIER).then(a => { ATTENTE = a; afficher(); });
-  if (relire) { clearTimeout(relecture); relecture = setTimeout(charger, 700); }
+  if (relire) {
+    // la relecture attend que l'élément qu'on vient de cocher soit descendu : les lignes ne bougent pas sous le doigt
+    const reste = Math.max(0, ...Object.keys(COCHES).map(id => COCHES[id] + DELAI_COCHE - Date.now()));
+    clearTimeout(relecture); relecture = setTimeout(charger, Math.max(700, reste + 300));
+  }
 }
 // Un ajout ou un geste vient d'être confirmé par le serveur : il est reporté tout de suite dans la liste affichée, sans attendre
 // la relecture (sinon la ligne reviendrait un instant à son ancien état, et un second appui partirait à contresens)
-function integrer(a) {
-  if (!DONNEES || TOUS) return;
-  const d = a.donnees || {};
-  DONNEES.aFaire = DONNEES.aFaire || []; DONNEES.termines = DONNEES.termines || [];
-  const tout = DONNEES.aFaire.concat(DONNEES.termines);
-  if (a.type === 'note-chantier') { if (!tout.some(n => n.id === a.id)) DONNEES.aFaire.push({ id: a.id, texte: d.texte || '', fait: false, nouveau: false }); return; }
-  const n = tout.find(x => x.id === d.note);
-  if (!n) return;
-  if (d.geste === 'modifier') n.texte = d.texte || '';
-  if (d.geste === 'fait') n.fait = true;
-  if (d.geste === 'defaire') n.fait = false;
-}
 LOUE.surEvenement(ev => {
   const estNote = ev.element && /^note-/.test(ev.element.type || '');
-  if (ev.type === 'envoyee' && estNote) { integrer(ev.element); majAttente(true); }
+  if (ev.type === 'envoyee' && estNote) { if (!TOUS) LOUE.notes.integrer(DONNEES, ev.element); majAttente(true); }
   else if (ev.type === 'file' || estNote) majAttente(false);
   if (ev.type === 'compte') charger();
 });
 
 // ── Gestes : rangés dans la file d'envoi (ils partent dans l'ordre), affichés tout de suite ──
-let gesteEnCours = false;
+// Deux gestes coup sur coup (deux cases cochées à la suite) : le second attend la fin du rangement du premier, il n'est pas perdu
+let chaineGestes = Promise.resolve();
 function geste(n, nom, libelle, extra) {
-  if (gesteEnCours) { LOUE.message('Un envoi est en cours : réessayez dans un instant.', 4000); return Promise.resolve(false); }
-  if (Date.now() - (DERNIER_GESTE[n.id] || 0) < 400) return Promise.resolve(false);   // double appui
-  gesteEnCours = true; DERNIER_GESTE[n.id] = Date.now();
+  if (Date.now() - (DERNIER_GESTE[n.id] || 0) < 400) return Promise.resolve(false);   // double appui sur le même élément
+  DERNIER_GESTE[n.id] = Date.now();
   const d = Object.assign({ chantier: nomChantier(), note: n.id, geste: nom }, extra || {});
+  chaineGestes = chaineGestes.then(() => rangerGeste(d, libelle), () => rangerGeste(d, libelle));
+  return chaineGestes;
+}
+function rangerGeste(d, libelle) {
   return LOUE.mettreEnFile('note-action', d, [], libelle).then(() => {
     LOUE.viderFile();
     return LOUE.notes.enAttente(CHANTIER).then(a => { ATTENTE = a; afficher(); return true; });
@@ -363,11 +375,12 @@ function geste(n, nom, libelle, extra) {
     LOUE.message('Envoi en cours… ne quittez pas la page', 6000);
     return LOUE.envoyerDirect('note-action', d, []).then(() => { LOUE.message('✓ ' + libelle, 3000); charger(); return true; })
       .catch(err => { LOUE.message('⚠ Pas enregistré : ' + LOUE.messageClair(err) + '. Réessayez quand il y aura du réseau.', 10000); return false; });
-  }).finally(() => { gesteEnCours = false; });
+  });
 }
 // Cocher : l'élément reste à sa place, barré, 3 secondes (un nouvel appui annule), puis descend dans « Éléments terminés »
 function cocher(n) {
   if (EDITION) return;
+  if (Date.now() - (DERNIER_GESTE[n.id] || 0) < 400) return;   // double appui (gants) : rien ne bouge, la ligne reste en place
   if (n.fait) { delete COCHES[n.id]; geste(n, 'defaire', 'Élément décoché'); return; }
   COCHES[n.id] = Date.now();
   geste(n, 'fait', 'Élément coché').then(ok => { if (!ok) { delete COCHES[n.id]; return; } setTimeout(afficher, DELAI_COCHE + 100); });
@@ -375,8 +388,7 @@ function cocher(n) {
 function enregistrerModification(n, texte) {
   const t = LOUE.notes.nettoyer(texte);
   if (!t) { LOUE.message('Le texte ne peut pas être vide. Un élément ne se supprime pas : cochez-le.', 6000); return; }
-  if (t === (n.texte || '')) { finEdition(); return; }
-  if (gesteEnCours) { LOUE.message('Un envoi est en cours : touchez « OK » de nouveau dans un instant (votre texte reste là).', 5000); return; }
+  if (t === LOUE.notes.nettoyer(n.texte)) { finEdition(); return; }
   finEdition();
   DERNIER_GESTE[n.id] = 0;
   // « vu » : le texte que ce téléphone avait sous les yeux (le serveur note dans son historique s'il avait changé entre-temps)
@@ -398,7 +410,7 @@ function garderTexte() {
   }, 400);
 }
 zoneAjout.addEventListener('input', () => { if (!prevenu) $('saisie-info').textContent = ''; hauteurAjout(); garderTexte(); });
-zoneAjout.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); ajouter(); } });
+zoneAjout.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); ajouter(); } });   // pas pendant une proposition du clavier
 function restaurerTexte() {
   if (TOUS || !LOUE.compte()) return;
   LOUE.notes.lireTexte(CHANTIER).then(t => {
@@ -421,7 +433,7 @@ async function ajouter() {
   const finir = () => { b.disabled = false; ajoutEnCours = false; };
   let enFile = false;
   try {
-    await LOUE.mettreEnFile('note-chantier', d, [], 'Note');
+    await LOUE.mettreEnFile('note-chantier', d, [], 'Élément ajouté');
     enFile = true;
     await vider();
     LOUE.viderFile();

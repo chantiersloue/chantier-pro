@@ -241,6 +241,7 @@ function outilTestDossierEssai_() {
       o.nomActuel = d.getName(); o.corbeille = d.isTrashed();
       const parents = d.getParents(); o.sousLaRacine = false;
       while (parents.hasNext()) if (parents.next().getId() === racine.getId()) o.sousLaRacine = true;
+      if (!o.sousLaRacine) return o;   // dossier hors de la racine TEST : son contenu n'est pas lu
       o.sousDossiers = noms(d.getFolders());
       o.contenu = [];
       const niveau1 = d.getFoldersByName('05 - CHANTIER');

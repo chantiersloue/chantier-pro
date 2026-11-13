@@ -63,12 +63,18 @@ function noteFeuille_(nom, entetes, colonnesTexte) {
 // Un onglet du même nom mais aux autres titres (première version du lot, restée sur la copie TEST) n'est JAMAIS lu ni
 // écrit : le téléphone réessaiera, et l'installation dira quoi faire.
 function noteTitresBons_(sh, entetes) {
+  if (sh.getLastColumn() < entetes.length) return false;   // onglet plus étroit que prévu : pas les bons titres (et pas de lecture hors limites)
   const titres = sh.getRange(1, 1, 1, entetes.length).getValues()[0];
   return entetes.every((t, i) => String(titres[i]) === t);
 }
+// Titres changés (un titre de colonne renommé à la main, ou la première version restée sur la copie TEST) : rien n'est lu ni
+// écrit, les téléphones gardent tout et réessaient, et Franck est prévenu par mail (une fois par jour) : sans cela, toutes
+// les listes seraient bloquées sans que personne le sache.
 function noteOngletVerifie_(sh, entetes) {
-  if (!noteTitresBons_(sh, entetes)) throw Object.assign(new Error('Les onglets des notes ne sont pas à jour sur le serveur (installation du lot 3 à faire).'), { occupe: true });
-  return sh;
+  if (noteTitresBons_(sh, entetes)) return sh;
+  alerte_('Les listes « Notes » des chantiers sont bloquées : la ligne de titres de l’onglet « ' + sh.getName() + ' » n’est plus celle attendue ('
+    + entetes.join(' | ') + '). Remettez ces titres, ou renommez l’onglet puis lancez installerLot3Production. Rien n’est perdu : les téléphones gardent tout et réessaient.', 'notes');
+  throw Object.assign(new Error('Les onglets des notes ne sont pas à jour sur le serveur (titres changés, ou installation du lot 3 à faire).'), { occupe: true });
 }
 function feuilleNotes_() { return noteOngletVerifie_(noteFeuille_(SHEET_NOTES, NOTE_ENTETES, NOTE_COLONNES_TEXTE), NOTE_ENTETES); }
 function feuilleNotesHisto_() { return noteOngletVerifie_(noteFeuille_(SHEET_NOTES_HISTO, NOTE_HISTO_ENTETES, NOTE_HISTO_TEXTE), NOTE_HISTO_ENTETES); }
@@ -78,7 +84,13 @@ function feuilleNotesVues_() { return noteFeuille_(SHEET_NOTES_VUES, NOTE_VUES_E
 function noteAjouterLigne_(sh, valeurs, colonnesTexte) {
   const ligne = sh.getLastRow() + 1;
   if (ligne > sh.getMaxRows()) sh.insertRowsAfter(sh.getMaxRows(), 50);
-  colonnesTexte.forEach(c => sh.getRange(ligne, c).setNumberFormat('@'));
+  // colonnes voisines regroupées : une seule demande à Sheets par groupe
+  for (let i = 0; i < colonnesTexte.length; i++) {
+    let n = 1;
+    while (i + n < colonnesTexte.length && colonnesTexte[i + n] === colonnesTexte[i] + n) n++;
+    sh.getRange(ligne, colonnesTexte[i], 1, n).setNumberFormat('@');
+    i += n - 1;
+  }
   sh.getRange(ligne, 1, 1, valeurs.length).setValues([valeurs.map(cellule_)]);
   return ligne;
 }
@@ -120,7 +132,7 @@ function refusNote_(d, compte) {
   d = d || {};
   const refus = m => ({ code: 'DONNEES_INVALIDES', message: m });
   const CONTROLE = /[\u0000-\u001f\u007f-\u009f\u2028\u2029]/;   // après nettoyage des retours à la ligne : plus aucun caractère invisible
-  if (!compte || !compte.id) return { code: 'CONNEXION_REQUISE', message: 'Connectez-vous depuis l’accueil : votre élément est gardé dans le téléphone et partira ensuite.' };
+  if (!compte || !compte.id) return { code: 'CONNEXION_REQUISE', message: 'Connectez-vous depuis l’accueil : c’est gardé dans le téléphone et partira ensuite.' };
   if (d.texte != null && typeof d.texte !== 'string') return refus('Texte invalide');
   const texte = noteLigne_(d.texte);
   if (texte.length > NOTE_MAX_TEXTE) return refus('Texte trop long (' + NOTE_MAX_TEXTE + ' caractères au plus)');
@@ -159,14 +171,17 @@ function traiterNoteChantier(data, brut, contexte) {
   if (!verrou.tryLock(15000)) throw noteOccupe_();
   try {
     const sh = feuilleNotes_();
+    feuilleNotesHisto_();   // vérifié AVANT d'écrire : jamais un élément sans sa ligne d'historique
     if (chercherNote_(sh, contexte.id)) return;   // déjà écrit (nouvel essai après une coupure) : rien à refaire
     const maintenant = new Date(), ligne = [];
     for (let c = 1; c <= NOTE_ENTETES.length; c++) ligne.push('');
     ligne[COL_N.id - 1] = contexte.id; ligne[COL_N.chantier - 1] = chantier; ligne[COL_N.texte - 1] = texte;
     ligne[COL_N.cree - 1] = maintenant; ligne[COL_N.creePar - 1] = noteQui_(compte);
     ligne[COL_N.texteLe - 1] = maintenant; ligne[COL_N.texteParId - 1] = compte.id;
-    noteAjouterLigne_(sh, ligne, NOTE_COLONNES_TEXTE);
+    // L'historique d'abord : si une panne coupe entre les deux écritures, le nouvel essai refait le tout
+    // (une ligne d'historique en double vaut mieux qu'un élément sans trace de son auteur)
     noteHistorique_(contexte.id, chantier, 'création', '', texte, compte);
+    noteAjouterLigne_(sh, ligne, NOTE_COLONNES_TEXTE);
   } finally { verrou.releaseLock(); }
 }
 
@@ -180,6 +195,7 @@ function traiterNoteAction(data, brut, contexte) {
   const verrou = LockService.getScriptLock();
   if (!verrou.tryLock(15000)) throw noteOccupe_();
   try {
+    feuilleNotesHisto_();   // vérifié AVANT d'écrire : jamais un geste sans sa ligne d'historique
     const n = noteLue_(brut.note);   // relu sous verrou
     if (!n) throw noteRefus_(NOTE_REFUS_DROIT);
     const r = n.r, maintenant = new Date(), chantier = String(r[COL_N.chantier - 1] || '');
@@ -190,19 +206,19 @@ function traiterNoteAction(data, brut, contexte) {
       // « vu » = le texte que le téléphone avait sous les yeux. S'il n'est plus le texte actuel, quelqu'un d'autre l'a changé
       // entre-temps : la modification reçue l'emporte quand même, et l'historique le dit (rien à l'écran).
       const enMemeTemps = typeof brut.vu === 'string' && noteLigne_(brut.vu) !== ancien && String(r[COL_N.texteParId - 1] || '') !== compte.id;
+      noteHistorique_(brut.note, chantier, enMemeTemps ? 'modification en même temps' : 'modification', ancien, texte, compte);   // l'historique d'abord
       ecrire(COL_N.texte, [texte]);
       ecrire(COL_N.texteLe, [maintenant, compte.id]);
-      noteHistorique_(brut.note, chantier, enMemeTemps ? 'modification en même temps' : 'modification', ancien, texte, compte);
     } else if (brut.geste === 'fait') {
       if (noteFaite_(r)) return;
+      noteHistorique_(brut.note, chantier, 'coché', '', '', compte);
       ecrire(COL_N.fait, ['Oui']);
       ecrire(COL_N.cocheLe, [maintenant, noteQui_(compte)]);
-      noteHistorique_(brut.note, chantier, 'coché', '', '', compte);
     } else {
       if (!noteFaite_(r)) return;
+      noteHistorique_(brut.note, chantier, 'décoché', '', '', compte);
       ecrire(COL_N.fait, ['']);
       ecrire(COL_N.cocheLe, ['', '']);
-      noteHistorique_(brut.note, chantier, 'décoché', '', '', compte);
     }
   } finally { verrou.releaseLock(); }
 }

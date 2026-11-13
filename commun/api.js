@@ -391,7 +391,11 @@
         var el = ancien;
         var serie = el.type === 'note-chantier' ? (el.saisiPar || '') + '|' + el.id
           : (el.type === 'note-action' && el.donnees ? (el.saisiPar || '') + '|' + String(el.donnees.note || '') : '');
-        if (el.etat === 'erreur') return;                                   // attend une action de la personne
+        if (el.etat === 'erreur') {                                         // attend une action de la personne
+          // un ajout refusé retient les gestes sur cet élément (ils seraient refusés un par un : « cet élément n'existe pas »)
+          if (serie && el.type === 'note-chantier') seriesBloquees[serie] = true;
+          return;
+        }
         if (el.env && el.env !== CONFIG.env) return;                        // fiche d'un autre mode (test / production)
         if (!force(el) && el.prochainEssai && Date.now() < el.prochainEssai) { if (serie) seriesBloquees[serie] = true; return; }
         chaine = chaine.then(function () { return serie && seriesBloquees[serie] ? null : LOUE.stockage.lire('file', ancien.id); }).then(function (frais) {
@@ -423,7 +427,8 @@
             if (!reseau && !aConfirmer) el.refusServeur = (el.refusServeur || 0) + 1;
             var definitif = err.definitif || (el.refusServeur || 0) >= ESSAIS_MAX;
             el.etat = definitif ? 'erreur' : 'en attente';
-            if (serie && !definitif) seriesBloquees[serie] = true;   // ce geste repartira : ceux d'après sur la même note attendent
+            // cet envoi repartira (ou c'est un ajout refusé) : ce qui suit sur le même élément attend
+            if (serie && (!definitif || el.type === 'note-chantier')) seriesBloquees[serie] = true;
             el.attenteReseau = reseau && !definitif;
             el.aConfirmer = aConfirmer && !definitif;
             el.message = messageClair(err) + (!err.definitif && definitif ? ' (après ' + el.refusServeur + ' essais)' : '');

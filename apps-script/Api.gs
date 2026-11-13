@@ -270,7 +270,7 @@ function routerV5_(corps) {
     // Comptes illisibles (panne) pendant la transition : la fiche passe « sans compte »
     if (qui.refus && qui.sansPossible && envoi && !estNote) qui = { sans: true };
     if (estNote && qui.sans) {
-      const rep = { ok: false, code: 'CONNEXION_REQUISE', message: 'Connectez-vous depuis l’accueil : la note est gardée dans le téléphone et partira ensuite.' };
+      const rep = { ok: false, code: 'CONNEXION_REQUISE', message: 'Connectez-vous depuis l’accueil : c’est gardé dans le téléphone et partira ensuite.' };
       if (qui.jetonInvalide) rep.jetonInvalide = true;
       return rep;
     }
@@ -406,11 +406,14 @@ function recevoirFiche_(corps, compte) {
     // (ni qui tient le téléphone : la note est arrivée, elle doit quitter la file)
     const shEnvois = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_ENVOIS);
     const deja = shEnvois ? chercherEnvoi_(shEnvois, corps.id) : 0;
-    if (deja && String(shEnvois.getRange(deja, 5).getValue()).indexOf('traité') === 0) return { ok: true, code: 'DEJA_RECU', message: 'Déjà enregistré', data: { id: corps.id, note: true } };
+    if (deja && String(shEnvois.getRange(deja, 5).getValue()).indexOf('traité') === 0) return { ok: true, code: 'DEJA_RECU', message: 'Déjà enregistré', data: { id: corps.id } };
     // Téléphone partagé : ce qu'a écrit X ne part jamais sous le nom de Y (cela attend que X se reconnecte)
     if (compte && saisiPar && saisiPar !== compte.id) return { ok: false, code: 'COMPTE_REFUSE',
       message: 'En attente : écrit par « ' + saisiPar + ' ». Cela partira quand cette personne se reconnectera sur ce téléphone.' };
-    const refusNote = refusNote_(donnees, compte);
+    let refusNote;
+    // onglet des notes aux titres changés : même réponse pour un ajout et pour un geste (le téléphone garde et réessaie)
+    try { refusNote = refusNote_(donnees, compte); }
+    catch (err) { if (err && err.occupe) return { ok: false, code: 'SERVEUR_OCCUPE', message: err.message }; throw err; }
     if (refusNote) return { ok: false, code: refusNote.code, message: refusNote.message };
   }
   // « rangée par » est déclaré par le téléphone (information, pas une preuve) ; le compte qui envoie est vérifié par le jeton
@@ -443,7 +446,7 @@ function recevoirFiche_(corps, compte) {
   // 2. Photos déposées avant la fiche
   const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_ENVOIS);
   let dossierPhotos = null;
-  try {
+  if (!estNote) try {   // une note de chantier n'a jamais de photo : pas de recherche dans Drive pour elle
     const enCours = dossierPhotosEnCours_(false);
     // Le dossier à la corbeille (nettoyage après 7 jours) ne compte pas : les photos renvoyées sont dans le nouveau
     const d = enCours ? enCours.getFoldersByName(corps.id) : null;
@@ -468,7 +471,7 @@ function recevoirFiche_(corps, compte) {
     if (err && (err.occupe || err.refusDefinitif)) {
       sh.getRange(ligne, 5, 1, 2).setValues([[err.occupe ? 'erreur' : 'refusé', String(err.message).slice(0, 300)]]);
       RAPPORT_ = null;
-      return err.occupe ? { ok: false, code: 'SERVEUR_OCCUPE', message: 'Serveur occupé, nouvel essai automatique' }
+      return err.occupe ? { ok: false, code: 'SERVEUR_OCCUPE', message: err.message }
                         : { ok: false, code: 'DONNEES_INVALIDES', message: err.message };
     }
     // Des mails sont déjà partis : renvoyer la fiche les doublerait. On la note traitée et Franck vérifie.
@@ -493,7 +496,7 @@ function recevoirFiche_(corps, compte) {
     + (n('refusé') ? ', ' + n('refusé') + ' adresse(s) refusée(s)' : '');
   sh.getRange(ligne, 5, 1, 2).setValues([['traité', estNote ? 'note de chantier (aucun mail)' : detail]]);
   // aucun mail pour une note : pas de « 0 mail envoyé » alarmant sur le téléphone
-  if (estNote) return { ok: true, code: 'ENREGISTRE', message: 'Enregistré', data: { id: corps.id, note: true } };
+  if (estNote) return { ok: true, code: 'ENREGISTRE', message: 'Enregistré', data: { id: corps.id } };
   if (dossierPhotos) { try { dossierPhotos.setTrashed(true); } catch (e) {} }   // les photos sont dans le PDF
 
   return {

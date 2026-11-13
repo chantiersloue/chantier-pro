@@ -319,6 +319,7 @@ function alerte_(texte, sorte) {
     const sujet = {
       abandon: "[Loué App] Mail abandonné — voir l'onglet Mails en attente",
       erreur : "[Loué App] Fiche non traitée — voir l'onglet Envois",
+      notes  : '[Loué App] Listes « Notes » bloquées — titres d’un onglet changés',
       photos : "[Loué App] Trop de photos aujourd'hui",
       dossiers : '[Loué App] dossiers.json illisible',
       rangement: '[Loué App] Document non rangé dans Drive',
