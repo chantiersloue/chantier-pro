@@ -76,6 +76,7 @@ function outilTest_(corps) {
       case 'rangerAnciennesNotes': return ok('Onglets des notes de la première version', outilTestSousVerrou_(outilTestRangerNotes_));
       case 'purgerNotesEssai':     return ok('Éléments des essais automatiques retirés', outilTestSousVerrou_(outilTestPurgerNotes_));
       case 'dossierChantierEssai': return ok('Dossier Drive du chantier d’essai (lecture seule)', outilTestDossierEssai_());
+      case 'titresNotes':          return ok('Ligne de titres des onglets des notes (lecture seule)', outilTestTitresNotes_());
       case 'installerLot3': { const r = installer_('Lot 3', 'TEST', etapesLot3_()); if (!r.ok) throw new Error('installation du lot 3 non terminée : ' + r.texte); return ok(r.texte); }
       case 'installerLot7': { const r = installer_('Lot 7', 'TEST', etapesLot7_()); if (!r.ok) throw new Error('installation du lot 7 non terminée : ' + r.texte); return ok(r.texte); }
       case 'poserDeclencheurs':    return ok(outilTestPoserDeclencheurs_());
@@ -226,6 +227,26 @@ function outilTestPurgerNotes_() {
     for (let i = numeros.length - 1; i >= 0; i--) if (/^fiche-auto-/.test(String(numeros[i][0]))) { sh.deleteRow(i + 2); retirees++; }
   });
   return { lignesRetirees: retirees };
+}
+// Ce que le vrai Sheets renvoie pour la ligne de titres des onglets des notes (et de leurs anciennes versions) : sert à
+// comprendre un « titres changés ». Lecture seule ; les titres ne sont pas des données de chantier.
+function outilTestTitresNotes_() {
+  const attendus = {};
+  attendus[SHEET_NOTES] = NOTE_ENTETES; attendus[SHEET_NOTES_HISTO] = NOTE_HISTO_ENTETES; attendus[SHEET_NOTES_VUES] = NOTE_VUES_ENTETES;
+  return SpreadsheetApp.getActiveSpreadsheet().getSheets().filter(sh => /^Notes/.test(sh.getName())).map(sh => {
+    const nom = sh.getName(), entetes = attendus[nom] || null;
+    const o = { onglet: nom, lignes: sh.getLastRow(), colonnes: sh.getLastColumn(), colonnesMax: sh.getMaxColumns(), cachee: sh.isSheetHidden() };
+    const larg = Math.max(1, Math.min(25, sh.getLastColumn()));
+    const titres = sh.getLastRow() ? sh.getRange(1, 1, 1, larg).getValues()[0] : [];
+    o.titres = titres.map(t => (typeof t) + ':' + String(t));
+    if (entetes) {
+      o.attendus = entetes.length;
+      o.bons = noteTitresBons_(sh, entetes);
+      o.differences = entetes.map((t, i) => String(titres[i]) === t ? null : { colonne: i + 1, attendu: t, lu: (typeof titres[i]) + ':' + String(titres[i]),
+        codes: String(titres[i] === undefined ? '' : titres[i]).split('').map(c => c.charCodeAt(0)).join(' ') }).filter(Boolean);
+    }
+    return o;
+  });
 }
 // Où le serveur range les documents du chantier d'essai : ce que dit l'onglet « Dossiers chantiers », et ce qu'il y a
 // réellement dans Drive (dossiers en double, PDF présents). Lecture seule.

@@ -124,6 +124,7 @@ Pendant les essais, le serveur de la copie TEST contient des **outils d'essai** 
 | `preparerComptes`, `session`, `fermerSessions`, `cocher`, `lireCompte` | Quatre comptes d'essai (`auto-poseur`, `auto-conducteur`, `auto-admin`, `auto-atelier`), activés seulement pendant un essai |
 | `installerLot3`, `accesChantier` | Lot 3 : installer les onglets des notes sur TEST ; cocher ou décocher l'accès d'un compte d'essai au chantier d'essai (aucun autre compte, aucun autre chantier) |
 | `rangerAnciennesNotes`, `purgerNotesEssai` | Lot 3 : renommer (sans rien effacer) les onglets des notes laissés par la première version ; retirer les lignes écrites par les essais automatiques (numéros « fiche-auto-… »), et elles seules |
+| `titresNotes` | Lecture seule : la ligne de titres des onglets des notes telle que Sheets la renvoie (pour comprendre un « titres changés ») |
 | `dossierChantierEssai` | Lecture seule : où le serveur range les documents du chantier d'essai (onglet *Dossiers chantiers*, dossiers en double, PDF présents). Refuse si la racine du Drive ne s'appelle pas « … TEST … » |
 | `installerLot7`, `lireSignalements`, `destinatairesEssai` | Lot 7 : installer le lot sur TEST, lire l'onglet *Signalements* (sans chantier ni texte saisi), savoir à qui partiraient les mails d'un essai (sans donner d'adresse) |
 | `preparerChantier` | Une ligne « CHANTIER TEST AUTO » dans l'onglet *Chantiers* de TEST |

@@ -374,7 +374,7 @@ test('porte complète hors de TEST : tous les gestes sont refusés, rien n’est
   const avant = JSON.stringify([U(g), g.proprietes, g.declencheurs]);
   ['etat', 'preparerComptes', 'session', 'fermerSessions', 'cocher', 'poserDeclencheurs', 'retirerDeclencheurs', 'traiterComptes', 'finirTransition', 'prolongerTransition',
     'lireEnvois', 'lireBilan', 'lireChantiers', 'lireCompte', 'controlerLot2', 'essaiDeclencheur', 'retablirTransition', 'preparerChantier',
-    'installerLot7', 'lireSignalements', 'destinatairesEssai', 'installerLot3', 'accesChantier', 'rangerAnciennesNotes', 'purgerNotesEssai', 'dossierChantierEssai'].forEach(nom =>
+    'installerLot7', 'lireSignalements', 'destinatairesEssai', 'installerLot3', 'accesChantier', 'rangerAnciennesNotes', 'purgerNotesEssai', 'dossierChantierEssai', 'titresNotes'].forEach(nom =>
     assert.deepStrictEqual(geste(g, nom, { id: 'auto-admin', case: 'actif', valeur: true }), { ok: false, code: 'REFUSE', message: 'Refusé' }, nom));
   assert.strictEqual(JSON.stringify([U(g), g.proprietes, g.declencheurs]), avant);
 });
