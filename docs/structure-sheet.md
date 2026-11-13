@@ -89,34 +89,43 @@ Une ligne par signalement, écrite par l'appli. **Seule la colonne M (Statut) se
 
 ## Onglets « Notes », « Notes historique », « Notes vues » (lot 3 — créés par `installerLot3Test` / `installerLot3Production`)
 
-Écrits par l'appli seulement. Tu peux les trier et les filtrer ; **ne modifie rien à la main**, sauf le cas du chantier renommé (ci-dessous).
+La liste des choses à faire de chaque chantier. Écrits par l'appli seulement. Tu peux les trier et les filtrer.
 
-**Notes** — une ligne par note :
+**Notes** — une ligne par élément de liste :
 
 | Col. | Contenu |
 |---|---|
-|A|Numéro (sert à ne jamais écrire deux fois la même note)|
+|A|Numéro (sert à ne jamais écrire deux fois le même élément)|
 |B|Chantier (le nom de l'onglet *Chantiers*)|
-|C|Auteur (identifiant du compte, vérifié par le serveur)|
-|D|Auteur (nom affiché)|
-|E|Créée le (heure du serveur)|
-|F|Texte|
-|G|Photos (identifiants des fichiers Drive ; jamais envoyés aux téléphones)|
-|H|Fait : Oui / vide|
-|I, J|Fait par, Fait le|
-|K, L|Modifiée par, Modifiée le|
-|M, N|Supprimée par, Supprimée le (la ligne reste : c'est la corbeille)|
-|O|Version du texte (1, 2, 3…)|
-|P|Remarque de l'appli (« modifiée en même temps par … »)|
-|Q|Saisie le (date et heure du téléphone)|
-|R, S|Dernier texte le, par (identifiant) : sert à la pastille « nouveau »|
+|C|Texte (une seule ligne)|
+|D|Fait : Oui / vide|
+|E|Créé le (heure du serveur)|
+|F|Créé par : nom (identifiant du compte)|
+|G|Texte modifié le|
+|H|Texte modifié par (identifiant) : sert au chiffre rouge « nouveau »|
+|I|Coché le|
+|J|Coché par : nom (identifiant)|
 
-**Notes historique** — l'ancien texte à chaque modification : Numéro, Enregistrée le, Version remplacée, Ancien texte, Écrit par, Remplacé par, Motif.
+**Notes historique** — le filet de sécurité : une ligne **par geste**, jamais affichée dans l'appli.
+
+| Col. | Contenu |
+|---|---|
+|A|Le (heure du serveur)|
+|B|Numéro de l'élément|
+|C|Chantier|
+|D|Geste : création / modification / modification en même temps / coché / décoché|
+|E|Ancien texte (pour une modification)|
+|F|Nouveau texte (création, modification)|
+|G|Par (nom)|
+|H|Par (identifiant du compte)|
+
+« modification en même temps » : la personne a corrigé un texte que quelqu'un d'autre venait de changer ; sa version a remplacé l'autre, et les deux sont dans cet onglet.
 
 **Notes vues** — la dernière visite de chaque personne sur chaque chantier (pour « nouveau ») : Identifiant, Chantier, Vue le.
 
-- Les photos des notes sont dans le dossier du chantier, sous `05 - CHANTIER/PHOTOS CHANTIER/NOTES` ; l'export PDF va dans `05 - CHANTIER/COMPTE RENDU`.
-- **Chantier renommé dans l'onglet *Chantiers*** : ses notes restent sous l'ancien nom. Remplace-le aussi dans la colonne B de l'onglet *Notes* (Édition → Rechercher et remplacer, dans cette feuille seulement).
+- **L'appli ne supprime jamais rien.** Pour faire disparaître pour de bon un élément écrit par erreur : supprime sa ligne dans l'onglet *Notes* (toi seul). Sinon, coche-le.
+- **Chantier renommé dans l'onglet *Chantiers*** : sa liste reste sous l'ancien nom. Remplace-le aussi dans la colonne B de l'onglet *Notes* (Édition → Rechercher et remplacer, dans cette feuille seulement).
+- Ne modifie rien d'autre à la main dans ces trois onglets.
 
 ## Onglet « Installation » (outillage)
 

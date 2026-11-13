@@ -2,13 +2,13 @@
 // (lancé par Claude, après un envoi « --avec-porte » ; ce n'est PAS un test automatique de la série : il parle à Google)
 //
 // Garde-fous avant d'écrire quoi que ce soit :
-//   - la porte répond, et l'environnement est bien TEST ;
+//   - la porte répond, l'environnement est bien TEST, le serveur est en v8.0 ;
 //   - le Drive visé est celui de TEST, et le chantier d'essai existe.
-// Aucun mail n'est envoyé (les notes n'en envoient pas) : le nombre de mails possibles est contrôlé avant et après.
-// Les notes d'essai sont écrites par les comptes d'essai sur « CHANTIER TEST AUTO », puis mises à la corbeille.
+// Aucun mail n'est envoyé (la liste d'un chantier n'en envoie pas) : le nombre de mails possibles est contrôlé avant et après.
+// Les éléments d'essai sont écrits par les comptes d'essai sur « CHANTIER TEST AUTO » ; comme on ne supprime plus rien dans
+// l'appli, ils sont retirés à la fin par la porte (purgerNotesEssai : seulement les lignes « fiche-auto-… »).
 // Aucun secret n'est affiché : la clé et les jetons de session restent dans _prive/.
 'use strict';
-const zlib = require('zlib');
 const porte = require('../outils/porte.js');
 const { deploiementTest } = require('../outils/envoyer-test.js');
 
@@ -31,135 +31,116 @@ async function session(id) {
   if (!r.ok) throw new Error('session ' + id + ' : ' + r.message);
   return porte.lireSession().jeton;   // lu dans _prive/, jamais affiché
 }
-// Une vraie petite image PNG (un rectangle gris de 320 × 240) : le convertisseur PDF de Google doit pouvoir la dessiner
-function png(w, h) {
-  const crcT = Array.from({ length: 256 }, (_, n) => { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; return c >>> 0; });
-  const crc = b => { let c = 0xFFFFFFFF; for (const x of b) c = crcT[(c ^ x) & 255] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; };
-  const bloc = (t, d) => { const l = Buffer.alloc(4); l.writeUInt32BE(d.length); const c = Buffer.alloc(4); c.writeUInt32BE(crc(Buffer.concat([Buffer.from(t), d]))); return Buffer.concat([l, Buffer.from(t), d, c]); };
-  const ihdr = Buffer.alloc(13); ihdr.writeUInt32BE(w, 0); ihdr.writeUInt32BE(h, 4); ihdr[8] = 8; ihdr[9] = 2;
-  const ligne = Buffer.alloc(1 + 3 * w, 120); ligne[0] = 0;
-  return Buffer.concat([Buffer.from([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]), bloc('IHDR', ihdr),
-    bloc('IDAT', zlib.deflateSync(Buffer.concat(Array.from({ length: h }, () => ligne)))), bloc('IEND', Buffer.alloc(0))]);
-}
-const PHOTO = png(320, 240).toString('base64');
-const maintenant = new Date(), deux = n => String(n).padStart(2, '0');
-const DATE = deux(maintenant.getDate()) + '/' + deux(maintenant.getMonth() + 1) + '/' + maintenant.getFullYear();
-const HEURE = deux(maintenant.getHours()) + 'h' + deux(maintenant.getMinutes());
 const graine = Date.now().toString(36);
 const numero = suffixe => 'fiche-auto-' + graine + '-' + suffixe;
-const note = extra => Object.assign({ type: 'note-chantier', chantier: CHANTIER, date: DATE, heure: HEURE, texte: 'ESSAI AUTOMATIQUE du lot 3 — à ignorer', photos: [] }, extra || {});
+const element = texte => ({ type: 'note-chantier', chantier: CHANTIER, texte: texte });
 const action = (idNote, g, extra) => Object.assign({ type: 'note-action', chantier: CHANTIER, note: idNote, geste: g }, extra || {});
 const fiche = (jeton, qui, id, donnees) => poster({ action: 'fiche', id: id, jeton: jeton, saisiPar: qui, donnees: donnees });
-const court = x => JSON.stringify(x).slice(0, 400);
+const court = x => JSON.stringify(x).slice(0, 450);
+const lire = (jeton, extra) => poster(Object.assign({ action: 'notes', jeton: jeton, chantier: CHANTIER }, extra || {}));
+const miens = liste => (liste || []).filter(n => /ESSAI AUTOMATIQUE/.test(n.texte));
 
 (async () => {
-  console.log('Lot 3 — essais réels sur la copie TEST (' + DATE + ' ' + HEURE + ')');
+  const d = new Date();
+  console.log('Lot 3 — essais réels sur la copie TEST (' + d.toLocaleString('fr-FR') + ')');
   // ── Garde-fous ──
   const etat = await geste('etat');
   if (!etat.ok) throw new Error('la porte de service ne répond pas (' + (etat.code || '') + ') : envoyer d’abord le serveur « --avec-porte »');
   verifier('la porte répond, environnement TEST, serveur ' + etat.data.version + ' (empreinte ' + etat.data.empreinte + ')', etat.data.environnement === 'TEST' && etat.data.version === 'v8.0', court(etat.data));
   if (etat.data.environnement !== 'TEST' || etat.data.version !== 'v8.0') throw new Error('environnement ou version inattendus : essais annulés');
+  // Les onglets laissés par la première version du lot 3 sont renommés (rien n'est effacé), puis le lot est installé
+  const range = await geste('rangerAnciennesNotes');
+  verifier('onglets des notes de la première version rangés (renommés avec la date, rien d’effacé)', range.ok, court(range));
+  console.log('    renommés : ' + JSON.stringify((range.data || {}).renommes));
   const inst = await geste('installerLot3');
   verifier('installation du lot 3 sur TEST (onglets Notes, Notes historique, Notes vues)', inst.ok, inst.message);
   const pc = await geste('preparerComptes'), ch = await geste('preparerChantier');
   verifier('comptes et chantier d’essai prêts', pc.ok && ch.ok, court([pc, ch]));
-  if (!inst.ok || !pc.ok || !ch.ok) throw new Error('préparatifs incomplets : aucune note d’essai n’est écrite');
+  if (!range.ok || !inst.ok || !pc.ok || !ch.ok) throw new Error('préparatifs incomplets : aucun élément d’essai n’est écrit');
   const dest = (await geste('destinatairesEssai')).data;
   if (!dest.racineDriveNommeeTest) throw new Error('le dossier Drive de ce serveur ne s’appelle pas « … TEST … » : essais annulés');
   if (!dest.chantierEssaiPresent) throw new Error('le chantier d’essai est absent de la copie TEST : essais annulés');
+  // Où le serveur range les documents du chantier d'essai (question du PDF introuvable) : lecture seule
+  const dossier = await geste('dossierChantierEssai');
+  console.log('    dossier Drive du chantier d’essai : ' + JSON.stringify(dossier.ok ? dossier.data : dossier.message));
 
   // ── Droits : un poseur sans la case du chantier ne lit ni n'écrit ──
   let jPoseur = await session('auto-poseur');
   const tc = await geste('traiterComptes');
   const sansCase = await geste('accesChantier', { id: 'auto-poseur', valeur: false });
   verifier('case du chantier d’essai décochée pour le poseur d’essai', tc.ok && sansCase.ok, court([tc, sansCase]));
-  const refusLecture = await poster({ action: 'notes', jeton: jPoseur, chantier: CHANTIER });
-  const refusEcriture = await fiche(jPoseur, 'auto-poseur', numero('x'), note());
-  verifier('poseur sans accès au chantier : lecture refusée, note refusée pour de bon', refusLecture.code === 'INTERDIT' && refusEcriture.code === 'DONNEES_INVALIDES', court([refusLecture, refusEcriture]));
+  const refusLecture = await lire(jPoseur);
+  const refusEcriture = await fiche(jPoseur, 'auto-poseur', numero('x'), element('ESSAI AUTOMATIQUE refusé'));
+  verifier('poseur sans accès au chantier : lecture refusée, ajout refusé pour de bon', refusLecture.code === 'INTERDIT' && refusEcriture.code === 'DONNEES_INVALIDES', court([refusLecture, refusEcriture]));
   const avecCase = await geste('accesChantier', { id: 'auto-poseur', valeur: true });
   verifier('case du chantier d’essai cochée pour le poseur d’essai', avecCase.ok, court(avecCase));
 
-  // ── Une note avec une photo, écrite par le poseur ──
-  const id1 = numero('a'), idPhoto = 'photo-auto-' + graine + '-1';
-  const ph = await poster({ action: 'photo', id: idPhoto, fiche: id1, mime: 'image/png', data: PHOTO, jeton: jPoseur });
-  verifier('photo déposée', ph.ok, court(ph));
-  const r1 = await fiche(jPoseur, 'auto-poseur', id1, note({ photos: [{ photoRef: idPhoto }] }));
-  verifier('note reçue : « Note enregistrée », aucun mail', r1.ok && r1.code === 'ENREGISTRE' && r1.message === 'Note enregistrée' && r1.data.note === true, court(r1));
-  const r1b = await fiche(jPoseur, 'auto-poseur', id1, note({ photos: [{ photoRef: idPhoto }] }));
-  verifier('la même note renvoyée : « déjà reçu »', r1b.code === 'DEJA_RECU', court(r1b));
+  // ── Trois éléments ajoutés par le poseur ──
+  const id1 = numero('a'), id2 = numero('b'), id3 = numero('c');
+  const r1 = await fiche(jPoseur, 'auto-poseur', id1, element('ESSAI AUTOMATIQUE 1 — cales de 5'));
+  verifier('élément ajouté : « Enregistré », aucun mail', r1.ok && r1.code === 'ENREGISTRE' && r1.message === 'Enregistré' && r1.data.note === true, court(r1));
+  const r1b = await fiche(jPoseur, 'auto-poseur', id1, element('ESSAI AUTOMATIQUE 1 — cales de 5'));
+  verifier('le même élément renvoyé : « déjà reçu »', r1b.code === 'DEJA_RECU', court(r1b));
   const env = await geste('lireEnvois', { n: 4 });
   const envoi = (env.data.lignes || []).find(l => l[0] === id1) || [];
   verifier('une ligne dans l’onglet Envois : note-chantier, « traité »', envoi[2] === 'note-chantier' && envoi[3] === 'traité', court(envoi));
-  // une note qui commence par « + » : elle doit revenir telle quelle (sans apostrophe de protection)
-  const id2 = numero('b');
-  const r2 = await fiche(jPoseur, 'auto-poseur', id2, note({ texte: '+2 cales au R+1 — ESSAI AUTOMATIQUE' }));
-  // une note sur deux lignes, avec un texte qui ressemble à une date
-  const id3 = numero('c');
-  const r3 = await fiche(jPoseur, 'auto-poseur', id3, note({ texte: '12/11\nESSAI AUTOMATIQUE sur deux lignes' }));
-  verifier('deux autres notes reçues', r2.ok && r3.ok, court([r2, r3]));
+  // un texte qui commence par « + », et un texte « 12/11 » collé sur deux lignes
+  const r2 = await fiche(jPoseur, 'auto-poseur', id2, element('+2 cales au R+1 — ESSAI AUTOMATIQUE 2'));
+  const r3 = await fiche(jPoseur, 'auto-poseur', id3, element('12/11\nESSAI AUTOMATIQUE 3 sur deux lignes'));
+  verifier('deux autres éléments ajoutés', r2.ok && r3.ok, court([r2, r3]));
 
-  const luP = await poster({ action: 'notes', jeton: jPoseur, chantier: CHANTIER });
-  const notesP = (luP.data && luP.data.notes) || [], n1 = notesP.find(n => n.id === id1) || {}, n2 = notesP.find(n => n.id === id2) || {}, n3 = notesP.find(n => n.id === id3) || {};
-  verifier('le poseur relit ses notes : les plus récentes en haut, 1 photo, « la mienne », modifiable par lui', luP.ok && luP.data.chef === false
-    && n1.photos === 1 && n1.mien === true && n1.peutModifier === true && n1.auteur && notesP.findIndex(n => n.id === id3) < notesP.findIndex(n => n.id === id1), court(notesP.slice(0, 3)));
-  verifier('une note qui commence par « + » revient sans apostrophe', n2.texte === '+2 cales au R+1 — ESSAI AUTOMATIQUE', court(n2.texte));
-  verifier('un texte « 12/11 » sur deux lignes revient tel quel (pas transformé en date)', n3.texte === '12/11\nESSAI AUTOMATIQUE sur deux lignes', court(n3.texte));
-  verifier('aucun identifiant de fichier Drive dans la réponse', !/"photos":"|drive\.google|[A-Za-z0-9_-]{28,}/.test(JSON.stringify(notesP.map(n => Object.assign({}, n, { id: '' })))), '');
-  const photo = await poster({ action: 'notePhoto', jeton: jPoseur, note: id1, rang: 1 });
-  verifier('la photo est rendue par le serveur, identique à celle déposée', photo.ok && photo.data.mime === 'image/png' && photo.data.data === PHOTO, court({ ok: photo.ok, code: photo.code, mime: photo.data && photo.data.mime }));
+  const luP = await lire(jPoseur);
+  const aFaire = miens((luP.data || {}).aFaire);
+  verifier('le poseur relit la liste : ses trois éléments, dans l’ordre d’ajout', luP.ok && aFaire.map(n => n.id).join() === [id1, id2, id3].join(), court(aFaire));
+  verifier('un texte qui commence par « + » revient sans apostrophe', (aFaire[1] || {}).texte === '+2 cales au R+1 — ESSAI AUTOMATIQUE 2', court((aFaire[1] || {}).texte));
+  verifier('un texte « 12/11 » collé sur deux lignes revient sur une seule ligne, pas transformé en date', (aFaire[2] || {}).texte === '12/11 ESSAI AUTOMATIQUE 3 sur deux lignes', court((aFaire[2] || {}).texte));
+  verifier('la réponse ne contient ni auteur, ni date : seulement numéro, texte, fait, nouveau', aFaire.every(n => Object.keys(n).sort().join() === 'fait,id,nouveau,texte'), court(aFaire[0]));
 
-  // ── Gestes ──
+  // ── Gestes : cocher, modification libre par quelqu'un d'autre, décocher ──
   const g1 = await fiche(jPoseur, 'auto-poseur', numero('g1'), action(id1, 'fait'));
-  const g2 = await fiche(jPoseur, 'auto-poseur', numero('g2'), action(id1, 'modifier', { texte: 'ESSAI AUTOMATIQUE — texte modifié par le poseur', base: 1 }));
-  verifier('« Fait » puis modification par l’auteur', g1.ok && g2.ok && g1.message === 'Enregistré', court([g1, g2]));
   const jCond = await session('auto-conducteur');
-  const luC = await poster({ action: 'notes', jeton: jCond, chantier: CHANTIER });
-  const c1 = ((luC.data && luC.data.notes) || []).find(n => n.id === id1) || {};
-  verifier('le conducteur voit la note : faite, modifiée, « nouvelle » pour lui, modifiable', luC.ok && luC.data.chef === true && c1.fait === true && c1.version === 2
-    && c1.texte === 'ESSAI AUTOMATIQUE — texte modifié par le poseur' && c1.nouveau === true && c1.peutModifier === true && c1.mien === false, court(c1));
+  const luC = await lire(jCond);
+  const cAFaire = miens(luC.data.aFaire), cTermines = miens(luC.data.termines);
+  verifier('coché par le poseur : pour le conducteur, il est dans « terminés », les deux autres sont « nouveaux »', g1.ok && luC.ok && cTermines.map(n => n.id).join() === id1
+    && cAFaire.map(n => n.id).join() === [id2, id3].join() && cAFaire.every(n => n.nouveau === true) && luC.data.nbTermines >= 1, court([cAFaire, cTermines, luC.data.nbTermines]));
   const nouv1 = await poster({ action: 'notesNouvelles', jeton: jCond });
   const vues = await poster({ action: 'notesVues', jeton: jCond, chantier: CHANTIER, jusqua: luC.data.heure });
   const nouv2 = await poster({ action: 'notesNouvelles', jeton: jCond });
-  verifier('notes nouvelles du conducteur : comptées, puis à zéro pour ce chantier après sa visite', nouv1.ok && (nouv1.data.parChantier[CHANTIER] || 0) >= 3 && vues.ok
+  verifier('chiffre rouge du conducteur : compté, puis à zéro pour ce chantier après sa visite', nouv1.ok && (nouv1.data.parChantier[CHANTIER] || 0) >= 2 && vues.ok
     && !(nouv2.data.parChantier[CHANTIER]), court([nouv1.data, vues, nouv2.data]));
-  // conflit : le conducteur modifie (version 3), puis arrive une modification du poseur écrite sur la version 2
-  const g3 = await fiche(jCond, 'auto-conducteur', numero('g3'), action(id1, 'modifier', { texte: 'ESSAI AUTOMATIQUE — version du conducteur', base: 2 }));
+  // le conducteur corrige l'élément du poseur ; puis arrive une correction du poseur écrite sur l'ancien texte (hors réseau)
+  const g2 = await fiche(jCond, 'auto-conducteur', numero('g2'), action(id2, 'modifier', { texte: 'ESSAI AUTOMATIQUE 2 — corrigé par le conducteur', vu: '+2 cales au R+1 — ESSAI AUTOMATIQUE 2' }));
   jPoseur = await session('auto-poseur');
-  const g4 = await fiche(jPoseur, 'auto-poseur', numero('g4'), action(id1, 'modifier', { texte: 'ESSAI AUTOMATIQUE — version du poseur (hors réseau)', base: 2 }));
-  const apres = ((await poster({ action: 'notes', jeton: jPoseur, chantier: CHANTIER })).data.notes || []).find(n => n.id === id1) || {};
-  verifier('conflit : la dernière reçue gagne, la note dit « modifiée en même temps par … »', g3.ok && g4.ok && apres.texte === 'ESSAI AUTOMATIQUE — version du poseur (hors réseau)'
-    && apres.version === 4 && /^modifiée en même temps par /.test(apres.remarque || ''), court(apres));
-  const histo = await poster({ action: 'noteHistorique', jeton: jPoseur, note: id1 });
-  verifier('historique : trois anciennes versions, dont celle écartée par le conflit', histo.ok && histo.data.versions.length === 3
-    && histo.data.versions[0].motif === 'modification en même temps' && histo.data.versions[0].texte === 'ESSAI AUTOMATIQUE — version du conducteur', court(histo.data));
-  const refusRest = await fiche(jPoseur, 'auto-poseur', numero('g5'), action(id1, 'restaurer'));
-  const refusPdf = await poster({ action: 'notesPdf', jeton: jPoseur, chantier: CHANTIER });
+  const g3 = await fiche(jPoseur, 'auto-poseur', numero('g3'), action(id2, 'modifier', { texte: 'ESSAI AUTOMATIQUE 2 — corrigé par le poseur (hors réseau)', vu: '+2 cales au R+1 — ESSAI AUTOMATIQUE 2' }));
+  const g4 = await fiche(jPoseur, 'auto-poseur', numero('g4'), action(id1, 'defaire'));
+  const apres = await lire(jPoseur);
+  const liste = miens(apres.data.aFaire);
+  verifier('modification libre par un autre, puis la dernière reçue gagne, sans mention à l’écran ; décoché : l’élément reprend sa place', g2.ok && g3.ok && g4.ok
+    && liste.map(n => n.id).join() === [id1, id2, id3].join() && liste[1].texte === 'ESSAI AUTOMATIQUE 2 — corrigé par le poseur (hors réseau)'
+    && Object.keys(liste[1]).length === 4 && !miens(apres.data.termines).length, court(liste));
+  const refusVide = await fiche(jPoseur, 'auto-poseur', numero('g5'), action(id3, 'modifier', { texte: '   ' }));
+  const refusSuppr = await fiche(jPoseur, 'auto-poseur', numero('g6'), action(id3, 'supprimer'));
   const refusTous = await poster({ action: 'notes', jeton: jPoseur });
-  verifier('le poseur ne peut ni restaurer, ni exporter, ni ouvrir la vue « Tous chantiers »', refusRest.code === 'DONNEES_INVALIDES' && refusPdf.code === 'INTERDIT' && refusTous.code === 'INTERDIT', court([refusRest, refusPdf, refusTous]));
+  verifier('pas de suppression : texte vide refusé, geste « supprimer » inconnu ; vue « Tous chantiers » refusée au poseur', refusVide.code === 'DONNEES_INVALIDES' && refusSuppr.code === 'DONNEES_INVALIDES'
+    && refusTous.code === 'INTERDIT', court([refusVide, refusSuppr, refusTous]));
+  const retire = await Promise.all(['notePhoto', 'noteHistorique', 'notesPdf'].map(a => poster({ action: a, jeton: jPoseur, note: id1, rang: 1, chantier: CHANTIER })));
+  verifier('ce qui a été retiré n’existe plus sur le serveur (photo, historique visible, PDF)', retire.every(x => x.code === 'ACTION_INCONNUE'), court(retire));
 
-  // ── Le vrai PDF de Google, avec la photo ──
+  // ── Vue « Tous chantiers » du conducteur ──
   const jCond2 = await session('auto-conducteur');
-  const pdf = await poster({ action: 'notesPdf', jeton: jCond2, chantier: CHANTIER });
-  verifier('export PDF fabriqué par Google et rangé dans le dossier du chantier', pdf.ok && /^NOTES DE CHANTIER .*\.pdf$/.test((pdf.data || {}).nom || '') && pdf.data.notes >= 3, court(pdf));
-  console.log('    PDF à regarder dans le Drive TEST (05 - CHANTIER/COMPTE RENDU) : ' + ((pdf.data || {}).nom || '—'));
-  const tous = await poster({ action: 'notes', jeton: jCond2, recherche: 'deux lignes' });
-  verifier('vue « Tous chantiers » du conducteur : la recherche est faite par le serveur', tous.ok && tous.data.notes.some(n => n.id === id3) && !tous.data.notes.some(n => n.id === id1), court((tous.data || {}).notes));
-
-  // ── Corbeille, puis rangement : les trois notes d'essai finissent à la corbeille ──
-  const s1 = await fiche(jCond2, 'auto-conducteur', numero('s1'), action(id1, 'supprimer'));
-  const corb = await poster({ action: 'notes', jeton: jCond2, chantier: CHANTIER, corbeille: true });
-  const r5 = await fiche(jCond2, 'auto-conducteur', numero('s2'), action(id1, 'restaurer'));
-  const revenu = ((await poster({ action: 'notes', jeton: jCond2, chantier: CHANTIER })).data.notes || []).some(n => n.id === id1);
-  verifier('suppression → corbeille → restauration', s1.ok && corb.ok && corb.data.notes.some(n => n.id === id1) && r5.ok && revenu, court([s1, r5, revenu]));
-  const rangement = [];
-  for (const [i, id] of [id1, id2, id3].entries()) rangement.push((await fiche(jCond2, 'auto-conducteur', numero('z' + i), action(id, 'supprimer'))).ok);
-  const reste = ((await poster({ action: 'notes', jeton: jCond2, chantier: CHANTIER })).data.notes || []).filter(n => [id1, id2, id3].indexOf(n.id) > -1).length;
-  verifier('notes d’essai mises à la corbeille', rangement.every(Boolean) && reste === 0, court([rangement, reste]));
+  const tous = await poster({ action: 'notes', jeton: jCond2, recherche: 'sur deux lignes' });
+  verifier('vue « Tous chantiers » du conducteur : recherche faite par le serveur, chaque élément porte son chantier', tous.ok && tous.data.aFaire.some(n => n.id === id3 && n.chantier === CHANTIER)
+    && !tous.data.aFaire.some(n => n.id === id1), court((tous.data || {}).aFaire));
   const sans = await poster({ action: 'notes', chantier: CHANTIER });
-  const sansNote = await poster({ action: 'fiche', id: numero('y'), donnees: note() });
-  verifier('sans compte : lecture refusée, et une note attend la connexion (jamais enregistrée sans auteur)', sans.code === 'CONNEXION_REQUISE' && sansNote.code === 'CONNEXION_REQUISE', court([sans, sansNote]));
+  const sansAjout = await poster({ action: 'fiche', id: numero('y'), donnees: element('ESSAI AUTOMATIQUE sans compte') });
+  verifier('sans compte : lecture refusée, et un ajout attend la connexion (jamais enregistré sans auteur)', sans.code === 'CONNEXION_REQUISE' && sansAjout.code === 'CONNEXION_REQUISE', court([sans, sansAjout]));
 
-  // ── Rangement ──
+  // ── Rangement : les éléments d'essai sont retirés de la copie TEST par la porte (l'appli ne supprime rien) ──
+  const purge = await geste('purgerNotesEssai');
+  // 3 lignes dans Notes ; dans l'historique : 3 créations + coché + 2 modifications + décoché = 7
+  verifier('éléments des essais retirés de la copie TEST : 3 lignes de Notes et 7 lignes d’historique (qui, quoi, quand)', purge.ok && purge.data.lignesRetirees === 10, court(purge));
+  const reste = miens((await lire(jCond2)).data.aFaire).length;
+  verifier('la liste du chantier d’essai ne contient plus rien de ces essais', reste === 0, String(reste));
   await geste('accesChantier', { id: 'auto-poseur', valeur: false });
   const fin = await geste('fermerSessions');
   verifier('sessions d’essai fermées, comptes d’essai désactivés', fin.ok, court(fin));
@@ -171,6 +152,6 @@ const court = x => JSON.stringify(x).slice(0, 400);
   if (echecs) process.exitCode = 1;
 })().catch(async e => {
   console.error('❌ ' + e.message);
-  try { await geste('accesChantier', { id: 'auto-poseur', valeur: false }); await geste('fermerSessions'); await geste('retirerDeclencheurs'); } catch (x) {}
+  try { await geste('purgerNotesEssai'); await geste('accesChantier', { id: 'auto-poseur', valeur: false }); await geste('fermerSessions'); await geste('retirerDeclencheurs'); } catch (x) {}
   process.exit(1);
 });

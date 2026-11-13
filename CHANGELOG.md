@@ -2,20 +2,21 @@
 
 Chaque lot : **quoi**, **pourquoi**, **comment déployer**. Procédures détaillées dans `docs/lotN-procedure.md`.
 
-## Lot 3 — Notes de chantier — serveur v8.0, appli 8.0 — en test sur la copie TEST (rien en production)
+## Lot 3 — Notes de chantier : la liste des choses à faire — serveur v8.0, appli 8.0 — en test sur la copie TEST (rien en production)
 
 **Quoi**
-- Page **« Notes »** (`notes.html`), ouverte depuis un chantier : liste la plus récente en haut, saisie rapide toujours visible en bas (texte, micro du clavier, 0 à 3 photos, bouton de dictée sur Android), case « Fait », modifier, supprimer, historique, corbeille et restauration pour les conducteurs, export PDF. Hors réseau : la note et les gestes sont gardés dans le téléphone et partent au retour du réseau, dans l'ordre.
-- Vue **« Tous chantiers »** pour les conducteurs et l'admin (filtres chantier, auteur, « nouvelles », « non faites », recherche dans le texte).
-- Accueil : tuile « Notes » dans chaque chantier, tuile « Notes de chantier » pour les conducteurs, chiffre rouge des notes nouvelles.
-- Serveur : onglets *Notes*, *Notes historique*, *Notes vues* ; droits vérifiés par le jeton ; photos rangées dans `05 - CHANTIER/PHOTOS CHANTIER/NOTES` et rendues après contrôle (aucun lien public) ; PDF rangé dans `05 - CHANTIER/COMPTE RENDU` ; **aucun mail**.
+- Page **« Notes »** (`notes.html`), ouverte depuis un chantier : la liste des choses à faire du chantier, façon « Keep ». Un élément = une ligne de texte et une case à cocher ; on ajoute en bas de l'écran ; toucher un texte permet de le corriger ; un élément coché descend dans « Éléments terminés », d'où on peut le décocher. Rien ne se supprime. Hors réseau : ajouts et gestes sont gardés dans le téléphone et partent au retour du réseau, dans l'ordre.
+- Toute personne qui a accès au chantier lit, ajoute, corrige, coche et décoche. À l'écran : ni auteur, ni date.
+- Vue **« Tous chantiers »** pour les conducteurs et l'admin (lecture, recherche, « nouveaux », « avec les terminés », « tout marquer comme lu »).
+- Accueil : tuile « Notes » dans chaque chantier, tuile « Notes de chantier » pour les conducteurs, chiffre rouge des éléments nouveaux.
+- Serveur : onglets *Notes*, *Notes historique* (une ligne par geste : qui, quoi, quand — le filet de sécurité, invisible dans l'appli) et *Notes vues* ; droits vérifiés par le jeton ; **aucun mail**.
 - Installation en une fonction : `installerLot3Test` / `installerLot3Production`.
 
-**Pourquoi** : un pense-bête qui suit le chantier, pas la personne (`PLAN.md`, lot 3). Décisions D3-1 à D3-3 ; plan critiqué avant construction (`docs/lot3-plan.md`).
+**Pourquoi** : un pense-bête qui suit le chantier, pas la personne (`PLAN.md`, lot 3). **Simplifié le 13/11/2026 à la demande de Franck**, après ses essais de la première version (notes avec auteur, date, photos, corbeille, historique et export PDF : retirés, code compris). Décisions D3-1 à D3-4 ; plan : `docs/lot3-plan.md`, chapitre 14.
 
-**Comment déployer** : pas avant la mise en production du lot 7. Procédure : `docs/lot3-procedure.md`.
+**Comment déployer** : `docs/lot3-procedure.md`.
 
-**Tests** : serveur (`tests/lot3-notes.test.js`), page dans un vrai Chrome en largeur téléphone, hors réseau et en réseau lent (`tests/lot3-page.test.js`) ; toutes les séries existantes repassent. **Pas testé** : le vrai serveur TEST, un vrai téléphone (la barre de saisie avec le clavier d'un iPhone), le bouton de dictée, le vrai convertisseur PDF de Google.
+**Tests** : serveur (`tests/lot3-notes.test.js`), page dans un vrai Chrome en largeur téléphone, hors réseau et en réseau lent (`tests/lot3-page.test.js`), essais réels sur la copie TEST (`tests/reel-lot3.js`) ; toutes les séries existantes repassent. **Pas testé par moi** : un vrai téléphone, en particulier le champ d'ajout avec le clavier ouvert.
 
 ## Lot 7 — Signalement casse / manquant / à recommander — serveur v7.0, appli 7.0 — **en production depuis le 13/11/2026** (déploiement « Lot 7 — production »)
 

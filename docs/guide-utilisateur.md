@@ -66,19 +66,20 @@ Touche **Signalements** (dans un chantier : ceux du chantier ; à l'accueil : to
 - « En cours » montre tout sauf les clos ; « Tout » montre aussi les clos.
 - Sans réseau, la dernière liste reçue s'affiche, avec sa date.
 
-## Les notes du chantier
+## Les notes du chantier : la liste des choses à faire
 
-Le pense-bête de l'équipe : ce qu'il ne faut pas oublier sur ce chantier. Tout le monde sur le chantier le voit.
+Ce qu'il ne faut pas oublier sur ce chantier. Tout le monde sur le chantier voit la même liste.
 
 1. Ouvre ton chantier → **Notes**.
-2. Écris en bas de l'écran (ou dicte avec le micro du clavier). Le bouton 📷 prend une photo, le bouton 🖼 en choisit une dans la galerie (3 au plus).
-3. Touche **Ajouter la note**. Elle apparaît tout de suite en haut de la liste.
+2. Écris en bas de l'écran (ou dicte avec le micro du clavier), puis touche **Ajouter**.
+3. Quand c'est fait, **coche la case** : l'élément descend dans « Éléments terminés ».
 
-- **Pas de réseau ?** La note est gardée dans le téléphone (« ⏳ en attente d'envoi ») et part toute seule quand le réseau revient.
-- **C'est fait ?** Touche **Marquer « Fait »** : la note est barrée, avec ton nom. Tout le monde peut le faire.
-- **Une erreur ?** Tu peux **modifier** ou **supprimer** tes propres notes. Une note supprimée n'est pas perdue : un conducteur peut la remettre.
-- La pastille rouge **« nouveau »** montre ce que les autres ont écrit depuis ta dernière visite.
-- Une note n'envoie **aucun mail**. Pour une casse ou un manquant, utilise **Signaler** : le conducteur est prévenu.
+- **Pas de réseau ?** Ce que tu ajoutes ou coches est gardé dans le téléphone (« ⏳ ») et part tout seul quand le réseau revient.
+- **Une faute, une précision ?** Touche le texte, corrige, **OK**. Tout le monde peut corriger.
+- **Coché par erreur ?** Touche la case de nouveau tout de suite, ou ouvre « Éléments terminés » et décoche.
+- Rien ne se supprime : un élément qui n'a plus lieu d'être se coche.
+- « ● nouveau » et le chiffre rouge de l'accueil montrent ce que les autres ont ajouté ou changé depuis ta dernière visite.
+- La liste n'envoie **aucun mail**. Pour une casse ou un manquant, utilise **Signaler** : le conducteur est prévenu.
 
 ## Ne rien perdre : le brouillon
 

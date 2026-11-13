@@ -400,6 +400,7 @@ Découpé en 5 sous-lots déployables séparément.
 - **Vérification** : signalement en mode avion, parti au retour du réseau, mail reçu par le conducteur, et par l'atelier seulement si la case est cochée.
 
 ### Lot 3 — Notes de chantier
+> **Simplifié le 13/11/2026 à la demande de Franck** (après ses essais) : une liste de choses à faire par chantier, façon Keep — une ligne de texte et une case à cocher, modification libre par toute personne qui a accès au chantier, pas de suppression, « Éléments terminés » replié ; ni auteur, ni date, ni photo, ni PDF, ni corbeille, ni historique à l'écran (l'historique reste dans le Sheet). Ce qui suit est le plan d'origine ; ce qui est construit est décrit dans `docs/lot3-plan.md`, chapitre 14 (D3-4).
 - **Intérêt** : un pense-bête partagé par chantier, qui suit le chantier et non la personne.
 - **Difficulté** 2 / **Risque** 2 (synchronisation hors-ligne).
 - **Données** :
