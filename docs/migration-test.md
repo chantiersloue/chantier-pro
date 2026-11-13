@@ -1,5 +1,7 @@
 # Copie TEST dans un second compte Google (option C) : plan de migration
 
+> **ABANDONNÉ le 13/11/2026** (décision de Franck, D-OUT-2) : rien n'a été migré, les envois clasp restent faits par Franck au bureau. Ce document est gardé **pour mémoire** ; il ne décrit rien de ce qui est en place.
+
 > Décision de Franck du 13/11/2026 (D-OUT-1) : option C de `docs/automatisation.md` (piste 2). **But** : que Claude envoie lui-même le serveur sur la copie TEST, sans que Franck soit au bureau, avec un jeton qui **n'ouvre pas la production**.
 > **Version 2**, après critique par un agent indépendant (ce qu'elle a fait changer : chapitre 10). Rien n'est fait tant que Franck n'a pas validé ce plan. La production n'est pas touchée : elle reste dans le compte de Loué, mise à jour par Franck au copier-coller depuis un navigateur.
 
