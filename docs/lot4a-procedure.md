@@ -1,6 +1,6 @@
 # Lot 4a — Carnet de chantier : déposer et lire — procédure
 
-> Plan : `docs/lot4-plan.md`. Mesures de l'étape 4.0 : `docs/lot4-etape0.md`. Serveur v9.0, appli 9.0.
+> Plan : `docs/lot4-plan.md`. Mesures de l'étape 4.0 : `docs/lot4-etape0.md`. Serveur v9.1 (v9.0 jusqu’au retrait de la tuile « Plans »), appli 9.0.
 > Rien n'est en production tant que l'étape D n'est pas faite.
 
 ## Ce que le lot 4a change, en bref
@@ -8,7 +8,7 @@
 - Une tuile **« Carnet »** dans chaque chantier : la liste des plans validés, avec leur indice, et une visionneuse (zoom au doigt, rotation, pages, « Signaler ici »).
 - Ce qui a été regardé reste dans le téléphone et se relit **sans réseau**. Le téléchargement complet d'un document (« Tout télécharger ») arrive au lot 4b.
 - Un programme sur ton PC, **`outils\deposer.bat`**, transforme un PDF en images et le range dans le dossier du chantier. Les skills le lanceront tout seuls au lot 4c ; d'ici là, c'est toi (en production) ou moi (sur la copie TEST) qui le lançons.
-- Rien ne change dans le Sheet. Aucun mail. La tuile « Plans » actuelle reste.
+- Rien ne change dans le Sheet. Aucun mail. La tuile « Plans » est retirée en même temps (décision de Franck du 13/11/2026 : `docs/lot4b-procedure.md`).
 
 ## Étape A — Copie TEST (toi : 2 minutes)
 
@@ -46,7 +46,7 @@ node outils\envoyer-test.js --sans-porte
 
 ## Étape D — Production (30 minutes)
 
-1. Coller `A-COLLER-DANS-APPS-SCRIPT/Code.gs` (v9.0) dans l'éditeur Apps Script de production, enregistrer.
+1. Coller `A-COLLER-DANS-APPS-SCRIPT/Code.gs` (v9.1) dans l'éditeur Apps Script de production, enregistrer.
 2. Lancer `verifierConfig` : aucun ❌. (Le lot 4a n'ajoute aucun onglet : pas de fonction d'installation.)
 3. **Nouveau déploiement** « Lot 4a — production » ; me donner son adresse.
 4. Je prépare la livraison des pages et le lien de fusion ; tu fusionnes ; l'appli passe en 9.0.

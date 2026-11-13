@@ -14,7 +14,12 @@ const porte = require('../outils/porte.js');
 const essai = require('../outils/essai.js');
 
 const CHANTIER = 'CHANTIER TEST AUTO';
-const geste = (nom, donnees) => porte.appeler(nom, donnees || null, { maxMs: 150000 });
+// Un second essai en cas de coupure : pendant que le navigateur joue le scénario (plusieurs minutes, sans rendre la main),
+// la connexion gardée ouverte vers Google meurt, et le premier appel qui suit échoue (« fetch failed », constaté le 13/11/2026)
+const geste = async (nom, donnees) => {
+  try { return await porte.appeler(nom, donnees || null, { maxMs: 150000 }); }
+  catch (e) { await new Promise(r => setTimeout(r, 2000)); return porte.appeler(nom, donnees || null, { maxMs: 150000 }); }
+};
 const s1 = ms => (ms / 1000).toFixed(1).replace('.', ',') + ' s';
 
 (async () => {

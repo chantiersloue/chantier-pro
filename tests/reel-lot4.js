@@ -40,11 +40,11 @@ async function demander(corps) {
   const local = path.join(RACINE, CHANTIER, 'CARNET');
   const attendu = JSON.parse(fs.readFileSync(path.join(local, 'carnet.json'), 'utf8'));
   const etat = await geste('etat');
-  if (!etat.ok || etat.data.environnement !== 'TEST' || etat.data.version !== 'v9.0') throw new Error('porte, environnement ou version inattendus : essais annulés');
+  if (!etat.ok || etat.data.environnement !== 'TEST' || etat.data.version !== 'v9.1') throw new Error('porte, environnement ou version inattendus : essais annulés');
   const empreinte = assembler(true).empreinte;
   let suite = 0;
   for (let essai = 0; essai < 40 && suite < 6; essai++) { const e = await geste('etat'); if (e.ok && e.data.empreinte === empreinte) suite++; else { suite = 0; await new Promise(r => setTimeout(r, 15000)); } }
-  verifier('le serveur de cette branche (v9.0, empreinte ' + empreinte + ') répond 6 fois de suite sur TEST', suite >= 6);
+  verifier('le serveur de cette branche (v9.1, empreinte ' + empreinte + ') répond 6 fois de suite sur TEST', suite >= 6);
   if (suite < 6) throw new Error('le serveur en ligne n’est pas celui de cette branche');
   const dest = (await geste('destinatairesEssai')).data;
   if (!dest.racineDriveNommeeTest || !dest.chantierEssaiPresent) throw new Error('Drive ou chantier d’essai inattendus : essais annulés');

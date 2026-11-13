@@ -95,7 +95,7 @@ Dans un chantier, la tuile **« Carnet »** donne les plans validés par le bure
 
 **Préparer son téléphone pour un chantier sans réseau**
 - Sous chaque document, **« ⬇ Tout télécharger »** (le poids est indiqué) ; en haut, le même bouton pour tout le chantier. Faites-le **en Wi-Fi** de préférence, et **gardez l'appli ouverte** : si vous la quittez, le téléchargement s'arrête et reprendra où il en était au prochain appui.
-- Comptez environ une minute pour 5 Mo. Le bouton devient « ⏸ Arrêter » pendant le téléchargement.
+- Comptez **7 minutes pour un dossier de trois grands plans** (18 Mo), une minute pour un petit document. Le bouton devient « ⏸ Arrêter » pendant le téléchargement.
 - **« ✓ disponible sans réseau, en entier »** : tout le document se lit sans réseau, à tous les grossissements.
 - **« ⚠ plus disponible en entier »** : le téléphone a manqué de place et en a effacé une partie. Téléchargez-le de nouveau.
 - **« ⚠ ANCIEN INDICE »** (ligne rouge) : un nouvel indice est sorti et n'est pas encore dans votre téléphone. Ne posez pas d'après l'ancien sans vérifier.

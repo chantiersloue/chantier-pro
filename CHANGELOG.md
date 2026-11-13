@@ -2,7 +2,7 @@
 
 Chaque lot : **quoi**, **pourquoi**, **comment déployer**. Procédures détaillées dans `docs/lotN-procedure.md`.
 
-## Lot 4b — Carnet de chantier : hors réseau complet, et retrait de la tuile « Plans » — appli 9.0, serveur v9.0 (même numéro ; code retouché pour le retrait de la tuile « Plans ») — **construit, pas encore en production** (ira avec le 4a, après l'essai sur iPhone)
+## Lot 4b — Carnet de chantier : hors réseau complet, et retrait de la tuile « Plans » — appli 9.0, serveur **v9.1** — **construit, pas encore en production** (ira avec le 4a)
 
 **Quoi**
 - **« ⬇ Tout télécharger »** sous chaque document (poids restant annoncé) et pour tout le chantier : avancement, arrêt, reprise où on en était. Une seule demande à la fois au serveur.

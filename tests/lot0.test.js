@@ -269,7 +269,7 @@ console.log('Lot 0 — consultation et partages Drive');
 
 test('doGet : version, callback JSONP contrôlé', () => {
   const g = environnement();
-  assert.strictEqual(g.ctx.doGet({ parameter: {} }).contenu, 'Loué App API v9.0 OK');
+  assert.strictEqual(g.ctx.doGet({ parameter: {} }).contenu, 'Loué App API v9.1 OK');
   const r = g.ctx.doGet({ parameter: { action: 'getContacts', callback: 'alert(1);x' } });
   assert.ok(r.contenu.charAt(0) === '{', 'callback invalide ignoré : JSON simple');
 });
@@ -555,8 +555,12 @@ test('listerPartagesPlans : rien de partagé, pas d’onglet « Dossiers chantie
   const ch = g2.creerElement('dossier', 'CHANTIER TEST 1', g2.racine);
   g2.creerElement('fichier', 'ancien.pdf', g2.creerElement('dossier', 'Plans', ch)).acces = 'ANYONE_WITH_LINK';
   g2.creerElement('fichier', 'neuf.pdf', g2.creerElement('dossier', 'VALIDES', g2.creerElement('dossier', '02 - PLANS', ch))).acces = 'ANYONE_WITH_LINK';
-  assert.ok(/^Liste terminée : 1 ligne/.test(g2.ctx.listerPartagesPlans()));
-  assert.deepStrictEqual(lignesPlans(g2).map(x => [x[1], x[2]]), [['VALIDES', 'neuf.pdf']]);
+  assert.ok(/^Liste terminée : 2 ligne/.test(g2.ctx.listerPartagesPlans()));
+  assert.deepStrictEqual(lignesPlans(g2).map(x => [x[1], x[2]]).sort(), [['Plans', 'ancien.pdf'], ['VALIDES', 'neuf.pdf']]);   // l'ancien dossier « Plans » aussi : la tuile le partageait avant que le nom soit réglable
+  // le dossier du chantier lui-même partagé : il est listé (tout ce qu'il contient l'est alors aussi)
+  ch.acces = 'ANYONE_WITH_LINK';
+  const bilan3 = g2.ctx.listerPartagesPlans();
+  assert.ok(lignesPlans(g2).some(x => x[3] === 'dossier du chantier' && x[2] === 'CHANTIER TEST 1') && /commencez par les dossiers/.test(bilan3), bilan3);
 });
 
 test('listerPartagesPlans : limite de temps — s’arrête proprement, reprend où elle en était, sans doublon ni oubli', () => {
@@ -572,6 +576,16 @@ test('listerPartagesPlans : limite de temps — s’arrête proprement, reprend 
   assert.ok(bilans.length > 2 && bilans.length < 12, bilans.length + ' passage(s) : ' + bilans.join(' / '));
   assert.ok(/^À suivre : \d dossier\(s\) de chantier parcouru\(s\) sur 4, .* Relancer listerPartagesPlans\(\) pour continuer\.$/.test(bilans[0]), bilans[0]);
   assert.ok('PARTAGES_PLANS_SUITE' in g.proprietes === false, 'la reprise est oubliée une fois la liste terminée');
+  // une reprise PÉRIMÉE n'est jamais suivie : onglet vidé entre deux passages, ou reprise vieille de plus d'une heure → tout est refait
+  const p = drivePartagesPlans(), gp = p.g;
+  gp.ctx.listerPartagesPlans();
+  const complete = lignesPlans(gp).map(x => x.slice(0, 5).join(' | ')).sort();
+  gp.proprietes.PARTAGES_PLANS_SUITE = JSON.stringify({ apres: 'zzzz', chantiers: 4, sansPlans: 0, incomplets: 0, partages: 0, lignes: 0, debut: Date.now() });   // « tout est fait », mais l'onglet dit autre chose
+  assert.ok(/^Liste terminée : 6 ligne/.test(gp.ctx.listerPartagesPlans()));
+  assert.deepStrictEqual(lignesPlans(gp).map(x => x.slice(0, 5).join(' | ')).sort(), complete);
+  gp.proprietes.PARTAGES_PLANS_SUITE = JSON.stringify({ apres: 'zzzz', chantiers: 4, sansPlans: 0, incomplets: 0, partages: 6, lignes: 6, debut: Date.now() - 2 * 3600000 });   // trop vieille
+  assert.ok(/^Liste terminée : 6 ligne/.test(gp.ctx.listerPartagesPlans()));
+  assert.deepStrictEqual(lignesPlans(gp).map(x => x.slice(0, 5).join(' | ')).sort(), complete);
   // CHANTIER TEST 1 a trop d'éléments pour un passage de cette horloge : signalé « liste incomplète », jamais recommencé sans fin
   const l = lignesPlans(g);
   const incomplets = l.filter(x => /^⚠ liste incomplète/.test(x[2]));

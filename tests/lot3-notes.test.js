@@ -433,10 +433,10 @@ test('ce qui a été retiré n’existe plus : actions photo, historique et PDF 
   const conf = g.ctx.dossiers_();
   assert.ok(!('notes-photos' in conf.documents) && !('notes-chantier' in conf.documents) && !('notes-chantier' in conf.intitules));
 });
-test('livraison : le serveur à coller contient le lot 3 simplifié, en version v9.0, sans les outils d’essai ni le code retiré', () => {
+test('livraison : le serveur à coller contient le lot 3 simplifié, en version v9.1, sans les outils d’essai ni le code retiré', () => {
   const code = fs.readFileSync(path.join(__dirname, '..', 'A-COLLER-DANS-APPS-SCRIPT', 'Code.gs'), 'utf8');
   ['function traiterNoteChantier(', 'function traiterNoteAction(', 'function installerLot3Test(', 'function installerLot3Production(',
-    "const VERSION_API = 'v9.0'", 'function traiterSignalement('].forEach(t => assert.ok(code.indexOf(t) > -1, t));
+    "const VERSION_API = 'v9.1'", 'function traiterSignalement('].forEach(t => assert.ok(code.indexOf(t) > -1, t));
   ['function modele_notes_chantier(', 'function photoNote_(', 'function exporterNotes_(', 'function historiqueNote_(', 'notes-photos', 'function outilTestRangerNotes_('].forEach(t =>
     assert.ok(code.indexOf(t) < 0, 'ne doit plus y être : ' + t));
   assert.ok(!/function\s+outilTest_\s*\(/.test(code));
