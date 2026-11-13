@@ -46,7 +46,9 @@ Ce qui reste à vérifier pour la solution 4 (5 minutes, quand tu veux ; rien ne
    ```
 2. Dis-moi « demande déposée » : je vérifie depuis le PC que le fichier est bien arrivé dans `G:`.
 
-Si cet essai échoue, on garde la solution 3 (le `.bat`), et le mode miroir devient l'essai suivant : Préférences de Drive pour ordinateur → Dossiers de Drive → « Dupliquer les fichiers », choisir un dossier, attendre la fin de la copie, connecter ce dossier à une conversation et demander à Claude s'il le voit dans son espace de travail.
+**Essai fait le 13/11/2026 : réussi.** Le skill a créé le sous-dossier `_DEPOTS` et y a déposé puis relu `essai-demande.json` (53 octets), sans refus ; le fichier est bien arrivé dans `G:`, vérifié depuis le PC. La solution 4 est donc faisable ; elle sera construite au lot 4c.
+
+Si cet essai avait échoué, on gardait la solution 3 (le `.bat`), et le mode miroir devient l'essai suivant : Préférences de Drive pour ordinateur → Dossiers de Drive → « Dupliquer les fichiers », choisir un dossier, attendre la fin de la copie, connecter ce dossier à une conversation et demander à Claude s'il le voit dans son espace de travail.
 
 ## Essai A2 — le texte utilisé
 
