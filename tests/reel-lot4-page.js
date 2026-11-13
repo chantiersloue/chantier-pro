@@ -63,6 +63,26 @@ const s1 = ms => (ms / 1000).toFixed(1).replace('.', ',') + ' s';
   await page.evaluate(() => { for (let i = 0; i < 4; i++) zoomerAutour(2, 190, 330); }); await page.waitForTimeout(600);
   r.tuilesGardeesMs = await attendre(() => document.querySelectorAll('#monde div img').length > 0 && Object.keys(V.tuiles).every(k => V.tuiles[k] !== 'demandée'), 30);
   await brider(false);
+  await page.evaluate(() => { fermerVue(); });
+  // ── Lot 4b : « Tout télécharger » d'un vrai document (réseau normal), puis lecture hors réseau d'une zone jamais vue ──
+  await page.evaluate(() => charger()); await attendre(() => document.querySelectorAll('#docs .dl').length > 0, 60);
+  r.poids = await page.evaluate(() => DOCS.filter(d => d.id === '104-B')[0].poids);
+  d = Date.now();
+  await page.evaluate(() => document.querySelector('#docs .dl[data-dl="104-B"]').click());
+  await page.waitForTimeout(1500);
+  r.boutonPendant = await page.evaluate(() => (document.querySelector('#docs .dl[data-dl="104-B"]') || {}).textContent || '');
+  r.teleMs = await attendre(() => !TELE, 900);
+  r.teleDuree = Date.now() - d;
+  r.apresTele = await page.evaluate(() => LOUE.carnet.bilan(${JSON.stringify(CHANTIER)}, DOCS.filter(d => d.id === '104-B')[0]).then(b => ({ bilan: b, info: document.getElementById('info').textContent,
+    etat: Array.from(document.querySelectorAll('#docs .doc')).filter(b2 => b2.dataset.doc === '104-B')[0].textContent })));
+  await cdp.send('Network.emulateNetworkConditions', { offline: true, latency: 0, downloadThroughput: -1, uploadThroughput: -1 });
+  await page.evaluate(() => { ouvrirDoc('104-B', 3); });
+  r.horsReseauApercu = await attendre(() => V.apercu === 'net', 20);
+  await page.evaluate(() => { for (let i = 0; i < 4; i++) zoomerAutour(2, 300, 150); }); await page.waitForTimeout(700);
+  r.horsReseauTuilesMs = await attendre(() => document.querySelectorAll('#monde div img').length > 0 && Object.keys(V.tuiles).every(k => V.tuiles[k] !== 'demandée'), 20);
+  r.horsReseau = await page.evaluate(() => ({ tuiles: document.querySelectorAll('#monde div img').length, chargees: Array.from(document.querySelectorAll('#monde div img')).filter(i => i.naturalWidth > 0).length,
+    info: document.getElementById('vue-info').hidden ? '' : document.getElementById('vue-info').textContent }));
+  await brider(false);
   await page.evaluate(() => { fermerVue(); LOUE.deconnecter(); });
   return JSON.stringify(r);
 }`;
@@ -88,6 +108,10 @@ const s1 = ms => (ms / 1000).toFixed(1).replace('.', ',') + ' s';
   verifier('grand plan : aperçu léger affiché en ' + s1(r.legerMs) + ' (objectif 10 s), aperçu net ' + s1(Math.max(0, r.netMs)) + ' plus tard', r.legerMs >= 0 && r.legerMs <= 10000 && r.netMs >= 0, r);
   verifier('zoom au niveau le plus fin : ' + r.zoom.tuiles + ' tuiles affichées en ' + s1(r.tuilesMs) + ' (objectif 15 s)', r.tuilesMs >= 0 && r.tuilesMs <= 15000 && r.zoom.tuiles > 0 && r.zoom.chargees === r.zoom.tuiles, r);
   verifier('la même page et la même zone une seconde fois : tout vient du téléphone (' + s1(r.legerGardeMs) + ' et ' + s1(r.tuilesGardeesMs) + ')', r.legerGardeMs >= 0 && r.legerGardeMs < 2000 && r.tuilesGardeesMs >= 0 && r.tuilesGardeesMs < 2000, r);
+  verifier('« Tout télécharger » d’un vrai document de ' + (r.poids / 1048576).toFixed(1).replace('.', ',') + ' Mo : fini en ' + s1(r.teleDuree) + ', marqué « disponible sans réseau, en entier »',
+    r.teleMs >= 0 && r.apresTele.bilan.complet === true && /disponible sans réseau, en entier/.test(r.apresTele.etat) && /Téléchargement terminé/.test(r.apresTele.info) && /Arrêter/.test(r.boutonPendant), r);
+  verifier('puis SANS RÉSEAU : une page et une zone jamais regardées s’affichent nettes (' + r.horsReseau.tuiles + ' tuiles), sans message d’absence',
+    r.horsReseauApercu >= 0 && r.horsReseauTuilesMs >= 0 && r.horsReseau.tuiles > 0 && r.horsReseau.chargees === r.horsReseau.tuiles && r.horsReseau.info === '', r);
   console.log(echecs ? echecs + ' point(s) hors objectif' : 'Tous les objectifs « 3G lente » sont tenus');
   if (echecs) process.exitCode = 1;
 })().catch(e => { console.error('❌ ' + e.message); process.exit(1); });

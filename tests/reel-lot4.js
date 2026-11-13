@@ -146,14 +146,18 @@ async function demander(corps) {
   verifier('15 téléphones en même temps sur un vrai plan (90 demandes) : aucune erreur ; la plus lente ' + s1(pire) + ' ; le tout en ' + s1(Date.now() - debut), ko === 0 && ok === 90, court(codes));
 
   // ── Lot 4b : 15 téléphones en « Tout télécharger » (une demande de 1,2 Mo à la fois chacun), et une fiche envoyée pendant ──
+  // sur la page la plus lourde du document le plus lourd (de vrais lots de 1,2 Mo)
+  const lourd = attendu.documents.filter(d => !d.retire).sort((a, b) => b.poids - a.poids)[0];
+  const poidsPage = p => (p.niveaux || []).reduce((s, n) => s + n.paquets.reduce((s2, q) => s2 + q.o, 0), 0);
+  const pgM = lourd.pages.map((p, i) => [poidsPage(p), i + 1]).sort((a, b) => b[0] - a[0])[0][1], nvM = lourd.pages[pgM - 1].niveaux.filter(n => n.z === 0)[0];
   const lotsMasse = [];
   { let lot = [], o = 0;
-    nv0.paquets.forEach(p => p.tuiles.forEach(t => { if (o + t[3] > 1200 * 1024 || lot.length >= 60) { lotsMasse.push(lot); lot = []; o = 0; } lot.push([t[0], t[1]]); o += t[3]; }));
+    nvM.paquets.forEach(p => p.tuiles.forEach(t => { if (o + t[3] > 1200 * 1024 || lot.length >= 60) { lotsMasse.push(lot); lot = []; o = 0; } lot.push([t[0], t[1]]); o += t[3]; }));
     if (lot.length) lotsMasse.push(lot); }
   const debutM = Date.now(); let okM = 0, koM = 0, pireM = 0, octetsM = 0; const codesM = {}, dureesM = [];
   const masse = async k => {
     for (let i = 0; i < 3; i++) {
-      const r = await demander({ jeton: jeton, chantier: CHANTIER, action: 'carnetTuiles', doc: gros.id, page: pg, quoi: 'tuiles', niveau: 0, masse: true, tuiles: lotsMasse[(k + i) % lotsMasse.length] });
+      const r = await demander({ jeton: jeton, chantier: CHANTIER, action: 'carnetTuiles', doc: lourd.id, page: pgM, quoi: 'tuiles', niveau: 0, masse: true, tuiles: lotsMasse[(k + i) % lotsMasse.length] });
       if (r.rep.ok && r.rep.data.images.length) { okM++; octetsM += r.poids; dureesM.push(r.ms); } else { koM++; codesM[r.rep.code || '?'] = (codesM[r.rep.code || '?'] || 0) + 1; }
       pireM = Math.max(pireM, r.ms);
     }
@@ -173,7 +177,8 @@ async function demander(corps) {
   await geste('accesChantier', { id: 'auto-poseur', valeur: false });
   const fin = await geste('fermerSessions'); await geste('retirerDeclencheurs');
   const etatFin = (await geste('etat')).data;
-  verifier('comptes d’essai refermés, aucun mail envoyé', fin.ok && etatFin.mailsPossibles === etat.data.mailsPossibles, etat.data.mailsPossibles + ' avant, ' + etatFin.mailsPossibles + ' après');
+  // un mail envoyé ferait BAISSER ce nombre (il peut remonter tout seul : le compteur de Google glisse sur 24 heures)
+  verifier('comptes d’essai refermés, aucun mail envoyé', fin.ok && etatFin.mailsPossibles >= etat.data.mailsPossibles, etat.data.mailsPossibles + ' avant, ' + etatFin.mailsPossibles + ' après');
   console.log('\n' + (resultats.length - echecs) + ' vérification(s) réussie(s) sur ' + resultats.length + (echecs ? ' — DES ESSAIS ÉCHOUENT' : ''));
   if (echecs) process.exitCode = 1;
 })().catch(async e => {
