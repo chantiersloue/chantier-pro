@@ -114,4 +114,4 @@ const s1 = ms => (ms / 1000).toFixed(1).replace('.', ',') + ' s';
     r.horsReseauApercu >= 0 && r.horsReseauTuilesMs >= 0 && r.horsReseau.tuiles > 0 && r.horsReseau.chargees === r.horsReseau.tuiles && r.horsReseau.info === '', r);
   console.log(echecs ? echecs + ' point(s) hors objectif' : 'Tous les objectifs « 3G lente » sont tenus');
   if (echecs) process.exitCode = 1;
-})().catch(e => { console.error('❌ ' + e.message); process.exit(1); });
+})().catch(e => { console.error('❌ ' + e.message + (e.cause ? ' (' + (e.cause.code || e.cause.message) + ')' : '') + ' — ' + String(e.stack || '').split(String.fromCharCode(10)).slice(1, 4).join(' | ')); process.exit(1); });
