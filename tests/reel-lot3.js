@@ -11,6 +11,7 @@
 'use strict';
 const porte = require('../outils/porte.js');
 const { deploiementTest } = require('../outils/envoyer-test.js');
+const { assembler } = require('../outils/construire.js');
 
 const URL_TEST = deploiementTest().url;
 const CHANTIER = 'CHANTIER TEST AUTO';
@@ -48,6 +49,18 @@ const miens = liste => (liste || []).filter(n => /ESSAI AUTOMATIQUE/.test(n.text
   if (!etat.ok) throw new Error('la porte de service ne répond pas (' + (etat.code || '') + ') : envoyer d’abord le serveur « --avec-porte »');
   verifier('la porte répond, environnement TEST, serveur ' + etat.data.version + ' (empreinte ' + etat.data.empreinte + ')', etat.data.environnement === 'TEST' && etat.data.version === 'v8.0', court(etat.data));
   if (etat.data.environnement !== 'TEST' || etat.data.version !== 'v8.0') throw new Error('environnement ou version inattendus : essais annulés');
+  // Constaté le 13/11/2026 : pendant une minute environ après un envoi, Google sert encore certaines demandes avec l'ANCIEN
+  // serveur (qui a alors « installé » les onglets de l'ancienne version). On n'écrit rien tant que le serveur attendu
+  // n'a pas répondu 6 fois de suite.
+  const attendue = assembler(true).empreinte;
+  let suite = 0;
+  for (let essai = 0; essai < 40 && suite < 6; essai++) {
+    const e = await geste('etat');
+    if (e.ok && e.data.empreinte === attendue) suite++;
+    else { suite = 0; await new Promise(r => setTimeout(r, 15000)); }
+  }
+  verifier('le serveur attendu (empreinte ' + attendue + ') répond 6 fois de suite : l’ancien n’est plus servi', suite >= 6, 'empreinte lue : ' + etat.data.empreinte);
+  if (suite < 6) throw new Error('le serveur en ligne n’est pas celui de cette branche : refaire l’envoi « --avec-porte », ou attendre');
   // Les onglets laissés par la première version du lot 3 sont renommés (rien n'est effacé), puis le lot est installé
   const range = await geste('rangerAnciennesNotes');
   verifier('onglets des notes de la première version rangés (renommés avec la date, rien d’effacé)', range.ok, court(range));
@@ -56,7 +69,11 @@ const miens = liste => (liste || []).filter(n => /ESSAI AUTOMATIQUE/.test(n.text
   verifier('installation du lot 3 sur TEST (onglets Notes, Notes historique, Notes vues)', inst.ok, inst.message);
   const pc = await geste('preparerComptes'), ch = await geste('preparerChantier');
   verifier('comptes et chantier d’essai prêts', pc.ok && ch.ok, court([pc, ch]));
-  if (!range.ok || !inst.ok || !pc.ok || !ch.ok) throw new Error('préparatifs incomplets : aucun élément d’essai n’est écrit');
+  const titres = await geste('titresNotes');
+  const bons = (titres.data || []).filter(o => ['Notes', 'Notes historique', 'Notes vues'].indexOf(o.onglet) > -1);
+  verifier('les trois onglets des notes ont les bons titres, contrôlés sur le vrai Sheets', titres.ok && bons.length === 3 && bons.every(o => o.bons === true),
+    court((titres.data || []).map(o => [o.onglet, o.colonnes, o.bons])));
+  if (!range.ok || !inst.ok || !pc.ok || !ch.ok || !(bons.length === 3 && bons.every(o => o.bons === true))) throw new Error('préparatifs incomplets : aucun élément d’essai n’est écrit');
   const dest = (await geste('destinatairesEssai')).data;
   if (!dest.racineDriveNommeeTest) throw new Error('le dossier Drive de ce serveur ne s’appelle pas « … TEST … » : essais annulés');
   if (!dest.chantierEssaiPresent) throw new Error('le chantier d’essai est absent de la copie TEST : essais annulés');
