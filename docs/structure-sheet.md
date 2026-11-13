@@ -158,6 +158,22 @@ Une ligne par placard relevé, écrite par la fiche « Prise de cotes ». Les ti
 
 Aucun skill ne lit cet onglet (la règle 5 du contrat `docs/contrat-skills.md` a été abandonnée le 13/11/2026).
 
+## Onglet « Partages Plans » (lot 4b — créé par `listerPartagesPlans`)
+
+État des lieux, écrit par la fonction `listerPartagesPlans()` (à lancer dans l'éditeur Apps Script) : les fichiers et dossiers **encore partagés par lien** dans les dossiers `Plans` des chantiers, depuis le retrait de la tuile « Plans ». La fonction ne modifie rien dans le Drive ; chaque nouvelle liste remplace la précédente. L'onglet peut être supprimé sans risque : il est recréé au lancement suivant.
+
+|Colonne|Contenu|
+|-|-|
+|A|Chantier|
+|B|Chemin dans le dossier du chantier (« Plans › sous-dossier »)|
+|C|Nom du fichier ou du dossier|
+|D|Élément : fichier ou dossier|
+|E|Type de partage (« toute personne disposant du lien — lecture »…)|
+|F|Modifié le (jj/mm/aaaa)|
+|G|Identifiant Drive (pour retrouver l'élément)|
+
+Aucun skill ne lit cet onglet. À ne pas confondre avec « Partages (lot 0) », qui sert au retour arrière du lot 0.
+
 ## Onglet « Dossiers chantiers » (lot 1.5)
 
 Écrit par l'appli : pour chaque chantier, le dossier Drive où elle range ses documents.

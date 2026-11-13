@@ -4,7 +4,7 @@
 // ═══════════════════════════════════════════════════════════════
 
 // ═══════════════════════════════════════════════════════════════
-// GET — contacts, chantiers, documents Drive, listes
+// GET — contacts, chantiers, planning, listes
 // ═══════════════════════════════════════════════════════════════
 function doGet(e) {
   const action = e.parameter.action || '';
@@ -79,99 +79,39 @@ function donneesListes_() {
   };
 }
 
-// ── Lecture automatique des dossiers Drive pour un chantier ──
+// ── Planning de l'équipe (et, pour les anciennes pages, la liste vide des plans d'un chantier) ──
 function getDossiers(chantierNom, callback) {
-  const r = lireDossiers_(chantierNom);
-  return sortieJson_(r && r.__erreur ? { erreur: r.__erreur, dossiers: {} } : { dossiers: r }, callback);
+  return sortieJson_({ dossiers: lireDossiers_(chantierNom) }, callback);
 }
-// Documents lisibles d'un chantier (Plans), ou le planning (__PLANNING__) ; { __erreur } si le dossier n'existe pas
+// Le planning (__PLANNING__) : { planning: [...] } ; pour un chantier : { plans: [] }
 function lireDossiers_(chantierNom) {
+  // Un chantier : plus rien à lire. La tuile « Plans » est retirée (lot 4b) : les plans se lisent dans le carnet.
+  // Le Drive n'est pas ouvert, et plus aucun fichier du dossier Plans n'est mis en partage par lien.
+  // La liste vide (sans erreur) est pour les anciennes pages encore gardées dans les téléphones.
+  if (chantierNom !== '__PLANNING__') return { plans: [] };
+
+  // Planning de l'équipe — lecture directe par identifiant (comportement inchangé)
   const result = {};
-
   try {
-    // Cas spécial : planning global — lecture directe par ID
-    if (chantierNom === '__PLANNING__') {
-      try {
-        const planningFolder = DriveApp.getFolderById(drivePlanningId_());
-        const files = planningFolder.getFiles();
-        const docs = [];
-        while(files.hasNext()) {
-          const f = files.next();
-          try { f.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); } catch(e){}
-          const mime = f.getMimeType();
-          let type = 'link';
-          if(mime.includes('pdf'))   type='pdf';
-          else if(mime.includes('image')) type='image';
-          else if(mime.includes('spreadsheet')||mime.includes('excel')) type='xls';
-          else if(mime.includes('presentation')) type='ppt';
-          else if(mime.includes('document'))     type='doc';
-          docs.push({ nom:f.getName(), url:f.getUrl(), type, date:Utilities.formatDate(f.getLastUpdated(),'Europe/Paris','dd/MM/yyyy') });
-        }
-        docs.sort(parDateDecroissante_);
-        result.planning = docs;
-      } catch(err){ console.error('Planning:', err.message); result.planning=[]; }
-      return result;
-    }
-
-    // Chercher le dossier du chantier
-    // Lot 1.5 : même recherche que pour le classement (onglet « Dossiers chantiers », nom exact, ressemblance unique)
-    const chantierFolder = dossierChantier_(chantierNom, false);
-    if (!chantierFolder) return { __erreur: 'Dossier chantier non trouvé' };
-
-    // Lot 0 : seuls les sous-dossiers encore partagés par lien sont listés
-    // (les autres ne s'ouvriraient plus chez les poseurs, et leurs noms de fichiers ne doivent pas fuiter)
-    // Lot 1.5 : le dossier Plans est celui de dossiers.json (même nom que pour le rangement)
-    const plans = dossierParChemin_(chantierFolder, dossiers_().documents.plans, false);
-    result.plans = plans ? lireSousDossier(plans, '', true) : [];
-
-  } catch(err) {
-    console.error('getDossiers:', err.message);
-  }
-  return result;
-}
-
-// Lit tous les fichiers d'un sous-dossier (nomSousDossier vide = lire le dossier parent lui-même).
-// partager = true : les fichiers sont mis en « tous ceux qui ont le lien » (dossier Plans uniquement).
-function lireSousDossier(chantierFolder, nomSousDossier, partager) {
-  const docs = [];
-  try {
-    let folder;
-    if (!nomSousDossier) {
-      folder = chantierFolder;
-    } else {
-      const subFolders = chantierFolder.getFoldersByName(nomSousDossier);
-      if (!subFolders.hasNext()) return docs;
-      folder = subFolders.next();
-    }
-
-    const files = folder.getFiles();
-    while (files.hasNext()) {
+    const planningFolder = DriveApp.getFolderById(drivePlanningId_());
+    const files = planningFolder.getFiles();
+    const docs = [];
+    while(files.hasNext()) {
       const f = files.next();
-      if (partager) {
-        try { f.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); } catch(e){}
-      }
-
+      try { f.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); } catch(e){}
       const mime = f.getMimeType();
       let type = 'link';
-      if (mime.includes('pdf'))                           type = 'pdf';
-      else if (mime.includes('image'))                    type = 'image';
-      else if (mime.includes('spreadsheet') || mime.includes('excel')) type = 'xls';
-      else if (mime.includes('presentation'))             type = 'ppt';
-      else if (mime.includes('document'))                 type = 'doc';
-
-      docs.push({
-        nom  : f.getName(),
-        url  : f.getUrl(),
-        type : type,
-        date : Utilities.formatDate(f.getLastUpdated(), 'Europe/Paris', 'dd/MM/yyyy'),
-      });
+      if(mime.includes('pdf'))   type='pdf';
+      else if(mime.includes('image')) type='image';
+      else if(mime.includes('spreadsheet')||mime.includes('excel')) type='xls';
+      else if(mime.includes('presentation')) type='ppt';
+      else if(mime.includes('document'))     type='doc';
+      docs.push({ nom:f.getName(), url:f.getUrl(), type, date:Utilities.formatDate(f.getLastUpdated(),'Europe/Paris','dd/MM/yyyy') });
     }
-    // Tri par date décroissante
     docs.sort(parDateDecroissante_);
-  } catch(err) {
-    console.error('lireSousDossier '+nomSousDossier+':', err.message);
-  }
-  return docs;
+    result.planning = docs;
+  } catch(err){ console.error('Planning:', err.message); result.planning=[]; }
+  return result;
 }
 
 // Tri des documents par date « jj/mm/aaaa », la plus récente en premier

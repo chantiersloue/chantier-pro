@@ -422,13 +422,24 @@ test('case « Tous les chantiers » : un poseur voit tout (et n’a pas de colon
   // (sa colonne, créée avant que la case soit cochée, reste : rien n'est jamais supprimé de l'onglet)
 });
 
-test('plans : poseur refusé sur un chantier non coché, accepté sur le sien ; planning pour tous', () => {
+test('action « dossiers » : poseur refusé sur un chantier non coché ; sur le sien, liste vide (tuile Plans retirée, lot 4b) ; planning pour tous', () => {
   const g = environnement();
   const jt = activer(g, 'thomas27');
   cocherAcces(g, 'CHANTIER TEST 1', 'thomas27');
+  // un dossier Plans rempli : il n'est plus lu, et plus aucun de ses fichiers n'est mis en partage par lien
+  const racine = g.elements['RACINE'];
+  const plan = g.creerElement('fichier', 'plan.pdf', g.creerElement('dossier', 'Plans', g.creerElement('dossier', 'CHANTIER TEST 1', racine)));
+  const s46 = g.creerElement('fichier', 'S46.pdf', g.elements['PLANNING']);
   assert.strictEqual(poster(g, { action: 'dossiers', jeton: jt, chantier: 'CHANTIER TEST 2' }).code, 'INTERDIT');
-  assert.strictEqual(poster(g, { action: 'dossiers', jeton: jt, chantier: 'chantier test 1' }).code, 'OK');
-  assert.strictEqual(poster(g, { action: 'dossiers', jeton: jt, chantier: '__PLANNING__' }).code, 'OK');
+  const r = poster(g, { action: 'dossiers', jeton: jt, chantier: 'chantier test 1' });
+  assert.strictEqual(r.code, 'OK');
+  assert.deepStrictEqual(r.data.dossiers, { plans: [] });
+  assert.strictEqual(plan.acces, 'PRIVATE', 'le plan n’est plus partagé par lien');
+  const p = poster(g, { action: 'dossiers', jeton: jt, chantier: '__PLANNING__' });
+  assert.strictEqual(p.code, 'OK');
+  assert.deepStrictEqual(p.data.dossiers.planning.map(d => d.nom), ['S46.pdf']);
+  assert.strictEqual(s46.acces, 'ANYONE_WITH_LINK', 'le planning garde son partage par lien');
+  assert.strictEqual(plan.acces, 'PRIVATE');
 });
 
 test('fiche d’un poseur pour un chantier non coché : acceptée, auteur noté dans Envois', () => {

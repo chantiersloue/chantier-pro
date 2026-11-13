@@ -20,7 +20,7 @@
 ## Mes chantiers
 
 - L'accueil montre **tes chantiers** (ceux que le bureau t'a donnés), les derniers ouverts en premier. Une recherche apparaît s'il y en a beaucoup.
-- Touche un chantier : ses **fiches** (le chantier est **déjà rempli**) et ses **Plans**.
+- Touche un chantier : son **Carnet** (les plans), ses **Signalements**, ses **Notes** et ses **fiches** (le chantier est **déjà rempli**).
 - Un chantier manque ? Demande au bureau de te le cocher. En attendant : **« Fiche sans chantier choisi »** (tu tapes le chantier ; l'appli te demande de confirmer s'il n'est pas dans tes chantiers).
 - Conducteurs : bouton **« Voir tous les chantiers »**.
 
@@ -116,9 +116,13 @@ Dans un chantier, la tuile **« Carnet »** donne les plans validés par le bure
 
 ## Consulter les documents d'un chantier
 
-Accueil → touche ton chantier → **Plans** → touche un plan pour l'ouvrir. La liste de tes chantiers s'affiche aussi sans réseau (pour ouvrir un plan, il faut du réseau).
+Les plans et les documents d'un chantier se lisent dans le **Carnet** : Accueil → touche ton chantier → **Carnet** → touche un document pour l'ouvrir. Le mode d'emploi est plus haut : « Le carnet du chantier : les plans ».
 
-*Seul l'onglet Plans est affiché. Les autres documents (PPSPS, tableaux…) reviendront dans le futur « carnet de chantier ».*
+- **L'ancien bouton « Plans » n'existe plus** : le Carnet le remplace. Les plans s'ouvrent dans l'appli, au zoom, et se relisent **sans réseau** une fois téléchargés.
+- Le Carnet demande d'être **connecté** avec ton compte.
+- Un plan manque dans le Carnet ? Demande-le au bureau : c'est le bureau qui dépose les plans validés.
+- La liste de tes chantiers s'affiche aussi sans réseau.
+- Le **planning de l'équipe** ne change pas : Accueil → **Planning** → touche le document (il faut du réseau).
 
 ## Mise à jour de l'appli
 

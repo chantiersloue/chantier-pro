@@ -675,18 +675,20 @@
       .finally(function () { clearTimeout(minuteur); });
   }
 
-  // Documents d'un chantier (Plans) ou planning (chantier = '__PLANNING__') : avec le compte, sinon lecture sans compte
+  // Planning de l'équipe (chantier = '__PLANNING__') : avec le compte, sinon lecture sans compte.
+  // Ne sert plus qu'au planning : les plans d'un chantier se lisent dans le carnet (carnet.html) ; pour un chantier,
+  // le serveur répond une liste vide.
   LOUE.lireDossiers = function (chantier) {
     var sansCompte = function () {
       return LOUE.lire('action=getDossiers&chantier=' + encodeURIComponent(chantier)).then(function (d) {
-        if (d && d.erreur === 'CONNEXION_REQUISE') throw new Error('Connectez-vous pour voir les documents');
+        if (d && d.erreur === 'CONNEXION_REQUISE') throw new Error('Connectez-vous pour voir le planning');
         return (d && d.dossiers) || {};
       });
     };
     if (!LOUE.compte()) return sansCompte();
     return LOUE.appeler({ action: 'dossiers', chantier: chantier }, 20000).then(function (rep) {
       if (rep.code === 'ACTION_INCONNUE' || (!LOUE.compte() && rep.code === 'JETON_INVALIDE')) return sansCompte();
-      if (!rep.ok) throw new Error(rep.message || 'Documents indisponibles');
+      if (!rep.ok) throw new Error(rep.message || 'Planning indisponible');
       return rep.data.dossiers || {};
     });
   };
@@ -745,7 +747,7 @@
     el.dispatchEvent(new Event('change', { bubbles: true }));
   };
 
-  // ── Lecture simple (planning, documents d'un chantier…) : fetch anonyme d'abord, JSONP de secours (règle 3) ──
+  // ── Lecture simple (planning…) : fetch anonyme d'abord, JSONP de secours (règle 3) ──
   // requete : « action=getDossiers&chantier=… » ; renvoie une promesse des données (rejet si rien n'arrive)
   LOUE.lire = function (requete, delaiMs) {
     delaiMs = delaiMs || 15000;

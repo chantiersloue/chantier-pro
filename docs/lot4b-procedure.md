@@ -1,6 +1,6 @@
 # Lot 4b — Carnet de chantier : hors réseau complet — procédure
 
-> Plan : `docs/lot4-plan.md`, chapitre 7. Le lot 4a (`docs/lot4a-procedure.md`) et le lot 4b iront **en production ensemble**, après l'essai sur iPhone (décision de Franck du 13/11/2026, D4-9). Le serveur ne change pas entre 4a et 4b : il reste en v9.0. L'appli reste en 9.0.
+> Plan : `docs/lot4-plan.md`, chapitre 7. Le lot 4a (`docs/lot4a-procedure.md`), le lot 4b et le retrait de la tuile « Plans » vont **en production ensemble**, dès que c'est prêt (décision de Franck du 13/11/2026, D4-12 : l'essai sur iPhone se fera avant la remise de l'appli aux poseurs). Serveur v9.0, appli 9.0. **Le retrait de la tuile « Plans » a modifié le serveur** : un envoi sur la copie TEST est nécessaire avant la production.
 
 ## Ce que le lot 4b ajoute, en bref
 
@@ -21,14 +21,16 @@
 
 ## Étapes
 
-Le serveur étant le même qu'au lot 4a, **aucun envoi clasp n'est nécessaire pour le 4b** tant que `apps-script/` ne change pas : la copie TEST a déjà le serveur v9.0.
+1. **Envoi sur la copie TEST** (toi) : `node outilsenvoyer-test.js --avec-porte`. Je rejoue alors mes essais réels et je republie la copie d'essai.
+2. **Tes essais sur téléphone** (liste courte donnée avec l'adresse) : le carnet marche toujours, la tuile « Plans » a disparu, le planning s'ouvre toujours.
+3. **Dernier envoi** (toi) : `node outilsenvoyer-test.js --sans-porte`.
+4. Production de l'ensemble : envoi `--sans-porte`, collage du serveur v9.0, nouveau déploiement, adresse, lien de fusion (`docs/lot4a-procedure.md`, étapes C à E).
 
-1. Je publie la copie d'essai (pages du 4b) et je rejoue mes essais réels sur la copie TEST.
-2. **Tes essais sur téléphone** (liste donnée avec l'adresse).
-3. Essai sur **iPhone** (4a et 4b).
-4. Production des deux lots ensemble : envoi `--sans-porte`, collage du serveur v9.0, nouveau déploiement, adresse, lien de fusion (`docs/lot4a-procedure.md`, étapes C à E).
+## Retrait de l'ancienne tuile « Plans » — **décidé par Franck le 13/11/2026 : fait tout de suite**
 
-## Proposition : retirer l'ancienne tuile « Plans » (à décider par Franck)
+> Les points 1 à 3 ci-dessous sont faits dans cette livraison. Pour le point 4 : lance `listerPartagesPlans()` dans l'éditeur Apps Script (choisis la fonction en haut, puis ▶ Exécuter ; si le journal dit « À suivre », relance-la). Elle remplit l'onglet « Partages Plans » et ne modifie rien dans le Drive. La proposition d'origine est gardée ci-dessous pour mémoire.
+>
+> **Attention** : ce retrait modifie le code du serveur (`apps-script/`), sans changer son numéro (v9.0). Contrairement à ce qui est écrit plus haut (« le serveur ne change pas entre 4a et 4b »), il faut donc un **nouvel envoi sur la copie TEST** avant les essais, et c'est le `Code.gs` de cette livraison qui ira en production.
 
 **Aujourd'hui**, dans un chantier, la tuile « Plans » ouvre la liste des fichiers du dossier `Plans` du Drive du chantier, par des **liens Drive** : il faut du réseau, le PDF s'ouvre hors de l'appli, et les fichiers doivent être partagés « toute personne disposant du lien ».
 

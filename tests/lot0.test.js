@@ -274,17 +274,52 @@ test('doGet : version, callback JSONP contrôlé', () => {
   assert.ok(r.contenu.charAt(0) === '{', 'callback invalide ignoré : JSON simple');
 });
 
-test('getDossiers : seul « Plans » est listé (et partagé) ; Accès n\'est plus partagé', () => {
+// Lot 4b : la tuile « Plans » est retirée. Le serveur ne lit plus le dossier Plans et n'y pose plus aucun partage.
+// Compte tous les changements de partage demandés au faux Drive (même ceux qui ne changeraient rien)
+function espionnerPartages(g) {
+  const appels = [];
+  Object.values(g.elements).forEach(el => { const vrai = el.api.setSharing; el.api.setSharing = (a, p) => { appels.push(el.nom + ' → ' + a); return vrai(a, p); }; });
+  return appels;
+}
+test('getDossiers d’un chantier (anciennes pages) : liste vide sans erreur, dossier Plans ni lu ni partagé', () => {
   const g = environnement();
   const ch = g.creerElement('dossier', 'CHANTIER TEST 1', g.racine);
   const plans = g.creerElement('dossier', 'Plans', ch);
   const acces = g.creerElement('dossier', 'Accès', ch);
   const p1 = g.creerElement('fichier', 'plan.pdf', plans);
+  const p2 = g.creerElement('fichier', 'coupe.pdf', g.creerElement('dossier', 'Indice B', plans));
   const a1 = g.creerElement('fichier', 'codes.pdf', acces);
-  const r = JSON.parse(g.ctx.doGet({ parameter: { action: 'getDossiers', chantier: 'CHANTIER TEST 1' } }).contenu);
-  assert.deepStrictEqual(Object.keys(r.dossiers), ['plans']);
-  assert.strictEqual(p1.acces, 'ANYONE_WITH_LINK');
-  assert.strictEqual(a1.acces, 'PRIVATE');
+  const appels = espionnerPartages(g);
+  const texte = g.ctx.doGet({ parameter: { action: 'getDossiers', chantier: 'CHANTIER TEST 1' } }).contenu;
+  assert.deepStrictEqual(JSON.parse(texte), { dossiers: { plans: [] } });
+  assert.ok(texte.indexOf('plan.pdf') < 0 && texte.indexOf(p1.id) < 0, 'aucun nom ni identifiant de fichier rendu');
+  [p1, p2, a1, plans].forEach(el => assert.strictEqual(el.acces, 'PRIVATE', el.nom + ' reste privé'));
+  assert.deepStrictEqual(appels, [], 'aucun changement de partage demandé au Drive');
+  // chantier sans dossier, nom vide, nom absent : même réponse, jamais d'erreur ni de dossier créé
+  ['CHANTIER INCONNU', '', undefined].forEach(nom => {
+    const r = JSON.parse(g.ctx.doGet({ parameter: { action: 'getDossiers', chantier: nom } }).contenu);
+    assert.deepStrictEqual(r, { dossiers: { plans: [] } }, 'chantier « ' + nom + ' »');
+  });
+  assert.deepStrictEqual(g.racine.enfants.map(e => e.nom), ['CHANTIER TEST 1'], 'rien de créé dans le Drive');
+  // rappel JSONP (repli des anciennes pages)
+  assert.strictEqual(g.ctx.doGet({ parameter: { action: 'getDossiers', chantier: 'CHANTIER TEST 1', callback: 'cb1' } }).contenu, 'cb1({"dossiers":{"plans":[]}})');
+  assert.strictEqual(typeof g.ctx.lireSousDossier, 'undefined', 'la fonction qui partageait les fichiers de Plans est supprimée');
+});
+
+test('getDossiers du planning : inchangé (documents listés du plus récent au plus ancien, partagés par lien)', () => {
+  const g = environnement();
+  const s45 = g.creerElement('fichier', 'S45.pdf', g.elements['PLANNING']); s45.maj = new Date(2026, 10, 2).getTime();
+  const s46 = g.creerElement('fichier', 'S46.xlsx', g.elements['PLANNING'], { mime: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }); s46.maj = new Date(2026, 10, 9).getTime();
+  const plan = g.creerElement('fichier', 'plan.pdf', g.creerElement('dossier', 'Plans', g.creerElement('dossier', 'CHANTIER TEST 1', g.racine)));
+  const appels = espionnerPartages(g);
+  const r = JSON.parse(g.ctx.doGet({ parameter: { action: 'getDossiers', chantier: '__PLANNING__' } }).contenu);
+  assert.deepStrictEqual(Object.keys(r.dossiers), ['planning']);
+  assert.deepStrictEqual(r.dossiers.planning.map(d => [d.nom, d.type, d.date]), [['S46.xlsx', 'xls', '09/11/2026'], ['S45.pdf', 'pdf', '02/11/2026']]);
+  assert.ok(r.dossiers.planning.every(d => /^https:\/\/drive\.google\.com\//.test(d.url)));
+  assert.strictEqual(s45.acces, 'ANYONE_WITH_LINK');
+  assert.strictEqual(s46.permission, 'VIEW');
+  assert.deepStrictEqual(appels.sort(), ['S45.pdf → ANYONE_WITH_LINK', 'S46.xlsx → ANYONE_WITH_LINK'], 'seuls les fichiers du planning sont partagés');
+  assert.strictEqual(plan.acces, 'PRIVATE');
 });
 
 test('PDF produits : plus jamais partagés publiquement', () => {
@@ -441,4 +476,117 @@ test('retour arrière depuis la sauvegarde CSV (colonne État vide)', () => {
   g.ctx.remettreDepuisSauvegarde();
   assert.strictEqual(codes.acces, 'ANYONE_WITH_LINK');
 });
+
+console.log('\nLot 4b — listerPartagesPlans : les partages par lien restés dans les dossiers « Plans » (lecture seule)');
+// Un Drive d'essai : 4 dossiers de chantier (dont un connu seulement par l'onglet « Dossiers chantiers »), des partages dans et hors de Plans
+function drivePartagesPlans(options) {
+  const g = environnement(Object.assign({ heritage: true }, options || {}));
+  const partager = (el, acces, droit) => { el.acces = acces || 'ANYONE_WITH_LINK'; el.permission = droit || 'VIEW'; return el; };
+  const e = { g: g, partager: partager };
+  const ch1 = g.creerElement('dossier', 'CHANTIER TEST 1', g.racine);
+  e.plans1 = g.creerElement('dossier', 'Plans', ch1);
+  e.partage = partager(g.creerElement('fichier', 'RDC.pdf', e.plans1));
+  e.prive = g.creerElement('fichier', 'privé.pdf', e.plans1);
+  e.corbeille = partager(g.creerElement('fichier', 'jeté.pdf', e.plans1)); e.corbeille.corbeille = true;
+  e.sous = partager(g.creerElement('dossier', 'Indice B', e.plans1), 'ANYONE', 'EDIT');
+  e.herite = g.creerElement('fichier', 'coupe.pdf', e.sous);                       // partagé par son dossier
+  e.profond = partager(g.creerElement('fichier', '=DETAIL.pdf', g.creerElement('dossier', 'Détails', e.sous)));
+  e.codes = partager(g.creerElement('fichier', 'codes.pdf', g.creerElement('dossier', 'Accès', ch1)));   // hors de Plans : pas listé
+  // chantier rangé ailleurs que sous son nom, connu par l'onglet « Dossiers chantiers »
+  const ch2 = g.creerElement('dossier', '2026-014 RESIDENCE', g.racine);
+  e.autre = partager(g.creerElement('fichier', 'façade.pdf', g.creerElement('dossier', 'Plans', ch2)));
+  g.feuilles['Dossiers chantiers'] = null;
+  g.ctx.noterDossierChantier_('CHANTIER TEST 2', ch2.api, 'nom exact');
+  g.ctx.noterDossierChantier_('CHANTIER DISPARU', { getName: () => 'x', getId: () => 'identifiant-inconnu' }, 'nom exact');
+  // chantier sans dossier Plans ; chantier dont le dossier Plans est entièrement privé
+  g.creerElement('dossier', 'Fiches', g.creerElement('dossier', 'CHANTIER SANS PLANS', g.racine));
+  g.creerElement('fichier', 'plan.pdf', g.creerElement('dossier', 'Plans', g.creerElement('dossier', 'CHANTIER PRIVE', g.racine)));
+  // jamais regardés : dossier technique, planning, dossier hors de l'appli
+  partager(g.creerElement('fichier', 'x.pdf', g.creerElement('dossier', 'Plans', g.creerElement('dossier', '_À CLASSER', g.racine))));
+  e.planning = partager(g.creerElement('fichier', 'S45.pdf', g.elements['PLANNING']));
+  partager(g.creerElement('fichier', 'perso.pdf', g.creerElement('dossier', 'Plans', g.creerElement('dossier', 'Perso', null))));
+  return e;
+}
+const lignesPlans = g => g.feuilles['Partages Plans'].lignes.slice(1).filter(l => l[0] !== '' && l[0] !== undefined);
+const photoDrive = g => JSON.stringify(Object.values(g.elements).map(el => [el.id, el.nom, el.acces, el.permission, el.corbeille, el.parents.map(p => p.id), el.enfants.length]));
+
+test('listerPartagesPlans : liste les fichiers et dossiers partagés des dossiers Plans, et eux seuls', () => {
+  const e = drivePartagesPlans(), g = e.g;
+  const appels = espionnerPartages(g), avant = photoDrive(g);
+  const bilan = g.ctx.listerPartagesPlans();
+  assert.ok(/^Liste terminée : 6 ligne\(s\) dans l’onglet « Partages Plans »/.test(bilan), bilan);
+  assert.ok(/4 dossier\(s\) de chantier parcouru\(s\), dont 1 sans dossier « Plans »/.test(bilan), bilan);
+  assert.ok(/Rien n’a été modifié dans le Drive/.test(bilan), bilan);
+  assert.deepStrictEqual(Array.from(g.feuilles['Partages Plans'].lignes[0]), ['Chantier', 'Chemin', 'Nom', 'Élément', 'Type de partage', 'Modifié le', 'Identifiant']);
+  const l = lignesPlans(g);
+  const vues = l.map(x => x.slice(0, 5).join(' | ')).sort();
+  assert.deepStrictEqual(vues, [
+    'CHANTIER TEST 1 | Plans | RDC.pdf | fichier | toute personne disposant du lien — lecture',
+    'CHANTIER TEST 1 | Plans › Indice B | Indice B | dossier | public (trouvable sur Internet) — modification',
+    'CHANTIER TEST 1 | Plans › Indice B | coupe.pdf | fichier | public (trouvable sur Internet)',
+    'CHANTIER TEST 1 | Plans › Indice B › Détails | Détails | dossier | public (trouvable sur Internet)',   // partage hérité du dossier parent
+    "CHANTIER TEST 1 | Plans › Indice B › Détails | '=DETAIL.pdf | fichier | toute personne disposant du lien — lecture",
+    'CHANTIER TEST 2 | Plans | façade.pdf | fichier | toute personne disposant du lien — lecture',
+  ].sort());
+  const rdc = l.find(x => x[2] === 'RDC.pdf');
+  assert.strictEqual(rdc[5], '29/10/2026');
+  assert.strictEqual(rdc[6], e.partage.id);
+  // lecture seule : aucun partage changé, rien de déplacé, de créé ni de supprimé dans le Drive
+  assert.deepStrictEqual(appels, []);
+  assert.strictEqual(photoDrive(g), avant);
+  assert.ok(!g.feuilles['Partages (lot 0)'], 'l’onglet du lot 0 (retour arrière) n’est ni créé ni touché');
+  assert.ok(!('PARTAGES_PLANS_SUITE' in g.proprietes), 'rien à reprendre');
+  assert.ok(!g.racine.enfants.some(x => x.nom === 'dossiers.json'), 'dossiers.json absent : pas créé par une simple lecture');
+  // relancée : la liste est refaite, pas doublée ; un partage retiré entre-temps par Franck disparaît de la liste
+  e.partage.acces = 'PRIVATE'; e.partage.permission = 'NONE';
+  assert.ok(/^Liste terminée : 5 ligne/.test(g.ctx.listerPartagesPlans()));
+  assert.strictEqual(lignesPlans(g).length, 5);
+  assert.ok(!lignesPlans(g).some(x => x[2] === 'RDC.pdf'));
+});
+
+test('listerPartagesPlans : rien de partagé, pas d’onglet « Dossiers chantiers », nom du dossier Plans changé dans dossiers.json', () => {
+  const g = environnement();
+  g.creerElement('fichier', 'plan.pdf', g.creerElement('dossier', 'Plans', g.creerElement('dossier', 'CHANTIER TEST 1', g.racine)));
+  const bilan = g.ctx.listerPartagesPlans();
+  assert.ok(/^Liste terminée : 0 ligne/.test(bilan) && /1 dossier\(s\) de chantier parcouru\(s\), dont 0 sans/.test(bilan), bilan);
+  assert.ok(!g.feuilles['Dossiers chantiers'], 'onglet « Dossiers chantiers » pas créé par une simple lecture');
+  const g2 = environnement();
+  g2.creerElement('fichier', 'dossiers.json', g2.racine, { contenu: JSON.stringify({ documents: { plans: '02 - PLANS/VALIDES' } }) });
+  const ch = g2.creerElement('dossier', 'CHANTIER TEST 1', g2.racine);
+  g2.creerElement('fichier', 'ancien.pdf', g2.creerElement('dossier', 'Plans', ch)).acces = 'ANYONE_WITH_LINK';
+  g2.creerElement('fichier', 'neuf.pdf', g2.creerElement('dossier', 'VALIDES', g2.creerElement('dossier', '02 - PLANS', ch))).acces = 'ANYONE_WITH_LINK';
+  assert.ok(/^Liste terminée : 1 ligne/.test(g2.ctx.listerPartagesPlans()));
+  assert.deepStrictEqual(lignesPlans(g2).map(x => [x[1], x[2]]), [['VALIDES', 'neuf.pdf']]);
+});
+
+test('listerPartagesPlans : limite de temps — s’arrête proprement, reprend où elle en était, sans doublon ni oubli', () => {
+  const attendu = (() => { const e = drivePartagesPlans(); e.g.ctx.listerPartagesPlans(); return lignesPlans(e.g).map(x => x.slice(0, 5).join(' | ')).sort(); })();
+  const e = drivePartagesPlans(), g = e.g;
+  // Horloge d'essai : chaque lecture de l'heure avance d'une minute (la limite est de 4 min 30 par passage)
+  const D = require('vm').runInContext('Date', g.ctx);
+  let t = D.now();
+  D.now = () => (t += 60 * 1000);
+  const appels = espionnerPartages(g), avant = photoDrive(g);
+  const bilans = [];
+  for (let n = 0; n < 12; n++) { bilans.push(g.ctx.listerPartagesPlans()); if (/^Liste terminée/.test(bilans[n])) break; }
+  assert.ok(bilans.length > 2 && bilans.length < 12, bilans.length + ' passage(s) : ' + bilans.join(' / '));
+  assert.ok(/^À suivre : \d dossier\(s\) de chantier parcouru\(s\) sur 4, .* Relancer listerPartagesPlans\(\) pour continuer\.$/.test(bilans[0]), bilans[0]);
+  assert.ok('PARTAGES_PLANS_SUITE' in g.proprietes === false, 'la reprise est oubliée une fois la liste terminée');
+  // CHANTIER TEST 1 a trop d'éléments pour un passage de cette horloge : signalé « liste incomplète », jamais recommencé sans fin
+  const l = lignesPlans(g);
+  const incomplets = l.filter(x => /^⚠ liste incomplète/.test(x[2]));
+  assert.deepStrictEqual(incomplets.map(x => x[0]), ['CHANTIER TEST 1']);
+  assert.ok(/⚠ 1 chantier\(s\) avec une liste incomplète/.test(bilans[bilans.length - 1]), bilans[bilans.length - 1]);
+  const vues = l.filter(x => !/^⚠/.test(x[2])).map(x => x.slice(0, 5).join(' | '));
+  assert.strictEqual(new Set(vues).size, vues.length, 'aucun doublon');
+  vues.forEach(v => assert.ok(attendu.indexOf(v) > -1, 'ligne inattendue : ' + v));
+  attendu.filter(v => v.indexOf('CHANTIER TEST 1') !== 0).forEach(v => assert.ok(vues.indexOf(v) > -1, 'ligne oubliée : ' + v));
+  assert.deepStrictEqual(appels, []);
+  assert.strictEqual(photoDrive(g), avant);
+  // une nouvelle liste repart de zéro
+  D.now = () => t;
+  assert.ok(/^Liste terminée : 6 ligne/.test(g.ctx.listerPartagesPlans()));
+  assert.deepStrictEqual(lignesPlans(g).map(x => x.slice(0, 5).join(' | ')).sort(), attendu);
+});
+
 console.log('\n' + reussis + ' test(s) réussi(s)' + (process.exitCode ? ' — DES TESTS ÉCHOUENT' : ''));

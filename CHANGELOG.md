@@ -2,7 +2,7 @@
 
 Chaque lot : **quoi**, **pourquoi**, **comment déployer**. Procédures détaillées dans `docs/lotN-procedure.md`.
 
-## Lot 4b — Carnet de chantier : hors réseau complet — appli 9.0, serveur v9.0 inchangé — **construit, pas encore en production** (ira avec le 4a, après l'essai sur iPhone)
+## Lot 4b — Carnet de chantier : hors réseau complet, et retrait de la tuile « Plans » — appli 9.0, serveur v9.0 (même numéro ; code retouché pour le retrait de la tuile « Plans ») — **construit, pas encore en production** (ira avec le 4a, après l'essai sur iPhone)
 
 **Quoi**
 - **« ⬇ Tout télécharger »** sous chaque document (poids restant annoncé) et pour tout le chantier : avancement, arrêt, reprise où on en était. Une seule demande à la fois au serveur.
@@ -12,9 +12,17 @@ Chaque lot : **quoi**, **pourquoi**, **comment déployer**. Procédures détaill
 - Un ancien indice téléchargé en entier reste lisible tant que le nouveau ne l'est pas aussi.
 - L'écran reste allumé pendant un téléchargement.
 
+**Retrait de l'ancienne tuile « Plans »** (décision de Franck du 13/11/2026)
+- **Quoi, dans l'appli** : dans un chantier, la tuile « Plans » et sa fenêtre de documents n'existent plus (`index.html`) ; la tuile « Carnet » les remplace. Les tuiles Carnet, Signalements, Notes, les fiches et le **planning de l'équipe** ne changent pas.
+- **Quoi, sur le serveur** (toujours v9.0) : le dossier `Plans` d'un chantier n'est plus lu. Une ancienne page encore gardée dans un téléphone qui demande les plans d'un chantier reçoit une **liste vide, sans erreur**. Le sous-dossier `Plans` n'est plus créé dans les nouveaux dossiers de chantier. La fonction `lireSousDossier` est supprimée. Le planning garde exactement son fonctionnement (lecture du dossier Planning, partage par lien de ses fichiers).
+- **Pourquoi** : le carnet remplace la tuile (plans lus dans l'appli, au zoom, sans réseau, réservés aux comptes). Surtout, **la fin du partage par lien automatique** : jusqu'ici, chaque ouverture de la tuile mettait **tous** les fichiers du dossier `Plans` du chantier en « toute personne disposant du lien » ; un ancien salarié qui avait gardé un lien pouvait toujours ouvrir le plan. L'appli ne pose plus ces partages.
+- **Rien n'est supprimé dans le Drive** : les dossiers `Plans` existants et leurs fichiers restent où ils sont, et **les partages par lien déjà posés restent** tant que Franck ne les retire pas.
+- **Nouvelle fonction `listerPartagesPlans()`** (`apps-script/Admin.gs`, à lancer dans l'éditeur Apps Script) : écrit dans l'onglet **« Partages Plans »** les fichiers et dossiers encore partagés par lien dans les dossiers `Plans` des chantiers (chantier, chemin, nom, type de partage, date de modification, identifiant). **Lecture seule** : elle ne change aucun partage et ne supprime rien. Si le journal dit « À suivre », la relancer : elle reprend où elle s'était arrêtée. C'est Franck qui décide ensuite de retirer les partages, dans Drive.
+- **Comment vérifier** : `node tests/accueil-page.test.js` (page d'accueil dans un vrai Chrome), `node tests/lot0.test.js`, `node tests/lot1-dossiers.test.js`, `node tests/lot2-comptes.test.js`.
+
 **Pourquoi** : préparer son téléphone au dépôt ou en Wi-Fi, et savoir à tout moment si un plan est lisible sans réseau (exigence 9).
 
-**Comment déployer** : `docs/lot4b-procedure.md` (aucun changement du serveur par rapport au lot 4a).
+**Comment déployer** : `docs/lot4b-procedure.md`. Le serveur reste en v9.0 mais son code change avec le retrait de la tuile « Plans » : le `Code.gs` à coller est celui de `A-COLLER-DANS-APPS-SCRIPT/` de cette livraison.
 
 ## Lot 4a — Carnet de chantier : déposer et lire — serveur v9.0, appli 9.0 — **construit, pas encore en production**
 

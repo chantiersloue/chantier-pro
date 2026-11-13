@@ -334,6 +334,138 @@ function modifierPartages_(aTraiter, action, texteEtat) {
 
 
 // ══════════════════════════════════════════════════════════
+// PARTAGES PAR LIEN RESTÉS DANS LES DOSSIERS « Plans » (lot 4b) — LECTURE SEULE
+// Jusqu'au lot 4b, ouvrir la tuile « Plans » mettait chaque fichier du dossier Plans d'un chantier en partage
+// « toute personne disposant du lien ». La tuile est retirée et l'appli ne pose plus ces partages, mais ceux
+// déjà posés restent : c'est Franck qui décide de les retirer (à la main dans Drive).
+// listerPartagesPlans() écrit dans l'onglet « Partages Plans » les fichiers et dossiers encore partagés.
+// Elle ne modifie RIEN dans le Drive (aucun partage changé, rien de supprimé, rien de déplacé).
+// Si le journal dit « À suivre », la relancer : elle reprend où elle s'était arrêtée.
+// ══════════════════════════════════════════════════════════
+const SHEET_PARTAGES_PLANS = 'Partages Plans';
+const ENTETES_PARTAGES_PLANS = ['Chantier', 'Chemin', 'Nom', 'Élément', 'Type de partage', 'Modifié le', 'Identifiant'];
+const TEXTES_PARTAGE = {
+  ANYONE_WITH_LINK: 'toute personne disposant du lien', ANYONE: 'public (trouvable sur Internet)',
+  DOMAIN_WITH_LINK: 'toute personne du domaine disposant du lien', DOMAIN: 'toute personne du domaine',
+};
+const TEXTES_DROIT = { VIEW: 'lecture', COMMENT: 'commentaire', EDIT: 'modification' };
+
+function listerPartagesPlans() {
+  const debut = Date.now();
+  const tempsDepasse = () => Date.now() - debut > DUREE_MAX_MS;
+  const props = PropertiesService.getScriptProperties();
+  const sh = feuille_(SHEET_PARTAGES_PLANS, ENTETES_PARTAGES_PLANS);
+  let suite = null;
+  try { suite = JSON.parse(props.getProperty('PARTAGES_PLANS_SUITE') || 'null'); } catch (e) {}
+  if (!suite) {
+    // Nouvelle liste : l'ancienne est effacée (cet onglet n'est qu'un état des lieux, il ne sert à aucun retour arrière)
+    if (sh.getLastRow() > 1) sh.getRange(2, 1, sh.getLastRow() - 1, ENTETES_PARTAGES_PLANS.length).clearContent();
+    suite = { apres: '', chantiers: 0, sansPlans: 0, incomplets: 0 };
+  }
+  const chantiers = dossiersChantiersConnus_();
+  // Nom du dossier Plans : celui de dossiers.json s'il existe (sinon le nom par défaut, sans créer le fichier : lecture seule)
+  const cheminPlans = fichierDossiers_(DriveApp.getFolderById(driveRootId_())) ? dossiers_().documents.plans : DOSSIERS_DEFAUT.documents.plans;
+  let fini = true, faitsCePassage = 0;
+  for (let i = 0; i < chantiers.length; i++) {
+    const ch = chantiers[i];
+    if (suite.apres && ch.id <= suite.apres) continue;   // déjà fait lors d'un passage précédent
+    if (tempsDepasse()) { fini = false; break; }
+    const lignes = [];
+    const plans = sousDossiersParChemin_(ch.dossier, cheminPlans);
+    let complet = true;
+    for (let k = 0; k < plans.length && complet; k++) complet = partagesDuDossier_(plans[k], ch.nom, plans[k].getName(), lignes, tempsDepasse);
+    // Limite de temps au milieu d'un chantier : il sera refait en entier au passage suivant. S'il est le premier
+    // du passage, il ne tiendra jamais dans un passage : ce qui a été vu est écrit, avec une ligne « liste incomplète »
+    if (!complet && faitsCePassage) { fini = false; break; }
+    if (!complet) { lignes.push([ch.nom, '', '⚠ liste incomplète pour ce chantier (trop d’éléments pour un seul passage)', '', '', '', '']); suite.incomplets++; }
+    // Les lignes sont écrites AVANT de noter où l'on en est : rien n'est perdu si l'exécution est coupée
+    if (lignes.length) sh.getRange(sh.getLastRow() + 1, 1, lignes.length, ENTETES_PARTAGES_PLANS.length).setValues(lignes.map(l => l.map(cellule_)));
+    suite.apres = ch.id; suite.chantiers++; faitsCePassage++;
+    if (!plans.length) suite.sansPlans++;
+    props.setProperty('PARTAGES_PLANS_SUITE', JSON.stringify(suite));
+  }
+  const n = Math.max(0, sh.getLastRow() - 1);
+  let msg;
+  if (!fini) {
+    msg = 'À suivre : ' + suite.chantiers + ' dossier(s) de chantier parcouru(s) sur ' + chantiers.length + ', ' + n
+      + ' ligne(s) dans l’onglet « ' + SHEET_PARTAGES_PLANS + ' ». Relancer listerPartagesPlans() pour continuer.';
+  } else {
+    props.deleteProperty('PARTAGES_PLANS_SUITE');
+    msg = ['Liste terminée : ' + n + ' ligne(s) dans l’onglet « ' + SHEET_PARTAGES_PLANS + ' » (fichiers et dossiers encore partagés par lien dans les dossiers « ' + cheminPlans + ' » des chantiers).',
+      suite.chantiers + ' dossier(s) de chantier parcouru(s), dont ' + suite.sansPlans + ' sans dossier « ' + cheminPlans + ' ».',
+      suite.incomplets ? '⚠ ' + suite.incomplets + ' chantier(s) avec une liste incomplète (voir les lignes ⚠ de l’onglet).' : '',
+      'Rien n’a été modifié dans le Drive : c’est vous qui décidez de retirer ces partages (dans Drive : clic droit → Partager → « Accès limité »).',
+    ].filter(Boolean).join('\n');
+  }
+  Logger.log(msg);
+  return msg;
+}
+
+// Dossiers de chantier connus : ceux de l'onglet « Dossiers chantiers » et les sous-dossiers de la racine
+// (hors dossiers techniques et corbeille), sans doublon, toujours dans le même ordre (par identifiant) pour la reprise
+function dossiersChantiersConnus_() {
+  const parId = {};
+  const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_DOSSIERS);   // lu seulement : jamais créé ici
+  (sh ? sh.getDataRange().getValues().slice(1) : []).forEach(l => {
+    const id = String(l[2] || '').trim();
+    if (!id || parId[id]) return;
+    try { const d = DriveApp.getFolderById(id); if (!d.isTrashed()) parId[id] = { id: id, nom: String(l[0] || d.getName()), dossier: d }; } catch (e) {}
+  });
+  const it = DriveApp.getFolderById(driveRootId_()).getFolders();
+  while (it.hasNext()) {
+    const d = it.next();
+    if (d.isTrashed() || estDossierTechnique_(d) || parId[d.getId()]) continue;
+    parId[d.getId()] = { id: d.getId(), nom: d.getName(), dossier: d };
+  }
+  return Object.keys(parId).sort().map(id => parId[id]);
+}
+
+// Tous les sous-dossiers « A/B » d'un dossier (Drive accepte plusieurs dossiers du même nom : aucun n'est oublié)
+function sousDossiersParChemin_(parent, chemin) {
+  const morceaux = String(chemin || '').split('/').map(x => x.trim()).filter(Boolean);
+  if (!morceaux.length) return [];
+  let niveau = [parent];
+  morceaux.forEach(nom => {
+    const suivants = [];
+    niveau.forEach(d => { const it = d.getFoldersByName(nom); while (it.hasNext()) { const x = it.next(); if (!x.isTrashed()) suivants.push(x); } });
+    niveau = suivants;
+  });
+  return niveau;
+}
+
+// Ajoute à « lignes » le dossier (s'il est partagé), ses fichiers partagés, puis ses sous-dossiers ; LECTURE SEULE.
+// Renvoie false si la limite de temps est atteinte avant la fin.
+function partagesDuDossier_(dossier, chantier, chemin, lignes, tempsDepasse) {
+  const SEP = ' › ';   // comme l'onglet du lot 0 (« / » apparaît dans certains noms)
+  const noter = (el, type) => {
+    let acces, droit = '';
+    try { acces = String(el.getSharingAccess()); droit = String(el.getSharingPermission()); }
+    catch (e) { acces = 'ILLISIBLE'; droit = e.message; }
+    if (acces === 'PRIVATE') return;
+    const texte = acces === 'ILLISIBLE' ? 'partage illisible (' + droit + ') : à regarder dans Drive'
+      : (TEXTES_PARTAGE[acces] || acces) + (TEXTES_DROIT[droit] ? ' — ' + TEXTES_DROIT[droit] : '');
+    let date = '';
+    try { date = Utilities.formatDate(el.getLastUpdated(), 'Europe/Paris', 'dd/MM/yyyy'); } catch (e) {}
+    lignes.push([chantier, chemin, el.getName(), type, texte, date, el.getId()]);
+  };
+  noter(dossier, 'dossier');
+  const fichiers = dossier.getFiles();
+  while (fichiers.hasNext()) {
+    if (tempsDepasse()) return false;
+    const f = fichiers.next();
+    if (!f.isTrashed()) noter(f, 'fichier');
+  }
+  const sous = dossier.getFolders();
+  while (sous.hasNext()) {
+    if (tempsDepasse()) return false;
+    const d = sous.next();
+    if (!d.isTrashed() && !partagesDuDossier_(d, chantier, chemin + SEP + d.getName(), lignes, tempsDepasse)) return false;
+  }
+  return true;
+}
+
+
+// ══════════════════════════════════════════════════════════
 // COPIE TEST UNIQUEMENT — remplace les vraies adresses par des variantes de celle de Franck
 // (franck+contact1@…, qui arrivent dans sa boîte), pour qu'aucun essai n'écrive à un vrai conducteur ou client.
 // Refuse de tourner si le Sheet ne s'appelle pas « … TEST … » ou si la propriété ENVIRONNEMENT ≠ TEST.

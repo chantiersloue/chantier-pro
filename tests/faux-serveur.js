@@ -38,6 +38,8 @@ const google = creerGoogle({
 });
 google.creerElement('dossier', 'Loué Menuiserie - Chantiers', null, { id: 'RACINE' });
 google.creerElement('dossier', 'Planning', null, { id: 'PLANNING' });
+// Un planning d'essai (lu par l'accueil) ; /etat dit quels fichiers du faux Drive sont partagés par lien
+google.creerElement('fichier', 'Planning S46.pdf', google.elements.PLANNING);
 const ctx = chargerScript(google);
 let mode = 'normal';
 // Lot 4 : recopie d'un dossier du PC dans le faux Drive (dossiers et fichiers, octets compris)
@@ -124,6 +126,7 @@ http.createServer((req, res) => {
       envois: (google.feuilles['Envois'] || { lignes: [] }).lignes, quota: google.etat.quota,
       signalements: (google.feuilles['Signalements'] || { lignes: [] }).lignes,   // lot 7
       notes: (google.feuilles['Notes'] || { lignes: [] }).lignes,                 // lot 3
+      partagesParLien: Object.values(google.elements).filter(e => e.acces !== 'PRIVATE').map(e => e.nom),
       sansCompte: (google.feuilles['Sans compte'] || { lignes: [] }).lignes, utilisateurs: U.lignes.map(l => [l[0], l[2], l[5], l[9]]) }));
   }
   let corps = '';

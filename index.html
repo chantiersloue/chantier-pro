@@ -6,7 +6,7 @@
 <title>Loué App</title>
 <link rel="icon" type="image/png" href="apple-touch-icon.png">
 <link rel="manifest" href="manifest.json">
-<link rel="stylesheet" href="commun/style.css?v=22c6875416">
+<link rel="stylesheet" href="commun/style.css?v=17c0695f82">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -95,26 +95,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .spinner{width:18px;height:18px;border:2px solid var(--border);border-top-color:var(--orange);border-radius:50%;animation:spin .7s linear infinite;}
 @keyframes spin{to{transform:rotate(360deg)}}
 
-/* MODAL */
-.modal-overlay{position:fixed;inset:0;background:rgba(20,18,16,.55);z-index:100;display:flex;flex-direction:column;justify-content:flex-end;opacity:0;pointer-events:none;transition:.25s;}
-.modal-overlay.open{opacity:1;pointer-events:all;}
-.modal-sheet{background:var(--card);border-radius:20px 20px 0 0;transform:translateY(100%);transition:.25s;max-height:88vh;display:flex;flex-direction:column;}
-.modal-overlay.open .modal-sheet{transform:translateY(0);}
-.modal-handle{width:36px;height:4px;background:var(--border);border-radius:2px;margin:14px auto 0;}
-.modal-head{padding:14px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;}
-.modal-title{font-family:'Syne',sans-serif;font-weight:700;font-size:16px;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.modal-close{width:30px;height:30px;border-radius:8px;border:1px solid var(--border);background:none;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
-.modal-close svg{width:13px;height:13px;}
-.modal-body{display:flex;flex-direction:column;overflow:hidden;flex:1;}
-/* Sous-onglets scrollables horizontalement */
-.onglets-scroll{overflow-x:auto;padding:12px 16px 0;border-bottom:1px solid var(--border);-webkit-overflow-scrolling:touch;}
-.onglets-scroll::-webkit-scrollbar{display:none;}
-.onglets-inner{display:inline-flex;gap:6px;padding-bottom:12px;}
-.sOnglet{padding:6px 14px;border-radius:20px;border:1.5px solid var(--border);font-size:12px;font-weight:500;cursor:pointer;background:var(--bg);color:var(--muted);white-space:nowrap;flex-shrink:0;transition:.15s;}
-.sOnglet.active{background:var(--blue-l);color:var(--blue-d);border-color:var(--blue);}
-/* Liste docs */
-.docs-scroll{overflow-y:auto;flex:1;padding:14px 16px;}
-.doc-list{display:flex;flex-direction:column;gap:8px;}
+/* Une ligne de document (planning) */
 .doc-item{display:flex;align-items:center;gap:12px;padding:12px 14px;background:var(--bg);border:1px solid var(--border);border-radius:var(--r);text-decoration:none;transition:.15s;}
 .doc-item:active{background:#EEF3FF;border-color:var(--blue);}
 .doc-ic{width:36px;height:36px;border-radius:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
@@ -122,9 +103,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .doc-info{flex:1;min-width:0;}
 .doc-name{font-size:13px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .doc-meta{font-size:11px;color:var(--muted);margin-top:2px;display:flex;align-items:center;gap:6px;}
-.doc-badge{display:inline-block;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:700;text-transform:uppercase;}
 .doc-ext{flex-shrink:0;color:var(--border2);}
-.docs-empty{padding:30px;text-align:center;color:var(--muted);font-size:13px;line-height:1.7;}
 
 .chantier-card{width:100%;text-align:left;font:inherit;color:inherit;}
 /* Lot 1.4 : installation iPhone et « À propos » */
@@ -169,7 +148,7 @@ body.loue-test .installer{padding-top:calc(56px + env(safe-area-inset-top,0px));
 .recherche{width:100%;min-height:48px;border:1.5px solid var(--border2);border-radius:10px;padding:8px 14px;font-size:16px;margin-bottom:12px;background:#fff;}
 .btn-tous{display:block;width:100%;min-height:48px;margin-top:12px;border:1.5px dashed var(--border2);border-radius:12px;background:transparent;color:var(--blue-d);font:700 15px system-ui,sans-serif;}
 .ch-entete{font-size:15px;color:var(--muted);line-height:1.45;margin-bottom:14px;}
-.tuile-plans{width:100%;text-align:left;font:inherit;color:inherit;margin-bottom:18px;}
+.tuile-chantier{width:100%;text-align:left;font:inherit;color:inherit;margin-bottom:18px;}
 .label-section{margin:18px 0 12px;}
 .page-title{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;}
 </style>
@@ -201,7 +180,7 @@ body.loue-test .installer{padding-top:calc(56px + env(safe-area-inset-top,0px));
       <button type="submit" class="btn-principal" id="cnx-ok">Se connecter</button>
     </form>
     <button type="button" class="btn-secondaire" onclick="ouvrirFiches(null)">📝 Remplir une fiche sans être connecté<br><span>elle est gardée dans le téléphone et partira après la connexion</span></button>
-    <button type="button" class="btn-secondaire" id="cnx-sans-compte" hidden onclick="continuerSansCompte()">Continuer sans compte<br><span id="cnx-jusqua">chantiers et plans comme avant</span></button>
+    <button type="button" class="btn-secondaire" id="cnx-sans-compte" hidden onclick="continuerSansCompte()">Continuer sans compte<br><span id="cnx-jusqua">chantiers et planning comme avant</span></button>
     <button type="button" class="lien-apropos" onclick="showPage('apropos')">ℹ️ À propos de l’appli (version, installation)</button>
   </div>
 </div>
@@ -350,7 +329,7 @@ body.loue-test .installer{padding-top:calc(56px + env(safe-area-inset-top,0px));
   <button type="button" onclick="continuerSansInstaller()">Continuer sans installer (déconseillé)</button>
 </div>
 
-<!-- ═══ UN CHANTIER : SES FICHES ET SES PLANS (lot 2) ═══ -->
+<!-- ═══ UN CHANTIER : SON CARNET, SES SIGNALEMENTS, SES NOTES ET SES FICHES ═══ -->
 <div class="page" id="page-chantier-fiches">
   <div class="page-header">
     <button class="page-back" onclick="retourAccueil()" aria-label="Retour"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg></button>
@@ -358,17 +337,7 @@ body.loue-test .installer{padding-top:calc(56px + env(safe-area-inset-top,0px));
   </div>
   <div class="page-body">
     <div class="ch-entete" id="ch-entete"></div>
-    <button type="button" class="home-tile tuile-plans" id="tuile-plans" style="border-color:#B8DFC8" onclick="ouvrirPlans()">
-      <div class="tile-icon" style="background:var(--green-l)">
-        <svg viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="1.8"><rect x="2" y="3" width="20" height="14" rx="2"/><polyline points="8 21 12 17 16 21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
-      </div>
-      <div class="tile-body">
-        <div class="tile-title">Plans</div>
-        <div class="tile-sub">Documents du dossier Plans du chantier</div>
-      </div>
-      <div class="tile-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg></div>
-    </button>
-    <button type="button" class="home-tile tuile-plans" id="tuile-carnet" style="border-color:#B9C8E6" onclick="ouvrirCarnet()">
+    <button type="button" class="home-tile tuile-chantier" id="tuile-carnet" style="border-color:#B9C8E6" onclick="ouvrirCarnet()">
       <div class="tile-icon" style="background:#E6ECF7"><svg viewBox="0 0 24 24" fill="none" stroke="#1A2B4A" stroke-width="1.8"><path d="M4 4.5A2.5 2.5 0 016.5 2H20v17H6.5A2.5 2.5 0 004 21.5z"/><path d="M4 21.5A2.5 2.5 0 016.5 19H20v3H6.5A2.5 2.5 0 014 21.5z"/><line x1="9" y1="7" x2="16" y2="7"/><line x1="9" y1="11" x2="14" y2="11"/></svg></div>
       <div class="tile-body">
         <div class="tile-title">Carnet</div>
@@ -376,7 +345,7 @@ body.loue-test .installer{padding-top:calc(56px + env(safe-area-inset-top,0px));
       </div>
       <div class="tile-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg></div>
     </button>
-    <button type="button" class="home-tile tuile-plans" id="tuile-signalements" style="border-color:#F0C8C8" onclick="ouvrirSignalements()">
+    <button type="button" class="home-tile tuile-chantier" id="tuile-signalements" style="border-color:#F0C8C8" onclick="ouvrirSignalements()">
       <div class="tile-icon" style="background:var(--red-l)"><svg viewBox="0 0 24 24" fill="none" stroke="var(--red)" stroke-width="1.8"><path d="M10.3 3.9L1.8 18a2 2 0 001.7 3h17a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div>
       <div class="tile-body">
         <div class="tile-title">Signalements</div>
@@ -384,7 +353,7 @@ body.loue-test .installer{padding-top:calc(56px + env(safe-area-inset-top,0px));
       </div>
       <div class="tile-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg></div>
     </button>
-    <button type="button" class="home-tile tuile-plans" id="tuile-notes" style="border-color:#EBD9A8" onclick="ouvrirNotes()">
+    <button type="button" class="home-tile tuile-chantier" id="tuile-notes" style="border-color:#EBD9A8" onclick="ouvrirNotes()">
       <div class="tile-icon" style="background:#FCF1D6"><svg viewBox="0 0 24 24" fill="none" stroke="#7A5200" stroke-width="1.8"><path d="M14 3H6a2 2 0 00-2 2v14a2 2 0 002 2h12a2 2 0 002-2V9z"/><polyline points="14 3 14 9 20 9"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="13" y2="17"/></svg></div>
       <div class="tile-body">
         <div class="tile-title">Notes<span class="badge-notes" id="badge-notes" hidden></span></div>
@@ -524,37 +493,12 @@ body.loue-test .installer{padding-top:calc(56px + env(safe-area-inset-top,0px));
   </div>
 </div>
 
-<!-- MODAL CHANTIER -->
-<div class="modal-overlay" id="chantierModal">
-  <div class="modal-sheet">
-    <div class="modal-handle"></div>
-    <div class="modal-head">
-      <div style="flex:1;min-width:0">
-        <div class="modal-title" id="modal-chantier-name"></div>
-        <div style="font-size:11.5px;color:var(--muted);margin-top:2px" id="modal-chantier-ref"></div>
-      </div>
-      <button class="modal-close" onclick="closeModal()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
-    </div>
-    <div class="modal-body">
-      <div class="onglets-scroll">
-        <div class="onglets-inner">
-          <!-- Lot 0 : seul le dossier Plans reste consultable ; les autres reviendront avec le carnet de chantier (lot 4) -->
-          <button class="sOnglet active" onclick="showSousOnglet('plans',this)">Plans</button>
-        </div>
-      </div>
-      <div class="docs-scroll">
-        <div id="docs-container" class="doc-list"></div>
-      </div>
-    </div>
-  </div>
-</div>
 
-
-<script src="commun/config.js?v=22c6875416"></script>
-<script src="commun/api.js?v=22c6875416"></script>
-<script src="commun/ui.js?v=22c6875416"></script>
-<script src="commun/notes.js?v=22c6875416"></script>
-<script src="commun/hors-ligne.js?v=22c6875416"></script>
+<script src="commun/config.js?v=17c0695f82"></script>
+<script src="commun/api.js?v=17c0695f82"></script>
+<script src="commun/ui.js?v=17c0695f82"></script>
+<script src="commun/notes.js?v=17c0695f82"></script>
+<script src="commun/hors-ligne.js?v=17c0695f82"></script>
 <script>
 // ── Accueil (lot 2) : connexion, « Mes chantiers », fiches du chantier avec le chantier pré-rempli ──
 // Rien ici n'empêche de remplir une fiche : « Remplir une fiche sans être connecté » est toujours proposé,
@@ -564,7 +508,6 @@ let MODE = null;               // 'compte' (connecté) ou 'sans' (sans compte, p
 let CHANTIERS = [];            // chantiers affichés : { nom, reference, statut, conducteur, adresse, mien }
 let voirTous = false;
 let currentChantier = null;    // chantier ouvert (null : fiches sans chantier choisi)
-let currentSousOnglet = 'plans';
 let mdpEnCours = null;         // { id, ancien } pendant le choix du mot de passe
 const FLECHE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>';
 const CLE_TRANSITION = 'loue_transition_' + LOUE.env;
@@ -633,7 +576,7 @@ function afficherSansCompte(etat) {
   const b = $('cnx-sans-compte');
   b.hidden = !!etat && !etat.ouverte;   // rien de connu (première ouverture hors réseau) : proposé
   if (etat && !etat.ouverte) choisirSansCompte(false);
-  if (etat && etat.fin) $('cnx-jusqua').textContent = 'chantiers et plans comme avant, possible jusqu’au ' + new Date(etat.fin).toLocaleDateString('fr-FR');
+  if (etat && etat.fin) $('cnx-jusqua').textContent = 'chantiers et planning comme avant, possible jusqu’au ' + new Date(etat.fin).toLocaleDateString('fr-FR');
 }
 function continuerSansCompte() { choisirSansCompte(true); MODE = 'sans'; afficherAccueil(); }
 function montrerErreur(id, texte) { const p = $(id); p.className = 'cnx-erreur'; p.textContent = texte; p.hidden = !texte; }
@@ -797,7 +740,7 @@ $('chantiers-container').addEventListener('click', e => {
   if (ch) ouvrirFiches(ch);
 });
 
-// ── Un chantier : ses fiches (chantier passé dans l'adresse) et ses plans ; ou toutes les fiches sans chantier ──
+// ── Un chantier : ses tuiles (carnet, signalements, notes) et ses fiches (chantier passé dans l'adresse) ; ou toutes les fiches sans chantier ──
 function ouvrirFiches(ch) {
   currentChantier = ch;
   if (ch) noterRecent(ch.nom);
@@ -805,7 +748,6 @@ function ouvrirFiches(ch) {
   $('ch-entete').innerHTML = ch
     ? [ch.reference ? 'Réf. ' + esc(ch.reference) : '', ch.adresse ? esc(ch.adresse) : '', ch.conducteur ? 'Conducteur : ' + esc(ch.conducteur) : ''].filter(Boolean).join('<br>')
     : 'Le chantier se tape dans la fiche. Une fiche remplie sans être connecté est gardée dans le téléphone et part après la connexion.';
-  $('tuile-plans').hidden = !ch || MODE === null;
   $('tuile-signalements').hidden = !ch || MODE !== 'compte';   // le suivi demande un compte
   $('tuile-notes').hidden = !ch || MODE !== 'compte';           // lot 3 : les notes demandent un compte
   $('tuile-carnet').hidden = !ch || MODE !== 'compte';          // lot 4 : le carnet demande un compte
@@ -842,48 +784,6 @@ function chargerBadgesNotes() {
 // ── Suivi des signalements (lot 7) : ceux du chantier ouvert, ou tous (depuis l'accueil) ──
 function ouvrirSignalements(tous) {
   location.href = 'signalements.html' + (!tous && currentChantier ? '?chantier=' + encodeURIComponent(currentChantier.nom) : '');
-}
-
-// ── Plans du chantier (fenêtre) ──
-function ouvrirPlans() {
-  if (!currentChantier) return;
-  $('modal-chantier-name').textContent = currentChantier.nom;
-  $('modal-chantier-ref').textContent = currentChantier.reference ? 'Réf. ' + currentChantier.reference : '';
-  currentSousOnglet = 'plans';
-  document.querySelectorAll('.sOnglet').forEach((el, i) => el.classList.toggle('active', i === 0));
-  $('docs-container').innerHTML = CHARGEMENT;
-  $('chantierModal').classList.add('open');
-  document.body.style.overflow = 'hidden';
-  chargerDossiers(currentChantier);
-}
-function closeModal() {
-  $('chantierModal').classList.remove('open');
-  document.body.style.overflow = '';
-}
-$('chantierModal').addEventListener('click', e => { if (e.target === $('chantierModal')) closeModal(); });
-// Chaque chantier garde SA réponse : ouvrir B pendant que A charge n'affiche pas les documents de A dans B
-function chargerDossiers(chantier) {
-  if (chantier.dossiers) { renderDocs(currentSousOnglet); return; }
-  LOUE.lireDossiers(chantier.nom).then(d => {
-    chantier.dossiers = d || {};
-    if (chantier === currentChantier) renderDocs(currentSousOnglet);
-  }).catch(err => {
-    if (chantier !== currentChantier) return;
-    $('docs-container').innerHTML = '<div class="docs-empty">Impossible de charger.<br><span style="font-size:13px">' + esc(err && err.message && !/fetch|network|réseau|délai/i.test(err.message) ? err.message : 'Vérifiez le réseau, puis rouvrez les plans.') + '</span></div>';
-  });
-}
-function showSousOnglet(onglet, btn) {
-  currentSousOnglet = onglet;
-  document.querySelectorAll('.sOnglet').forEach(el => el.classList.remove('active'));
-  btn.classList.add('active');
-  renderDocs(onglet);
-}
-function renderDocs(onglet) {
-  const el = $('docs-container');
-  if (!currentChantier.dossiers) { el.innerHTML = CHARGEMENT; return; }
-  const docs = currentChantier.dossiers[onglet] || [];
-  if (!docs.length) { el.innerHTML = '<div class="docs-empty">Aucun document dans ce dossier.<br><span style="font-size:13px">Déposez des fichiers dans le dossier Drive correspondant.</span></div>'; return; }
-  el.innerHTML = docs.map(docHTML).join('');
 }
 
 // ── Planning ──

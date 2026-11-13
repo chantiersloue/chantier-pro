@@ -55,7 +55,22 @@ test('tous les types vont dans le bon dossier ; absence hors chantier dans ADMIN
   g.ctx.classerDocument_('absence', pdf(g), '', '03/02/2026', 'Jean DUPONT');
   const abs = chemin(g.racine, 'ADMINISTRATIF', 'ABSENCES');
   assert.deepStrictEqual(abs.enfants.map(e => e.nom), ['ABSENCE Jean DUPONT 2026-02-03.pdf']);
-  assert.ok(chemin(g.racine, 'CHANTIER TEST 1', 'Plans'), 'un nouveau dossier chantier reçoit « Plans »');
+  // Lot 4b : plus de sous-dossier « Plans » créé d'office (les plans passent par le carnet)
+  const cree = enfant(g.racine, 'CHANTIER TEST 1');
+  assert.ok(!chemin(g.racine, 'CHANTIER TEST 1', 'Plans'), 'un nouveau dossier chantier ne reçoit plus « Plans »');
+  assert.deepStrictEqual(cree.enfants.map(e => e.nom).sort(), ['05 - CHANTIER', '07 - ATELIER'], 'seuls les dossiers des documents rangés existent');
+  assert.strictEqual(g.feuilles['Dossiers chantiers'].lignes[1][3], 'créé');
+});
+
+test('dossiers.json existant avec la clé « plans » (ou sans) : toujours lisible, aucun dossier Plans créé', () => {
+  [{ plans: 'PLANS VALIDES', quitus: 'QUITUS' }, { quitus: 'QUITUS' }].forEach(documents => {
+    const g = environnement();
+    g.creerElement('fichier', 'dossiers.json', g.racine, { contenu: JSON.stringify({ version: 1, documents: documents }) });
+    assert.ok(g.ctx.classerDocument_('quitus', pdf(g), 'CHANTIER TEST 1', '09/11/2026', ''));
+    assert.deepStrictEqual(enfant(g.racine, 'CHANTIER TEST 1').enfants.map(e => e.nom), ['QUITUS']);
+    assert.strictEqual(g.ctx.dossiers_().documents.plans, documents.plans || 'Plans', 'le nom du dossier Plans reste connu (listerPartagesPlans)');
+    assert.ok(/✅ dossiers.json lisible/.test(g.ctx.verifierDossiers_()));
+  });
 });
 
 test('dossiers.json modifié par Franck : pris en compte (une clé oubliée garde sa valeur par défaut)', () => {
