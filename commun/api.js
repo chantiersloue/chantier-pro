@@ -383,12 +383,22 @@
     var vider = function () { return LOUE.stockage.tout('file').then(function (liste) {
       liste.sort(function (a, b) { return a.cree - b.cree; });
       var chaine = Promise.resolve();
+      // Lot 3 : l'ajout d'un élément de la liste d'un chantier et les gestes sur cet élément (cocher, décocher, modifier)
+      // partent TOUJOURS dans l'ordre où ils ont été faits. Tant qu'un plus ancien attend encore (délai pas échu, réseau,
+      // connexion), les suivants attendent : on peut donc cocher ou corriger hors réseau ce qu'on vient d'ajouter.
+      var seriesBloquees = {};
       liste.forEach(function (ancien) {
         var el = ancien;
-        if (el.etat === 'erreur') return;                                   // attend une action de la personne
+        var serie = el.type === 'note-chantier' ? (el.saisiPar || '') + '|' + el.id
+          : (el.type === 'note-action' && el.donnees ? (el.saisiPar || '') + '|' + String(el.donnees.note || '') : '');
+        if (el.etat === 'erreur') {                                         // attend une action de la personne
+          // un ajout refusé retient les gestes sur cet élément (ils seraient refusés un par un : « cet élément n'existe pas »)
+          if (serie && el.type === 'note-chantier') seriesBloquees[serie] = true;
+          return;
+        }
         if (el.env && el.env !== CONFIG.env) return;                        // fiche d'un autre mode (test / production)
-        if (!force(el) && el.prochainEssai && Date.now() < el.prochainEssai) return;
-        chaine = chaine.then(function () { return LOUE.stockage.lire('file', ancien.id); }).then(function (frais) {
+        if (!force(el) && el.prochainEssai && Date.now() < el.prochainEssai) { if (serie) seriesBloquees[serie] = true; return; }
+        chaine = chaine.then(function () { return serie && seriesBloquees[serie] ? null : LOUE.stockage.lire('file', ancien.id); }).then(function (frais) {
           if (!frais || frais.etat === 'erreur') return;                   // déjà envoyée ou mise de côté entre-temps
           el = frais;
           el.etat = 'envoi'; el.essais++; annoncer();
@@ -409,6 +419,7 @@
               el.aConfirmer = false; el.attenteReseau = false;   // refusée faute de connexion : pas traitée par le serveur
               el.refusServeur = 0;                                 // les refus « connexion » de l'appli 5.1 ne comptent plus
               el.prochainEssai = Date.now() + 15 * 60000;
+              if (serie) seriesBloquees[serie] = true;
               return ecrireSiPresente(el).then(function (encore) { if (encore) LOUE.signaler({ type: el.etat, element: el }); });
             }
             el.attendConnexion = false;
@@ -416,6 +427,8 @@
             if (!reseau && !aConfirmer) el.refusServeur = (el.refusServeur || 0) + 1;
             var definitif = err.definitif || (el.refusServeur || 0) >= ESSAIS_MAX;
             el.etat = definitif ? 'erreur' : 'en attente';
+            // cet envoi repartira (ou c'est un ajout refusé) : ce qui suit sur le même élément attend
+            if (serie && (!definitif || el.type === 'note-chantier')) seriesBloquees[serie] = true;
             el.attenteReseau = reseau && !definitif;
             el.aConfirmer = aConfirmer && !definitif;
             el.message = messageClair(err) + (!err.definitif && definitif ? ' (après ' + el.refusServeur + ' essais)' : '');

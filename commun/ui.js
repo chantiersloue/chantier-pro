@@ -156,6 +156,10 @@
   if (LOUE.surEvenement) {
     LOUE.surEvenement(function (ev) {
       if (ev.type === 'file') majIndicateur(ev.liste);
+      // Lot 3 : la liste d'un chantier ne donne lieu à aucun mail : message court, sans alerte « aucun mail n'est parti »
+      var estNote = !!ev.element && /^note-/.test(ev.element.type || '');
+      if (ev.type === 'envoyee' && estNote) { LOUE.message(ev.element.type === 'note-chantier' ? '✓ Ajouté à la liste' : '✓ ' + ev.element.libelle, 2500); return; }
+      if (ev.type === 'erreur' && estNote) { LOUE.message('⚠ Pas enregistré dans la liste du chantier : ' + ev.element.message + ' (détail : indicateur en haut de l’écran)', 8000); return; }
       if (ev.type === 'envoyee') {
         var d = (ev.reponse && ev.reponse.data) || {};
         var sansMail = d.envoyes === 0 && !d.reportes && ev.reponse.code !== 'DEJA_RECU';

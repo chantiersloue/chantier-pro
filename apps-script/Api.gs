@@ -204,6 +204,8 @@ const TRAITEMENTS = {
   'attestation'        : 'traiterAttestation',
   'cotes'              : 'traiterFicheCotes',
   'signalement'        : 'traiterSignalement',   // lot 7 (Signalements.gs)
+  'note-chantier'      : 'traiterNoteChantier',  // lot 3 (Notes.gs) : un nouvel élément de la liste du chantier
+  'note-action'        : 'traiterNoteAction',    // lot 3 : un geste sur un élément (modifier, cocher, décocher)
 };
 
 function doPost(e) {
@@ -256,13 +258,22 @@ function routerV5_(corps) {
     if (corps.action === 'outilTest' && typeof outilTest_ === 'function') return outilTest_(corps);
     if (corps.action === 'connexion')  return connexion_(corps);
     if (corps.action === 'motDePasse') return motDePasse_(corps);
-    if (['photo', 'fiche', 'moi', 'listes', 'dossiers', 'signalements', 'signalementStatut'].indexOf(corps.action) < 0) return { ok: false, code: 'ACTION_INCONNUE', message: 'Action inconnue' };
+    if (['photo', 'fiche', 'moi', 'listes', 'dossiers', 'signalements', 'signalementStatut',
+      'notes', 'notesNouvelles', 'notesVues'].indexOf(corps.action) < 0) return { ok: false, code: 'ACTION_INCONNUE', message: 'Action inconnue' };
     let qui = identifier_(corps);
     const envoi = corps.action === 'photo' || corps.action === 'fiche';
+    // Lot 3 : une note de chantier (ou un geste sur une note) demande TOUJOURS un compte en règle : ni « compte désactivé »,
+    // ni « sans compte ». Elle attend dans le téléphone (jamais de note sans auteur, rien dans l'onglet « Sans compte »).
+    const estNote = corps.action === 'fiche' && /^note-/.test(String((corps.donnees || {}).type || ''));
     // Fiche ou photo d'un compte désactivé : acceptée, notée « (compte désactivé) »
-    if (qui.refus && qui.desactive && envoi) qui = { compte: { id: qui.desactive, etiquette: qui.desactive + ' (compte désactivé)' } };
+    if (qui.refus && qui.desactive && envoi && !estNote) qui = { compte: { id: qui.desactive, etiquette: qui.desactive + ' (compte désactivé)' } };
     // Comptes illisibles (panne) pendant la transition : la fiche passe « sans compte »
-    if (qui.refus && qui.sansPossible && envoi) qui = { sans: true };
+    if (qui.refus && qui.sansPossible && envoi && !estNote) qui = { sans: true };
+    if (estNote && qui.sans) {
+      const rep = { ok: false, code: 'CONNEXION_REQUISE', message: 'Connectez-vous depuis l’accueil : c’est gardé dans le téléphone et partira ensuite.' };
+      if (qui.jetonInvalide) rep.jetonInvalide = true;
+      return rep;
+    }
     if (qui.refus) return qui.refus;
     const marquer = rep => { if (qui.jetonInvalide) rep.jetonInvalide = true; return rep; };   // la page efface son jeton
     if (corps.action === 'photo') { if (qui.sans) noterSansCompte_('photo'); return marquer(avecJeton_(recevoirPhoto_(corps), qui.compte)); }
@@ -278,6 +289,10 @@ function routerV5_(corps) {
     // Lot 7 : suivi des signalements (réservé aux comptes ; droits vérifiés dans Signalements.gs)
     if (corps.action === 'signalements')      return listerSignalements_(qui.compte, corps);
     if (corps.action === 'signalementStatut') return changerStatutSignalement_(qui.compte, corps);
+    // Lot 3 : notes de chantier (droits vérifiés dans Notes.gs)
+    if (corps.action === 'notes')          return listerNotes_(qui.compte, corps);
+    if (corps.action === 'notesNouvelles') return notesNouvelles_(qui.compte);
+    if (corps.action === 'notesVues')      return marquerNotesVues_(qui.compte, corps);
   } catch (err) {
     console.error('routerV5_:', err.message);
     return { ok: false, code: 'ERREUR', message: 'Erreur du serveur : ' + err.message };
@@ -384,6 +399,23 @@ function recevoirFiche_(corps, compte) {
 
   // Auteur : le compte qui envoie (et celui qui était connecté quand la fiche a été rangée, s'il est différent)
   const saisiPar = normaliserId_(corps.saisiPar);
+  // Lot 3 : notes de chantier. Tout est contrôlé ICI, avant de réserver un numéro : aucun nouvel essai inutile, aucune alerte.
+  const estNote = /^note-/.test(String(donnees.type));
+  if (estNote) {
+    // Renvoi après une réponse perdue : déjà enregistrée → on le dit, sans recontrôler des droits qui ont pu changer
+    // (ni qui tient le téléphone : la note est arrivée, elle doit quitter la file)
+    const shEnvois = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_ENVOIS);
+    const deja = shEnvois ? chercherEnvoi_(shEnvois, corps.id) : 0;
+    if (deja && String(shEnvois.getRange(deja, 5).getValue()).indexOf('traité') === 0) return { ok: true, code: 'DEJA_RECU', message: 'Déjà enregistré', data: { id: corps.id } };
+    // Téléphone partagé : ce qu'a écrit X ne part jamais sous le nom de Y (cela attend que X se reconnecte)
+    if (compte && saisiPar && saisiPar !== compte.id) return { ok: false, code: 'COMPTE_REFUSE',
+      message: 'En attente : écrit par « ' + saisiPar + ' ». Cela partira quand cette personne se reconnectera sur ce téléphone.' };
+    let refusNote;
+    // onglet des notes aux titres changés : même réponse pour un ajout et pour un geste (le téléphone garde et réessaie)
+    try { refusNote = refusNote_(donnees, compte); }
+    catch (err) { if (err && err.occupe) return { ok: false, code: 'SERVEUR_OCCUPE', message: err.message }; throw err; }
+    if (refusNote) return { ok: false, code: refusNote.code, message: refusNote.message };
+  }
   // « rangée par » est déclaré par le téléphone (information, pas une preuve) ; le compte qui envoie est vérifié par le jeton
   const auteur = compte ? (compte.etiquette || compte.id) + (saisiPar && saisiPar !== compte.id && idCompteValide_(saisiPar) ? ' (rangée par ' + saisiPar + ', selon le téléphone)' : '')
                         : 'sans compte';
@@ -414,7 +446,7 @@ function recevoirFiche_(corps, compte) {
   // 2. Photos déposées avant la fiche
   const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_ENVOIS);
   let dossierPhotos = null;
-  try {
+  if (!estNote) try {   // une note de chantier n'a jamais de photo : pas de recherche dans Drive pour elle
     const enCours = dossierPhotosEnCours_(false);
     // Le dossier à la corbeille (nettoyage après 7 jours) ne compte pas : les photos renvoyées sont dans le nouveau
     const d = enCours ? enCours.getFoldersByName(corps.id) : null;
@@ -432,8 +464,16 @@ function recevoirFiche_(corps, compte) {
   try {
     // Ce que le serveur sait de la fiche : son numéro, et le compte vérifié par le jeton (vide si sans compte)
     traiterFiche_(brut, { id: corps.id, auteurId: compte && compte.id ? compte.id : '',
-      auteurNom: compte ? (compte.nom || compte.etiquette || compte.id) : 'sans compte' });
+      auteurNom: compte ? (compte.nom || compte.etiquette || compte.id) : 'sans compte', compte: compte || null });
   } catch (err) {
+    // Lot 3 (notes) : « occupé » → le téléphone réessaie ; « refus » → définitif. Ni l'un ni l'autre ne prévient Franck
+    // par mail (une seule alerte « fiche non traitée » part par jour : elle doit rester pour les vraies fiches).
+    if (err && (err.occupe || err.refusDefinitif)) {
+      sh.getRange(ligne, 5, 1, 2).setValues([[err.occupe ? 'erreur' : 'refusé', String(err.message).slice(0, 300)]]);
+      RAPPORT_ = null;
+      return err.occupe ? { ok: false, code: 'SERVEUR_OCCUPE', message: err.message }
+                        : { ok: false, code: 'DONNEES_INVALIDES', message: err.message };
+    }
     // Des mails sont déjà partis : renvoyer la fiche les doublerait. On la note traitée et Franck vérifie.
     const partis = RAPPORT_ && ((RAPPORT_['envoyé'] || []).length + (RAPPORT_['reporté'] || []).length);
     if (partis) {
@@ -454,7 +494,9 @@ function recevoirFiche_(corps, compte) {
   const n = k => (rapport[k] || []).length;
   const detail = n('envoyé') + ' mail(s) envoyé(s)' + (n('reporté') ? ', ' + n('reporté') + ' reporté(s)' : '')
     + (n('refusé') ? ', ' + n('refusé') + ' adresse(s) refusée(s)' : '');
-  sh.getRange(ligne, 5, 1, 2).setValues([['traité', detail]]);
+  sh.getRange(ligne, 5, 1, 2).setValues([['traité', estNote ? 'note de chantier (aucun mail)' : detail]]);
+  // aucun mail pour une note : pas de « 0 mail envoyé » alarmant sur le téléphone
+  if (estNote) return { ok: true, code: 'ENREGISTRE', message: 'Enregistré', data: { id: corps.id } };
   if (dossierPhotos) { try { dossierPhotos.setTrashed(true); } catch (e) {} }   // les photos sont dans le PDF
 
   return {

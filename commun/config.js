@@ -6,11 +6,11 @@
 // au réseau d'abord : la nouvelle adresse leur arrive à l'ouverture suivante.
 // ═══════════════════════════════════════════════════════════════
 (function () {
-  var URL_PRODUCTION = 'https://script.google.com/macros/s/AKfycbyQqIr9mnH2OxCC1XlhGu2CW7GI4NpFo4YWwFzAOzRk5jURQPMvfdc-mZ4m70B_QdlAbA/exec';
+  var URL_PRODUCTION = 'https://script.google.com/macros/s/AKfycbzBZgrVjXEGITq69xJ4sOeis-QlNNIcaHObnSQlOca8D4ZlNolH-hyiUcw6bbwyRM-x/exec';
   // Copie de test (Sheet « ChantierPro TEST ») : s'active en ouvrant l'appli avec ?env=test, se coupe avec ?env=prod
   var URL_TEST = 'https://script.google.com/macros/s/AKfycby2f8c3dSG8ZNHNFOf3xFmd-75jytlBBK-Ji87YpqhDU8V8nMjYSB66VhnRGepRykMZTg/exec';
 
-  var VERSION_APPLI = '7.0';   // lot 2 (comptes) ; 6.0.1 : rangement jamais bloqué (comme la 5.1.1)
+  var VERSION_APPLI = '8.0';   // lot 3 (notes de chantier) ; 7.0 : lot 7 (signalements) ; 6.0 : lot 2 (comptes)
 
   function lire(cle) { try { return localStorage.getItem(cle); } catch (e) { return null; } }
   function ecrire(cle, v) { try { if (v === null) localStorage.removeItem(cle); else localStorage.setItem(cle, v); } catch (e) {} }

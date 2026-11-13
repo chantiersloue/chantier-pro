@@ -40,7 +40,11 @@ function creerGoogle(options = {}) {
       return p;
     };
     f.api = {
-      getName: () => nom,
+      getName: () => f.nom,
+      // Renommer un onglet, supprimer une ligne (utilisés par la porte de service de la copie TEST)
+      setName: n => { if (feuilles[n]) throw new Error('Un onglet porte déjà ce nom'); delete feuilles[f.nom]; f.nom = n; feuilles[n] = f; return f.api; },
+      deleteRow: r => { f.lignes.splice(r - 1, 1); },
+      getMaxColumns: () => 26, isSheetHidden: () => false,
       appendRow: l => { f.lignes.push(l.slice()); },
       getDataRange: () => plage(1, 1, Math.max(1, f.lignes.length), largeur()),
       getRange: (r, c, nr = 1, nc = 1) => plage(r, c, nr, nc),
@@ -63,6 +67,7 @@ function creerGoogle(options = {}) {
     getEditors: () => (options.editeurs || ['franck@loue.test']).map(e => ({ getEmail: () => e })),
     getSheetByName: n => (feuilles[n] ? feuilles[n].api : null),
     insertSheet: n => { feuilles[n] = creerFeuille(n, []); return feuilles[n].api; },
+    getSheets: () => Object.keys(feuilles).map(n => feuilles[n].api),
   };
 
   // ── Drive ──

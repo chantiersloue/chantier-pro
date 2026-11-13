@@ -46,6 +46,7 @@ const U = google.feuilles['Utilisateurs'];
   ['atelier1', 'Thomas TEST', 'Atelier'], ['poseur2', 'Kévin TEST', 'Poseur']]   // lot 7 : un compte Atelier et un second poseur
   .forEach(([id, nom, role], i) => { U.lignes[i + 1] = [id, nom, role, true, true, '', '', false, false, '']; });   // en haut, comme Franck
 ctx.traiterComptes();
+ctx.installerLot3Production();   // lot 3 : onglets des notes de chantier
 console.log(ctx.installerLot7Production().split(String.fromCharCode(10)).filter(l => /installation terminée|❌|Refusé/.test(l)).join(' ') || 'Lot 7 : installation non confirmée');   // lot 7 : onglet Signalements
 U.lignes.slice(1).filter(l => l[0]).forEach(l => {
   if (l[0] === 'nouveau1') { console.log('Compte « nouveau1 » : mot de passe provisoire ' + l[5]); return; }
@@ -54,8 +55,8 @@ U.lignes.slice(1).filter(l => l[0]).forEach(l => {
 });
 ctx.traiterComptes();
 const A = google.feuilles['Accès chantiers'];
-const colP = A.lignes[0].indexOf('poseur1');
-A.lignes.forEach(l => { if (l[0] === 'CHANTIER TEST 1') l[colP] = true; });
+const colP = A.lignes[0].indexOf('poseur1'), colP2 = A.lignes[0].indexOf('poseur2');
+A.lignes.forEach(l => { if (l[0] === 'CHANTIER TEST 1') { l[colP] = true; l[colP2] = true; } });   // lot 3 : poseur2 aussi sur ce chantier
 
 http.createServer((req, res) => {
   const entetes = { 'Access-Control-Allow-Origin': '*', 'Content-Type': 'application/json; charset=utf-8' };
@@ -78,6 +79,7 @@ http.createServer((req, res) => {
     return res.end(JSON.stringify({ mode, mails: google.mails.map(m => ({ to: m.to, sujet: m.sujet, bcc: m.opts.bcc || '' })),
       envois: (google.feuilles['Envois'] || { lignes: [] }).lignes, quota: google.etat.quota,
       signalements: (google.feuilles['Signalements'] || { lignes: [] }).lignes,   // lot 7
+      notes: (google.feuilles['Notes'] || { lignes: [] }).lignes,                 // lot 3
       sansCompte: (google.feuilles['Sans compte'] || { lignes: [] }).lignes, utilisateurs: U.lignes.map(l => [l[0], l[2], l[5], l[9]]) }));
   }
   let corps = '';

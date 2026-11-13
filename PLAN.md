@@ -99,7 +99,7 @@ Lot 8  Note de réunion                 │  dépend de 1 + 2 + onglet Intervena
 Lot 10 Idées                           ┘  au fil de l'eau, selon gain / effort
 ```
 
-**État au 12/11/2026** : lots 0, 1 (avec le 6) et 2 (avec le 9a) **en production**. Reste à Franck pour le lot 2 : installation sur les téléphones et remise des mots de passe, `demarrerTransition`, archivage des anciens déploiements (`docs/lot2-procedure.md`, D.8 à D.10). Outillage en place et vérifié le 12/11/2026 (`docs/guide-outillage.md`). **Lot 7 en cours** (plan : `docs/lot7-plan.md`, procédure : `docs/lot7-procedure.md`).
+**État au 12/11/2026** : lots 0, 1 (avec le 6) et 2 (avec le 9a) **en production**. Reste à Franck pour le lot 2 : installation sur les téléphones et remise des mots de passe, `demarrerTransition`, archivage des anciens déploiements (`docs/lot2-procedure.md`, D.8 à D.10). Outillage en place et vérifié le 12/11/2026 (`docs/guide-outillage.md`). **Lot 7 en production depuis le 13/11/2026** (serveur v7.0, appli 7.0 ; plan : `docs/lot7-plan.md`, procédure : `docs/lot7-procedure.md`). **Lot 3 (liste des choses à faire, façon Keep) : serveur en production le 13/11/2026**, pages livrées par la fusion de `livraison/lot-3` (plan : `docs/lot3-plan.md`, procédure : `docs/lot3-procedure.md`).
 
 **Pourquoi cet ordre ?**
 - Le lot 0 ferme une faille ouverte aujourd'hui.
@@ -400,6 +400,7 @@ Découpé en 5 sous-lots déployables séparément.
 - **Vérification** : signalement en mode avion, parti au retour du réseau, mail reçu par le conducteur, et par l'atelier seulement si la case est cochée.
 
 ### Lot 3 — Notes de chantier
+> **Simplifié le 13/11/2026 à la demande de Franck** (après ses essais) : une liste de choses à faire par chantier, façon Keep — une ligne de texte et une case à cocher, modification libre par toute personne qui a accès au chantier, pas de suppression, « Éléments terminés » replié ; ni auteur, ni date, ni photo, ni PDF, ni corbeille, ni historique à l'écran (l'historique reste dans le Sheet). Ce qui suit est le plan d'origine ; ce qui est construit est décrit dans `docs/lot3-plan.md`, chapitre 14 (D3-4).
 - **Intérêt** : un pense-bête partagé par chantier, qui suit le chantier et non la personne.
 - **Difficulté** 2 / **Risque** 2 (synchronisation hors-ligne).
 - **Données** :

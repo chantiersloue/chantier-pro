@@ -87,6 +87,46 @@ Une ligne par signalement, écrite par l'appli. **Seule la colonne M (Statut) se
 - Les colonnes de texte (numéro, chantier, auteur, repère, commentaire…) sont au format « texte brut » : un repère « 1/2 » n'y devient pas une date.
 - Le chef d'atelier prévenu par la case « Prévenir l'atelier » est le contact (ou les contacts) dont la colonne **ChefAtelier** de l'onglet *Contacts* vaut `O`.
 
+## Onglets « Notes », « Notes historique », « Notes vues » (lot 3 — créés par `installerLot3Test` / `installerLot3Production`)
+
+La liste des choses à faire de chaque chantier. Écrits par l'appli seulement. Tu peux les trier et les filtrer.
+
+**Notes** — une ligne par élément de liste :
+
+| Col. | Contenu |
+|---|---|
+|A|Numéro (sert à ne jamais écrire deux fois le même élément)|
+|B|Chantier (le nom de l'onglet *Chantiers*)|
+|C|Texte (une seule ligne)|
+|D|Fait : Oui / vide|
+|E|Créé le (heure du serveur)|
+|F|Créé par : nom (identifiant du compte)|
+|G|Texte modifié le|
+|H|Texte modifié par (identifiant) : sert au chiffre rouge « nouveau »|
+|I|Coché le|
+|J|Coché par : nom (identifiant)|
+
+**Notes historique** — le filet de sécurité : une ligne **par geste**, jamais affichée dans l'appli.
+
+| Col. | Contenu |
+|---|---|
+|A|Le (heure du serveur)|
+|B|Numéro de l'élément|
+|C|Chantier|
+|D|Geste : création / modification / modification en même temps / coché / décoché|
+|E|Ancien texte (pour une modification)|
+|F|Nouveau texte (création, modification)|
+|G|Par (nom)|
+|H|Par (identifiant du compte)|
+
+« modification en même temps » : la personne a corrigé un texte que quelqu'un d'autre venait de changer ; sa version a remplacé l'autre, et les deux sont dans cet onglet.
+
+**Notes vues** — la dernière visite de chaque personne sur chaque chantier (pour « nouveau ») : Identifiant, Chantier, Vue le.
+
+- **L'appli ne supprime jamais rien.** Pour faire disparaître pour de bon un élément écrit par erreur : supprime sa ligne dans l'onglet *Notes* (toi seul). Sinon, coche-le.
+- **Chantier renommé dans l'onglet *Chantiers*** : sa liste reste sous l'ancien nom. Remplace-le aussi dans la colonne B de l'onglet *Notes* (Édition → Rechercher et remplacer, dans cette feuille seulement).
+- Ne modifie rien d'autre à la main dans ces trois onglets.
+
 ## Onglet « Installation » (outillage)
 
 Bilan des fonctions d'installation (`installerLot7…`, `controlerInstallationLot2`) : date, lot, environnement, mode, ligne du bilan. Les 50 dernières lignes sont gardées. Peut être supprimé sans risque.
