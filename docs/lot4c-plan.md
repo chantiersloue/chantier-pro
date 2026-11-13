@@ -14,7 +14,7 @@ Un skill travaille dans un espace où le dossier du chantier sur le PC est mont�
 
 | | **A. Le skill écrit une « demande », le PC la traite** (version 1 de ce plan) | **B. Le PC lit les bordereaux** (retenue) |
 |---|---|---|
-| Comment le PC sait quoi déposer | un petit fichier écrit par le skill dans un nouveau dossier de MEGA | il regarde lui-même les PDF **figés dans `08 - DOCUMENTS ENVOYES AVEC BORDEREAU/BORDEREAU n`**, dont le nom porte le n° du chantier, le n° du document et l'indice |
+| Comment le PC sait quoi déposer | un petit fichier écrit par le skill dans un nouveau dossier dans le dossier du chantier sur le PC | il regarde lui-même les PDF **figés dans `08 - DOCUMENTS ENVOYES AVEC BORDEREAU/BORDEREAU n`**, dont le nom porte le n° du chantier, le n° du document et l'indice |
 | Nouveau dossier dans le dossier du chantier sur le PC | oui (contraire à la règle « pas de dossier de travail à part ») | **non** |
 | Textes à coller dans les skills | un bloc dans chaque skill de plans (9 skills) | **quelques lignes dans `gestion-documentaire` seulement** |
 | Risque qu'un fichier forgé fasse publier un mauvais plan, ou dans le mauvais chantier | réel : il faut six contrôles, et le skill choisit le chantier | **quasi nul** : le skill n'écrit rien pour le programme ; le chantier vient du nom du dossier du chantier sur le PC |
@@ -28,7 +28,7 @@ Un skill travaille dans un espace où le dossier du chantier sur le PC est mont�
 Un double-clic, trois temps, tout en français simple :
 
 ### 3.1 Les chantiers suivis
-Le programme ne devine jamais quel dossier du Drive correspond à quel dossier de MEGA. Il lit une **correspondance** tenue dans `_prive/depot.json` (jamais dans le dépôt public) :
+Le programme ne devine jamais quel dossier du Drive correspond à quel dossier de chantier du PC. Il lit une **correspondance** tenue dans `_prive/depot.json` (jamais dans le dépôt public) :
 
 ```json
 { "racine": "<racine du Drive de l'appli sur le PC>", "chantiers_pc": "<dossier des chantiers sur le PC>",
@@ -58,7 +58,7 @@ Le programme écrit ensuite **deux fichiers distincts** :
 2. **dans le Drive**, à la racine du dossier du chantier : `releve-pc.json` — le relevé de **présence** que le lot 5 lira avant toute purge (format du contrat). Le bilan affiché rappelle sa limite : il prouve « même nom, même taille sur le disque du PC », pas que MEGA a fini d'envoyer : **vérifier l'icône de MEGA**.
 
 ### 3.4 Garde-fous communs
-- Rien n'est jamais supprimé, nulle part. Le programme n'écrit que : les images du carnet et `carnet.json` (Drive), les copies de fiches et la liste de provenance (MEGA), `releve-pc.json` (Drive), ses fichiers de `_prive/`.
+- Rien n'est jamais supprimé, nulle part. Le programme n'écrit que : les images du carnet et `carnet.json` (Drive), les copies de fiches et la liste de provenance (dossier du chantier sur le PC), `releve-pc.json` (Drive), ses fichiers de `_prive/`.
 - Un seul traitement à la fois : verrou dans `_prive/` portant le nom de la machine et le numéro du programme ; un verrou laissé par un programme qui ne tourne plus est repris, avec un message clair. Un seul PC est prévu.
 - Racine du Drive sans `dossiers.json`, Drive pour ordinateur arrêté, dossier de chantier du PC absent : refus avant d'écrire quoi que ce soit.
 - Noms comparés sans tenir compte de la façon dont les accents sont codés.
