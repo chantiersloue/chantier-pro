@@ -19,7 +19,24 @@ Dis-moi « Envoi fait ». Je dépose alors de vrais plans d'essai dans le chanti
 
 ## Étape B — Tes essais sur téléphone (15 minutes, Android **et** un iPhone)
 
-La liste précise te sera donnée avec l'adresse de la copie d'essai. En résumé : ouvrir un plan, zoomer jusqu'à lire une cote, tourner le plan, changer de page, passer en mode avion et rouvrir le même plan, « Signaler ici », et le tout dehors, en plein jour.
+Adresse : https://loue-essai.github.io/chantier-pro/ (elle affiche le bandeau rouge « MODE TEST »). Deux documents d'essai sont dans le carnet de **CHANTIER TEST 1** : « PLANS DE RESERVATIONS MEN INT » (2 pages A3) et « PLANS DE REPERAGE DES PORTES » (3 grands plans).
+
+1. **Ouvrir** : accueil → CHANTIER TEST 1 → tuile **Carnet** → « PLANS DE REPERAGE DES PORTES ». La page arrive un peu floue, puis nette.
+2. **Zoomer avec deux doigts** jusqu'à lire une cote et un numéro de porte. Est-ce net ? Le plan suit-il bien les doigts ?
+3. **Déplacer** avec un doigt, **deux tapes rapides** pour grossir, boutons **+** et **−**.
+4. **Tourner** : bouton ⟳ (quatre appuis = retour à l'endroit). Le plan reste-t-il sur ce que tu regardais ?
+5. **Pages** : › et ‹ ; « ‹ Liste » pour revenir. Le document doit être marqué « ✓ déjà ouvert ».
+6. **Mode avion** : rouvre le même plan, au même endroit : il doit s'afficher tout de suite. Va sur une zone jamais regardée : un message doit dire qu'elle n'est pas encore gardée.
+7. **« ⚠ Signaler ici »** (réseau rétabli) : le signalement s'ouvre avec le chantier et le plan déjà notés. N'envoie rien, reviens en arrière.
+8. **Dehors, en plein jour, avec des gants** si tu en as : les boutons se touchent-ils bien ? L'écran se lit-il ?
+9. **Sur un iPhone** : refaire 1, 2, 4 et 6.
+10. **Sur le PC** : ouvrir le même plan, zoomer à la molette.
+
+## Ce que j'ai vérifié avant de te passer la main (13/11/2026)
+
+- **Essais réels sur la copie TEST** (`node tests/reel-lot4.js`) : 11 vérifications réussies ; **124 images** servies par le vrai serveur, identiques à l'octet près aux fichiers écrits par le programme dans le Drive ; droits ; 15 téléphones en même temps sans erreur ; aucun mail.
+- **La vraie page en « 3G lente »** contre la copie TEST (`node tests/reel-lot4-page.js`, réseau bridé à 50 Ko/s) : liste en 3,9 s (objectif 8) ; aperçu d'un grand plan en 8,6 s (objectif 10), net 10 s plus tard ; zoom au plus fin en 11,3 s (objectif 15) ; la même zone une seconde fois : immédiat.
+- Google Drive pour ordinateur a envoyé les 20 Mo de plans en moins de deux minutes.
 
 ## Étape C — Dernier envoi sur TEST avant la production (toi : 2 minutes)
 

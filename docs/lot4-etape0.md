@@ -115,7 +115,7 @@ Ce que l'essai nous dira : quel Python utilise un skill et s'il a les deux modul
 
 Ce qu'il faut en retenir :
 - **Chaque demande coûte 4 à 6 secondes, même avec un bon réseau** (2 à 3 s dans le serveur, 2 s d'aller-retour chez Google). Le carnet ne sera jamais « instantané » en ligne : d'où l'aperçu léger affiché d'abord, et l'intérêt de tout garder dans le téléphone. Une page déjà vue s'ouvre, elle, tout de suite.
-- Le chiffre « une barre de réseau » est un **calcul** (3 allers-retours de 400 ms + 50 Ko/s) : il sera mesuré pour de bon dans Chrome en « 3G lente » avec la vraie page, au lot 4a.
+- Le chiffre « une barre de réseau » est un **calcul** (3 allers-retours de 400 ms + 50 Ko/s). **Mesuré pour de bon le 13/11/2026** avec la vraie page en « 3G lente » (`docs/lot4a-procedure.md`) : liste 3,9 s, aperçu 8,6 s, zoom 11,3 s — objectifs tenus.
 - Non mesuré ici : des fiches envoyées pendant que 15 téléphones lisent le carnet ; les paquets réels les plus lourds (690 Ko, contre 400 Ko dans l'essai). À refaire au 4a avec de vrais plans.
 - Format confirmé : paquets de 4 × 4 tuiles voisines, réponses de 300 Ko au plus en lecture.
 
