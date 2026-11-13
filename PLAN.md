@@ -511,7 +511,7 @@ Découpé en 5 sous-lots déployables séparément.
 - **9a** (fait dans le lot 2) : onglets *Chantiers* et *Intervenants*.
 - **9b** (livré **avant** les lots 4, 5 et 8, qui en dépendent) : `docs/contrat-skills.md`, le contrat que les skills doivent respecter :
   1. **Lire l'identité du chantier** dans l'onglet *Chantiers* (connecteur Sheets) ; la FICHE INFO n'en garde que la copie.
-  2. **Écrire les intervenants** dans l'onglet *Intervenants* à chaque mise à jour de la FICHE INFO.
+  2. ~~**Écrire les intervenants** dans l'onglet *Intervenants*.~~ **Abandonné par Franck le 13/11/2026** (D9b-5) : note de réunion interne, intervenants ajoutés à la main si nécessaire.
   3. **Déposer dans le carnet** avec `depot_carnet.py` : quels documents, quand, comment les nommer.
   4. **Rapatrier les fiches de l'appli** de Drive (dossiers T12) vers les mêmes dossiers dans MEGA, avec une nouvelle ligne dans la table de routage de `gestion-documentaire` et le relevé `mega-index.json`.
   5. ~~**Cotes vers le métré de plinthes** : le skill `metre-plinthes` lit l'onglet *Prise de Cote*.~~ **Abandonné par Franck le 13/11/2026** (D9b-4).

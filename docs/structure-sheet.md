@@ -50,7 +50,7 @@ Ligne 1 : « Chantier », « Remarque (appli) », puis un identifiant de poseur 
 
 ## Onglet « Intervenants » (lot 2, 9a)
 
-Chantier, Nom, Société, Lot / fonction, Mail, Téléphone, Mis à jour le. Rempli **par l'appli** (lot 8) à partir du fichier `intervenants.json` que le skill `gestion-documentaire` dépose dans le dossier Drive du chantier : `docs/contrat-skills.md`, règle 2. Aucun skill n'écrit dans le Sheet.
+Chantier, Nom, Société, Lot / fonction, Mail, Téléphone, Mis à jour le. Vide pour l'instant : la transmission des intervenants par les skills a été abandonnée le 13/11/2026 (D9b-5). La note de réunion (lot 8) laissera ajouter les intervenants à la main.
 
 ## Onglets techniques du lot 2
 

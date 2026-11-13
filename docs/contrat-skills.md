@@ -13,7 +13,6 @@ Le principe retenu, le plus prudent : **un skill ne modifie jamais le Google She
 | # | Règle | Skill | Utilisable quand ? |
 |---|---|---|---|
 | 1 | L'identité d'un chantier (n°, nom, adresse, client, architecte) est **contrôlée** d'après l'onglet *Chantiers* du Sheet : tout écart avec la FICHE INFO t'est signalé. Les skills continuent de travailler avec la FICHE INFO. | `gestion-documentaire` | Au lot 4 (lecture seule) |
-| 2 | Les intervenants de la FICHE INFO sont déposés dans un fichier `intervenants.json` ; l'appli le recopie elle-même dans l'onglet *Intervenants*. | `gestion-documentaire` | Quand le Drive de l'appli est connecté à Claude **et** que le lot 8 est livré |
 | 3 | Les plans utiles aux poseurs sont déposés dans le carnet avec un seul script, `depot_carnet.py`. | les skills de plans | **Au lot 4** |
 | 4 | Les fiches produites par l'appli (PDF, photos) sont recopiées de Drive vers MEGA, dans les mêmes dossiers. | `gestion-documentaire` | Quand le Drive de l'appli est connecté à Claude |
 
@@ -35,12 +34,12 @@ Vocabulaire : un **connecteur** est un accès que tu donnes à Claude vers un de
 
 1. **Aucun identifiant dans ce contrat ni dans le dépôt.** Tu notes dans un document **privé** du projet LOUE TRAVAIL, que j'appelle ici `claude/CHANTIERPRO - acces.md` : l'identifiant du vrai Sheet **et son titre exact** ; plus tard, le chemin **et le nom exact** du dossier racine du Drive de l'appli.
 2. **Contrôle « c'est bien le bon classeur ».** Avant toute lecture, le skill compare le titre du classeur ouvert au titre noté dans le document privé. S'ils diffèrent, ou si le titre contient « TEST », il s'arrête et te le dit. (La copie TEST sert à mes essais ; ses données sont fausses.)
-3. **Lecture seule sur le Sheet, et sur trois onglets seulement** : *Chantiers*, *Intervenants*, *Dossiers chantiers*. Le skill ne lit jamais *Utilisateurs* (il contient les mots de passe provisoires), *Accès chantiers*, *Sans compte*, *Envois*, *Contacts*.
+3. **Lecture seule sur le Sheet, et sur deux onglets seulement** : *Chantiers* et *Dossiers chantiers*. Le skill ne lit jamais *Utilisateurs* (il contient les mots de passe provisoires), *Accès chantiers*, *Sans compte*, *Envois*, *Contacts*.
 4. **Si un accès manque** (connecteur absent, dossier non connecté, onglet introuvable, colonnes inattendues) : le skill **ne devine rien et n'écrit rien**. Il continue son travail avec la FICHE INFO comme avant, et te le signale en une ligne.
 
 ### Ce que ces accès permettent vraiment (à savoir avant de les donner)
 
-- **Le connecteur Google Sheets donne très probablement à Claude l'accès, en lecture et en écriture, à tous les classeurs du compte Google auquel il est relié** (donc au vrai Sheet et à la copie TEST). « Lecture seule » et « trois onglets » sont des **consignes** écrites dans le skill, pas un verrou technique. C'est une raison de plus pour qu'aucune règle de ce contrat ne demande d'écrire dans le Sheet.
+- **Le connecteur Google Sheets donne très probablement à Claude l'accès, en lecture et en écriture, à tous les classeurs du compte Google auquel il est relié** (donc au vrai Sheet et à la copie TEST). « Lecture seule » et « deux onglets » sont des **consignes** écrites dans le skill, pas un verrou technique. C'est une raison de plus pour qu'aucune règle de ce contrat ne demande d'écrire dans le Sheet.
 - **Quel compte Google ?** Le Sheet appartient au compte Google de Loué. Le connecteur doit être relié à **ce compte-là**. S'il est relié à un autre de tes comptes, il ne verra pas le Sheet : ne partage pas le Sheet pour contourner, dis-le-moi d'abord.
 - **Le dossier Drive à connecter (plus tard) est toute la racine du Drive de l'appli**, parce que `dossiers.json` s'y trouve. Cette racine contient aussi `ADMINISTRATIF/ABSENCES` (les demandes d'absence des salariés). La décision S1-3 ne parlait que du carnet : **c'est un élargissement, à valider par toi au lot 4** (question 2 du chapitre 10).
 
@@ -72,7 +71,7 @@ C'est une exception voulue à la règle « la FICHE INFO est la source unique »
 ### Ce que fait `gestion-documentaire` (il ne fait que lire)
 
 1. **Trouver la ligne** : celle dont la colonne E (N°) est le numéro du dossier MEGA (comparé comme du texte : « 431 » et 431 sont le même numéro). À défaut, celle dont le Nom court (F) est celui de la FICHE INFO. Aucune ligne, ou plusieurs : le skill continue avec la FICHE INFO seule et te dit « ce chantier n'est pas (ou est deux fois) dans l'onglet Chantiers ».
-2. **Retenir le « nom dans l'appli »** (colonne A) pour la durée de son travail : les règles 2 et 4 en ont besoin. Il est relu dans le Sheet à chaque intervention, jamais recopié de mémoire.
+2. **Retenir le « nom dans l'appli »** (colonne A) pour la durée de son travail : la règle 4 et le carnet en ont besoin. Il est relu dans le Sheet à chaque intervention, jamais recopié de mémoire.
 3. **À la création d'une FICHE INFO** (nouveau chantier) : les valeurs du Sheet sont la **première source** pour le n°, le nom court et l'adresse, avec la source « Sheet ChantierPro, lu le JJ/MM/AAAA ». L'adresse du Sheet tient en une case, la fiche en a deux (« adresse du chantier », « code postal + ville ») : si le découpage n'est pas évident, case jaune et question, jamais au hasard. Client et architecte servent à contrôler les lignes MOA et ARCHI de la feuille INTERVENANTS (ils n'ont pas de rubrique dans la feuille FICHE). Un écart constaté à ce moment-là devient une ligne À VÉRIFIER de la fiche, comme toute autre question de création. Sur un chantier ancien qui n'avait pas encore de fiche : si le registre utilise déjà un nom court différent de la colonne F, c'est celui du registre qui est gardé, et l'écart est signalé.
 4. **Sur une FICHE INFO qui existe déjà** : le skill **compare et signale dans son compte rendu ; il n'écrit rien, ni dans le Sheet, ni dans la fiche**. Il le fait à trois moments seulement : quand tu demandes l'état documentaire, avant un bordereau, et à la première intervention sur ce chantier dans une conversation (pas à chaque fois qu'un fichier est lu).
 
@@ -92,52 +91,9 @@ C'est une exception voulue à la règle « la FICHE INFO est la source unique »
 
 ---
 
-## 3. Règle 2 — Les intervenants : un fichier déposé, que l'appli recopie
+## 3. Règle 2 — abandonnée (13/11/2026)
 
-### Pourquoi
-Au lot 8, la note de réunion de l'appli proposera les présents et les destinataires d'après l'onglet *Intervenants*. Cette liste est déjà tenue par `gestion-documentaire` dans la FICHE INFO : on la transmet, on ne la ressaisit pas.
-
-### Deux solutions comparées
-
-| | A. Le skill écrit dans l'onglet par le connecteur Sheets | **B. Le skill dépose `intervenants.json`, l'appli le recopie (retenue)** |
-|---|---|---|
-| Qui modifie le vrai Sheet | un skill, en suivant une consigne en prose | l'appli, avec du code testé, sous verrou |
-| Risque pour les autres chantiers | réel : un tri de l'onglet, une ligne vide ou un ajout mal placé peut écraser les lignes d'un autre chantier | nul : l'appli remplace le bloc d'un chantier en une opération, retrouvé par son nom |
-| Essais avant le vrai Sheet | impossibles (le skill n'a pas le droit de toucher à la copie TEST) | faits sur la copie TEST et dans les tests automatiques |
-| Disponible | tout de suite | au lot 8 (et il faut le Drive connecté) |
-| Outils en plus | aucun | aucun |
-
-Je retiens **B** : l'onglet *Intervenants* ne sert à rien avant le lot 8, donc rien ne presse, et A fait courir un risque à des données réelles. **C'est un écart avec `PLAN.md`** (qui disait « le skill recopie dans l'onglet ») : il est noté dans `DECISIONS.md` (D9b-1) et **tu peux le refuser** (question 1 du chapitre 10).
-
-### Le fichier
-
-- **Où** : à la racine du dossier Drive du chantier. **Nom** : `intervenants.json`.
-- **Écrit par** : `gestion-documentaire`, quand la liste des intervenants de la FICHE INFO a changé (pas à chaque intervention). Le fichier est remplacé en entier.
-- **Sens unique** : FICHE INFO → fichier → onglet. Une correction se fait **dans la FICHE INFO**.
-
-```json
-{
-  "version": 1,
-  "chantier": "<NOM de la colonne A de l'onglet Chantiers>",
-  "numero": "<N° du chantier>",
-  "ecrit_le": "2026-11-13T08:30:00+01:00",
-  "intervenants": [
-    { "nom": "<INTERLOCUTEUR>", "societe": "<SOCIÉTÉ>", "lot_fonction": "<RÔLE — LOT xx>", "mail": "<une adresse>", "telephone": "<PORTABLE, sinon TÉL. SOCIÉTÉ>" }
-  ]
-}
-```
-
-(Un fichier « JSON » est un simple fichier de texte rangé de façon stricte, que les programmes savent relire sans se tromper.)
-
-- Une entrée par intervenant qui a un interlocuteur ou une société, **même sans mail** (il peut être présent à une réunion). Pas les personnes de Loué : l'appli les connaît déjà.
-- `mail` : **une seule** adresse, de la forme `nom@domaine`, sans espace ni retour à la ligne. S'il y en a plusieurs dans la fiche, la première, et le skill te dit lesquelles il a laissées.
-- **Liste vide** : le skill n'écrit pas le fichier (une lecture ratée de la fiche ne doit pas vider l'onglet) ; il te le dit.
-- Dans son compte rendu, le skill liste les **adresses nouvelles** depuis le fichier précédent : ce sont de futurs destinataires proposés par l'appli, tu dois les avoir vues.
-
-### Ce que fera l'appli (lot 8, pas avant)
-Elle lira ce fichier, contrôlera chaque champ, remplacera dans l'onglet *Intervenants* le bloc de ce chantier, et écrira la date dans la colonne « Mis à jour le ». D'ici là, le fichier peut exister : il est ignoré.
-
-**Confidentialité** : ce fichier et l'onglet contiennent des mails et des téléphones de personnes extérieures. Le Sheet n'est partagé avec personne. Dans le Drive de l'appli, seuls les fichiers du planning et des dossiers `Plans` des chantiers sont partagés « par lien » pour les poseurs : `intervenants.json` se dépose **à la racine du dossier du chantier, jamais dans `Plans`**.
+La règle 2 prévoyait de transmettre à l'appli la liste des intervenants de la FICHE INFO (fichier `intervenants.json`). **Franck l'a abandonnée le 13/11/2026** : la note de réunion de l'appli est avant tout interne, et ses intervenants seront ajoutés à la main si nécessaire. Aucun skill ne dépose de fichier d'intervenants ; l'onglet *Intervenants* du Sheet n'est rempli par personne pour l'instant (décision D9b-5).
 
 ---
 
@@ -165,6 +121,9 @@ Ceux que tu as marqués « utiles aux poseurs » dans `docs/skills.md` :
 | `signaletique` | signalétique | 152 |
 | `ppsps` | PPSPS | 001 |
 | `temps-de-tache` | temps de tâches | 002 |
+| `reperage-menuiseries` | tableau de portes (PDF, sans prix) | 103 |
+| `reperage-menuiseries` | plans de repérage des portes | 104 |
+| `reservation-men-int` | plan de pose des huisseries | 107 |
 
 Ne vont **jamais** au carnet : tout ce qui porte un prix, les documents internes (fiches de fabrication, notes internes, rapports d'incohérences), les brouillons.
 
@@ -226,7 +185,7 @@ Les fiches de l'appli se nomment `<INTITULÉ> <nom court, sinon nom du chantier>
 - **« Une seule version active »** : deux quitus ou deux signalements ne sont **pas** deux versions du même document, même s'ils ne diffèrent que par la date ou par `_V2` (l'appli ajoute `_V2` à une **autre** fiche du même jour, pas à une nouvelle version). Ces fichiers ne sont jamais candidats « même document », jamais archivés dans `0-OLD`.
 - **Comment les reconnaître** : par leur **provenance**, pas par leur nom. Est une fiche de l'appli tout fichier listé dans `mega-index.json` (donc copié par le rapatriement). Les fiches les plus anciennes ont d'autres noms (`Note_…`, `Cotes_…`, `Quitus_…`) : un tri par le début du nom les manquerait.
 - **Veille des comptes rendus** : les notes de réunion de l'appli arrivent dans `05 - CHANTIER/COMPTE RENDU`, à côté des CR de la maîtrise d'œuvre. La veille doit les ignorer.
-- **« Jamais écraser »** : `mega-index.json` et `intervenants.json` sont les deux seuls fichiers qu'un skill remplace en entier.
+- **« Jamais écraser »** : `mega-index.json` est le seul fichier qu'un skill remplace en entier.
 
 Le bloc C contient les lignes à ajouter aux paragraphes concernés. **Les scripts `gestiondoc.py` et `veille_cr.py` devront aussi apprendre cette exception** : je te donnerai la modification avec `rapatrier.py`.
 
@@ -296,8 +255,8 @@ La règle 5 prévoyait que le skill `metre-plinthes` contrôle ses hypothèses a
 Accès : connecteur Google Sheets. L'identifiant ET le titre exact du classeur sont dans le doc du projet
 `claude/CHANTIERPRO - acces.md`. Avant toute lecture : si le titre du classeur ouvert n'est pas exactement
 celui noté, ou s'il contient « TEST », s'arrêter et le dire à Franck.
-Ne JAMAIS écrire dans ce classeur. N'y lire que les onglets « Chantiers », « Intervenants »,
-« Dossiers chantiers » (jamais « Prise de Cote », « Utilisateurs », « Accès chantiers », « Sans compte »,
+Ne JAMAIS écrire dans ce classeur. N'y lire que les onglets « Chantiers » et « Dossiers chantiers »
+(jamais « Intervenants », « Prise de Cote », « Utilisateurs », « Accès chantiers », « Sans compte »,
 « Envois », « Contacts »).
 Connecteur absent, onglet introuvable, colonnes inattendues : ne rien deviner, continuer avec la FICHE INFO
 et le signaler en une ligne.
@@ -342,8 +301,8 @@ Dans `gestion-documentaire` :
 **C.1 — § 0, principe 3 (« Ne jamais supprimer, jamais écraser »), ajouter :**
 
 ```
-   Seule exception : les fichiers `mega-index.json` et `intervenants.json` déposés à la racine du dossier
-   Drive d'un chantier de l'appli ChantierPro (§1 ter) sont remplacés en entier à chaque écriture.
+   Seule exception : le fichier `mega-index.json` déposé à la racine du dossier Drive d'un chantier de
+   l'appli ChantierPro (§1 ter) est remplacé en entier à chaque écriture.
 ```
 
 **C.2 — § 6 (« Ce qu'on ne touche pas »), ajouter :**
@@ -370,8 +329,8 @@ ChantierPro (notes de réunion internes, notes de chantier) : la veille les igno
 ```
 
 ```
-### 1 ter. Appli ChantierPro : rapatrier les fiches (Drive → MEGA) et déposer les intervenants
-(contrat docs/contrat-skills.md, règles 2 et 4 — à faire avec les scripts `rapatrier.py` et `intervenants.py`)
+### 1 ter. Appli ChantierPro : rapatrier les fiches (Drive → MEGA)
+(contrat docs/contrat-skills.md, règle 4 — à faire avec le script `rapatrier.py`)
 
 Accès : dossier Drive de l'appli connecté (chemin et nom exact de la racine dans `claude/CHANTIERPRO - acces.md` ;
 si le nom de la racine diffère, s'arrêter). Pas connecté : ne rien faire et le dire.
@@ -380,8 +339,6 @@ et avant une purge. Pas à chaque intervention.
 Journal du registre : action « rapatrié de l'appli », UNE ligne par rapatriement (nombre de fichiers, dossiers).
 Le script copie sans déplacer ni écraser, vérifie les tailles, signale les fichiers hors des sous-dossiers connus,
 puis écrit `mega-index.json` à la racine du dossier Drive du chantier.
-Intervenants : quand la liste de la FICHE INFO a changé, écrire `intervenants.json` à la racine du dossier
-Drive du chantier (jamais si la liste est vide) et lister à Franck les adresses nouvelles.
 ```
 
 ---
@@ -412,12 +369,15 @@ Si une case de *Chantiers* ou d'*Intervenants* a changé sans toi : retire le bl
 
 ---
 
-## 10. Quatre questions pour toi (reprises une par une au début du lot 4)
+## 10. Les questions ouvertes, et tes réponses (13/11/2026)
 
-1. **Intervenants** : d'accord pour le fichier `intervenants.json` recopié par l'appli (solution B), au lieu d'un skill qui écrit dans le vrai Sheet ? Conséquence : l'onglet *Intervenants* se remplit au lot 8, pas avant.
-2. **Dossier Drive à connecter à Claude** (lot 4) : d'accord pour connecter **toute la racine** du Drive de l'appli, y compris le dossier des demandes d'absence ? Sinon il faudra une autre organisation (les dossiers des chantiers sont directement sous cette racine : les connecter un par un, ou déplacer le dossier des absences ailleurs), à étudier au lot 4.
-3. **Carnet, quand déposer** : `PLAN.md` disait « automatiquement, à la fin de chaque skill ». Je propose plutôt **seulement une version que tu as validée** (au moment du bordereau, ou sur ta demande), pour qu'un poseur ne pose jamais d'après un brouillon. Ton choix ?
-4. **Carnet, quels documents** : faut-il y mettre aussi les plans de repérage des portes (104) et le plan de pose des huisseries (107) ? Ils ne sont pas dans ta liste de `docs/skills.md`.
+| Question | Ta réponse |
+|---|---|
+| Intervenants : par un fichier, ou écrits dans le Sheet par un skill ? | **Ni l'un ni l'autre** : la note de réunion est interne, ses intervenants seront ajoutés à la main si nécessaire. Règle 2 abandonnée |
+| Quel dossier de `G:\Mon Drive` connecter à Claude ? | **Toute la racine** du Drive de l'appli (consigne aux skills : ne jamais aller dans `ADMINISTRATIF/ABSENCES`) |
+| Carnet : quand déposer ? | **Seulement une version validée** (au moment du bordereau, ou sur ta demande). Écart assumé avec le plan d'origine, qui disait « automatiquement » |
+| Carnet : quels documents en plus de ta liste ? | **Tableau de portes (103), repérage des portes (104), pose des huisseries (107)** |
+| Où tourne le programme de dépôt ? | **Sur ton PC** (Python et `G:\Mon Drive` y sont déjà ; un module gratuit à installer une fois : pypdfium2) |
 
 ---
 
@@ -429,6 +389,10 @@ Si une case de *Chantiers* ou d'*Intervenants* a changé sans toi : retire le bl
 - **Règles 2, 3 et 4** : elles dépendent du dossier Drive connecté à Claude, jamais essayé, et de scripts qui restent à écrire et à tester (lot 4). Le bloc C n'est qu'une esquisse.
 - **`mega-index.json`** ne prouve que la présence sur le PC (chapitre 5).
 - **Gratuité** : rien de nouveau à payer ni à installer, tant que le connecteur Google Sheets reste compris dans ton abonnement Claude actuel.
+
+### Décisions de Franck au début du lot 4 (13/11/2026)
+- **Règle 2 abandonnée** (intervenants) : chapitre 3 retiré, plus de fichier `intervenants.json`, l'onglet *Intervenants* sort de la liste des onglets lisibles par les skills.
+- Les quatre questions ouvertes sont tranchées (chapitre 10).
 
 ### Décisions de Franck (13/11/2026)
 - **Rien ne se colle dans les skills avant le lot 4** : tout sera fait en une seule fois, avec les scripts, et validé avec Claude.
