@@ -255,7 +255,7 @@ function outilTestCarnetRetirer_() {
       // la liste n'est mise à la corbeille que si elle ne contient QUE le faux document
       if (liste && Array.isArray(liste.documents) && liste.documents.every(d => d && d.id === OUTIL_TEST_CARNET_DOC.id)) { f.setTrashed(true); retires++; }
     }
-    cacheScript_().remove('carnet:liste:1:' + carnet.getId());
+    cacheScript_().remove('carnet:liste:1:' + carnet.getId() + ':n');
   }
   return { retires: retires };
 }
@@ -288,7 +288,7 @@ function outilTestCarnetFauxDepot_(corps) {
     intitule: 'ESSAI DE MESURE', dossier: OUTIL_TEST_CARNET_DOC.dossier, date: new Date().toISOString().slice(0, 10), poids: poids, pages: [page] }] };
   if (carnet.getFilesByName(CARNET_FICHIER).hasNext()) throw new Error('un carnet.json existe déjà dans le chantier d’essai : rien n’est écrasé');
   carnet.createFile(CARNET_FICHIER, JSON.stringify(liste), 'application/json');
-  cacheScript_().remove('carnet:liste:1:' + carnet.getId());
+  cacheScript_().remove('carnet:liste:1:' + carnet.getId() + ':n');
   return { doc: OUTIL_TEST_CARNET_DOC.id, paquets: numero, poids: poids, colonnes: cols, lignes: ligs, sommes: sommes };
 }
 // Ce que le vrai Sheets renvoie pour la ligne de titres des onglets des notes (et de leurs anciennes versions) : sert à

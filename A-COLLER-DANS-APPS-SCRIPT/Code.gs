@@ -1,10 +1,10 @@
 // ═══════════════════════════════════════════════════════════════
 // LOUÉ APP — SERVEUR COMPLET, À COLLER DANS APPS SCRIPT (fichier « Code.gs », tout remplacer)
 // FICHIER GÉNÉRÉ AUTOMATIQUEMENT par « node outils/construire.js » — NE PAS MODIFIER À LA MAIN :
-// les sources sont dans le dossier apps-script/ du dépôt. Version du serveur e01105b546 (pages e8e22b3a6a)
+// les sources sont dans le dossier apps-script/ du dépôt. Version du serveur a14bc63ca2 (pages d4170ceb3b)
 // ═══════════════════════════════════════════════════════════════
 
-const EMPREINTE_SERVEUR = 'e01105b546';
+const EMPREINTE_SERVEUR = 'a14bc63ca2';
 
 // ████ Config.gs ████
 // ═══════════════════════════════════════════════════════════════
@@ -12,7 +12,7 @@ const EMPREINTE_SERVEUR = 'e01105b546';
 // Loué Menuiserie
 // ═══════════════════════════════════════════════════════════════
 
-const VERSION_API = 'v8.0';   // lot 3 (notes de chantier) ; 7.0 : lot 7 (signalements) ; 6.0 : lot 2 (comptes)
+const VERSION_API = 'v9.0';   // lot 4a (carnet de chantier) ; 8.0 : lot 3 (notes de chantier) ; 7.0 : lot 7 (signalements) ; 6.0 : lot 2 (comptes)
 
 // ── CONFIGURATION ──
 const SHEET_CONTACTS      = 'Contacts';
@@ -3194,8 +3194,7 @@ function installerLot3Production() { return installerLot3_('PRODUCTION'); }
 // ═══════════════════════════════════════════════════════════════════════════
 //  Carnet.gs — Lot 4 : carnet de chantier (plans et documents en pages-images)
 //
-//  ÉTAPE 4.0 (docs/lot4-plan.md, §3-B) : ce fichier sert d'abord à MESURER la rapidité du serveur sur la copie TEST.
-//  Il n'est appelé par aucune page tant que la mesure n'est pas faite ; la tuile « Carnet » arrive avec le lot 4a.
+//  Lu par la page carnet.html (commun/carnet.js). Mesuré sur la copie TEST le 13/11/2026 : docs/lot4-etape0.md.
 //
 //  Ce que le programme de dépôt écrit dans le dossier de chaque chantier (clé « carnet » de dossiers.json) :
 //    CARNET/carnet.json                      la liste des documents (lue ici, jamais écrite par le serveur)
@@ -3216,7 +3215,8 @@ const CARNET_MAX_MASSE = 1500 * 1024;     // … et pour « Tout télécharger �
 const CARNET_MAX_TUILES = 64;             // tuiles demandées en une fois
 const CARNET_CACHE_IDS_S = 21600;         // identifiants Drive gardés 6 h (le maximum du cache)
 const CARNET_CACHE_LISTE_S = 600;         // liste gardée 10 min : un document déposé apparaît au plus tard 10 min après
-const CARNET_CACHE_MAX = 90000;           // une valeur du cache ne dépasse pas 100 Ko
+const CARNET_CACHE_MAX = 30000;           // caractères par morceau (une valeur du cache ne dépasse pas 100 Ko, accents compris)
+const CARNET_CACHE_MORCEAUX = 30;         // jusqu'à 900 000 caractères de liste ; au-delà, elle est relue à chaque demande
 const CARNET_NOM_SUR = /^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$/;   // noms des fichiers d'images : jamais un chemin
 const CARNET_REFUS = 'Ce chantier ne fait pas partie de vos chantiers : voyez avec le bureau.';
 
@@ -3235,8 +3235,12 @@ function carnetChantier_(compte, corps) {
 // fabrique parfois) : le plus récent est pris, et « doublon » le signale.
 function carnetListe_(carnet) {
   const cache = cacheScript_(), cle = 'carnet:liste:1:' + carnet.getId();
-  const garde = cache.get(cle);
-  if (garde) { try { return JSON.parse(garde); } catch (e) {} }
+  const nombreGarde = Number(cache.get(cle + ':n')) || 0;
+  if (nombreGarde > 0 && nombreGarde <= CARNET_CACHE_MORCEAUX) {
+    const cles = []; for (let i = 0; i < nombreGarde; i++) cles.push(cle + ':' + i);
+    const morceaux = cache.getAll(cles);
+    if (cles.every(k => typeof morceaux[k] === 'string')) { try { return JSON.parse(cles.map(k => morceaux[k]).join('')); } catch (e) {} }
+  }
   const it = carnet.getFilesByName(CARNET_FICHIER);
   let fichier = null, nombre = 0;
   while (it.hasNext()) {
@@ -3250,8 +3254,14 @@ function carnetListe_(carnet) {
   try { liste = JSON.parse(fichier.getBlob().getDataAsString('UTF-8')); } catch (e) { throw carnetErreur_('CARNET_ARRIVE', 'La liste du carnet est en cours d’arrivée : réessayez dans quelques minutes.'); }
   if (!liste || !Array.isArray(liste.documents)) throw carnetErreur_('CARNET_ARRIVE', 'La liste du carnet est en cours d’arrivée : réessayez dans quelques minutes.');
   const rendu = { liste: liste, maj: fichier.getLastUpdated().getTime(), doublon: nombre > 1 };
-  const texte = JSON.stringify(rendu);
-  if (texte.length <= CARNET_CACHE_MAX) cache.put(cle, texte, CARNET_CACHE_LISTE_S);
+  // gardée par morceaux (une valeur du cache ne dépasse pas 100 Ko ; la liste d'un chantier riche en grands plans, si)
+  const texte = JSON.stringify(rendu), parts = Math.ceil(texte.length / CARNET_CACHE_MAX);
+  if (parts <= CARNET_CACHE_MORCEAUX) {
+    const valeurs = {};
+    for (let i = 0; i < parts; i++) valeurs[cle + ':' + i] = texte.slice(i * CARNET_CACHE_MAX, (i + 1) * CARNET_CACHE_MAX);
+    valeurs[cle + ':n'] = String(parts);
+    try { cache.putAll(valeurs, CARNET_CACHE_LISTE_S); } catch (e) {}
+  }
   return rendu;
 }
 

@@ -8,6 +8,8 @@
 //   quota  : plus que 5 mails possibles aujourd'hui
 // Lot 2 — comptes d'essai (mot de passe « Essai-2026 ») : poseur1 (CHANTIER TEST 1 coché), conducteur1 (Sébastien TEST), admin1 ;
 //   « nouveau1 » n'a qu'un mot de passe provisoire (affiché au démarrage).
+// Lot 4 — LOUE_RACINE_ESSAI=<dossier> : ce dossier (un faux « Drive de l'appli » rempli par outils/depot_carnet.py) est recopié dans le faux Drive ;
+//   GET /reglage?mode=acces&id=poseur1&valeur=0 retire au compte la case de CHANTIER TEST 1 (1 : la remet) ; /recharger-carnet relit le dossier.
 //   GET /reglage?mode=transition-finie (fin de la période sans compte) | transition-ouverte | deconnecter&id=poseur1 | jeton-ancien
 'use strict';
 const http = require('http');
@@ -38,6 +40,19 @@ google.creerElement('dossier', 'Loué Menuiserie - Chantiers', null, { id: 'RACI
 google.creerElement('dossier', 'Planning', null, { id: 'PLANNING' });
 const ctx = chargerScript(google);
 let mode = 'normal';
+// Lot 4 : recopie d'un dossier du PC dans le faux Drive (dossiers et fichiers, octets compris)
+const fs = require('fs'), path = require('path');
+function recopier(dossierPc, parent) {
+  fs.readdirSync(dossierPc, { withFileTypes: true }).forEach(e => {
+    const chemin = path.join(dossierPc, e.name);
+    const existant = parent.enfants.find(x => x.nom === e.name && !x.corbeille);
+    if (e.isDirectory()) recopier(chemin, existant || google.creerElement('dossier', e.name, parent));
+    else if (existant) { existant.contenu = fs.readFileSync(chemin); existant.maj = fs.statSync(chemin).mtimeMs; }
+    else google.creerElement('fichier', e.name, parent, { contenu: fs.readFileSync(chemin) }).maj = fs.statSync(chemin).mtimeMs;
+  });
+}
+const chargerCarnet = () => { if (process.env.LOUE_RACINE_ESSAI) recopier(process.env.LOUE_RACINE_ESSAI, google.elements.RACINE); };
+chargerCarnet();
 // Lot 2 : comptes d'essai
 ctx.genererCle();
 ctx.preparerOngletsLot2();
@@ -70,6 +85,12 @@ http.createServer((req, res) => {
       if (l) { l[7] = true; ctx.traiterComptes(); }
       res.writeHead(200, entetes); return res.end('{"deconnecte":' + !!l + '}');
     }
+    if (m === 'acces') {
+      const col = A.lignes[0].indexOf(url.searchParams.get('id'));
+      if (col > 1) A.lignes.forEach(l => { if (l[0] === 'CHANTIER TEST 1') l[col] = url.searchParams.get('valeur') === '1'; });
+      res.writeHead(200, entetes); return res.end('{"acces":' + (col > 1) + '}');
+    }
+    if (m === 'recharger-carnet') { chargerCarnet(); Object.keys(google.cache).forEach(k => { if (/^carnet:/.test(k)) delete google.cache[k]; }); res.writeHead(200, entetes); return res.end('{"carnet":"relu"}'); }
     mode = m;
     if (mode === 'quota') google.etat.quota = 5; else google.etat.quota = 100;
     res.writeHead(200, entetes); return res.end(JSON.stringify({ mode }));

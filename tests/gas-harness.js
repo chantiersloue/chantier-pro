@@ -210,7 +210,9 @@ function creerGoogle(options = {}) {
     LockService: { getScriptLock: () => ({ tryLock: () => !options.verrouOccupe, releaseLock: () => {} }),
                    getDocumentLock: () => ({ tryLock: () => !options.verrouOccupe, releaseLock: () => {} }) },
     CacheService: { getScriptCache: () => ({
-      get: k => (cache[k] === undefined ? null : cache[k]), put: (k, v) => { cache[k] = String(v); }, remove: k => { delete cache[k]; } }) },
+      get: k => (cache[k] === undefined ? null : cache[k]), put: (k, v) => { cache[k] = String(v); },
+      getAll: cles => { const r = {}; cles.forEach(k => { if (cache[k] !== undefined) r[k] = cache[k]; }); return r; },
+      putAll: (valeurs) => { Object.keys(valeurs).forEach(k => { if (String(valeurs[k]).length > 100000) throw new Error('Argument too large: value'); cache[k] = String(valeurs[k]); }); }, remove: k => { delete cache[k]; } }) },
     Session: { getEffectiveUser: () => ({ getEmail: () => 'franck@loue.test' }),
                getActiveUser: () => ({ getEmail: () => '' }) },
     ContentService: { MimeType: { TEXT: 'text', JSON: 'json', JAVASCRIPT: 'js' },

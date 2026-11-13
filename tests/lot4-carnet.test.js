@@ -185,4 +185,15 @@ test('le serveur n’écrit et ne supprime rien dans le carnet', () => {
   assert.strictEqual(d.carnet.enfants.length + d.dossier.enfants.length, dansCarnet);
 });
 
+test('une liste plus grosse qu’une valeur du cache est gardée par morceaux, et relue à l’identique', () => {
+  const g = environnement(), gros = [];
+  for (let i = 0; i < 40; i++) gros.push({ id: 'X' + i + '-A', code: 'X' + i, indice: 'A', intitule: 'é'.repeat(2500), dossier: 'X' + i, pages: [{ l: 10, h: 10 }] });
+  deposer(g, { autres: gros });
+  const a = lister(g, 'thomas27');
+  const morceaux = Object.keys(g.cache).filter(k => /^carnet:liste:1:.*:[0-9]+$/.test(k));
+  assert.ok(a.ok && a.data.documents.length === 41 && morceaux.length > 1, morceaux.length + ' morceau(x)');
+  const b = lister(g, 'thomas27');
+  assert.deepStrictEqual(b.data.documents, a.data.documents);
+});
+
 console.log('\n' + reussis + ' test(s) réussi(s)' + (process.exitCode ? ' — DES TESTS ÉCHOUENT' : ''));

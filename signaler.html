@@ -9,8 +9,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Loué App">
 <meta name="theme-color" content="#1A2B4A">
-<link rel="stylesheet" href="commun/style.css?v=e8e22b3a6a">
-<link rel="stylesheet" href="commun/fiche.css?v=e8e22b3a6a">
+<link rel="stylesheet" href="commun/style.css?v=d4170ceb3b">
+<link rel="stylesheet" href="commun/fiche.css?v=d4170ceb3b">
 </head>
 <body>
 
@@ -108,12 +108,12 @@
   <button class="btn btn-green" id="btn-envoyer" type="button" onclick="envoyer()" style="flex:1">Envoyer le signalement</button>
 </div>
 
-<script src="commun/config.js?v=e8e22b3a6a"></script>
-<script src="commun/api.js?v=e8e22b3a6a"></script>
-<script src="commun/ui.js?v=e8e22b3a6a"></script>
-<script src="commun/photos.js?v=e8e22b3a6a"></script>
-<script src="commun/brouillon.js?v=e8e22b3a6a"></script>
-<script src="commun/hors-ligne.js?v=e8e22b3a6a"></script>
+<script src="commun/config.js?v=d4170ceb3b"></script>
+<script src="commun/api.js?v=d4170ceb3b"></script>
+<script src="commun/ui.js?v=d4170ceb3b"></script>
+<script src="commun/photos.js?v=d4170ceb3b"></script>
+<script src="commun/brouillon.js?v=d4170ceb3b"></script>
+<script src="commun/hors-ligne.js?v=d4170ceb3b"></script>
 <script>
 'use strict';
 // ── État de la fiche ──
@@ -173,6 +173,15 @@ function afficherPhotos() {
 // ── Brouillon automatique : les champs, les gros boutons (de vrais boutons radio) et la case sont gardés tout seuls ;
 //    la page n'ajoute que les photos ──
 LOUE.preRemplirChantier('meta-chantier');   // chantier choisi à l'accueil (avant la photo de la page vierge)
+// Lot 4 : venu du carnet par « Signaler ici » (adresse « …&repere=… ») : le repère est rempli de la même façon, AVANT la
+// photo de la page vierge, et marqué « automatique ». Un brouillon restauré garde SON repère.
+(function () {
+  var repere = '';
+  try { repere = (new URLSearchParams(location.search).get('repere') || '').trim().slice(0, 120); } catch (e) {}
+  var champ = document.getElementById('meta-repere');
+  if (!repere || !champ || champ.value.trim()) return;
+  champ.value = repere; champ.dataset.auto = repere;
+})();
 const BROUILLON = LOUE.brouillon({
   champChantier: 'meta-chantier',
   cle: 'signalement',

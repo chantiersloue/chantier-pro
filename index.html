@@ -6,7 +6,7 @@
 <title>Loué App</title>
 <link rel="icon" type="image/png" href="apple-touch-icon.png">
 <link rel="manifest" href="manifest.json">
-<link rel="stylesheet" href="commun/style.css?v=e8e22b3a6a">
+<link rel="stylesheet" href="commun/style.css?v=d4170ceb3b">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -368,6 +368,14 @@ body.loue-test .installer{padding-top:calc(56px + env(safe-area-inset-top,0px));
       </div>
       <div class="tile-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg></div>
     </button>
+    <button type="button" class="home-tile tuile-plans" id="tuile-carnet" style="border-color:#B9C8E6" onclick="ouvrirCarnet()">
+      <div class="tile-icon" style="background:#E6ECF7"><svg viewBox="0 0 24 24" fill="none" stroke="#1A2B4A" stroke-width="1.8"><path d="M4 4.5A2.5 2.5 0 016.5 2H20v17H6.5A2.5 2.5 0 004 21.5z"/><path d="M4 21.5A2.5 2.5 0 016.5 19H20v3H6.5A2.5 2.5 0 014 21.5z"/><line x1="9" y1="7" x2="16" y2="7"/><line x1="9" y1="11" x2="14" y2="11"/></svg></div>
+      <div class="tile-body">
+        <div class="tile-title">Carnet</div>
+        <div class="tile-sub">Les plans validés du chantier, lisibles au zoom</div>
+      </div>
+      <div class="tile-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg></div>
+    </button>
     <button type="button" class="home-tile tuile-plans" id="tuile-signalements" style="border-color:#F0C8C8" onclick="ouvrirSignalements()">
       <div class="tile-icon" style="background:var(--red-l)"><svg viewBox="0 0 24 24" fill="none" stroke="var(--red)" stroke-width="1.8"><path d="M10.3 3.9L1.8 18a2 2 0 001.7 3h17a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div>
       <div class="tile-body">
@@ -542,11 +550,11 @@ body.loue-test .installer{padding-top:calc(56px + env(safe-area-inset-top,0px));
 </div>
 
 
-<script src="commun/config.js?v=e8e22b3a6a"></script>
-<script src="commun/api.js?v=e8e22b3a6a"></script>
-<script src="commun/ui.js?v=e8e22b3a6a"></script>
-<script src="commun/notes.js?v=e8e22b3a6a"></script>
-<script src="commun/hors-ligne.js?v=e8e22b3a6a"></script>
+<script src="commun/config.js?v=d4170ceb3b"></script>
+<script src="commun/api.js?v=d4170ceb3b"></script>
+<script src="commun/ui.js?v=d4170ceb3b"></script>
+<script src="commun/notes.js?v=d4170ceb3b"></script>
+<script src="commun/hors-ligne.js?v=d4170ceb3b"></script>
 <script>
 // ── Accueil (lot 2) : connexion, « Mes chantiers », fiches du chantier avec le chantier pré-rempli ──
 // Rien ici n'empêche de remplir une fiche : « Remplir une fiche sans être connecté » est toujours proposé,
@@ -800,6 +808,7 @@ function ouvrirFiches(ch) {
   $('tuile-plans').hidden = !ch || MODE === null;
   $('tuile-signalements').hidden = !ch || MODE !== 'compte';   // le suivi demande un compte
   $('tuile-notes').hidden = !ch || MODE !== 'compte';           // lot 3 : les notes demandent un compte
+  $('tuile-carnet').hidden = !ch || MODE !== 'compte';          // lot 4 : le carnet demande un compte
   majBadgesNotes();
   document.querySelectorAll('#page-chantier-fiches a.fiche-card[data-base]').forEach(a => {
     const base = a.getAttribute('data-base');
@@ -809,6 +818,9 @@ function ouvrirFiches(ch) {
 }
 
 // ── Notes de chantier (lot 3) : celles du chantier ouvert, ou toutes (conducteurs, depuis l'accueil) ──
+function ouvrirCarnet() {
+  if (currentChantier) location.href = 'carnet.html?chantier=' + encodeURIComponent(currentChantier.nom);
+}
 function ouvrirNotes(tous) {
   location.href = 'notes.html' + (!tous && currentChantier ? '?chantier=' + encodeURIComponent(currentChantier.nom) : '');
 }

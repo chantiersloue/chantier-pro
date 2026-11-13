@@ -1,0 +1,307 @@
+// ═══════════════════════════════════════════════════════════════
+// Loué App — carnet de chantier (lot 4) : les plans et documents en pages-images
+// Nécessite commun/config.js et commun/api.js.
+//
+// Ce fichier demande au serveur la liste des documents et les images (actions « carnet » et « carnetTuiles »), et GARDE
+// dans le téléphone ce qui a été reçu, pour le relire sans réseau.
+//
+// Règles (docs/lot4-plan.md, §3-C et §6) :
+//  - une base À PART (« loue_carnet_… ») : la base des fiches et des brouillons n'est jamais touchée ;
+//  - les plans ne doivent JAMAIS prendre la place des fiches : le carnet a un plafond, garde une marge libre dans le
+//    téléphone, efface d'abord ses images les plus anciennes, et un « plein » reste chez lui (l'image est affichée
+//    quand même, elle n'est simplement pas gardée) ;
+//  - tout appartient au compte qui l'a téléchargé : un autre compte sur ce téléphone → tout est effacé ; un refus du
+//    serveur pour un chantier → ce chantier est effacé ; une session expirée du MÊME compte → tout est gardé
+//    (sinon un poseur sans réseau perdrait ses plans).
+// ═══════════════════════════════════════════════════════════════
+(function () {
+  'use strict';
+  var LOUE = window.LOUE = window.LOUE || {};
+  var CONFIG = window.LOUE_CONFIG || {};
+  var NOM_BASE = 'loue_carnet_' + (CONFIG.env || 'prod');
+  var C = LOUE.carnet = {};
+  var Mo = 1024 * 1024;
+  C.PLAFOND = 400 * Mo;      // place maximale du carnet dans le téléphone
+  C.MARGE = 80 * Mo;         // place toujours laissée libre pour les fiches, les photos et les brouillons
+  C.PAR_DEMANDE = 8;         // tuiles demandées en une fois
+  C.EN_MEME_TEMPS = 2;       // demandes au serveur en même temps (le compte Google en accepte 30 pour toute l'entreprise)
+
+  function moi() { return LOUE.dernierIdentifiant ? LOUE.dernierIdentifiant() : ''; }
+  function cleChantier(nom) { return String(nom || '').trim().toLowerCase(); }
+  function cleImage(chantier, doc, page, quoi) { return cleChantier(chantier) + '|' + doc + '|' + page + '|' + quoi; }
+
+  // ── Base : « listes » (une par chantier), « index » (une ligne légère par image), « octets » (les images), « meta » ──
+  var basePromesse = null;
+  function base() {
+    if (basePromesse) return basePromesse;
+    basePromesse = new Promise(function (ok, ko) {
+      if (!window.indexedDB) return ko(new Error('Stockage du téléphone indisponible'));
+      var fini = false, req;
+      var minuteur = setTimeout(function () { if (!fini) { fini = true; ko(new Error('Stockage du téléphone occupé')); } }, 5000);
+      try { req = indexedDB.open(NOM_BASE, 1); } catch (e) { clearTimeout(minuteur); return ko(e); }
+      req.onupgradeneeded = function () {
+        var db = req.result;
+        ['listes', 'index', 'octets', 'meta'].forEach(function (n) { if (!db.objectStoreNames.contains(n)) db.createObjectStore(n, { keyPath: 'cle' }); });
+      };
+      req.onsuccess = function () {
+        clearTimeout(minuteur);
+        var db = req.result;
+        db.onversionchange = function () { db.close(); basePromesse = null; proprioVerifie = null; };
+        if (fini) { db.close(); return; }
+        fini = true; ok(db);
+      };
+      req.onerror = function () { clearTimeout(minuteur); if (!fini) { fini = true; ko(req.error || new Error('Stockage du téléphone indisponible')); } };
+    }).catch(function (err) { basePromesse = null; throw err; });
+    return basePromesse;
+  }
+  // Une transaction sur un ou plusieurs magasins ; « action » reçoit une fonction qui donne chaque magasin
+  function transaction(noms, mode, action) {
+    return base().then(function (db) {
+      return new Promise(function (ok, ko) {
+        var tx = db.transaction(noms, mode), res = action(function (n) { return tx.objectStore(n); });
+        tx.oncomplete = function () { ok(res && typeof IDBRequest !== 'undefined' && res instanceof IDBRequest ? res.result : res); };
+        tx.onerror = tx.onabort = function () { ko(tx.error || new Error('Stockage du téléphone indisponible')); };
+      });
+    });
+  }
+  var TOUT = ['listes', 'index', 'octets', 'meta'];
+  function toutEffacer(nouveauProprio) {
+    indexMemoire = null;
+    return transaction(TOUT, 'readwrite', function (m) {
+      TOUT.forEach(function (n) { m(n).clear(); });
+      if (nouveauProprio) m('meta').put({ cle: 'proprio', compte: nouveauProprio });
+    });
+  }
+  // Le carnet gardé appartient à UN compte : vérifié avant toute lecture ou écriture
+  var proprioVerifie = null;   // { compte, promesse }
+  function pret() {
+    var id = moi();
+    if (!id) return Promise.reject(new Error('Connexion nécessaire'));
+    if (proprioVerifie && proprioVerifie.compte === id) return proprioVerifie.promesse;
+    var p = transaction(['meta'], 'readonly', function (m) { return m('meta').get('proprio'); }).then(function (e) {
+      if (e && e.compte === id) return;
+      return toutEffacer(id);
+    });
+    proprioVerifie = { compte: id, promesse: p };
+    p.catch(function () { proprioVerifie = null; });
+    return p;
+  }
+  // Déconnexion volontaire (le profil est effacé du téléphone) : le carnet gardé l'est aussi. Session expirée : gardé.
+  if (LOUE.surEvenement) LOUE.surEvenement(function (ev) {
+    if (ev.type !== 'compte' || moi()) return;
+    proprioVerifie = null;
+    toutEffacer('').catch(function () {});
+  });
+
+  // ── L'index en mémoire : { cle: { cle, chantier, doc, o, vu } } et le total gardé ──
+  var indexMemoire = null;
+  function index() {
+    if (indexMemoire) return Promise.resolve(indexMemoire);
+    return pret().then(function () { return transaction(['index'], 'readonly', function (m) { return m('index').getAll(); }); }).then(function (lignes) {
+      var ix = { lignes: {}, total: 0 };
+      (lignes || []).forEach(function (l) { ix.lignes[l.cle] = l; ix.total += l.o || 0; });
+      indexMemoire = ix;
+      return ix;
+    });
+  }
+  C.occupation = function () { return index().then(function (ix) { return ix.total; }).catch(function () { return 0; }); };
+  // Place encore utilisable par le carnet, d'après le téléphone (quand il sait le dire)
+  function placeLibre() {
+    if (!navigator.storage || !navigator.storage.estimate) return Promise.resolve(Infinity);
+    return navigator.storage.estimate().then(function (e) {
+      return e && e.quota ? Math.max(0, e.quota - (e.usage || 0)) : Infinity;
+    }).catch(function () { return Infinity; });
+  }
+  function supprimer(cles) {
+    if (!cles.length) return Promise.resolve();
+    return transaction(['index', 'octets'], 'readwrite', function (m) {
+      cles.forEach(function (k) { m('index').delete(k); m('octets').delete(k); });
+    }).then(function () {
+      if (indexMemoire) cles.forEach(function (k) { var l = indexMemoire.lignes[k]; if (l) { indexMemoire.total -= l.o || 0; delete indexMemoire.lignes[k]; } });
+    });
+  }
+  // Fait de la place pour « besoin » octets : les images vues il y a le plus longtemps partent d'abord ;
+  // jamais celles du document affiché (« protege » : début de clé). Rend true si la place y est.
+  function faireDeLaPlace(besoin, protege) {
+    return Promise.all([index(), placeLibre()]).then(function (r) {
+      var ix = r[0], libre = r[1];
+      var plafond = Math.min(C.PLAFOND, ix.total + libre - C.MARGE);
+      if (ix.total + besoin <= plafond) return true;
+      var anciennes = Object.keys(ix.lignes).map(function (k) { return ix.lignes[k]; })
+        .filter(function (l) { return !protege || l.cle.indexOf(protege) !== 0; })
+        .sort(function (a, b) { return (a.vu || 0) - (b.vu || 0); });
+      var aRetirer = [], gagne = 0;
+      // retirer une image du carnet libère autant de place dans le téléphone : le plafond ne bouge pas
+      for (var i = 0; i < anciennes.length && ix.total - gagne + besoin > plafond; i++) { aRetirer.push(anciennes[i].cle); gagne += anciennes[i].o || 0; }
+      if (ix.total - gagne + besoin > plafond) return false;   // même vide, le carnet n'a pas la place : on ne retire rien
+      return supprimer(aRetirer).then(function () { return true; });
+    });
+  }
+  // Garde une image. Ne lève jamais d'erreur : si le téléphone ne peut pas la garder, elle est seulement affichée.
+  C.pleinLe = 0;
+  function garder(chantier, doc, page, quoi, octets) {
+    var cle = cleImage(chantier, doc, page, quoi), taille = octets.byteLength;
+    return faireDeLaPlace(taille, cleChantier(chantier) + '|' + doc + '|').then(function (place) {
+      if (!place) { C.pleinLe = Date.now(); return false; }
+      var ligne = { cle: cle, chantier: cleChantier(chantier), doc: doc, o: taille, vu: Date.now() };
+      return transaction(['index', 'octets'], 'readwrite', function (m) { m('index').put(ligne); m('octets').put({ cle: cle, octets: octets }); }).then(function () {
+        if (indexMemoire) { var ancien = indexMemoire.lignes[cle]; indexMemoire.total += taille - (ancien ? ancien.o || 0 : 0); indexMemoire.lignes[cle] = ligne; }
+        return true;
+      });
+    }).catch(function () {
+      // « Plein » signalé par le téléphone lui-même : le carnet rend tout de suite un quart de sa place, et n'insiste pas
+      C.pleinLe = Date.now();
+      return index().then(function (ix) {
+        var anciennes = Object.keys(ix.lignes).map(function (k) { return ix.lignes[k]; }).sort(function (a, b) { return (a.vu || 0) - (b.vu || 0); });
+        return supprimer(anciennes.slice(0, Math.ceil(anciennes.length / 4)).map(function (l) { return l.cle; }));
+      }).catch(function () {}).then(function () { return false; });
+    });
+  }
+  // Une image gardée (ArrayBuffer), ou null
+  C.gardee = function (chantier, doc, page, quoi) {
+    var cle = cleImage(chantier, doc, page, quoi);
+    return index().then(function (ix) {
+      var l = ix.lignes[cle];
+      if (!l) return null;
+      return transaction(['octets'], 'readonly', function (m) { return m('octets').get(cle); }).then(function (e) {
+        if (!e || !e.octets) return null;
+        if (Date.now() - (l.vu || 0) > 3600000) {   // « vue » notée au plus une fois par heure (pas une écriture par image)
+          l.vu = Date.now();
+          transaction(['index'], 'readwrite', function (m) { m('index').put(l); }).catch(function () {});
+        }
+        return e.octets;
+      });
+    }).catch(function () { return null; });
+  };
+  // Ce qui est gardé d'un document : { images, octets, pages: { numéro: true } (pages dont l'aperçu est gardé) }
+  C.etat = function (chantier, doc) {
+    var debut = cleChantier(chantier) + '|' + doc + '|';
+    return index().then(function (ix) {
+      var e = { images: 0, octets: 0, pages: {} };
+      Object.keys(ix.lignes).forEach(function (k) {
+        if (k.indexOf(debut) !== 0) return;
+        e.images++; e.octets += ix.lignes[k].o || 0;
+        var m = k.slice(debut.length).split('|');
+        if (m[1] === 'leger' || m[1] === 'net') e.pages[m[0]] = true;
+      });
+      return e;
+    }).catch(function () { return { images: 0, octets: 0, pages: {} }; });
+  };
+  C.oublierChantier = function (chantier) {
+    var k = cleChantier(chantier);
+    return index().then(function (ix) {
+      return supprimer(Object.keys(ix.lignes).filter(function (c) { return ix.lignes[c].chantier === k; }));
+    }).then(function () { return transaction(['listes'], 'readwrite', function (m) { m('listes').delete(k); }); }).catch(function () {});
+  };
+  // Demande au téléphone de ne pas effacer les données de l'appli quand il manque de place (une fois suffit)
+  C.persister = function () {
+    try { if (navigator.storage && navigator.storage.persist) return navigator.storage.persist().catch(function () { return false; }); } catch (e) {}
+    return Promise.resolve(false);
+  };
+
+  // ── La liste des documents d'un chantier ──
+  // Rend { documents, maj, date, horsReseau } ; ou { interdit: true, message } ; rejette s'il n'y a ni réseau ni liste gardée.
+  C.liste = function (chantier) {
+    var k = cleChantier(chantier);
+    var gardee = function () {
+      return pret().then(function () { return transaction(['listes'], 'readonly', function (m) { return m('listes').get(k); }); }).catch(function () { return null; });
+    };
+    return LOUE.appeler({ action: 'carnet', chantier: chantier }, 25000).then(function (rep) {
+      if (rep && rep.ok) {
+        var docs = (rep.data && rep.data.documents) || [];
+        var liste = { cle: k, chantier: rep.data.chantier || chantier, documents: docs, maj: rep.data.maj || 0, date: Date.now() };
+        // Ménage : les images des documents qui ne sont plus dans la liste (retirés, ou ancien indice remplacé)
+        var presents = {}; docs.forEach(function (d) { presents[d.id] = true; });
+        return pret().then(function () { return transaction(['listes'], 'readwrite', function (m) { m('listes').put(liste); }); })
+          .then(index).then(function (ix) {
+            return supprimer(Object.keys(ix.lignes).filter(function (c) { return ix.lignes[c].chantier === k && !presents[ix.lignes[c].doc]; }));
+          }).catch(function () {}).then(function () { return { documents: docs, maj: liste.maj, date: liste.date, horsReseau: false }; });
+      }
+      if (rep && rep.code === 'INTERDIT') return C.oublierChantier(chantier).then(function () { return { interdit: true, message: rep.message }; });
+      return gardee().then(function (g) {
+        if (g) return { documents: g.documents, maj: g.maj, date: g.date, horsReseau: true, message: rep && rep.message };
+        throw Object.assign(new Error((rep && rep.message) || 'Le serveur ne répond pas'), { reponse: rep });
+      });
+    }, function (err) {
+      return gardee().then(function (g) {
+        if (g) return { documents: g.documents, maj: g.maj, date: g.date, horsReseau: true };
+        throw err;
+      });
+    });
+  };
+
+  // ── Les images : gardées d'abord, sinon demandées au serveur, deux demandes à la fois ──
+  function octetsDe(b64) {
+    var brut = atob(b64), t = new Uint8Array(brut.length);
+    for (var i = 0; i < brut.length; i++) t[i] = brut.charCodeAt(i);
+    return t.buffer;
+  }
+  var file = [], enCours = 0, generation = 0;
+  // Abandonne les demandes pas encore parties (la personne a changé de page ou de zone)
+  C.abandonner = function () { generation++; file.forEach(function (d) { d.rendre(null); }); file = []; };
+  function avancer() {
+    while (enCours < C.EN_MEME_TEMPS && file.length) {
+      var d = file.shift();
+      enCours++;
+      d.partir().then(null, function () {}).then(function () { enCours--; avancer(); });
+    }
+  }
+  function erreurDe(rep) { return Object.assign(new Error((rep && rep.message) || 'Le serveur ne répond pas'), { reponse: rep }); }
+  // Aperçu d'une page (« leger » ou « net ») : rend un ArrayBuffer (rejette sans réseau si rien n'est gardé)
+  C.apercu = function (chantier, doc, page, quoi) {
+    return C.gardee(chantier, doc, page, quoi).then(function (o) {
+      if (o) return o;
+      return new Promise(function (ok, ko) {
+        var gen = generation;
+        file.push({ rendre: function () { ko(new Error('abandonné')); }, partir: function () {
+          if (gen !== generation) { ko(new Error('abandonné')); return Promise.resolve(); }
+          return LOUE.appeler({ action: 'carnetTuiles', chantier: chantier, doc: doc, page: page, quoi: quoi }, 60000).then(function (rep) {
+            var im = rep && rep.ok && rep.data.images && rep.data.images[0];
+            if (!im) throw erreurDe(rep);
+            var octets = octetsDe(im.b64);
+            ok(octets);
+            return garder(chantier, doc, page, quoi, octets);
+          }).catch(ko);
+        } });
+        avancer();
+      });
+    });
+  };
+  // Des tuiles d'un niveau : « recu(colonne, ligne, ArrayBuffer) » est appelé pour chacune, dès qu'elle est là ;
+  // la promesse rend { manquantes: n, erreur } quand tout est fini (sans réseau : les tuiles non gardées manquent).
+  C.tuiles = function (chantier, doc, page, niveau, liste, recu) {
+    var bilan = { manquantes: 0, erreur: null }, gen = generation;
+    return Promise.all(liste.map(function (t) {
+      return C.gardee(chantier, doc, page, 'z' + niveau + ':' + t[0] + ',' + t[1]).then(function (o) { if (o) { recu(t[0], t[1], o); return null; } return t; });
+    })).then(function (restantes) {
+      restantes = restantes.filter(Boolean);
+      if (!restantes.length || gen !== generation) return bilan;
+      var lots = [];
+      for (var i = 0; i < restantes.length; i += C.PAR_DEMANDE) lots.push(restantes.slice(i, i + C.PAR_DEMANDE));
+      var demander = function (lot, tours) {
+        return new Promise(function (fini) {
+          file.push({ rendre: function () { fini(); }, partir: function () {
+            if (gen !== generation) { fini(); return Promise.resolve(); }
+            return LOUE.appeler({ action: 'carnetTuiles', chantier: chantier, doc: doc, page: page, quoi: 'tuiles', niveau: niveau, tuiles: lot }, 60000).then(function (rep) {
+              if (!rep || !rep.ok) throw erreurDe(rep);
+              var suites = [];
+              (rep.data.images || []).forEach(function (im) {
+                var octets = octetsDe(im.b64);
+                if (gen === generation) recu(im.c, im.l, octets);
+                suites.push(garder(chantier, doc, page, 'z' + niveau + ':' + im.c + ',' + im.l, octets));
+              });
+              var reste = rep.data.reste || [];
+              // le serveur n'a pas tout rendu (plafond par réponse) : la suite repart dans la file
+              var suite = reste.length && tours < 8 && (rep.data.images || []).length ? demander(reste, tours + 1) : Promise.resolve();
+              if (reste.length && !(tours < 8 && (rep.data.images || []).length)) bilan.manquantes += reste.length;
+              suite.then(fini);
+              return Promise.all(suites);
+            }).catch(function (err) { bilan.manquantes += lot.length; bilan.erreur = err; fini(); });
+          } });
+          avancer();
+        });
+      };
+      return Promise.all(lots.map(function (l) { return demander(l, 0); })).then(function () { return bilan; });
+    });
+  };
+})();
