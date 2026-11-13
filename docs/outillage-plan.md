@@ -1,7 +1,7 @@
 # Outillage : plan de mise en place
 
 > Pour Franck. Plan du 12/11/2026, d'après tes six réponses à `docs/automatisation.md`, corrigé après la critique d'un agent indépendant.
-> **Rien n'est encore construit ni installé.** Le lot 7 ne commence pas avant que cet outillage soit en place et vérifié.
+> **État au 12/11/2026 : l'outillage est en place et vérifié** (étapes A, B et C ; résultats à la fin de ce document). Ce plan est gardé comme trace de ce qui était prévu ; le mode d'emploi à jour est `docs/guide-outillage.md`.
 > Ce document est public : il ne contient aucun identifiant secret. Les mots techniques sont expliqués au début de `docs/automatisation.md`.
 
 ## La commande (tes six décisions)
@@ -81,8 +81,8 @@ Trois étapes, **chacune utilisable seule** : si l'étape B ou C prend du retard
 
 **C.1 — Installer clasp (15 min).** Je te guiderai en direct avec `docs/clasp.md` mis à jour : installer clasp, activer « API Google Apps Script », créer le dossier `clasp-loue\TEST`, le relier au script **TEST**, contrôler le manifeste (le fichier de réglages du projet) et l'identifiant du déploiement TEST, effacer le jeton. Tu laisses l'API **activée** jusqu'à la fin de la séance C ; je te dirai quand la désactiver.
 
-**C.2 — La clé de la porte de service (3 min).** Je la fabrique par une commande qui l'écrit dans ton fichier `_prive/ids-test.txt` (ligne `CLE_OUTILS_TEST=…`, ajoutée à la fin) sans l'afficher : elle n'apparaît ni dans notre conversation ni sur GitHub.
-1. Ouvre `_prive/ids-test.txt`, copie ce qui suit `CLE_OUTILS_TEST=` (sans espace avant ni après).
+**C.2 — La clé de la porte de service (3 min).** Je la fabrique par une commande qui l'écrit dans ton fichier `_prive/cle-outils-test.txt` sans l'afficher : elle n'apparaît ni dans notre conversation ni sur GitHub.
+1. Ouvre `_prive/cle-outils-test.txt`, sélectionne tout (Ctrl+A) et copie (Ctrl+C).
 2. Sheet **« ChantierPro TEST »** → Extensions → Apps Script → ⚙ **Paramètres du projet** → **Propriétés du script** → **Modifier les propriétés du script** → **Ajouter une propriété**.
 3. Nom : `CLE_OUTILS_TEST` ; valeur : la clé copiée → **Enregistrer**.
 4. Vérifie que tu es bien dans le projet **TEST** (la propriété `ENVIRONNEMENT` y vaut `TEST`). **Ne mets jamais cette clé dans le projet de production.**
@@ -152,7 +152,7 @@ Le lot 2 est en pleine transition (mots de passe à distribuer). Si un correctif
 Dans cet ordre, parce que la porte dépend d'un point non vérifié :
 
 0. **`docs/clasp.md` corrigé** avant ta séance C (jeton effacé après chaque envoi ; sur TEST, envoi depuis la branche de travail ; c'est toi qui lances la commande).
-1. **`outils/envoyer-test.js`** : la commande que tu lances. Elle vérifie qu'aucun jeton ne traîne, ouvre la connexion Google, vérifie l'identifiant du projet TEST et du déploiement (lus dans `_prive/ids-test.txt`), sauvegarde le serveur en ligne dans `_prive/`, assemble le serveur en **un seul fichier**, l'envoie, met à jour le déploiement, contrôle l'empreinte, **efface le jeton** (et supprime le fichier du jeton en secours si l'effacement échoue), puis écrit son compte rendu dans `_prive/envois/`. Chaque étape a une durée limite.
+1. **`outils/envoyer-test.js`** : la commande que tu lances. Elle vérifie qu'aucun jeton ne traîne, ouvre la connexion Google, vérifie que le projet relié est bien celui de la copie TEST (identifiant que tu colles au premier envoi, mémorisé dans `_prive/script-test-id.txt` ; présence du déploiement TEST ; absence du déploiement de production), sauvegarde le serveur en ligne dans `_prive/`, assemble le serveur en **un seul fichier**, l'envoie, met à jour le déploiement, contrôle l'empreinte, **efface le jeton** (et supprime le fichier du jeton en secours si l'effacement échoue), puis écrit son compte rendu dans `_prive/envois/`. Chaque étape a une durée limite.
    - *L'empreinte* : une suite de caractères calculée sur le code au moment de l'assemblage et écrite dedans. Le serveur la renvoie dans sa réponse de contrôle (`ping`). La commande compare celle du fichier qu'elle vient d'envoyer à celle que le serveur renvoie. Le texte « Loué App API v… OK » de l'adresse ne change pas.
    - *Solutions comparées* : toi qui lances la commande (retenu : le jeton n'entre jamais dans ma séance, durée bornée) contre « tu te connectes, puis je lance » (le jeton reste sur le PC tant que je n'ai pas fini, et si ma séance s'interrompt il y reste).
 2. **Essai de faisabilité n° 1** (ton premier envoi) : une porte minimale avec un seul geste, « poser puis retirer un déclencheur ». **Si Google refuse** : la porte est construite sans ce geste, et tu gardes 1 clic ▶ sur TEST pour les déclencheurs.
@@ -183,10 +183,10 @@ Dans cet ordre, parce que la porte dépend d'un point non vérifié :
 
 | # | Point | Vérifié quand | Si ça échoue |
 |---|---|---|---|
-| 1 | La porte peut poser et retirer des déclencheurs | Étape C, ton premier envoi | 1 clic ▶ pour toi sur TEST |
-| 2 | La copie d'essai marche à la nouvelle adresse, appels au serveur TEST compris | Étape B, Chrome piloté puis ton téléphone | Retour à `essai/` dans `main` |
-| 3 | Le lien pré-rempli (accents, retours à la ligne) ; le premier envoi vers l'organisation | Vérification de A ; étape B | Lien nu, comme aujourd'hui ; réglage B.7 |
-| 4 | Le verrouillage de `main` laisse marcher ton bouton « Merge » | Vérification de A | Décocher « Require approvals », ou supprimer la règle |
+| 1 | La porte peut poser et retirer des déclencheurs | **Réussi le 12/11/2026** (premier envoi par clasp : réussi aussi) | — |
+| 2 | La copie d'essai marche à la nouvelle adresse, appels au serveur TEST compris | **Réussi le 12/11/2026** : navigateur, puis téléphone de Franck (icône, connexion, quitus envoyé et reçu) | — |
+| 3 | Le lien pré-rempli (accents, retours à la ligne) ; le premier envoi vers l'organisation | **Réussi le 12/11/2026** | — |
+| 4 | Le verrouillage de `main` laisse marcher ton bouton « Merge » | **Réussi le 12/11/2026** | — |
 
 ## Risques et parades
 
@@ -219,3 +219,18 @@ Dans cet ordre, parce que la porte dépend d'un point non vérifié :
 6. Compte-rendu, `CHANGELOG.md` et `docs/guide-outillage.md` à jour.
 
 Alors seulement, le lot 7 peut commencer.
+
+## Résultat (12/11/2026)
+
+| Critère | Résultat |
+|---|---|
+| 1. `main` verrouillée, une demande de fusion passée par le lien pré-rempli | Fait : demande n° 11 |
+| 2. Copie d'essai publiée dans l'organisation, ouverte sur le téléphone, une fiche envoyée | Fait : `loue-essai.github.io/chantier-pro/`, quitus envoyé et reçu |
+| 3. Un envoi sur TEST par clasp réussi, jeton effacé, empreinte contrôlée | Fait trois fois |
+| 4. Test réel de démonstration, puis serveur TEST remis sans porte | Fait, avec un écart : la fiche envoyée par un navigateur piloté est reportée au lot 7 |
+| 5. Relecture indépendante, corrections faites (3 tours au plus) | Fait : 2 tours pour A et B, 2 tours pour la commande d'envoi, 3 tours pour la porte |
+| 6. Compte-rendu, `CHANGELOG.md` et `docs/guide-outillage.md` à jour | Fait |
+
+**Écarts avec ce plan** : aucun geste de la porte ne touche à Drive (reporté au lot 7, avec un contrôle du dossier visé) ; pas de bibliothèque `tests/reel.js` ni de fiche envoyée par un navigateur piloté (à construire avec le premier test réel, au lot 7) ; la clé est dans `_prive/cle-outils-test.txt` et non dans `_prive/ids-test.txt` ; le commentaire de `sw.js` sur `essai/` n'est pas corrigé (les pages ne bougent pas dans `main` avant le lot 7).
+
+**Où est le code** : outils du PC des étapes A et B dans `main` ; tout le reste (moteur d'installation, porte, commande d'envoi) sur la branche `outillage`, qui entrera dans `main` avec le lot 7.

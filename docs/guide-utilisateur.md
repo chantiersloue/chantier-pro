@@ -40,6 +40,32 @@ Remplis la fiche, signe, touche **Envoyer**.
 
 **Rare : « le téléphone n'a pas pu garder la fiche »** (navigation privée, mémoire pleine) : l'appli l'envoie directement, **page ouverte**. Si elle demande de se connecter, une petite fenêtre de connexion s'ouvre **dans la page** : connecte-toi là, sans quitter la fiche, et elle part.
 
+## Signaler une casse, un manquant, une chose à recommander
+
+Dans un chantier, touche **Signaler**.
+
+1. **Quoi ?** Casse, Manquant ou À recommander.
+2. **Urgence** : Bloquant, Cette semaine ou Pas urgent.
+3. **Repère** (porte, pièce, étage) et **commentaire** : tu peux dicter avec le micro du clavier.
+4. **Photos** : 3 au plus. Elles ne sont pas obligatoires.
+5. **Prévenir l'atelier** : coche la case si l'atelier doit le savoir.
+6. **Envoyer le signalement.**
+
+- Il faut au moins un repère, un commentaire ou une photo.
+- Le conducteur du chantier reçoit un mail à chaque fois.
+- Comme une fiche, le signalement est d'abord rangé dans le téléphone, puis il part. Sans réseau, il part tout seul au retour du réseau.
+- **Bloquant et pas de réseau ? Téléphone au bureau** : le mail ne partira qu'au retour du réseau.
+- Après l'envoi, le chantier reste rempli : tu peux signaler autre chose tout de suite.
+
+## Suivre les signalements
+
+Touche **Signalements** (dans un chantier : ceux du chantier ; à l'accueil : tous). Il faut être connecté.
+
+- **Poseur** : tu vois les signalements que tu as envoyés avec ton compte, et où ils en sont : À traiter, Commandé, Livré ou Clos.
+- **Conducteur, atelier** : vous voyez tous les signalements et vous changez le statut en touchant l'un des quatre boutons. Il faut du réseau pour le changer.
+- « En cours » montre tout sauf les clos ; « Tout » montre aussi les clos.
+- Sans réseau, la dernière liste reçue s'affiche, avec sa date.
+
 ## Ne rien perdre : le brouillon
 
 - Tout ce que tu tapes est **gardé automatiquement** dans le téléphone, photos et signatures comprises.

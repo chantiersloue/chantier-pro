@@ -6,7 +6,7 @@
 <title>Loué App</title>
 <link rel="icon" type="image/png" href="apple-touch-icon.png">
 <link rel="manifest" href="manifest.json">
-<link rel="stylesheet" href="commun/style.css?v=bd3bcefc4a">
+<link rel="stylesheet" href="commun/style.css?v=4c4c99bf57">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -21,6 +21,7 @@
   --green:#196B3B;--green-l:#E1F2E9;
   --purple:#6B3FA0;--purple-l:#EDE8F8;
   --amber:#9A5600;--amber-l:#FDF0D8;
+  --red:#B32E2E;--red-l:#FAE8E8;
   --header-bg:#1A2B4A;
   --r:10px;--rl:14px;
 }
@@ -284,6 +285,15 @@ body.loue-test .installer{padding-top:calc(56px + env(safe-area-inset-top,0px));
         <div class="tile-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg></div>
       </div>
 
+      <div class="home-tile" id="tuile-signalements-accueil" style="border-color:#F0C8C8" onclick="ouvrirSignalements(true)" hidden>
+        <div class="tile-icon" style="background:var(--red-l)"><svg viewBox="0 0 24 24" fill="none" stroke="var(--red)" stroke-width="1.8"><path d="M10.3 3.9L1.8 18a2 2 0 001.7 3h17a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div>
+        <div class="tile-body">
+          <div class="tile-title">Signalements</div>
+          <div class="tile-sub">Casse, manquant, à recommander : le suivi</div>
+        </div>
+        <div class="tile-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg></div>
+      </div>
+
       <div class="home-tile" style="border-color:#B8D0F0" onclick="ouvrirFiches(null)">
         <div class="tile-icon" style="background:var(--blue-l)">
           <svg viewBox="0 0 24 24" fill="none" stroke="var(--blue)" stroke-width="1.8"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="13" y2="17"/></svg>
@@ -348,8 +358,23 @@ body.loue-test .installer{padding-top:calc(56px + env(safe-area-inset-top,0px));
       </div>
       <div class="tile-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg></div>
     </button>
+    <button type="button" class="home-tile tuile-plans" id="tuile-signalements" style="border-color:#F0C8C8" onclick="ouvrirSignalements()">
+      <div class="tile-icon" style="background:var(--red-l)"><svg viewBox="0 0 24 24" fill="none" stroke="var(--red)" stroke-width="1.8"><path d="M10.3 3.9L1.8 18a2 2 0 001.7 3h17a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div>
+      <div class="tile-body">
+        <div class="tile-title">Signalements</div>
+        <div class="tile-sub">Casse, manquant, à recommander : où ça en est</div>
+      </div>
+      <div class="tile-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg></div>
+    </button>
     <div class="home-label">Fiches</div>
     <div class="fiches-grid">
+
+      <a class="fiche-card" href="signaler.html" data-base="signaler.html" style="border-color:#F0C8C8">
+        <div class="fiche-icon" style="background:var(--red-l)"><svg viewBox="0 0 24 24" fill="none" stroke="var(--red)" stroke-width="1.8"><path d="M10.3 3.9L1.8 18a2 2 0 001.7 3h17a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div>
+        <div class="fiche-title">Signaler</div>
+        <div class="fiche-sub">Casse, manquant, à recommander</div>
+        <div class="fiche-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg></div>
+      </a>
 
       <a class="fiche-card" href="cotes.html" data-base="cotes.html" style="border-color:#B8D0F0">
         <div class="fiche-icon" style="background:var(--blue-l)">
@@ -499,10 +524,10 @@ body.loue-test .installer{padding-top:calc(56px + env(safe-area-inset-top,0px));
 </div>
 
 
-<script src="commun/config.js?v=bd3bcefc4a"></script>
-<script src="commun/api.js?v=bd3bcefc4a"></script>
-<script src="commun/ui.js?v=bd3bcefc4a"></script>
-<script src="commun/hors-ligne.js?v=bd3bcefc4a"></script>
+<script src="commun/config.js?v=4c4c99bf57"></script>
+<script src="commun/api.js?v=4c4c99bf57"></script>
+<script src="commun/ui.js?v=4c4c99bf57"></script>
+<script src="commun/hors-ligne.js?v=4c4c99bf57"></script>
 <script>
 // ── Accueil (lot 2) : connexion, « Mes chantiers », fiches du chantier avec le chantier pré-rempli ──
 // Rien ici n'empêche de remplir une fiche : « Remplir une fiche sans être connecté » est toujours proposé,
@@ -704,6 +729,7 @@ function renderChantiers() {
   const autres = CHANTIERS.filter(x => !x.mien).length;
   const liste = CHANTIERS.filter(x => voirTous || x.mien);
   $('label-chantiers').textContent = MODE === 'sans' ? 'Chantiers' : (voirTous ? 'Tous les chantiers' : 'Mes chantiers');
+  $('tuile-signalements-accueil').hidden = MODE !== 'compte';   // lot 7 : le suivi demande un compte
   $('btn-tous').hidden = !(peutTout && autres);
   $('btn-tous').textContent = voirTous ? 'Revenir à mes chantiers' : 'Voir tous les chantiers (' + CHANTIERS.length + ')';
   const rech = $('recherche');
@@ -748,11 +774,17 @@ function ouvrirFiches(ch) {
     ? [ch.reference ? 'Réf. ' + esc(ch.reference) : '', ch.adresse ? esc(ch.adresse) : '', ch.conducteur ? 'Conducteur : ' + esc(ch.conducteur) : ''].filter(Boolean).join('<br>')
     : 'Le chantier se tape dans la fiche. Une fiche remplie sans être connecté est gardée dans le téléphone et part après la connexion.';
   $('tuile-plans').hidden = !ch || MODE === null;
+  $('tuile-signalements').hidden = !ch || MODE !== 'compte';   // le suivi demande un compte
   document.querySelectorAll('#page-chantier-fiches a.fiche-card[data-base]').forEach(a => {
     const base = a.getAttribute('data-base');
     a.setAttribute('href', ch ? base + (base.indexOf('?') > -1 ? '&' : '?') + 'chantier=' + encodeURIComponent(ch.nom) : base);
   });
   showPage('chantier-fiches');
+}
+
+// ── Suivi des signalements (lot 7) : ceux du chantier ouvert, ou tous (depuis l'accueil) ──
+function ouvrirSignalements(tous) {
+  location.href = 'signalements.html' + (!tous && currentChantier ? '?chantier=' + encodeURIComponent(currentChantier.nom) : '');
 }
 
 // ── Plans du chantier (fenêtre) ──

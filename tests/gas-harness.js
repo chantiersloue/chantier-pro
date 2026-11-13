@@ -33,6 +33,7 @@ function creerGoogle(options = {}) {
         // Lot 2 : cases à cocher et listes de choix (la validation est gardée pour les tests)
         insertCheckboxes: () => { for (let i = 0; i < nr; i++) for (let j = 0; j < nc; j++) ecrire(r + i, c + j, false); f.cases = (f.cases || 0) + nr * nc; return p; },
         setDataValidation: v => { f.validations = (f.validations || []).concat([{ r, c, nr, nc, v }]); return p; },
+        getDataValidation: () => { const t = (f.validations || []).filter(x => r >= x.r && r < x.r + x.nr && c >= x.c && c < x.c + x.nc); return t.length ? t[t.length - 1].v : null; },
         setNote: () => p, setWrap: () => p, setNumberFormat: () => p,
         getRow: () => r, getColumn: () => c, getNumRows: () => nr, getNumColumns: () => nc,
       };
@@ -49,6 +50,7 @@ function creerGoogle(options = {}) {
         return 0;
       },
       setFrozenRows: () => {},
+      insertRowsAfter: (apres, n) => { f.maxLignes = Math.max(f.maxLignes, f.lignes.length) + n; },
       getLastColumn: () => Math.max(0, ...f.lignes.map(l => { for (let j = l.length; j > 0; j--) if (l[j - 1] !== '' && l[j - 1] !== undefined) return j; return 0; })),
       setColumnWidth: () => {},
     };
@@ -184,9 +186,11 @@ function creerGoogle(options = {}) {
   const cache = {};
   const ScriptApp = {
     getProjectTriggers: () => declencheurs.map(t => ({ getHandlerFunction: () => t })),
-    deleteTrigger: () => { declencheurs.length = 0; },
+    // comme le vrai : ne retire QUE le déclencheur donné (un seul, s'il y en a plusieurs du même nom)
+    deleteTrigger: d => { const i = declencheurs.indexOf(d.getHandlerFunction()); if (i > -1) declencheurs.splice(i, 1); },
     newTrigger: fn => ({
-      timeBased: () => ({ everyHours: () => ({ create: () => declencheurs.push(fn) }), everyMinutes: () => ({ create: () => declencheurs.push(fn) }) }),
+      timeBased: () => ({ everyHours: () => ({ create: () => declencheurs.push(fn) }), everyMinutes: () => ({ create: () => declencheurs.push(fn) }),
+        after: () => ({ create: () => declencheurs.push(fn) }) }),
       forSpreadsheet: () => ({ onEdit: () => ({ create: () => declencheurs.push(fn) }) }),
     }),
   };

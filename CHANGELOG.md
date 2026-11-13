@@ -2,6 +2,31 @@
 
 Chaque lot : **quoi**, **pourquoi**, **comment déployer**. Procédures détaillées dans `docs/lotN-procedure.md`.
 
+## Lot 7 — Signalement casse / manquant / à recommander — serveur v7.0, appli 7.0 — serveur en production le 13/11/2026 (déploiement « Lot 7 — production »), pages livrées par la fusion de livraison/lot-7
+
+**Quoi**
+- Page **« Signaler »** (`signaler.html`), ouverte depuis un chantier : type et urgence en gros boutons, repère, commentaire, 0 à 3 photos, case « Prévenir l'atelier ». Brouillon automatique, rangement dans le téléphone, envoi au retour du réseau, comme les autres fiches.
+- Page **« Signalements »** (`signalements.html`) : le suivi. Conducteurs, admin et atelier voient tout et changent le statut (À traiter / Commandé / Livré / Clos) ; chaque poseur voit les siens.
+- Serveur : onglet *Signalements*, PDF (informations et photos) rangé dans `05 - CHANTIER/SIGNALEMENTS`, mail au conducteur du chantier à chaque fois, au chef d'atelier (Contacts, *ChefAtelier* = O) seulement si la case est cochée ; plafond de quota inchangé (mail reporté si besoin).
+- Installation en une fonction : `installerLot7Test` / `installerLot7Production`.
+- Ce lot emporte l'outillage du serveur (fonction d'installation unique, empreinte du serveur, `verifierConfig` complété).
+
+**Pourquoi** : rien d'oublié sur le chantier, et un suivi visible par tous (`PLAN.md`, lot 7). Décisions D7-1 à D7-3 ; écart avec le plan général : un PDF au lieu des photos brutes en pièces jointes (D7-2).
+
+**Comment déployer** : `docs/lot7-procedure.md`.
+
+**Tests** : serveur 31 (`tests/lot7-signalement.test.js`), page dans un vrai Chrome en largeur téléphone 8 (`tests/lot7-page.test.js`), porte de service 48, essais réels sur la copie TEST (`tests/reel-lot7.js`), toutes les séries des lots précédents.
+
+## Outillage — étape C (12/11/2026) — copie TEST seulement, aucun changement pour les téléphones ni pour la production
+
+**Quoi** : 1. `node outils\envoyer-test.js` envoie le serveur sur la copie TEST avec clasp : c'est Franck qui la lance (2 lignes, 1 clic « Autoriser »), elle vérifie que le projet visé est bien celui de TEST, sauvegarde, envoie, contrôle en ligne par l'empreinte du serveur, et efface le jeton Google dans tous les cas. 2. Une « porte de service », présente seulement dans le serveur envoyé sur TEST, permet à Claude de lancer depuis le PC une liste fermée de gestes d'essai (`node outils/porte.js`). 3. Le serveur renvoie son empreinte (`ping`). 4. `verifierConfig` signale par un ❌ tout reste des outils d'essai hors de TEST.
+
+**Pourquoi** : plus de copier-coller sur TEST, et des essais que Claude peut jouer seul contre le vrai serveur TEST (`docs/automatisation.md`, O-3 à O-5).
+
+**Vérifié en vrai le 12/11/2026** : trois envois par clasp réussis (deux avec la porte, le dernier sans), jeton effacé à chaque fois ; après le dernier, la copie TEST exécute le serveur sans outils d'essai (la porte y répond « action inconnue ») ; déclencheur posé puis retiré par la porte ; démonstration complète (contrôle du lot 2, comptes d'essai, session d'essai acceptée puis annulée, lecture de l'onglet *Envois*, déclencheurs posés puis retirés, copie TEST remise en ordre).
+
+**Comment déployer** : rien en production. Le code est sur la branche `outillage` et entrera dans `main` avec le lot 7. Modes d'emploi : `docs/guide-outillage.md`, `docs/clasp.md`. Pas fait (reporté au lot 7, qui en aura besoin) : les gestes qui touchent à Drive, et l'envoi d'une fiche par un navigateur piloté avec une session d'essai.
+
 ## Outillage — étapes A et B (12/11/2026) — outils du PC seulement, aucun changement pour les téléphones
 
 **Quoi** : 1. `main` est verrouillée sur GitHub : plus rien n'y entre sans demande de fusion. 2. `node outils/lien-fusion.js` prépare le lien qui ouvre une demande de fusion déjà remplie (serveur changé ou non, pages changées ou non, empreinte du `Code.gs`) : il reste 3 clics à Franck. 3. La copie d'essai sort de ce dépôt : `node outils/publier-essai.js` la fabrique dans un dossier voisin et la publie dans un dépôt à part (organisation GitHub gratuite), à sa propre adresse, toujours en mode TEST. 4. Prêt mais pas encore en service (branche `outillage`) : l'installation d'un lot en une seule fonction Apps Script.

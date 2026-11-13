@@ -113,14 +113,32 @@ function verifierConfig() {
   ok(estEmail_(emailAdmin_()), 'Adresse de Franck (alertes, copies) : ' + emailAdmin_());
   [SHEET_CONTACTS, SHEET_CONTACT_NOTES, SHEET_CHANTIERS].forEach(n => ok(!!ss.getSheetByName(n), 'Onglet « ' + n + ' »'));
   lignes.push(verifierDossiers_());   // lot 1.5 : fichier des noms de dossiers
+  // Lot 7 : onglet des signalements (créé par installerLot7Test / installerLot7Production)
+  ok(!!ss.getSheetByName(SHEET_SIGNALEMENTS), 'Onglet « ' + SHEET_SIGNALEMENTS + ' » (sinon lancer installerLot7Test ou installerLot7Production)');
   // Lot 1 R2 : onglet des matériaux proposés par le bordereau matériaux (créé vide, avec ses titres)
   if (!ss.getSheetByName(SHEET_MAT_BORDEREAU)) {
     feuille_(SHEET_MAT_BORDEREAU, ['Type', 'Matériau', 'Quantité']);
     lignes.push('✅ Onglet « ' + SHEET_MAT_BORDEREAU + ' » créé (vide) : une ligne par matériau — A le type, B le matériau, C la quantité');
   } else ok(true, 'Onglet « ' + SHEET_MAT_BORDEREAU + ' »');
   const presents = ScriptApp.getProjectTriggers().map(t => t.getHandlerFunction());
-  DECLENCHEURS.forEach(d => ok(presents.indexOf(d) > -1, 'Déclencheur ' + d + ' (sinon lancer installerDeclencheurs)'));
+  // Sur la copie TEST, les déclencheurs ne sont posés que pendant les essais (quota partagé avec la production) :
+  // leur absence n'y est pas une erreur
+  const surTest = environnementReel_().env === 'TEST';
+  DECLENCHEURS.forEach(d => {
+    if (presents.indexOf(d) > -1) ok(true, 'Déclencheur ' + d + (surTest ? ' (copie TEST : à retirer après les essais, retirerDeclencheurs)' : ''));
+    else if (surTest) lignes.push('➖ Déclencheur ' + d + ' : absent (normal sur la copie TEST hors essais)');
+    else ok(false, 'Déclencheur ' + d + ' (sinon lancer installerDeclencheurs)');
+  });
   lignes.push(verifierComptes_());    // lot 2 : comptes, clé, partage du Sheet, transition
+  // Outillage : les outils d'essai (porte de service et sa clé) ne doivent exister que sur la copie TEST
+  const ou = environnementReel_(), porte = typeof outilTest_ === 'function', cleOutils = !!propriete_('CLE_OUTILS_TEST');
+  if (ou.env === 'INCOHERENT') ok(false, 'Environnement incohérent : la propriété ENVIRONNEMENT et le nom du Sheet « ' + ou.sheet + ' » ne disent pas la même chose');
+  if (ou.env !== 'TEST' && porte) ok(false, 'Ce serveur contient les OUTILS D’ESSAI (porte de service) : il ne doit tourner que sur la copie TEST. Recoller le Code.gs de production');
+  if (ou.env !== 'TEST' && cleOutils) ok(false, 'La propriété CLE_OUTILS_TEST ne doit exister que sur la copie TEST : la supprimer ici');
+  // Un déclencheur des outils d'essai resté en place (son code n'existe plus après un envoi « sans porte ») échouerait en boucle
+  const restes = presents.filter(d => /^outilTest/.test(d));
+  if (restes.length) ok(false, 'Déclencheur d’essai resté en place (' + restes.join(', ') + ') : le supprimer (éditeur → icône réveil « Déclencheurs » → ⋮ → Supprimer)');
+  if (ou.env === 'TEST' && (porte || cleOutils)) lignes.push('Outils d’essai (copie TEST) : porte ' + (porte ? 'présente' : 'absente') + ', clé ' + (cleOutils ? 'présente' : 'absente'));
   lignes.push("Mails encore possibles aujourd'hui : " + MailApp.getRemainingDailyQuota());
   Logger.log(lignes.join('\n'));
   return lignes.join('\n');

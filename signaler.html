@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Loué App — Signaler</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Loué App">
+<meta name="theme-color" content="#1A2B4A">
+<link rel="stylesheet" href="commun/style.css?v=4c4c99bf57">
+<link rel="stylesheet" href="commun/fiche.css?v=4c4c99bf57">
+</head>
+<body>
+
+<div class="topbar no-print">
+  <a class="btn btn-secondary btn-petit" href="index.html" aria-label="Retour à l'accueil">‹ Retour</a>
+  <span class="tb-name">Signaler</span>
+  <span id="loue-envoi-place"></span>
+</div>
+
+<div class="main">
+
+  <div class="val-banner" id="valBanner" role="alert"></div>
+
+  <!-- CHANTIER -->
+  <div class="section">
+    <div class="section-head" style="color:var(--green)">Chantier <span class="oblig">*</span></div>
+    <div class="section-body">
+      <label class="meta-label" for="meta-chantier" hidden>Chantier</label>
+      <input class="meta-input" id="meta-chantier" list="liste-chantiers" placeholder="Choisir ou taper le chantier" autocomplete="off">
+      <datalist id="liste-chantiers"></datalist>
+      <div class="listes-info" id="listes-info"></div>
+    </div>
+  </div>
+
+  <!-- TYPE -->
+  <div class="section">
+    <div class="section-head" style="color:var(--green)">Quoi ? <span class="oblig">*</span></div>
+    <div class="section-body">
+      <div class="choix-row" id="choix-type" role="radiogroup" aria-label="Type de signalement">
+        <label class="choix"><input type="radio" name="type" id="type-casse" value="Casse"><span>Casse</span></label>
+        <label class="choix"><input type="radio" name="type" id="type-manquant" value="Manquant"><span>Manquant</span></label>
+        <label class="choix"><input type="radio" name="type" id="type-recommander" value="À recommander"><span>À recommander</span></label>
+      </div>
+    </div>
+  </div>
+
+  <!-- URGENCE -->
+  <div class="section">
+    <div class="section-head" style="color:var(--green)">Urgence <span class="oblig">*</span></div>
+    <div class="section-body">
+      <div class="choix-row" id="choix-urgence" role="radiogroup" aria-label="Urgence">
+        <label class="choix rouge"><input type="radio" name="urgence" id="urgence-bloquant" value="Bloquant"><span>Bloquant</span></label>
+        <label class="choix"><input type="radio" name="urgence" id="urgence-semaine" value="Cette semaine"><span>Cette semaine</span></label>
+        <label class="choix"><input type="radio" name="urgence" id="urgence-pas-urgent" value="Pas urgent"><span>Pas urgent</span></label>
+      </div>
+      <div class="aide" style="margin:10px 0 0">Bloquant et pas de réseau ? Le signalement ne partira qu'au retour du réseau : téléphonez au bureau.</div>
+    </div>
+  </div>
+
+  <!-- DÉTAIL -->
+  <div class="section">
+    <div class="section-head" style="color:var(--green)">Où et quoi exactement ?</div>
+    <div class="section-body">
+      <div class="meta-grid">
+        <div class="meta-field meta-full">
+          <label class="meta-label" for="meta-repere">Repère (porte, pièce, étage…)</label>
+          <input class="meta-input" id="meta-repere" maxlength="120" placeholder="Ex. : porte P12, 2e étage" autocomplete="off">
+        </div>
+        <div class="meta-field meta-full">
+          <label class="meta-label" for="meta-commentaire">Commentaire</label>
+          <textarea class="meta-input" id="meta-commentaire" maxlength="2000" placeholder="Ce qui est cassé, ce qui manque, ce qu'il faut recommander (le micro du clavier permet de dicter)"></textarea>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PHOTOS -->
+  <div class="section">
+    <div class="section-head" style="color:var(--teal)">Photos (3 au plus)</div>
+    <div class="section-body">
+      <input type="file" id="photo-cam" accept="image/*" capture="environment" hidden onchange="ajouterPhotos(this.files);this.value=''">
+      <input type="file" id="photo-galerie" accept="image/*" multiple hidden onchange="ajouterPhotos(this.files);this.value=''">
+      <div class="photo-btns">
+        <button class="btn" type="button" onclick="document.getElementById('photo-cam').click()">📷 Prendre une photo</button>
+        <button class="btn" type="button" onclick="document.getElementById('photo-galerie').click()">🖼 Galerie</button>
+      </div>
+      <div class="photos-list" id="photos-list"></div>
+    </div>
+  </div>
+
+  <!-- ATELIER -->
+  <div class="section">
+    <div class="section-body">
+      <label class="case-ligne" for="atelier"><input type="checkbox" id="atelier"> Prévenir l'atelier</label>
+      <div class="aide" style="margin:0">Le conducteur du chantier est toujours prévenu par mail.</div>
+    </div>
+  </div>
+
+  <p class="aide" style="text-align:center"><a href="signalements.html" id="lien-suivi">Voir le suivi des signalements</a></p>
+
+</div>
+
+<div class="bottom-bar no-print">
+  <a class="btn btn-secondary" href="index.html">‹ Retour</a>
+  <button class="btn btn-green" id="btn-envoyer" type="button" onclick="envoyer()" style="flex:1">Envoyer le signalement</button>
+</div>
+
+<script src="commun/config.js?v=4c4c99bf57"></script>
+<script src="commun/api.js?v=4c4c99bf57"></script>
+<script src="commun/ui.js?v=4c4c99bf57"></script>
+<script src="commun/photos.js?v=4c4c99bf57"></script>
+<script src="commun/brouillon.js?v=4c4c99bf57"></script>
+<script src="commun/hors-ligne.js?v=4c4c99bf57"></script>
+<script>
+'use strict';
+// ── État de la fiche ──
+const PHOTOS_MAX = 3;     // limite propre au signalement (LOUE.PHOTOS_MAX vaut pour les autres fiches)
+let photos = [];          // [{ id, blob, url, label }]
+let saisiLe = 0;          // moment de la saisie (fixé au premier « Envoyer », remis à zéro quand la fiche est vidée)
+let LISTES = { chantiers: [] };
+const champ = id => document.getElementById(id);
+const choisi = nom => { const el = document.querySelector('input[name="' + nom + '"]:checked'); return el ? el.value : ''; };
+
+// ── Liste des chantiers : réseau, sinon dernière liste gardée dans le téléphone ──
+let listesDuTelephone = false;
+LOUE.chargerListes().then(r => {
+  listesDuTelephone = !!r.depuisLeTelephone || !!r.partiel;   // liste ancienne, ou limitée à « mes chantiers » → on demande confirmation
+  LISTES = Object.assign(LISTES, r.donnees || {});
+  const liste = champ('liste-chantiers');
+  liste.textContent = '';
+  (LISTES.chantiers || []).forEach(c => { const o = document.createElement('option'); o.value = c.nom; o.textContent = c.reference || ''; liste.appendChild(o); });
+  if (r.depuisLeTelephone) {
+    champ('listes-info').textContent = 'Pas de réseau : liste du ' + new Date(r.date).toLocaleDateString('fr-FR') + ' gardée dans le téléphone.';
+  }
+}).catch(() => {
+  champ('listes-info').textContent = 'Liste indisponible (pas de réseau). Tapez le nom du chantier : le signalement partira quand même.';
+});
+
+// ── Photos : compressées dès qu'on les ajoute (200 à 400 Ko chacune) ──
+async function ajouterPhotos(fichiers) {
+  for (const f of Array.from(fichiers || [])) {
+    if (photos.length >= PHOTOS_MAX) { LOUE.message(PHOTOS_MAX + ' photos au maximum pour un signalement'); break; }
+    try {
+      const blob = await LOUE.compresserPhoto(f);
+      photos.push({ id: LOUE.nouvelId('photo'), blob, url: URL.createObjectURL(blob), label: '' });
+    } catch (err) { LOUE.message(err.message, 8000); }
+  }
+  afficherPhotos();
+  document.dispatchEvent(new Event('change'));
+}
+function retirerPhoto(i) { URL.revokeObjectURL(photos[i].url); photos.splice(i, 1); afficherPhotos(); document.dispatchEvent(new Event('change')); }
+function afficherPhotos() {
+  const liste = champ('photos-list');
+  liste.textContent = '';
+  photos.forEach((p, i) => {
+    const bloc = document.createElement('div'); bloc.className = 'photo-item';
+    const tete = document.createElement('div'); tete.className = 'photo-item-head';
+    const num = document.createElement('span'); num.className = 'photo-item-num'; num.textContent = 'Photo ' + (i + 1);
+    const legende = document.createElement('input'); legende.className = 'photo-item-label'; legende.placeholder = 'Légende…';
+    legende.dataset.brouillon = 'non'; legende.value = p.label; legende.maxLength = 80;
+    legende.addEventListener('input', () => { p.label = legende.value; });
+    const retirer = document.createElement('button'); retirer.className = 'btn btn-secondary btn-petit'; retirer.type = 'button'; retirer.textContent = 'Retirer';
+    retirer.addEventListener('click', () => retirerPhoto(i));
+    const img = document.createElement('img'); img.src = p.url; img.alt = 'Photo ' + (i + 1);
+    tete.appendChild(num); tete.appendChild(legende); tete.appendChild(retirer);
+    bloc.appendChild(tete); bloc.appendChild(img); liste.appendChild(bloc);
+  });
+}
+
+// ── Brouillon automatique : les champs, les gros boutons (de vrais boutons radio) et la case sont gardés tout seuls ;
+//    la page n'ajoute que les photos ──
+LOUE.preRemplirChantier('meta-chantier');   // chantier choisi à l'accueil (avant la photo de la page vierge)
+const BROUILLON = LOUE.brouillon({
+  champChantier: 'meta-chantier',
+  cle: 'signalement',
+  capturer: () => ({ saisiLe: saisiLe, photos: photos.map(p => ({ id: p.id, blob: p.blob, label: p.label })) }),
+  restaurer: x => {
+    saisiLe = Number(x.saisiLe) || 0;
+    photos = (x.photos || []).filter(p => p.blob).slice(0, PHOTOS_MAX).map(p => ({ id: p.id, blob: p.blob, url: URL.createObjectURL(p.blob), label: p.label || '' }));
+    afficherPhotos();
+  },
+});
+// Le lien « suivi » suit le chantier de la page
+function majLienSuivi() {
+  const c = champ('meta-chantier').value.trim();
+  champ('lien-suivi').href = 'signalements.html' + (c ? '?chantier=' + encodeURIComponent(c) : '');
+}
+champ('meta-chantier').addEventListener('change', majLienSuivi);
+majLienSuivi();
+
+// ── Données du signalement (le serveur calcule lui-même les destinataires et l'auteur) ──
+function donneesFiche() {
+  if (!saisiLe) saisiLe = Date.now();
+  const now = new Date(saisiLe), p = n => String(n).padStart(2, '0');
+  // Une tabulation ou un caractère invisible collé depuis un tableur devient une espace : le serveur les refuse
+  // (un retour à la ligne dans le chantier ou le repère n'a rien à faire dans le sujet d'un mail)
+  const net = t => String(t || '').replace(/[\u0000-\u001f\u007f-\u009f\u2028\u2029]+/g, ' ').trim();
+  const netCommentaire = t => String(t || '').replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f-\u009f\u2028\u2029]+/g, ' ').trim();
+  return {
+    chantier: net(champ('meta-chantier').value),
+    date: p(now.getDate()) + '/' + p(now.getMonth() + 1) + '/' + now.getFullYear(),   // moment de la saisie (l'envoi peut avoir lieu des heures après)
+    heure: p(now.getHours()) + 'h' + p(now.getMinutes()),
+    type_signalement: choisi('type'), urgence: choisi('urgence'),
+    repere: net(champ('meta-repere').value), commentaire: netCommentaire(champ('meta-commentaire').value),
+    atelier: champ('atelier').checked,
+    photosBase64: photos.map(p2 => ({ photoRef: p2.id, label: net(p2.label).slice(0, 80) })),
+  };
+}
+
+// Remet la fiche à blanc après le rangement (le chantier reste : on signale souvent plusieurs choses de suite)
+function viderFiche() {
+  champ('meta-repere').value = ''; champ('meta-commentaire').value = '';
+  document.querySelectorAll('input[name="type"], input[name="urgence"]').forEach(el => { el.checked = false; });
+  champ('atelier').checked = false;
+  photos.forEach(p => URL.revokeObjectURL(p.url)); photos = []; afficherPhotos();
+  saisiLe = 0;
+  window.scrollTo(0, 0);
+}
+
+// ── Envoi : le signalement est rangé dans le téléphone, puis part (tout de suite ou au retour du réseau) ──
+let envoiEnCours = false;
+async function envoyer() {
+  if (envoiEnCours) return;
+  const erreurs = [];
+  ['meta-chantier', 'meta-repere', 'meta-commentaire', 'choix-type', 'choix-urgence'].forEach(id => champ(id).classList.remove('error'));
+  const nomChantier = champ('meta-chantier').value.trim();
+  const listeChantiers = (LISTES.chantiers || []).map(c => String(c.nom).toLowerCase());
+  if (!nomChantier) { champ('meta-chantier').classList.add('error'); erreurs.push('chantier manquant'); }
+  // Liste chargée : le chantier doit en faire partie (une faute de frappe créerait un nouveau dossier dans Drive)
+  else if (listeChantiers.length && listeChantiers.indexOf(nomChantier.toLowerCase()) < 0) {
+    // Liste ancienne ou limitée à mes chantiers : un chantier peut manquer → on demande confirmation
+    if (!(listesDuTelephone && confirm(LOUE.questionHorsListe(nomChantier)))) {
+      champ('meta-chantier').classList.add('error'); erreurs.push('choisissez le chantier dans la liste');
+    }
+  }
+  if (!choisi('type')) { champ('choix-type').classList.add('error'); erreurs.push('choisissez Casse, Manquant ou À recommander'); }
+  if (!choisi('urgence')) { champ('choix-urgence').classList.add('error'); erreurs.push('choisissez l’urgence'); }
+  if (!champ('meta-repere').value.trim() && !champ('meta-commentaire').value.trim() && !photos.length) {
+    champ('meta-repere').classList.add('error'); champ('meta-commentaire').classList.add('error');
+    erreurs.push('ajoutez un repère, un commentaire ou une photo');
+  }
+  const bandeau = champ('valBanner');
+  if (erreurs.length) {
+    bandeau.textContent = 'À compléter : ' + erreurs.join(', ') + '.';
+    bandeau.classList.add('show'); bandeau.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    return;
+  }
+  bandeau.classList.remove('show');
+  envoiEnCours = true;
+  const bouton = champ('btn-envoyer');
+  const finir = () => { bouton.disabled = false; bouton.textContent = 'Envoyer le signalement'; envoiEnCours = false; };
+  bouton.disabled = true; bouton.textContent = 'Rangement dans le téléphone…';
+  let enFile = false;
+  const d = donneesFiche(), lesPhotos = photos.map(p => ({ id: p.id, blob: p.blob }));
+  try {
+    await LOUE.mettreEnFile('signalement', d, lesPhotos, 'Signalement');
+    enFile = true;
+    await BROUILLON.effacer();   // le signalement est à l'abri dans la file d'envoi
+    LOUE.message('Signalement rangé dans le téléphone. Envoi en cours… (voir l’indicateur en haut)', 6000);
+    viderFiche();
+    LOUE.viderFile();   // on reste sur la page : quitter maintenant couperait l'envoi en cours (il reprendrait plus tard)
+    BROUILLON.reprendre();
+    finir();
+  } catch (err) {
+    if (enFile) {   // déjà dans la file : surtout pas d'envoi direct (doublon) ; on le dit et on vide la fiche
+      LOUE.message('Signalement rangé dans le téléphone : il partira tout seul.', 6000);
+      try { viderFiche(); BROUILLON.reprendre(); LOUE.viderFile(); } catch (e2) {}
+      finir(); return;
+    }
+    // Plan de secours : le téléphone refuse de garder le signalement (navigation privée, mémoire pleine) → envoi direct
+    bouton.textContent = 'Envoi direct… ne quittez pas la page';
+    try {
+      const rep = await LOUE.envoyerDirect('signalement', d, lesPhotos);
+      await BROUILLON.effacer();
+      LOUE.message('✓ Signalement envoyé — ' + (rep.message || ''), 8000);
+      viderFiche(); BROUILLON.reprendre();
+    } catch (err2) {
+      const debut = '⚠ Le signalement n’est pas parti : ';
+      LOUE.message(err2.stockageBloque ? debut + err2.message + '.'
+        : err2.aConfirmer ? LOUE.MSG_DIRECT_A_CONFIRMER
+        : err2.connexion ? LOUE.MSG_DIRECT_CONNEXION
+        : debut + err2.message + '. Gardez la page ouverte et réessayez quand il y aura du réseau.', err2.stockageBloque ? 0 : 12000);
+    }
+    finir();
+  }
+}
+</script>
+</body>
+</html>
