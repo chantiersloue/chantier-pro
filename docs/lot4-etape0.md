@@ -50,6 +50,18 @@ Ce qui reste à vérifier pour la solution 4 (5 minutes, quand tu veux ; rien ne
 
 Si cet essai avait échoué, on gardait la solution 3 (le `.bat`), et le mode miroir devient l'essai suivant : Préférences de Drive pour ordinateur → Dossiers de Drive → « Dupliquer les fichiers », choisir un dossier, attendre la fin de la copie, connecter ce dossier à une conversation et demander à Claude s'il le voit dans son espace de travail.
 
+### Ce que la critique indépendante a fait ajouter (13/11/2026) — à trancher au lot 4c
+
+La solution 4 reste la bonne (« une demande, un seul programme sur le PC »), mais elle doit être construite ainsi :
+
+- **Où poser la demande : plutôt dans MEGA que dans le Drive.** Le dossier MEGA du chantier est monté dans le skill (il y travaille normalement) et c'est un dossier local du PC : le programme lit la demande et le PDF au même endroit. Avantage principal : **le Drive de l'appli n'a plus besoin d'être connecté aux skills pour le carnet**. Inconvénient : un petit dossier de demandes dans l'archive maître. Les deux marchent (le dépôt dans le Drive est prouvé par l'essai) : **c'est une décision pour Franck au lot 4c**.
+- **Contrôles obligatoires sur une demande** (un skill lit des PDF et des mails venus d'ailleurs : une demande ne doit pas pouvoir publier n'importe quoi) : le PDF est désigné par un chemin **relatif au dossier MEGA du chantier nommé** (jamais un chemin absolu, jamais « .. ») ; c'est bien un PDF, de taille raisonnable ; le chantier existe ; le code est dans la liste du carnet ; un indice déjà déposé n'est jamais écrasé.
+- **Double-clic d'abord, tâche planifiée plus tard.** Un dépôt automatique publierait un plan aux poseurs sans personne pour regarder, alors que la règle est « version validée seulement ». Donc : un double-clic « Déposer ce qui attend », qui **montre la liste** et demande une confirmation. La tâche planifiée de Windows ne viendra que si Franck la demande (avec un fichier pour la créer et un pour la retirer).
+- **Jamais deux dépôts en même temps** : un fichier verrou, et chaque demande porte un numéro.
+- **Le résultat est écrit** à côté de la demande (déposé, refusé et pourquoi) ; les demandes traitées sont rangées par le programme du PC dans un sous-dossier (rien n'est supprimé) ; le double-clic montre ce qui est en attente et ce qui a échoué.
+- Solutions regardées et écartées : faire la transformation sur le serveur (Apps Script ne sait pas transformer un PDF en images) ; surveiller MEGA sans demande (le programme ne saurait pas ce qui est « validé ») ; faire fabriquer les images par le skill dans MEGA puis les recopier (rendu non contrôlé).
+- Mode miroir, le vrai argument contre : il donnerait à un skill le droit d'écrire et de supprimer **dans tout le Drive de production**.
+
 ## Essai A2 — le texte utilisé
 
 1. Dans l'application Claude, ouvre le projet **LOUE TRAVAIL** et démarre une nouvelle conversation.

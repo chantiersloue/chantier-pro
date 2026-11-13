@@ -6,7 +6,7 @@
 <title>Loué App</title>
 <link rel="icon" type="image/png" href="apple-touch-icon.png">
 <link rel="manifest" href="manifest.json">
-<link rel="stylesheet" href="commun/style.css?v=f0d35a5ec4">
+<link rel="stylesheet" href="commun/style.css?v=22c6875416">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -550,12 +550,11 @@ body.loue-test .installer{padding-top:calc(56px + env(safe-area-inset-top,0px));
 </div>
 
 
-<script src="commun/config.js?v=f0d35a5ec4"></script>
-<script src="commun/api.js?v=f0d35a5ec4"></script>
-<script src="commun/ui.js?v=f0d35a5ec4"></script>
-<script src="commun/carnet.js?v=f0d35a5ec4"></script>
-<script src="commun/notes.js?v=f0d35a5ec4"></script>
-<script src="commun/hors-ligne.js?v=f0d35a5ec4"></script>
+<script src="commun/config.js?v=22c6875416"></script>
+<script src="commun/api.js?v=22c6875416"></script>
+<script src="commun/ui.js?v=22c6875416"></script>
+<script src="commun/notes.js?v=22c6875416"></script>
+<script src="commun/hors-ligne.js?v=22c6875416"></script>
 <script>
 // ── Accueil (lot 2) : connexion, « Mes chantiers », fiches du chantier avec le chantier pré-rempli ──
 // Rien ici n'empêche de remplir une fiche : « Remplir une fiche sans être connecté » est toujours proposé,
@@ -722,7 +721,6 @@ function rafraichirCompte() {
     if (rep.ok) {
       CHANTIERS = rep.data.chantiers || []; renderChantiers();
       chargerBadgesNotes();                    // lot 3 : nombre de notes nouvelles par chantier
-      carnetAutoWifi();                        // lot 4b : en Wi-Fi, les plans de mes chantiers se téléchargent tout seuls
       LOUE.chargerListes().catch(() => {});   // gardées dans le téléphone pour les fiches, même plus tard sans réseau
       return;
     }
@@ -832,18 +830,6 @@ function majBadgesNotes() {
   const pose = (id, n) => { const b = $(id); b.hidden = !n; b.textContent = n > 9 ? '9+' : String(n || ''); };
   pose('badge-notes-accueil', MODE === 'compte' ? NOTES_NOUVELLES.total : 0);
   pose('badge-notes', MODE === 'compte' && currentChantier ? Number(NOTES_NOUVELLES.parChantier[currentChantier.nom]) || 0 : 0);
-}
-// Lot 4b — Android en Wi-Fi seulement, case « tout seul en Wi-Fi » cochée (page Carnet) : les plans incomplets des
-// chantiers du poseur (5 au plus) se téléchargent pendant que l'accueil est ouvert. Jamais pour un conducteur ou
-// l'admin (ils voient tous les chantiers : des gigaoctets). Départ retardé au hasard ; rien ne bloque l'accueil.
-let carnetAutoLance = false;
-function carnetAutoWifi() {
-  const c = LOUE.compte();
-  if (carnetAutoLance || !LOUE.carnet || !c || c.profil.conducteur || c.profil.tous || !LOUE.carnet.wifi()) return;
-  const noms = (c.chantiers || []).map(x => (typeof x === 'string' ? x : x && x.nom)).filter(Boolean);
-  if (!noms.length) return;
-  carnetAutoLance = true;
-  LOUE.carnet.autoWifi(noms).then(n => { if (n && LOUE.message) LOUE.message('✓ Plans téléchargés en Wi-Fi : ' + n + ' document' + (n > 1 ? 's' : '') + ' lisible' + (n > 1 ? 's' : '') + ' sans réseau', 6000); }).catch(() => {});
 }
 function chargerBadgesNotes() {
   if (MODE !== 'compte' || !LOUE.compte() || !LOUE.notes) return;

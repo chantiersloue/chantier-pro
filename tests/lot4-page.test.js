@@ -242,9 +242,12 @@ function scenario() {
   await page.goto(CARNET); await attendre(() => document.querySelectorAll('#docs .doc').length > 0);
   r.b_perdu = { liste: await liste(), boutons: await boutons() };
   // e) carnet plein pendant un téléchargement : il s'arrête, le dit, et une fiche est toujours gardée
-  await page.evaluate(() => { LOUE.carnet.PLAFOND = 1024; });
+  //    Le PPSPS (001-A) est complet ; le plan 105-A ne l'est plus. Le carnet n'a pas la place du reste : refus AVANT de
+  //    commencer, et le document complet n'est pas touché (deux documents ne se chassent pas l'un l'autre).
+  const occupeAvant = await page.evaluate(() => LOUE.carnet.occupation());
+  await page.evaluate(o => { LOUE.carnet.PLAFOND = o + 100; }, occupeAvant);
   await page.evaluate(() => document.querySelector('#docs .dl[data-dl="105-A"]').click()); await finTele(); await page.waitForTimeout(400);
-  r.b_plein = { boutons: await boutons(), bilan: await bilan('105-A') };
+  r.b_plein = { boutons: await boutons(), bilan: await bilan('105-A'), autre: await bilan('001-A'), occupeAvant: occupeAvant, occupeApres: await page.evaluate(() => LOUE.carnet.occupation()) };
   r.b_fichePlein = await page.evaluate(() => LOUE.stockage.tout('file').then(avant => LOUE.mettreEnFile('note-chantier', { chantier: 'CHANTIER TEST 1', texte: 'Fiche gardée pendant un téléchargement arrêté par manque de place' }, [], 'Note')
     .then(() => LOUE.stockage.tout('file')).then(apres => apres.length - avant.length)).catch(e => String(e && e.message)));
   await page.evaluate(async () => { LOUE.carnet.PLAFOND = 400 * 1024 * 1024; for (const e of await LOUE.stockage.tout('file')) await LOUE.abandonner(e.id); });
@@ -372,7 +375,8 @@ setTimeout(() => {
       && r.b_horsReseau.loin.info === '' && r.b_horsReseau.ailleurs.tuiles > 0 && r.b_horsReseau.ailleurs.info === '' && r.b_horsReseau.liste.docs.every(d => /disponible sans réseau, en entier/.test(d.texte)), j(r.b_horsReseau));
     verifier('le téléphone a fait du ménage dans un document complet : « ⚠ plus disponible en entier sans réseau », et le bouton revient', /plus disponible en entier sans réseau/.test(r.b_perdu.liste.docs.filter(d => d.id === '105-A')[0].texte)
       && r.b_perdu.boutons.dl.length === 1 && r.b_perdu.boutons.dl[0].id === '105-A', j(r.b_perdu));
-    verifier('carnet plein pendant un téléchargement : il s’arrête et le dit ; une fiche est quand même gardée par le téléphone', /Plus de place pour les plans/.test(r.b_plein.boutons.info) && r.b_plein.bilan.complet === false
+    verifier('pas assez de place pour finir un document : refus AVANT de commencer, avec les poids ; rien n’est effacé, l’autre document reste complet ; une fiche est quand même gardée', /Pas assez de place : il reste [0-9,]+ (Ko|Mo) à télécharger/.test(r.b_plein.boutons.info)
+      && /Rien n’a été effacé/.test(r.b_plein.boutons.info) && r.b_plein.bilan.complet === false && r.b_plein.autre.complet === true && r.b_plein.occupeApres === r.b_plein.occupeAvant
       && r.b_plein.boutons.enCours === false && r.b_fichePlein === 1, j([r.b_plein, r.b_fichePlein]));
     verifier('Wi-Fi, case décochée : la case est proposée, rien ne part tout seul', r.b_wifiNon.auto === true && r.b_wifiNon.enCours === false && r.b_wifiNon.dl.length === 1 && !/Wi-Fi/.test(r.b_wifiNon.info), j(r.b_wifiNon));
     verifier('Wi-Fi, case cochée : le document incomplet se télécharge tout seul jusqu’au bout', r.b_wifiOui.bilan.complet === true && r.b_wifiOui.boutons.dl.length === 0 && /Téléchargement terminé/.test(r.b_wifiOui.boutons.info), j(r.b_wifiOui));
@@ -386,7 +390,7 @@ setTimeout(() => {
       && r.redepose.fondCharge === true && r.redepose.largeurPlan !== r.redepose.ancienne, j([r.second.avant, r.second.a105, r.redepose.largeurPlan, r.redepose.ancienne]));
     verifier('NOUVEL INDICE pas encore ouvert : l’ancien reste lisible, marqué « ANCIEN INDICE — l’indice B est sorti »', r.second.a001 === r.second.avant.a001 && r.second.liste.docs.length === 3
       && r.second.liste.docs.some(d => d.id === '001-A' && /ANCIEN INDICE — l’indice B est sorti/.test(d.texte)) && r.second.liste.docs.some(d => d.id === '001-B' && /nouvel indice/.test(d.texte))
-      && r.ancienOuvert.fondCharge === true && /ANCIEN/.test(r.ancienOuvert.titre), j([r.second.liste, r.second.a001, r.ancienOuvert.titre]));
+      && r.ancienOuvert.fondCharge === true && /ANCIEN/.test(r.ancienOuvert.titre) && /Nouvel indice : PPSPS/.test(r.second.liste.info), j([r.second.liste, r.second.a001, r.ancienOuvert.titre]));
     verifier('… une fois le nouvel indice ouvert, l’ancien disparaît de la liste et du téléphone', r.apresNouvelIndice.liste.docs.length === 2 && r.apresNouvelIndice.a001 === 0
       && !r.apresNouvelIndice.liste.docs.some(d => d.id === '001-A'), j(r.apresNouvelIndice));
     verifier('compte désactivé : refus affiché (pas « pas de réseau »), tous les plans gardés sont effacés', r.desactive.liste.visible === false && r.desactive.occupation === 0

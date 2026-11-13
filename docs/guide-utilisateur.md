@@ -93,6 +93,15 @@ Dans un chantier, la tuile **« Carnet »** donne les plans validés par le bure
 - **Sans réseau**, vous relisez ce que vous avez déjà ouvert sur ce téléphone, aux endroits déjà regardés. Ouvrez donc vos plans une première fois quand vous avez du réseau.
 - « ● nouvel indice » : le plan a changé depuis votre dernière visite. Regardez-le.
 
+**Préparer son téléphone pour un chantier sans réseau**
+- Sous chaque document, **« ⬇ Tout télécharger »** (le poids est indiqué) ; en haut, le même bouton pour tout le chantier. Faites-le **en Wi-Fi** de préférence, et **gardez l'appli ouverte** : si vous la quittez, le téléchargement s'arrête et reprendra où il en était au prochain appui.
+- Comptez environ une minute pour 5 Mo. Le bouton devient « ⏸ Arrêter » pendant le téléchargement.
+- **« ✓ disponible sans réseau, en entier »** : tout le document se lit sans réseau, à tous les grossissements.
+- **« ⚠ plus disponible en entier »** : le téléphone a manqué de place et en a effacé une partie. Téléchargez-le de nouveau.
+- **« ⚠ ANCIEN INDICE »** (ligne rouge) : un nouvel indice est sorti et n'est pas encore dans votre téléphone. Ne posez pas d'après l'ancien sans vérifier.
+- **Android** : en Wi-Fi, les plans du chantier que vous ouvrez se téléchargent tout seuls (case « Télécharger les plans tout seul quand le téléphone est en Wi-Fi »). Attention : un partage de connexion depuis un autre téléphone compte comme du Wi-Fi ; décochez la case si votre forfait est limité.
+- **iPhone** : rien ne part tout seul ; appuyez sur « Tout télécharger ».
+
 ## Ne rien perdre : le brouillon
 
 - Tout ce que tu tapes est **gardé automatiquement** dans le téléphone, photos et signatures comprises.

@@ -2,6 +2,20 @@
 
 Chaque lot : **quoi**, **pourquoi**, **comment déployer**. Procédures détaillées dans `docs/lotN-procedure.md`.
 
+## Lot 4b — Carnet de chantier : hors réseau complet — appli 9.0, serveur v9.0 inchangé — **construit, pas encore en production** (ira avec le 4a, après l'essai sur iPhone)
+
+**Quoi**
+- **« ⬇ Tout télécharger »** sous chaque document (poids restant annoncé) et pour tout le chantier : avancement, arrêt, reprise où on en était. Une seule demande à la fois au serveur.
+- États dans la liste : **« ✓ disponible sans réseau, en entier »** ; **« ⚠ plus disponible en entier sans réseau »** quand le téléphone a fait de la place dans un document complet ; « ● Nouvel indice … téléchargez-le » sur les téléphones qui ne savent pas dire s'ils sont en Wi-Fi (iPhone).
+- **Android en Wi-Fi** : à l'ouverture du carnet d'un chantier, les plans incomplets se téléchargent tout seuls (case à cocher, cochée au départ), pour les poseurs seulement, jamais au-delà de 150 Mo de carnet, jamais quand des fiches attendent d'être envoyées, et plus après un arrêt par la personne.
+- La place se compte **avant** de commencer : un document qui ne tient pas est refusé avec les poids, sans rien effacer ; un document téléchargé en entier n'est jamais chassé par le téléchargement d'un autre.
+- Un ancien indice téléchargé en entier reste lisible tant que le nouveau ne l'est pas aussi.
+- L'écran reste allumé pendant un téléchargement.
+
+**Pourquoi** : préparer son téléphone au dépôt ou en Wi-Fi, et savoir à tout moment si un plan est lisible sans réseau (exigence 9).
+
+**Comment déployer** : `docs/lot4b-procedure.md` (aucun changement du serveur par rapport au lot 4a).
+
 ## Lot 4a — Carnet de chantier : déposer et lire — serveur v9.0, appli 9.0 — **construit, pas encore en production**
 
 **Quoi**
