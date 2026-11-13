@@ -8,8 +8,8 @@
 |---|---|
 | **A1. Transformer un grand plan en images sur le PC** | **Fait (13/11/2026).** Module `pypdfium2` 5.15.2 installé. Sur les trois gros PDF d'essai (16 Mo, pages de 1 400 × 841 mm à 200 dpi) : **12 à 102 secondes par grande page** (limite d'une commande de skill : 180 s), 36 fichiers et 2 à 8 Mo par grande page, images au total ≈ poids du PDF + 15 %. Contrôle à l'œil : cotes et repères nets, aucune cassure entre les bandes |
 | **A2. Un skill peut-il lancer ce programme et écrire dans le Drive ?** | **À faire par Franck** (20 minutes) : voir ci-dessous |
-| **B. Le serveur est-il assez rapide ?** | Serveur d'essai écrit et testé (13 tests) ; **attend un envoi clasp** de Franck, puis je lance `node tests/mesure-lot4.js` |
-| **C. Les plans ne prennent pas la place des fiches** | À faire par moi, dans le navigateur, sans rien demander à Franck |
+| **B. Le serveur est-il assez rapide ?** | **Fait (13/11/2026), objectifs tenus** : voir « Résultats de la mesure B » |
+| **C. Les plans ne prennent pas la place des fiches** | **Pas encore vérifié.** L'essai « carnet plein → une fiche avec photos part quand même » a besoin du vrai rangement du carnet dans le téléphone, qui s'écrit au lot 4a : il y sera un test obligatoire avant toute livraison (écart avec le plan, qui le prévoyait dès 4.0) |
 
 ## Essai A2 — à faire par Franck
 
@@ -85,6 +85,27 @@ Plan PDF à utiliser : (colle ici le chemin du plan)
 
 Ce que l'essai nous dira : quel Python utilise un skill et s'il a les deux modules ; s'il peut créer, réécrire et renommer un fichier dans le Drive de l'appli ; s'il voit le dépôt ; et le temps réel de transformation d'un grand plan. Les fichiers d'essai restent dans `CHANTIERPRO-TEST/_ESSAI SKILL` (tu pourras supprimer ce dossier toi-même après).
 
-## Mesure B — ce que je lance après l'envoi
+## Résultats de la mesure B (13/11/2026, copie TEST, serveur dc9f6f8892)
+
+| Geste | Mesuré (bon réseau) | dont serveur | Réponse | Avec une barre de réseau (**calculé**, pas mesuré) | Objectif |
+|---|---|---|---|---|---|
+| liste des documents | 3,7 s | 1,5 s | 1 Ko | 5,0 s | 8 s ✓ |
+| aperçu léger (70 Ko) | 4,6 s | 2,2 s | 93 Ko | 7,7 s | 10 s ✓ |
+| aperçu net (250 Ko) | 6,0 s | 2,9 s | 333 Ko | 14,0 s | — |
+| écran de 4 tuiles voisines (1 paquet) | 5,5 s | 2,5 s | 142 Ko | 9,6 s | 15 s ✓ |
+| écran de 6 tuiles sur 2 paquets | 5,8 s | 3,1 s | 204 Ko | 11,2 s | 15 s ✓ |
+| 16 tuiles d'un paquet (téléchargement de masse) | 5,4 s | 2,3 s | 554 Ko | 17,9 s | — |
+
+- Toutes les images reçues sont **identiques à l'octet près** à ce qui a été déposé (le découpage des paquets par le vrai serveur est juste).
+- **10 téléphones** en même temps (60 demandes) : 0 erreur, la plus lente 9,2 s. **15 téléphones** (90 demandes) : 0 erreur, la plus lente 9,2 s.
+- Aucun mail, faux document retiré, comptes d'essai refermés.
+
+Ce qu'il faut en retenir :
+- **Chaque demande coûte 4 à 6 secondes, même avec un bon réseau** (2 à 3 s dans le serveur, 2 s d'aller-retour chez Google). Le carnet ne sera jamais « instantané » en ligne : d'où l'aperçu léger affiché d'abord, et l'intérêt de tout garder dans le téléphone. Une page déjà vue s'ouvre, elle, tout de suite.
+- Le chiffre « une barre de réseau » est un **calcul** (3 allers-retours de 400 ms + 50 Ko/s) : il sera mesuré pour de bon dans Chrome en « 3G lente » avec la vraie page, au lot 4a.
+- Non mesuré ici : des fiches envoyées pendant que 15 téléphones lisent le carnet ; les paquets réels les plus lourds (690 Ko, contre 400 Ko dans l'essai). À refaire au 4a avec de vrais plans.
+- Format confirmé : paquets de 4 × 4 tuiles voisines, réponses de 300 Ko au plus en lecture.
+
+## Mesure B — comment elle est faite
 
 `node tests/mesure-lot4.js` : dépose un faux document (octets au hasard) dans le carnet du chantier d'essai, mesure la liste, les aperçus, des écrans de tuiles, puis 10 et 15 téléphones en même temps, compare chaque image reçue à ce qui a été déposé, et retire le faux document. Aucun mail, aucune donnée réelle.
