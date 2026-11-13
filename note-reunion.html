@@ -10,23 +10,24 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Note Réunion">
 <meta name="theme-color" content="#1A2B4A">
-<link rel="stylesheet" href="commun/style.css?v=17c0695f82">
-<link rel="stylesheet" href="commun/fiche.css?v=17c0695f82">
+<link rel="stylesheet" href="commun/style.css?v=f011393224">
+<link rel="stylesheet" href="commun/fiche.css?v=f011393224">
 <style>
 .photo-item-head .photo-item-num{flex:1;}
 .photo-legende{display:block;width:100%;min-height:48px;padding:0 12px;border:none;border-bottom:1px solid var(--border);background:#fff;font-size:16px;font-family:inherit;color:var(--text);outline:none;}
 .photo-item img{cursor:pointer;}
-/* Annotation des photos : plein écran, boutons de 44 px au moins (utilisables avec des gants) */
+.photo-item-head .btn-petit{min-height:48px;}
+/* Annotation des photos : plein écran, boutons de 48 px au moins (utilisables avec des gants) */
 .annot{position:fixed;inset:0;background:#111;z-index:200;display:flex;flex-direction:column;}
 .annot[hidden]{display:none;}
 body.loue-test .annot{top:40px;}
 .annot-barre{display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:6px 8px;background:var(--header-bg);}
 .annot-outil{min-width:48px;min-height:48px;border-radius:8px;border:2px solid transparent;background:rgba(255,255,255,.15);color:#fff;font-size:20px;font-family:inherit;cursor:pointer;}
 .annot-outil.active{border-color:#fff;background:rgba(255,255,255,.35);}
-.annot-couleur{width:44px;height:44px;border-radius:50%;border:3px solid rgba(255,255,255,.25);cursor:pointer;}
+.annot-couleur{width:48px;height:48px;border-radius:50%;border:3px solid rgba(255,255,255,.25);cursor:pointer;}
 .annot-couleur.active{border-color:#fff;box-shadow:0 0 0 2px var(--header-bg) inset;}
 .annot-taille{display:flex;align-items:center;gap:6px;color:#fff;font-size:14px;}
-.annot-taille input{width:90px;height:44px;accent-color:#0D7A6B;}
+.annot-taille input{width:90px;height:48px;accent-color:#0D7A6B;}
 .annot-zone{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;overflow:hidden;}
 #annot-canvas{display:block;touch-action:none;cursor:crosshair;background:#fff;}
 .annot-actions{display:flex;gap:8px;padding:8px 12px calc(8px + env(safe-area-inset-bottom,0px));background:var(--header-bg);}
@@ -100,7 +101,7 @@ body.loue-test .annot{top:40px;}
   <div class="section">
     <div class="section-head" style="color:var(--teal)">Photos et croquis</div>
     <div class="section-body">
-      <div class="aide">Touchez une photo (ou « Annoter ») pour dessiner dessus. Dans le PDF : une seule photo sous les notes, sinon deux photos par page.</div>
+      <div class="aide">Touchez une photo (ou « Annoter ») pour dessiner dessus. Vous pouvez y revenir : les traits se modifient et s’effacent jusqu’à l’envoi. Dans le PDF : une seule photo sous les notes, sinon deux photos par page.</div>
       <input type="file" id="photo-cam" accept="image/*" capture="environment" hidden onchange="ajouterPhotos(this.files);this.value=''">
       <input type="file" id="photo-galerie" accept="image/*" multiple hidden onchange="ajouterPhotos(this.files);this.value=''">
       <div class="photo-btns">
@@ -155,20 +156,20 @@ body.loue-test .annot{top:40px;}
   </div>
 </div>
 
-<script src="commun/config.js?v=17c0695f82"></script>
-<script src="commun/api.js?v=17c0695f82"></script>
-<script src="commun/ui.js?v=17c0695f82"></script>
-<script src="commun/photos.js?v=17c0695f82"></script>
-<script src="commun/brouillon.js?v=17c0695f82"></script>
-<script src="commun/hors-ligne.js?v=17c0695f82"></script>
-<script src="commun/adresses.js?v=17c0695f82"></script>
-<script src="commun/destinataires.js?v=17c0695f82"></script>
-<script src="modeles/mise-en-page.js?v=17c0695f82"></script>
-<script src="modeles/note.js?v=17c0695f82"></script>
+<script src="commun/config.js?v=f011393224"></script>
+<script src="commun/api.js?v=f011393224"></script>
+<script src="commun/ui.js?v=f011393224"></script>
+<script src="commun/photos.js?v=f011393224"></script>
+<script src="commun/brouillon.js?v=f011393224"></script>
+<script src="commun/hors-ligne.js?v=f011393224"></script>
+<script src="commun/adresses.js?v=f011393224"></script>
+<script src="commun/destinataires.js?v=f011393224"></script>
+<script src="modeles/mise-en-page.js?v=f011393224"></script>
+<script src="modeles/note.js?v=f011393224"></script>
 <script>
 'use strict';
 // ── État de la fiche ──
-let photos = [];          // [{ id, blob, url, label, annotee }]
+let photos = [];          // [{ id, blob, url, label, annotee, anciens, origine, traits }] (origine et traits : voir « Annotation »)
 let LISTES = { contacts: [], contactNotes: [], chantiers: [] };
 const prevenir = () => document.dispatchEvent(new Event('change'));   // déclenche la sauvegarde du brouillon
 
@@ -200,12 +201,16 @@ LOUE.chargerListes().then(r => {
 const DEST = LOUE.destinataires({ contacts: () => (LISTES.contactNotes || []).concat(LISTES.contacts || []) });
 
 // ── Photos : compressées dès qu'on les ajoute (200 à 400 Ko chacune) ──
+// Le serveur refuse une photo de plus de 1,5 Mo : la page ne garde jamais une image plus lourde que POIDS_MAX_PHOTO.
+const POIDS_MAX_PHOTO = 1400 * 1024;
 async function ajouterPhotos(fichiers) {
   for (const f of Array.from(fichiers || [])) {
     if (photos.length >= LOUE.PHOTOS_MAX) { LOUE.message(LOUE.PHOTOS_MAX + ' photos au maximum par note'); break; }
     try {
-      const blob = await LOUE.compresserPhoto(f);
-      photos.push({ id: LOUE.nouvelId('photo'), blob, url: URL.createObjectURL(blob), label: '', annotee: false });
+      let blob = await LOUE.compresserPhoto(f);
+      if (blob.size > POIDS_MAX_PHOTO) blob = await LOUE.compresserPhoto(f, 1200);   // photo très détaillée : un peu plus petite
+      if (blob.size > POIDS_MAX_PHOTO) throw new Error('Photo trop lourde pour être envoyée (1,5 Mo au plus). Reprenez-la d’un peu plus loin.');
+      photos.push({ id: LOUE.nouvelId('photo'), blob, url: URL.createObjectURL(blob), label: '', annotee: false, anciens: false, origine: null, traits: null });
     } catch (err) { LOUE.message(err.message, 8000); }
   }
   afficherPhotos(); prevenir();
@@ -217,34 +222,123 @@ function retirerPhoto(i) {
 }
 function afficherPhotos() {
   const liste = document.getElementById('photos-list');
+  // loading="lazy" : les photos hors de l'écran ne sont pas décodées (dix photos de 1 600 px ne tiennent pas toutes en mémoire)
   liste.innerHTML = photos.map((p, i) =>
     '<div class="photo-item"><div class="photo-item-head"><span class="photo-item-num">Photo ' + (i + 1) + (p.annotee ? ' (annotée)' : '') + '</span>'
     + '<button class="btn btn-secondary btn-petit" type="button" onclick="ouvrirAnnotation(' + i + ')">✏️ Annoter</button>'
     + '<button class="btn btn-secondary btn-petit" type="button" onclick="retirerPhoto(' + i + ')">Retirer</button></div>'
     + '<input class="photo-legende" data-i="' + i + '" placeholder="Légende ou commentaire (facultatif)…" data-brouillon="non" aria-label="Légende de la photo ' + (i + 1) + '" value="' + LOUE.esc(p.label) + '">'
-    + '<img src="' + p.url + '" alt="Photo ' + (i + 1) + ' — touchez pour annoter" onclick="ouvrirAnnotation(' + i + ')"></div>').join('');
+    + '<img src="' + p.url + '" loading="lazy" decoding="async" alt="Photo ' + (i + 1) + ' — touchez pour annoter" onclick="ouvrirAnnotation(' + i + ')"></div>').join('');
   liste.querySelectorAll('.photo-legende').forEach(el => el.addEventListener('input', () => { photos[+el.dataset.i].label = el.value; }));
 }
+// Remplace l'image affichée et envoyée d'une photo (l'ancienne adresse est rendue au navigateur)
+function changerImage(p, blob) {
+  URL.revokeObjectURL(p.url);
+  p.blob = blob; p.url = URL.createObjectURL(blob); p.dataB64 = null;
+}
 
-// ── Annotation d'une photo ──
-// Le dessin se fait sur la photo en PLEINE résolution (avant : réduite à la largeur de l'écran, donc floue dans le PDF).
-// Les traits sont gardés un par un : « Annuler le dernier trait » ne consomme pas de mémoire, la gomme rend la photo d'origine.
-const ANNOT = { i: null, img: null, formes: [], courante: null, outil: 'stylo', couleur: '#E53E3E', taille: 3, image: null };
+// ── Annotation d'une photo (lot 8a : une annotation validée peut être ROUVERTE) ──
+// Le dessin se fait sur la photo en PLEINE résolution. La page garde, pour chaque photo annotée :
+//   - « origine » : la photo d'avant l'annotation, jamais modifiée ;
+//   - « traits »  : la liste des traits, un par un (format compact ci-dessous) ;
+//   - « blob »    : l'image finale, REFAITE DEPUIS L'ORIGINE à chaque « Valider » (jamais de recompression en chaîne).
+// La gomme repeint la photo d'origine le long de son passage : elle efface les traits, pas la photo.
+// Un trait : { o: 's' stylo | 'f' flèche | 'r' rectangle | 'g' gomme, c: couleur, e: épaisseur, t: taille de la tête
+// de flèche, p: [x0, y0, x1, y1, …] } — en pixels ENTIERS de la photo ; un tracé au stylo est élagué (points inutiles retirés).
+const OUTILS_TRAIT = { stylo: 's', fleche: 'f', rect: 'r', gomme: 'g' };
+const TRAITS_MAX_CAR = 120000;   // au-delà (des centaines de traits), l'annotation est gardée « à plat » : le brouillon reste léger
+const ANNOT = { i: null, img: null, adresse: '', formes: [], depart: '[]', courante: null, occupe: false, outil: 'stylo', couleur: '#E53E3E', taille: 3 };
 const toile = document.getElementById('annot-canvas');
+
+function traitsValables(t) {
+  return Array.isArray(t) && t.length > 0 && t.every(f => f && typeof f.o === 'string' && 'sfrg'.indexOf(f.o) > -1 && f.o.length === 1
+    && typeof f.e === 'number' && isFinite(f.e) && Array.isArray(f.p) && f.p.length >= 2 && f.p.length % 2 === 0
+    && f.p.every(n => typeof n === 'number' && isFinite(n)) && (f.c === undefined || /^#[0-9A-Fa-f]{6}$/.test(f.c)));
+}
+// Élagage d'un tracé (méthode de Douglas-Peucker, sans récursion) : on ne garde que les points qui s'écartent
+// de plus de « tolerance » pixels de la ligne tracée entre leurs voisins gardés
+function elaguer(p, tolerance) {
+  const n = p.length / 2;
+  if (n < 3) return p;
+  const garde = new Uint8Array(n); garde[0] = garde[n - 1] = 1;
+  const pile = [[0, n - 1]];
+  while (pile.length) {
+    const [a, b] = pile.pop();
+    const ax = p[2 * a], ay = p[2 * a + 1], dx = p[2 * b] - ax, dy = p[2 * b + 1] - ay, long = Math.hypot(dx, dy);
+    let max = 0, k = -1;
+    for (let j = a + 1; j < b; j++) {
+      const px = p[2 * j] - ax, py = p[2 * j + 1] - ay;
+      const d = long ? Math.abs(px * dy - py * dx) / long : Math.hypot(px, py);
+      if (d > max) { max = d; k = j; }
+    }
+    if (k > -1 && max > tolerance) { garde[k] = 1; pile.push([a, k], [k, b]); }
+  }
+  const s = [];
+  for (let j = 0; j < n; j++) if (garde[j]) s.push(p[2 * j], p[2 * j + 1]);
+  return s;
+}
+// Dessine un trait sur une toile ; fond : la photo d'origine (pour la gomme)
+function tracer(ctx, f, fond) {
+  const p = f.p, ax = p[0], ay = p[1], bx = p[p.length - 2], by = p[p.length - 1];
+  ctx.save();
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.lineWidth = f.e;
+  // Gomme : on repeint avec la photo d'origine (aucun trait blanc sur la photo)
+  ctx.strokeStyle = f.o === 'g' ? ctx.createPattern(fond, 'no-repeat') : (f.c || '#E53E3E');
+  ctx.beginPath();
+  if (f.o === 'r') {
+    ctx.rect(ax, ay, bx - ax, by - ay);
+  } else if (f.o === 'f') {
+    const angle = Math.atan2(by - ay, bx - ax), tete = f.t || f.e * 3;
+    ctx.moveTo(ax, ay); ctx.lineTo(bx, by);
+    ctx.lineTo(bx - tete * Math.cos(angle - Math.PI / 6), by - tete * Math.sin(angle - Math.PI / 6));
+    ctx.moveTo(bx, by);
+    ctx.lineTo(bx - tete * Math.cos(angle + Math.PI / 6), by - tete * Math.sin(angle + Math.PI / 6));
+  } else {
+    ctx.moveTo(ax, ay);
+    if (p.length === 2) ctx.lineTo(ax + 0.1, ay);
+    for (let k = 2; k < p.length; k += 2) ctx.lineTo(p[k], p[k + 1]);
+  }
+  ctx.stroke();
+  ctx.restore();
+}
+// Photo (Blob) → image décodée ; l'adresse temporaire est rendue dès que l'image est lue
+function lireImage(blob) {
+  return new Promise((ok, ko) => {
+    const adresse = URL.createObjectURL(blob), img = new Image();
+    img.onload = () => ok({ img, adresse });
+    img.onerror = () => { URL.revokeObjectURL(adresse); ko(new Error('illisible')); };
+    img.src = adresse;
+  });
+}
+// Toile → JPEG sous la limite du serveur (qualité baissée si besoin) ; null si le téléphone n'y arrive pas
+function toileEnJpeg(c) {
+  const qualites = [0.85, 0.7, 0.5];
+  return new Promise(ok => {
+    const essai = k => {
+      try {
+        c.toBlob(b => { if (b && b.size > POIDS_MAX_PHOTO && k + 1 < qualites.length) essai(k + 1); else ok(b && b.size <= POIDS_MAX_PHOTO ? b : null); }, 'image/jpeg', qualites[k]);
+      } catch (e) { ok(null); }
+    };
+    essai(0);
+  });
+}
+
 function ouvrirAnnotation(i) {
   const p = photos[i];
-  if (!p) return;
-  const img = new Image();
-  img.onload = () => {
-    Object.assign(ANNOT, { i, img, formes: [], courante: null });
-    toile.width = img.naturalWidth; toile.height = img.naturalHeight;
+  if (!p || ANNOT.img || ANNOT.occupe) return;
+  const modifiable = !!(p.origine && p.traits);
+  ANNOT.occupe = true;
+  lireImage(modifiable ? p.origine : p.blob).then(r => {
+    const formes = modifiable ? JSON.parse(JSON.stringify(p.traits)) : [];
+    Object.assign(ANNOT, { i, img: r.img, adresse: r.adresse, formes, depart: JSON.stringify(formes), courante: null, occupe: false });
+    toile.width = r.img.naturalWidth; toile.height = r.img.naturalHeight;
     document.getElementById('annot').hidden = false;
     document.body.style.overflow = 'hidden';
     ajusterAnnotation(); dessinerAnnotation();
-    requestAnimationFrame(ajusterAnnotation);   // barre d'outils sur deux lignes : la zone peut encore changer
-  };
-  img.onerror = () => LOUE.message('Photo illisible : impossible de l’annoter', 6000);
-  img.src = p.url;
+    requestAnimationFrame(ajusterAnnotation);   // barre d'outils sur plusieurs lignes : la zone peut encore changer
+    // Photo annotée avant la mise à jour (ou annotation trop chargée) : ses traits sont fondus dans l'image
+    if ((p.annotee && !modifiable) || p.anciens) LOUE.message('Les anciens traits de cette photo ne s’effacent plus.', 7000);
+  }).catch(() => { ANNOT.occupe = false; LOUE.message('Photo illisible : impossible de l’annoter', 6000); });
 }
 function ajusterAnnotation() {
   if (!ANNOT.img) return;
@@ -256,32 +350,11 @@ function ajusterAnnotation() {
 }
 window.addEventListener('resize', () => { if (!document.getElementById('annot').hidden) ajusterAnnotation(); });
 function echelle() { const r = toile.getBoundingClientRect(); return r.width ? toile.width / r.width : 1; }
+// Position du doigt, en pixels entiers de la photo (gardée dans l'image)
 function position(ev) {
   const r = toile.getBoundingClientRect();
-  return { x: (ev.clientX - r.left) * toile.width / r.width, y: (ev.clientY - r.top) * toile.height / r.height };
-}
-function tracer(ctx, f) {
-  const pts = f.points, a = pts[0], b = pts[pts.length - 1];
-  ctx.save();
-  ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.lineWidth = f.epaisseur;
-  // Gomme : on repeint avec la photo d'origine (aucun trait blanc sur la photo)
-  ctx.strokeStyle = f.outil === 'gomme' ? ctx.createPattern(ANNOT.img, 'no-repeat') : f.couleur;
-  ctx.beginPath();
-  if (f.outil === 'rect') {
-    ctx.rect(a.x, a.y, b.x - a.x, b.y - a.y);
-  } else if (f.outil === 'fleche') {
-    const angle = Math.atan2(b.y - a.y, b.x - a.x);
-    ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y);
-    ctx.lineTo(b.x - f.tete * Math.cos(angle - Math.PI / 6), b.y - f.tete * Math.sin(angle - Math.PI / 6));
-    ctx.moveTo(b.x, b.y);
-    ctx.lineTo(b.x - f.tete * Math.cos(angle + Math.PI / 6), b.y - f.tete * Math.sin(angle + Math.PI / 6));
-  } else {
-    ctx.moveTo(a.x, a.y);
-    if (pts.length === 1) ctx.lineTo(a.x + 0.1, a.y);
-    for (let k = 1; k < pts.length; k++) ctx.lineTo(pts[k].x, pts[k].y);
-  }
-  ctx.stroke();
-  ctx.restore();
+  const borne = (v, max) => Math.max(0, Math.min(max, Math.round(v)));
+  return [borne((ev.clientX - r.left) * toile.width / r.width, toile.width), borne((ev.clientY - r.top) * toile.height / r.height, toile.height)];
 }
 let dessinPrevu = false;
 function dessinerAnnotation() {
@@ -289,34 +362,42 @@ function dessinerAnnotation() {
   if (!ANNOT.img) return;
   const ctx = toile.getContext('2d');
   ctx.drawImage(ANNOT.img, 0, 0, toile.width, toile.height);
-  ANNOT.formes.forEach(f => tracer(ctx, f));
-  if (ANNOT.courante) tracer(ctx, ANNOT.courante);
+  ANNOT.formes.forEach(f => tracer(ctx, f, ANNOT.img));
+  if (ANNOT.courante) tracer(ctx, ANNOT.courante, ANNOT.img);
 }
 function redessiner() { if (!dessinPrevu) { dessinPrevu = true; requestAnimationFrame(dessinerAnnotation); } }
 toile.addEventListener('pointerdown', ev => {
-  if (!ANNOT.img) return;
+  if (!ANNOT.img || ANNOT.occupe) return;
   ev.preventDefault();
   try { toile.setPointerCapture(ev.pointerId); } catch (e) {}
-  const e = echelle();
-  const epaisseur = ANNOT.taille * e * (ANNOT.outil === 'gomme' ? 4 : 1);
-  ANNOT.courante = { outil: ANNOT.outil, couleur: ANNOT.couleur, epaisseur, tete: Math.max(18 * e, epaisseur * 3), points: [position(ev)] };
+  const e = echelle(), o = OUTILS_TRAIT[ANNOT.outil] || 's';
+  const epaisseur = Math.max(1, Math.round(ANNOT.taille * e * (o === 'g' ? 4 : 1)));
+  ANNOT.courante = { o, e: epaisseur, p: position(ev) };
+  if (o !== 'g') ANNOT.courante.c = ANNOT.couleur;
+  if (o === 'f') ANNOT.courante.t = Math.round(Math.max(18 * e, epaisseur * 3));
   redessiner();
 });
 toile.addEventListener('pointermove', ev => {
-  if (!ANNOT.courante) return;
+  const f = ANNOT.courante;
+  if (!f) return;
   ev.preventDefault();
-  const p = position(ev);
-  if (ANNOT.courante.outil === 'stylo' || ANNOT.courante.outil === 'gomme') ANNOT.courante.points.push(p);
-  else ANNOT.courante.points[1] = p;
+  const q = position(ev);
+  if (f.o === 's' || f.o === 'g') {
+    if (q[0] !== f.p[f.p.length - 2] || q[1] !== f.p[f.p.length - 1]) f.p.push(q[0], q[1]);   // le même pixel deux fois : inutile
+  } else { f.p[2] = q[0]; f.p[3] = q[1]; }
   redessiner();
 });
 function finTrait() {
-  if (!ANNOT.courante) return;
-  ANNOT.formes.push(ANNOT.courante); ANNOT.courante = null; redessiner();
+  const f = ANNOT.courante;
+  if (!f) return;
+  ANNOT.courante = null;
+  // Tracé allégé avant d'être gardé : un écart de moins d'un pixel d'écran ne se voit pas
+  if (f.o === 's' || f.o === 'g') f.p = elaguer(f.p, Math.max(1, echelle() * 0.75));
+  ANNOT.formes.push(f); redessiner();
 }
 toile.addEventListener('pointerup', finTrait);
 toile.addEventListener('pointercancel', finTrait);
-function annulerTrait() { ANNOT.formes.pop(); redessiner(); }
+function annulerTrait() { if (ANNOT.occupe) return; ANNOT.formes.pop(); redessiner(); }
 document.querySelectorAll('.annot-outil[data-outil]').forEach(b => b.addEventListener('click', () => {
   ANNOT.outil = b.dataset.outil;
   document.querySelectorAll('.annot-outil[data-outil]').forEach(x => x.classList.toggle('active', x === b));
@@ -328,45 +409,105 @@ document.querySelectorAll('.annot-couleur').forEach(b => b.addEventListener('cli
 }));
 document.getElementById('annot-taille').addEventListener('input', ev => { ANNOT.taille = +ev.target.value; });
 function fermerAnnotation(garder) {
-  const i = ANNOT.i;
+  if (ANNOT.occupe) return;
+  const i = ANNOT.i, p = photos[i];
   const fermer = () => {
     document.getElementById('annot').hidden = true;
     document.body.style.overflow = '';
-    Object.assign(ANNOT, { i: null, img: null, formes: [], courante: null });
+    if (ANNOT.adresse) URL.revokeObjectURL(ANNOT.adresse);
+    Object.assign(ANNOT, { i: null, img: null, adresse: '', formes: [], depart: '[]', courante: null, occupe: false });
+    toile.width = toile.height = 1;   // la grande toile rend sa mémoire tout de suite
   };
+  finTrait();
+  const change = JSON.stringify(ANNOT.formes) !== ANNOT.depart;
   if (!garder) {
-    if (ANNOT.formes.length && !confirm('Abandonner les annotations de cette photo ?')) return;
+    if (change && !confirm('Abandonner les changements faits sur cette photo ?')) return;
     fermer(); return;
   }
-  if (!ANNOT.formes.length || !photos[i]) { fermer(); return; }
-  dessinerAnnotation();
-  toile.toBlob(blob => {
-    if (!blob) { LOUE.message('Annotation impossible (mémoire du téléphone ?). Réessayez.', 6000); return; }
-    const p = photos[i];
-    URL.revokeObjectURL(p.url);
-    Object.assign(p, { blob, url: URL.createObjectURL(blob), annotee: true, dataB64: null });
+  if (!change || !p) { fermer(); return; }   // rien de neuf : l'image n'est pas refaite (aucune recompression)
+  const modifiable = !!(p.origine && p.traits);
+  if (!ANNOT.formes.length) {
+    // Tous les traits retirés : la photo redevient la photo d'origine, telle quelle
+    if (modifiable) { changerImage(p, p.origine); Object.assign(p, { origine: null, traits: null, annotee: !!p.anciens }); }
+    fermer(); afficherPhotos(); prevenir(); return;
+  }
+  ANNOT.occupe = true;
+  dessinerAnnotation();   // la photo d'origine, puis tous les traits
+  toileEnJpeg(toile).then(blob => {
+    ANNOT.occupe = false;
+    // Échec : rien n'est changé (la photo, son origine et ses traits d'avant restent), l'annotation reste ouverte
+    if (!blob) { LOUE.message('Annotation impossible (mémoire du téléphone ?). Réessayez, ou touchez « Annuler » : la photo d’avant est gardée.', 8000); return; }
+    const traits = ANNOT.formes, leger = JSON.stringify(traits).length <= TRAITS_MAX_CAR;
+    const origine = modifiable ? p.origine : p.blob;
+    changerImage(p, blob);
+    // « anciens » : la photo portait déjà des traits fondus dans l'image (annotée avant le lot 8) : ceux-là ne s'effacent pas
+    Object.assign(p, { anciens: !!p.anciens || (!modifiable && !!p.annotee), annotee: true, origine: leger ? origine : null, traits: leger ? traits : null });
+    if (!leger) LOUE.message('Annotation enregistrée. Il y a beaucoup de traits : ils ne pourront plus être modifiés.', 7000);
     fermer();
     afficherPhotos(); prevenir();
-  }, 'image/jpeg', 0.85);
+  });
+}
+// Image finale refaite depuis l'origine et les traits, hors de l'écran (brouillon dont l'image finale n'est plus la bonne)
+function refaireImage(origine, traits) {
+  return lireImage(origine).then(r => {
+    const c = document.createElement('canvas');
+    c.width = r.img.naturalWidth; c.height = r.img.naturalHeight;
+    const ctx = c.getContext('2d');
+    ctx.drawImage(r.img, 0, 0);
+    traits.forEach(f => tracer(ctx, f, r.img));
+    return toileEnJpeg(c).then(blob => { URL.revokeObjectURL(r.adresse); c.width = c.height = 1; return blob; });
+  });
 }
 
-// ── Brouillon automatique : champs + destinataires + photos (annotées ou non) et leurs légendes ──
+// ── Brouillon automatique : champs + destinataires + photos (annotées ou non), leurs légendes et leurs traits ──
 // Reprend l'ancien brouillon de la page (« brouillon_note » : texte seul).
+// Le format contient celui d'avant le lot 8 : une photo sans trait est gardée exactement comme avant ; une photo annotée
+// garde EN PLUS son origine et ses traits. Un brouillon d'avant le lot 8 se restaure donc tel quel, et une page d'avant
+// le lot 8 relit un brouillon d'aujourd'hui (l'image finale est à sa place habituelle).
 LOUE.preRemplirChantier('meta-chantier');   // lot 2 : chantier choisi à l'accueil (avant la photo de la page vierge)
+let refections = Promise.resolve();   // images finales en cours de réfection après un brouillon restauré (une à la fois)
+function photoDuBrouillon(x) {
+  const p = { id: x.id || LOUE.nouvelId('photo'), blob: x.blob, url: URL.createObjectURL(x.blob), label: x.label || '', annotee: !!x.annotee, anciens: !!x.anciens, origine: null, traits: null };
+  if (!traitsValables(x.traits)) return p;   // photo sans trait, ou annotée avant le lot 8 (traits fondus dans l'image)
+  const origine = x.origine && x.origine.blob instanceof Blob ? x.origine.blob : null;
+  let aRefaire = false;
+  if (origine) { p.origine = origine; p.traits = x.traits; aRefaire = !!x.poids && x.blob.size !== x.poids; }
+  // Copie de secours du brouillon (sans les photos) plus récente que la copie complète : l'image retrouvée est encore
+  // la photo d'origine, les traits sont à redessiner dessus
+  else if (x.poidsOrigine && x.blob.size === x.poidsOrigine && x.poids !== x.poidsOrigine) { p.origine = x.blob; p.traits = x.traits; aRefaire = true; }
+  if (aRefaire) {
+    refections = refections.then(() => refaireImage(p.origine, p.traits)).then(blob => {
+      if (!blob || photos.indexOf(p) < 0) return;
+      changerImage(p, blob); p.annotee = true; afficherPhotos(); prevenir();
+    }).catch(() => {});
+  }
+  return p;
+}
 const BROUILLON = LOUE.brouillon({
   champChantier: 'meta-chantier',
   cle: 'note',
   anciennesCles: ['brouillon_note'],
   capturer: () => ({
     destinataires: DEST.liste(),
-    photos: photos.map(p => ({ id: p.id, blob: p.blob, label: p.label, annotee: !!p.annotee })),
+    photos: photos.map(p => {
+      const o = { id: p.id, blob: p.blob, label: p.label, annotee: !!p.annotee };
+      // « origine » a son propre identifiant : la brique du brouillon sait ainsi la retrouver dans sa copie complète
+      if (p.origine && p.traits) Object.assign(o, { origine: { id: p.id + '-o', blob: p.origine }, traits: p.traits, poids: p.blob.size, poidsOrigine: p.origine.size });
+      if (p.anciens) o.anciens = true;
+      return o;
+    }),
   }),
   restaurer: x => {
     DEST.remettre(x.destinataires);
     photos.forEach(p => URL.revokeObjectURL(p.url));
-    photos = (x.photos || []).filter(p => p && p.blob)
-      .map(p => ({ id: p.id || LOUE.nouvelId('photo'), blob: p.blob, url: URL.createObjectURL(p.blob), label: p.label || '', annotee: !!p.annotee }));
+    photos = (x.photos || []).filter(p => p && p.blob instanceof Blob).map(photoDuBrouillon);
     afficherPhotos();
+    // Brouillon écrit par une version plus récente de la page (retour arrière après le lot 8b) : les présents, que cette
+    // version ne connaît pas, sont versés dans les notes au lieu d'être perdus
+    if (Array.isArray(x.presents) && x.presents.length) {
+      const c = document.getElementById('meta-commentaires'), ligne = 'Présents : ' + x.presents.map(String).join(', ');
+      if (c.value.indexOf(ligne) < 0) c.value = ligne + (c.value ? '\n\n' + c.value : '');
+    }
   },
 });
 
@@ -435,9 +576,10 @@ async function envoyer() {
   envoiEnCours = true;
   const bouton = document.getElementById('btn-envoyer');
   bouton.disabled = true; bouton.textContent = 'Rangement dans le téléphone…';
-  const lesPhotos = photos.map(p => ({ id: p.id, blob: p.blob }));
-  let enFile = false;
+  let enFile = false, lesPhotos = [];
   try {
+    await refections;   // brouillon restauré : les images annotées finissent d’être refaites avant de partir
+    lesPhotos = photos.map(p => ({ id: p.id, blob: p.blob }));
     await LOUE.mettreEnFile('note', donneesFiche(false), lesPhotos, 'Note de réunion');
     enFile = true;
     await BROUILLON.effacer();   // la note est à l'abri dans la file d'envoi

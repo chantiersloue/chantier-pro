@@ -2,6 +2,23 @@
 
 Chaque lot : **quoi**, **pourquoi**, **comment déployer**. Procédures détaillées dans `docs/lotN-procedure.md`.
 
+## Lot 8a — Note de réunion : annotation des photos qu'on peut rouvrir — appli 10.0, serveur inchangé — **construit, testé contre le faux serveur seulement**
+
+**Quoi**
+- Dans la note de réunion, une photo déjà annotée peut être **rouverte** : ses traits reviennent un par un ; la gomme et « annuler le dernier trait » agissent aussi sur les anciens traits. Tous les traits retirés : la photo redevient la photo d'origine.
+- La page garde, pour chaque photo annotée, la **photo d'origine** et la **liste des traits**. À chaque « Valider », l'image envoyée est **refaite depuis l'origine** : la photo n'est plus recompressée à chaque validation (avant : les traits étaient fondus dans la photo dès le premier « Valider »).
+- Le brouillon automatique garde la photo, son origine et ses traits. Les traits sont allégés avant d'être gardés (points arrondis au pixel, tracé élagué) : 20 traits pèsent environ 1 400 caractères (mesuré par ).
+- Aucune photo de plus de 1,4 Mo n'est gardée par la page (le serveur refuse au-delà de 1,5 Mo) : qualité baissée si besoin, sinon message clair.
+- Une photo annotée **avant** la mise à jour garde ses anciens traits pour de bon ; la page le dit : « Les anciens traits de cette photo ne s'effacent plus. » Les nouveaux traits, eux, se modifient.
+- Boutons de l'annotation portés à 48 px (gants).
+- Fichiers :  seulement (plus  pour la version).  et  ne sont pas modifiés ; les autres fiches ne sont pas touchées.
+
+**Pourquoi** : sur un chantier, on se trompe de trait, ou on veut compléter une photo dix minutes plus tard. Jusqu'ici il fallait reprendre la photo (exigence 12 du plan, ).
+
+**Compatibilité vérifiée** : un brouillon de l'ancienne page se restaure tel quel ; l'ancienne page relit un brouillon de la nouvelle (l'image finale est à sa place habituelle) ; ce que la page envoie au serveur n'a pas changé.
+
+**Comment déployer** :  (pages seules : rien à faire dans Apps Script).
+
 ## Lot 4b — Carnet de chantier : hors réseau complet, et retrait de la tuile « Plans » — appli 9.0, serveur **v9.1** — **construit, pas encore en production** (ira avec le 4a)
 
 **Quoi**
