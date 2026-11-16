@@ -158,7 +158,7 @@ Le premier vérifie le lien et la copie d'essai dans un dossier temporaire, sans
 |---|---|
 | `outils\installer-tache.bat` | Met le passage automatique en place, sans droits d'administrateur. À relancer après une mise à jour de Python ou un déplacement du dépôt |
 | `outils\retirer-tache.bat` | L'arrête (aucun fichier n'est touché) |
-| `outils\appli-pc.bat` | Le menu : 1 tout traiter maintenant, sans question (fiches, puis carnet) ; 2 voir seulement, sans rien écrire — pour ces deux choix, le menu demande le numéro d'un seul chantier (Entrée = tous) ; 3 lire « A VOIR » ; 4 associer un dossier du Drive à un dossier de chantier quand le numéro ne suffit pas ; 5 retirer un document du carnet |
+| `outils\appli-pc.bat` | Le menu : 1 tout traiter maintenant, sans question (fiches, puis carnet) ; 2 voir seulement, sans rien écrire — pour ces deux choix, le menu demande le numéro d'un seul chantier (Entrée = tous) ; 3 lire « A VOIR » ; 4 associer un dossier du Drive à un dossier de chantier quand le numéro ne suffit pas ; 5 retirer un document du carnet ; 6 déclarer la numérotation des bordereaux d'un chantier (sans cela, rien ne part au carnet depuis ses bordereaux) |
 
 Ses réglages sont dans `_prive\depot.json` (jamais sur GitHub). Il ne supprime, ne déplace et n'écrase jamais rien. Mode d'emploi complet, limites et retour arrière : `docs/lot4c-procedure.md`. Ses tests, sur de faux dossiers, sans créer de tâche planifiée :
 

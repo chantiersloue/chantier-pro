@@ -33,12 +33,12 @@ Le programme ne devine jamais quel dossier du Drive correspond à quel dossier d
 ```json
 { "racine": "<racine du Drive de l'appli sur le PC>", "chantiers_pc": "<dossier des chantiers sur le PC>",
   "chantiers": { "<n° du chantier>": { "chantier": "<nom dans l'appli>", "dossier_drive": "<nom du dossier dans le Drive>" } },
-  "anciens_codes": { "<ancien n° de document>": "<n° actuel>" } }
+  "bordereaux": { "<n° du chantier>": "actuelle" | { "<ancien n° de document>": "<n° actuel>" } | "non" } }
 ```
 
 - Le n° du chantier est lu au début du nom du dossier du chantier sur le PC (`NNN - …`).
 - Une commande d'aide (`--associer`) liste les dossiers de chantier du PC et Drive sans correspondance et pose la question pour chacun ; elle refuse un dossier Drive technique (nom commençant par `_`, `ADMINISTRATIF`, dossier de planning) ou en double (`nom (1)`).
-- `anciens_codes` : la table de passage des anciens numéros de documents aux nouveaux (décision de numérotation du 31/10/2026), à remplir avec Franck ; un document dont le numéro n'est ni actuel ni dans cette table est montré « numéro non reconnu » et n'est pas proposé.
+- `bordereaux` (remplace la table générale `anciens_codes` de la première version, chapitre 12) : la numérotation des bordereaux, déclarée par Franck chantier par chantier ; sans déclaration, rien ne part au carnet depuis les bordereaux de ce chantier.
 
 ### 3.2 Déposer au carnet
 - Le programme parcourt, pour chaque chantier suivi, `08 - DOCUMENTS ENVOYES AVEC BORDEREAU/BORDEREAU n/*.pdf`. Il ne retient que les fichiers nommés `<n° chantier>-<lot>-<n° document>-<indice>-<INTITULÉ>.pdf` dont : le n° de chantier est celui du dossier ; le n° de document (après passage par `anciens_codes`) est dans la liste du carnet ; l'indice n'est **pas déjà au carnet** ; le fichier n'a pas été **écarté** par Franck.
@@ -142,10 +142,12 @@ Le programme écrit ensuite **deux fichiers distincts** :
 Elles **remplacent** la règle « dépôt au double-clic, avec confirmation document par document » (§3.2, §8 et chapitre 10).
 
 - **Le carnet se remplit tout seul**, par la même tâche planifiée que la recopie des fiches (toutes les heures, et à l'ouverture de session), sans aucune question.
-- **Deux sources** : (1) le dossier `À METTRE AU CARNET`, que Franck crée à la racine d'un dossier de chantier du PC et où il glisse des PDF — forme complète des bordereaux, ou forme courte `<n° document>-<indice>-<INTITULÉ>.pdf` ; (2) les PDF des bordereaux (`08 - DOCUMENTS ENVOYES AVEC BORDEREAU`) dont le numéro est dans la liste du carnet, **sans délai**.
+- **Deux sources** : (1) le dossier `À METTRE AU CARNET`, que Franck crée à la racine d'un dossier de chantier du PC et où il glisse des PDF — forme complète des bordereaux, ou forme courte `<n° document>-<indice>-<INTITULÉ>.pdf`, numérotation actuelle seulement ; (2) les PDF des bordereaux (`08 - DOCUMENTS ENVOYES AVEC BORDEREAU`) dont le numéro est dans la liste du carnet, **sans délai**.
+- **Les bordereaux ne déposent que pour un chantier déclaré** (après relecture, 16/11/2026) : `_prive/depot.json`, clé `bordereaux` — « actuelle », ou une table propre au chantier dont **seuls** les numéros partent, convertis. Raison : un bordereau à l'ancienne numérotation porte des numéros qui existent aujourd'hui avec un autre sens (un document avec des prix serait publié comme un plan). Chantier non déclaré : rien, et une ligne dans « A VOIR ». Commande `--declarer NNN` (choix 6 du menu). Les chantiers se déclarent un par un : pas de premier passage qui publie tout l'historique d'un coup. « Voir seulement » donne par chantier le nombre de documents, de pages, et le poids estimé.
+- **Une erreur sur un document n'arrête pas les autres** ; après trois échecs, un PDF n'est plus retenté tant qu'il ne change pas. Les signalements de `À METTRE AU CARNET` et ceux d'un chantier entier restent tant que la cause est là ; ceux des bordereaux se taisent après sept jours.
 - **Rien n'est supprimé ni déplacé** : le programme retient ce qui est déjà déposé (`carnet.json` fait foi) et ce qu'il a déjà signalé (`_prive/carnet-memoire.json`).
 - **Ce qui ne peut pas être déposé est signalé** dans `CHANTIERPRO - A VOIR.txt` : nom non reconnu, numéro hors liste ou d'un autre chantier, même indice avec un autre contenu (« prends l'indice suivant »), PDF illisible, contenus différents entre `À METTRE AU CARNET` et un bordereau, fichier encore en cours d'écriture.
 - **Ce qui a été déposé est écrit** dans le journal et dans une section de « A VOIR », sept jours : Franck voit ce qui a été publié aux poseurs, et peut le retirer par le menu.
 - Garde-fous : deux minutes sans que le fichier bouge ; en-tête de PDF ; 200 Mo au plus ; pas de nouveau dépôt après 40 minutes de passage, reprise page par page au suivant ; un seul passage à la fois ; module manquant ou Drive pas prêt : signalé, la recopie des fiches continue.
 - Le chantier d'un dépôt est toujours celui du dossier de chantier du PC ; le nom d'un dossier n'est jamais écrit comme nom de chantier dans `carnet.json`.
-- **Conséquences assumées** : un bordereau préparé mais pas encore envoyé part au carnet ; plus personne ne confirme un document avant sa publication. D'où deux précautions dans la procédure : lire « Voir seulement » avant d'installer la tâche, et remplir **avant** la table des anciens numéros des chantiers anciens.
+- **Conséquences assumées** : un bordereau préparé mais pas encore envoyé part au carnet ; plus personne ne confirme un document avant sa publication. D'où l'ordre de la procédure : fiches seules sur un chantier ; déclarer sa numérotation ; « Voir seulement » ; le carnet sur ce chantier ; puis la tâche ; les autres chantiers un par un.
