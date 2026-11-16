@@ -60,3 +60,4 @@ Fiches réserves / OPR, repérage terrain, bon de livraison, colonne « actions 
 5. Avant toute migration de données : **sauvegarde** et procédure de retour arrière.
 6. Tiens à jour `CHANGELOG.md` (quoi, pourquoi, comment déployer) et `docs/guide-utilisateur.md` (mode d'emploi simple pour les poseurs).
 7. Pour chaque lot, liste ce que Franck doit faire lui-même et comment vérifier que ça marche.
+8. **Économie de la limite d'utilisation** (règle de Franck, 16/11/2026) : relecture par un agent indépendant **seulement pour les changements risqués** (serveur, envoi des mails, données, sécurité), et **un seul tour** si rien de bloquant ; pour une petite correction, la relecture de Claude suffit. Ne relancer que **les séries de tests concernées** par la modification ; toutes les séries seulement avant une livraison. **Comptes rendus courts.**

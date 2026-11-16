@@ -22,7 +22,7 @@
 |G|Adresse|Affichée dans « Mes chantiers »|
 |H|Client||
 |I|Architecte||
-|J|Date « Terminé »||
+|J|Date « Terminé »|Remplie toute seule par le serveur quand le statut passe à « Terminé », effacée s'il change (lot 5) ; une date saisie à la main est gardée. Sert à la purge (30 jours après)|
 |K|Chemin MEGA|Dossier du chantier dans MEGA|
 
 Statut (C) : liste En préparation / En cours / Terminé (avertissement seulement). Un chantier « Terminé » n'apparaît plus dans « Mes chantiers » des poseurs.
@@ -202,6 +202,88 @@ Aucun skill ne lit cet onglet (la règle 5 du contrat `docs/contrat-skills.md` a
 
 Aucun skill ne lit cet onglet. À ne pas confondre avec « Partages (lot 0) », qui sert au retour arrière du lot 0.
 
+## Onglets « Stockage », « Purges », « Purges détail » (lot 5 — créés par `installerLot5Test` / `installerLot5Production`)
+
+Remplis par le serveur. Franck ne coche que les deux cases de l'onglet *Purges* ; il peut trier les lignes (le serveur les retrouve par leur clé), mais ne doit rien modifier d'autre (Google l'avertit s'il essaie). Si une ligne de titres est changée, le serveur n'y lit et n'y écrit plus rien, et prévient Franck par mail.
+
+### « Stockage »
+
+Le haut de l'onglet (lignes 1 à 12) : le titre en colonne A, la valeur en colonne B.
+
+|Ligne|Titre (colonne A)|Valeur (colonne B)|
+|-|-|-|
+|1|Stockage du compte Google|L'état en une phrase : « Tout va bien : 41 % (alerte à 80 %) », « Attention : 82 % », « URGENT : 96 % », « Mesure en cours : 12 dossier(s) sur 31 »|
+|2|Place utilisée|En Go, sur 15 Go, et en %|
+|3|Mesurée le|Date de ce chiffre|
+|4|D'où vient ce chiffre|Service avancé Drive, ou DriveApp (à comparer avec one.google.com/storage)|
+|5|Dont Drive|Connu seulement avec le service avancé Drive|
+|6|Dont Gmail et Photos|idem|
+|7|Dont corbeille de Drive|idem|
+|8|Dossiers de l'appli|Poids et nombre de fichiers mesurés, date du dernier tour complet (ou « Mesure en cours »)|
+|9|Chantiers en cours|Nombre de chantiers au statut « En cours » (objectif de Franck : 35 à 40)|
+|10|Poids moyen d'un chantier en cours|Après un tour de mesure complet seulement ; vide si les données manquent|
+|11|Place pour d'autres chantiers|« À ce rythme, place pour environ n chantiers en cours de plus avant 80 % » (calcul prudent : chaque nouveau chantier compté une fois et demie le poids moyen)|
+|12|À savoir|Rappel fixe : les mails envoyés restent dans Gmail, qui compte dans les 15 Go|
+
+Le tableau : titres en ligne 14, une ligne par dossier de chantier à partir de la ligne 15.
+
+|Colonne|Titre|Contenu|
+|-|-|-|
+|A|Chantier|Nom du chantier (plusieurs noms si un dossier est noté pour plusieurs chantiers) ; ou une ligne d'ensemble : « Dossiers techniques », « Dossiers de la racine rattachés à aucun chantier », « Chantiers sans dossier », « Reste du compte »|
+|B|Statut|Celui de l'onglet *Chantiers*|
+|C|Date « Terminé »|Celle de l'onglet *Chantiers*|
+|D|Poids total (Mo)|Tout le dossier du chantier, corbeille non comptée|
+|E|dont carnet (Mo)||
+|F|dont fiches (Mo)|Les sous-dossiers des fiches de l'appli (`dossiers.json`)|
+|G|dont photos (Mo)||
+|H|dont autres (Mo)|Ce qui est hors des dossiers de l'appli (le relevé `releve-pc.json` compris)|
+|I|Fichiers|Nombre de fichiers|
+|J|Dernier dépôt au carnet|Date de `carnet.json`|
+|K|Anciens indices (nombre)|Dossiers du carnet que plus aucun document montré ne désigne|
+|L|Anciens indices (Mo)||
+|M|Mesuré le|Date de la mesure de CETTE ligne|
+|N|Purge|Ce que dit l'onglet *Purges* pour ce chantier|
+|O|Clé (ne pas modifier)|« chantier:identifiant du dossier » ou « special:… » : sert au serveur à retrouver la ligne|
+
+### « Purges »
+
+Une ligne par chose qui peut être mise à la corbeille de Drive. Le serveur n'efface et ne déplace jamais une ligne.
+
+|Colonne|Titre|Contenu|
+|-|-|-|
+|A|Chantier||
+|B|Quoi|« Anciens indices du carnet », « Chantier terminé », ou « Mails envoyés de plus de 3 mois » (une seule ligne, chantier « (tout le compte) »)|
+|C|Poids (Mo)|Ce qui partirait|
+|D|Fichiers|Nombre de fichiers qui partiraient|
+|E|Possible ?|oui / non|
+|F|Pourquoi (ou ce qui manque)|Si c'est non : ce qui manque, et quoi faire|
+|G|Mettre à la corbeille|**Case cochée par Franck.** N'agit que sur une ligne à l'état « Proposé ». Traitée dans la demi-heure, après une nouvelle vérification de toutes les conditions|
+|H|État|Proposé, Impossible, En cours, Fait, Fait (mail à envoyer), Annulation en cours, Annulé|
+|I|Message|Ce que le serveur a fait la dernière fois sur cette ligne|
+|J|Mis à la corbeille le|Date de la première mise à la corbeille de cette purge|
+|K|Fichiers mis à la corbeille|D'après l'onglet *Purges détail*|
+|L|Place libérée le|30 jours après la plus ancienne mise à la corbeille de cette purge : la corbeille compte dans les 15 Go|
+|M|Annuler|**Case cochée par Franck**, dans les 25 jours : tout ressort de la corbeille|
+|N|Annulation possible jusqu'au|25 jours après la plus ancienne mise à la corbeille de cette purge (remplie dès que la ligne est « En cours »)|
+|O|Mise à jour le||
+|P|Clé (ne pas modifier)|Quatre morceaux séparés par une barre verticale : la sorte (indices ou termine), le nom du chantier en minuscules, l'identifiant du dossier, un numéro. Sert au serveur à retrouver la ligne, même triée|
+
+### « Purges détail » (technique)
+
+Le journal : une ligne par fichier (ou par dossier de document du carnet), écrite « à faire » **avant** la mise à la corbeille, puis marquée. Sert à l'annulation, à la reprise après une coupure, et au retour arrière à la main.
+
+|Colonne|Titre|Contenu|
+|-|-|-|
+|A|Clé de la ligne|La clé de la ligne de l'onglet *Purges*|
+|B|Type|fichier, dossier, ou mail (identifiant du mail dans Gmail)|
+|C|Identifiant|Identifiant Drive|
+|D|Chemin|Depuis le dossier du chantier ; pour un mail : sa date et le début de son objet (seuls les mails mis à la corbeille sont notés)|
+|E|Taille (octets)||
+|F|Fichiers|1 pour un fichier ; le nombre de fichiers contenus pour un dossier|
+|G|Noté le||
+|H|État|à faire, fait, refusé : …, échec : …, non fait (exécution coupée), non fait (temps écoulé), remis, non remis (…) ; « — purge précédente » ajouté aux lignes d'une annulation plus ancienne sur la même clé|
+|I|Mis à jour le||
+
 ## Onglet « Dossiers chantiers » (lot 1.5)
 
 Écrit par l'appli : pour chaque chantier, le dossier Drive où elle range ses documents.
@@ -212,7 +294,7 @@ Aucun skill ne lit cet onglet. À ne pas confondre avec « Partages (lot 0) », 
 |B|Dossier Drive (son nom au moment où l'appli l'a noté)|
 |C|Identifiant du dossier (c'est lui qui fait foi pour l'appli)|
 |D|Trouvé par : nom exact / ressemblance / créé|
-|E|À vérifier : « OUI… » si le dossier a été trouvé par ressemblance|
+|E|À vérifier : « OUI… » si le dossier a été trouvé par ressemblance. Tant que cette cellule n'est pas vide, aucune purge n'est proposée pour ce chantier (lot 5) : vérifier le dossier, puis effacer la cellule|
 
 ## Onglet « Fonctions »
 

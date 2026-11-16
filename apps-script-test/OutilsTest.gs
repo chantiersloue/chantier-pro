@@ -22,6 +22,8 @@
 //   - les réponses ne contiennent ni mot de passe provisoire, ni nom de personne, ni nom de vrai chantier ;
 //   - un seul geste LIT Drive (dossierChantierEssai, rien n'y est écrit) : il refuse si le dossier racine ne s'appelle pas
 //     « … TEST … » ; avant d'en ajouter un qui écrit dans Drive, garder ce même refus ;
+//   - lot 5 : installerLot5 et des LECTURES (place du compte, onglets Stockage et Purges, examen de la purge du chantier
+//     d'essai) ; AUCUN geste ne met à la corbeille : une purge d'essai se fait par la case du Sheet TEST, comme en vrai ;
 //   - deux gestes rangent les restes d'essais dans le Sheet TEST : rangerAnciennesNotes (renomme, n'efface rien) et
 //     purgerNotesEssai (retire les seules lignes écrites par les essais automatiques, numéros « fiche-auto-… »).
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
@@ -87,6 +89,18 @@ function outilTest_(corps) {
         .map((l, i) => { if (i > 0 && !/^fiche-auto-/.test(String(l[0]))) l[0] = '(note réelle)'; return l; }) });
       case 'purgerComptesRendusEssai': return ok('Lignes des essais automatiques retirées', outilTestSousVerrou_(outilTestPurgerComptesRendus_));
       case 'installerLot8': { const r = installer_('Lot 8', 'TEST', etapesLot8_()); if (!r.ok) throw new Error('installation du lot 8 non terminée : ' + r.texte); return ok(r.texte); }
+      case 'installerLot5': { const r = installer_('Lot 5', 'TEST', etapesLot5_()); if (!r.ok) throw new Error('installation du lot 5 non terminée : ' + r.texte); return ok(r.texte); }
+      // Lot 5 — LECTURES seulement (aucun geste de cette porte ne met quoi que ce soit à la corbeille, pas même dans le chantier d'essai) :
+      //   placeCompte        : la place du compte vue par les deux sources (à comparer avec one.google.com/storage) ;
+      //   lireStockage       : le haut de l'onglet Stockage (aucun nom de chantier) ;
+      //   mesurerStockage    : lance un passage de mesure (lecture seule dans Drive ; écrit les onglets du Sheet TEST) ;
+      //   lirePurgesEssai    : les lignes de l'onglet Purges du chantier d'essai ;
+      //   examinerPurgeEssai : ce que la purge du chantier d'essai ferait, et ce qui manque (rien n'est fait).
+      case 'placeCompte':        return ok('Place du compte (octets)', outilTestPlaceCompte_());
+      case 'lireStockage':       return ok('Haut de l’onglet Stockage', outilTestLireStockage_());
+      case 'mesurerStockage':    return ok(mesurerStockage());
+      case 'lirePurgesEssai':    return ok('Lignes de l’onglet Purges du chantier d’essai', outilTestLirePurges_());
+      case 'examinerPurgeEssai': return ok('Examen de la purge du chantier d’essai (lecture seule)', outilTestExaminerPurge_());
       case 'poserDeclencheurs':    return ok(outilTestPoserDeclencheurs_());
       case 'retirerDeclencheurs':  return ok(outilTestRetirerDeclencheurs_());
       case 'traiterComptes': { const r = traiterComptes(); if (r !== 'ok') throw new Error('traiterComptes n’a pas tourné : ' + r); return ok('traiterComptes : fait'); }
@@ -359,6 +373,39 @@ function outilTestDossierEssai_() {
     } catch (e) { o.erreur = e.message; }
     return o;
   }) };
+}
+// ── Lot 5 : lectures (rien n'est mis à la corbeille par la porte de service) ──
+function outilTestPlaceCompte_() {
+  const p = placeCompte_();
+  const rendu = { source: p.source, utilise: p.utilise, limite: p.limite, pourcent: Math.round(p.pourcent * 10) / 10, drive: p.drive, corbeille: p.corbeille,
+    erreurServiceAvance: p.erreurAvance, serviceAvancePresent: typeof Drive !== 'undefined' };
+  try { rendu.driveApp = { utilise: Number(DriveApp.getStorageUsed()), limite: Number(DriveApp.getStorageLimit()) }; } catch (e) { rendu.driveApp = { erreur: e.message }; }
+  return rendu;
+}
+function outilTestLireStockage_() {
+  const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_STOCKAGE);
+  if (!sh) return { present: false };
+  // la ligne « Dossiers de l'appli » et les lignes d'ensemble ne contiennent aucun nom de chantier ; le tableau n'est pas rendu
+  return { present: true, titresBons: stkTitresBons_(sh), lignesDuTableau: Math.max(0, sh.getLastRow() - STK_LIGNE_TITRES),
+    resume: stkTitresBons_(sh) ? sh.getRange(1, 1, STK_RESUME.length, 2).getDisplayValues() : [], tourEnCours: !!stkSuite_() };
+}
+function outilTestLirePurges_() {
+  const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_PURGES);
+  if (!sh) return { present: false };
+  const bons = noteTitresBons_(sh, PRG_ENTETES);
+  const lignes = bons && sh.getLastRow() > 1 ? sh.getRange(2, 1, sh.getLastRow() - 1, PRG_ENTETES.length).getDisplayValues()
+    .filter(r => String(r[COL_P.chantier - 1]).trim() === OUTIL_TEST_CHANTIER).map(r => r.slice(0, COL_P.maj)) : [];   // sans la clé (identifiant Drive)
+  return { present: true, titresBons: bons, lignesEnTout: Math.max(0, sh.getLastRow() - 1), lignes: lignes };
+}
+function outilTestExaminerPurge_() {
+  const racine = DriveApp.getFolderById(driveRootId_());
+  if (!/TEST/i.test(racine.getName())) throw new Error('le dossier racine de ce serveur ne s’appelle pas « … TEST … »');
+  const ctx = prgContexte_(), c = ctx.chantiers[cleChantier_(OUTIL_TEST_CHANTIER)];
+  if (!c) throw new Error('chantier d’essai absent : geste preparerChantier d’abord');
+  const jamais = () => false;
+  const resume = (nature, ageReleveMs) => { const e = prgExaminer_(nature, c, ctx, ageReleveMs, jamais, null, null);
+    return { possible: e.possible, elements: e.items.length, fichiers: e.nb, octets: e.octets, texte: prgPourquoi_(nature, e) }; };
+  return { statut: c.statut, indices: resume('indices', 0), termineProposition: resume('termine', PRG_RELEVE_PROPOSITION_JOURS * PRG_JOUR_MS), terminePurge: resume('termine', PRG_RELEVE_PURGE_HEURES * 3600 * 1000) };
 }
 // Onglet « Accès chantiers » : la case du compte d'essai sur la ligne du chantier d'essai, et aucune autre
 function outilTestAcces_(id, valeur) {

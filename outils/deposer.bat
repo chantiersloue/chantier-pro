@@ -9,7 +9,7 @@ set /a VIDES=0
 echo.
 echo  DÉPÔT D'UN DOCUMENT AU CARNET D'UN CHANTIER
 echo  -------------------------------------------
-echo  Répondez à chaque question, puis appuyez sur Entrée.
+echo  Réponds à chaque question, puis appuie sur Entrée.
 echo.
 
 :question_dossier
@@ -25,12 +25,12 @@ if not defined DOSSIER goto question_dossier
 set /a VIDES+=1
 if %VIDES% GTR 30 goto abandon
 set "PDF="
-set /p "PDF=2. Chemin du PDF (vous pouvez glisser le fichier dans cette fenêtre) : "
+set /p "PDF=2. Chemin du PDF (tu peux glisser le fichier dans cette fenêtre) : "
 if not defined PDF goto question_pdf
 set "PDF=%PDF:"=%"
 if not defined PDF goto question_pdf
 if not exist "%PDF%" (
-  echo    Fichier introuvable. Recommencez.
+  echo    Fichier introuvable. Recommence.
   goto question_pdf
 )
 
@@ -75,15 +75,15 @@ if "%RESULTAT%"=="3" if %TOURS% LSS 200 (
 
 echo.
 if "%RESULTAT%"=="0" (
-  echo  TERMINÉ : le document est déposé. Laissez Google Drive finir l'envoi avant d'éteindre le PC.
+  echo  TERMINÉ : le document est déposé. Laisse Google Drive finir l'envoi avant d'éteindre le PC.
 ) else if "%RESULTAT%"=="2" (
-  echo  REFUSÉ ou ARRÊTÉ : lisez le message ci-dessus.
+  echo  REFUSÉ ou ARRÊTÉ : lis le message ci-dessus.
 ) else if "%RESULTAT%"=="3" (
-  echo  PAS FINI : relancez ce programme avec les mêmes réponses, le travail reprendra où il en est.
+  echo  PAS FINI : relance ce programme avec les mêmes réponses, le travail reprendra où il en est.
 ) else if "%RESULTAT%"=="9009" (
-  echo  Python est introuvable sur ce PC : montrez ce message pour le faire installer.
+  echo  Python est introuvable sur ce PC : montre ce message pour le faire installer.
 ) else (
-  echo  ERREUR inattendue ^(code %RESULTAT%^) : copiez le texte ci-dessus pour le montrer.
+  echo  ERREUR inattendue ^(code %RESULTAT%^) : copie le texte ci-dessus pour le montrer.
 )
 echo.
 pause

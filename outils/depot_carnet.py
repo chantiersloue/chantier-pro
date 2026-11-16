@@ -24,6 +24,7 @@ import os
 import re
 import sys
 import time
+import unicodedata
 
 # ── Réglages (faciles à modifier) ───────────────────────────────────────────
 # Les codes de documents acceptés au carnet, et la finesse du rendu (dpi = points d'image par pouce).
@@ -188,6 +189,19 @@ def ecrire_json(chemin, objet):
             os.remove(temporaire)        # notre propre fichier temporaire : la seule chose que le programme supprime
 
 
+def est_doublon(dossier, nom):
+    """Vrai si « nom » finit par « (n) » ET que le même nom sans « (n) » existe à côté : une copie fabriquée par Drive.
+    Un nom qui finit par « (2) » sans son jumeau est un vrai nom, pas un doublon."""
+    trouve = DOUBLON.search(nom)
+    if not trouve:
+        return False
+    voulu = unicodedata.normalize("NFC", nom[:trouve.start()] + (trouve.group(1) or "")).casefold()
+    try:
+        return any(unicodedata.normalize("NFC", present).casefold() == voulu for present in os.listdir(dossier))
+    except OSError:
+        return False
+
+
 def nom_simple(nom):
     return bool(nom) and nom not in (".", "..") and not re.search(r'[/\\:*?"<>|]', nom)
 
@@ -195,7 +209,7 @@ def nom_simple(nom):
 def dossier_carnet(racine, dossier):
     """Le chemin du dossier CARNET du chantier (qui n'existe peut-être pas encore). Refuse si la racine ou le chantier manquent."""
     if not racine or not os.path.isdir(racine):
-        raise Refus("La racine du Drive de l'appli est introuvable. Vérifiez --racine (ou _prive/depot.json), et que Google Drive pour ordinateur est démarré.")
+        raise Refus("La racine du Drive de l'appli est introuvable. Vérifie --racine (ou _prive/depot.json), et que Google Drive pour ordinateur est démarré.")
     fichier = os.path.join(racine, DOSSIERS_FICHIER)
     if not os.path.isfile(fichier):
         raise Refus("Ce dossier ne contient pas « %s » : ce n'est pas la racine du Drive de l'appli." % DOSSIERS_FICHIER)
@@ -215,7 +229,7 @@ def dossier_carnet(racine, dossier):
     chantier = os.path.join(racine, dossier)
     if not os.path.isdir(chantier):
         raise Refus("Le dossier du chantier « %s » n'existe pas sous la racine. Ce programme ne crée jamais le dossier d'un chantier : "
-                    "c'est l'appli qui le crée. Vérifiez le nom, lettre pour lettre." % dossier)
+                    "c'est l'appli qui le crée. Vérifie le nom, lettre pour lettre." % dossier)
     return os.path.join(chantier, *morceaux)
 
 
@@ -233,19 +247,19 @@ def lire_carnet(carnet, chantier=None):
     en_trop = [n for n in noms if n.lower() != CARNET_FICHIER]
     if en_trop:
         raise Refus("Le dossier du carnet contient plusieurs listes (%s). Google Drive pour ordinateur a fabriqué un doublon : "
-                    "ouvrez le dossier, gardez la bonne liste sous le nom « %s », mettez l'autre de côté, puis relancez."
+                    "ouvre le dossier, garde la bonne liste sous le nom « %s », mets l'autre de côté, puis relance."
                     % (", ".join("« %s »" % n for n in noms), CARNET_FICHIER))
     if not noms:
         return None
     try:
         liste = lire_json(os.path.join(carnet, noms[0]))
     except (OSError, ValueError) as e:
-        raise Refus("La liste « %s » du carnet est illisible (%s). Rien n'est modifié : attendez la fin de la synchronisation de Drive, "
-                    "ou restaurez une version précédente du fichier." % (CARNET_FICHIER, e))
+        raise Refus("La liste « %s » du carnet est illisible (%s). Rien n'est modifié : attends la fin de la synchronisation de Drive, "
+                    "ou restaure une version précédente du fichier." % (CARNET_FICHIER, e))
     if not isinstance(liste, dict) or not isinstance(liste.get("documents"), list):
         raise Refus("La liste « %s » du carnet n'a pas la forme attendue (pas de liste « documents »). Rien n'est modifié." % CARNET_FICHIER)
     if chantier is not None and liste.get("chantier") and str(liste["chantier"]).strip() != chantier:
-        raise Refus("Ce carnet est celui du chantier « %s », pas de « %s ». Vérifiez --dossier et --chantier."
+        raise Refus("Ce carnet est celui du chantier « %s », pas de « %s ». Vérifie --dossier et --chantier."
                     % (liste["chantier"], chantier))
     return liste
 
@@ -277,16 +291,16 @@ def lire_etat(dossier_doc, ident, source, dpi, pages):
     nom = os.path.basename(dossier_doc)
     chemin = os.path.join(dossier_doc, ETAT_FICHIER)
     if not os.path.isfile(chemin):
-        raise Refus("Le dossier « %s » existe déjà dans le carnet et ne vient pas d'un dépôt en cours. Rien n'est écrasé : prenez un autre indice." % nom)
+        raise Refus("Le dossier « %s » existe déjà dans le carnet et ne vient pas d'un dépôt en cours. Rien n'est écrasé : prends un autre indice." % nom)
     try:
         etat = lire_json(chemin)
         memes = (etat["id"] == ident and etat["source"] == source and etat["dpi"] == dpi and etat["nombre"] == pages
                  and isinstance(etat["pages"], dict))
     except (OSError, ValueError, KeyError, TypeError):
-        raise Refus("Le fichier « %s » du dossier « %s » est illisible : la reprise est impossible. Rien n'est écrasé : prenez un autre indice." % (ETAT_FICHIER, nom))
+        raise Refus("Le fichier « %s » du dossier « %s » est illisible : la reprise est impossible. Rien n'est écrasé : prends un autre indice." % (ETAT_FICHIER, nom))
     if not memes:
         raise Refus("Le dossier « %s » contient déjà un dépôt fait avec un autre PDF (« %s », %d octets). "
-                    "Rien n'est écrasé : pour un PDF modifié, prenez l'indice suivant."
+                    "Rien n'est écrasé : pour un PDF modifié, prends l'indice suivant."
                     % (nom, etat["source"].get("nom", "?") if isinstance(etat["source"], dict) else "?",
                        etat["source"].get("poids", 0) if isinstance(etat["source"], dict) else 0))
     etat["termine"] = False
@@ -300,16 +314,22 @@ def deposer(racine, dossier, chantier, pdf, code, indice, intitule, limite=LIMIT
     debut = horloge()
     code, indice, intitule, dpi = controler_document(code, indice, intitule)
     carnet = dossier_carnet(racine, dossier)
-    chantier = str(chantier or dossier).strip()
+    # Le nom du chantier DANS L'APPLI n'est écrit dans le carnet que s'il est donné et sûr. Le nom du dossier vu par
+    # Windows n'en est pas un : Drive pour ordinateur y remplace des caractères (« / » par exemple), et le serveur
+    # refuserait alors tout le carnet (« appartient à un autre chantier », constaté le 16/11/2026). Sans nom, le serveur
+    # se fie à l'emplacement : le carnet est dans le dossier que l'appli elle-même a rattaché au chantier.
+    chantier = str(chantier or "").strip()
+    if chantier == str(dossier).strip():
+        chantier = ""
     ident = "%s-%s" % (code, indice)
     nom_dossier = "%s %s %s" % (code, indice, intitule)
 
     def controler_liste():
-        liste = lire_carnet(carnet, chantier)
+        liste = lire_carnet(carnet, chantier or None)
         for d in (liste or {}).get("documents", []):
             if isinstance(d, dict) and d.get("id") == ident and d.get("retire") is not True:
-                raise Refus("Le document %s est déjà au carnet de ce chantier. Rien n'est écrasé : prenez l'indice suivant, "
-                            "ou retirez d'abord l'ancien avec --retirer %s." % (ident, ident))
+                raise Refus("Le document %s est déjà au carnet de ce chantier. Rien n'est écrasé : prends l'indice suivant "
+                            "(retirer l'ancien ne libère pas son indice pour un PDF modifié)." % ident)
         return liste
 
     controler_liste()
@@ -362,9 +382,9 @@ def deposer(racine, dossier, chantier, pdf, code, indice, intitule, limite=LIMIT
     # Toutes les pages sont faites : la liste est écrite en dernier (relue juste avant, au cas où elle aurait changé).
     pages = [etat["pages"][str(n)] for n in range(1, nombre + 1)]
     poids = sum(poids_page(p) for p in pages)
-    liste = controler_liste() or {"version": 1, "chantier": chantier, "documents": []}
+    liste = controler_liste() or {"version": 1, "documents": []}
     liste.setdefault("version", 1)
-    if not liste.get("chantier"):
+    if chantier and not liste.get("chantier"):
         liste["chantier"] = chantier
     liste["documents"].append({"id": ident, "code": code, "indice": indice, "intitule": intitule, "dossier": nom_dossier,
                                "date": datetime.date.today().isoformat(),
@@ -394,10 +414,14 @@ def retirer(racine, dossier, ident):
 
 
 def verifier(racine, dossier):
-    """Compare carnet.json et les fichiers présents. N'écrit rien. Rend {"bon", "problemes", "documents", "retires", "poids"}."""
+    """Compare carnet.json et les fichiers présents. N'écrit rien.
+
+    Rend {"bon", "problemes", "documents", "retires", "purges", "poids"}. « purges » : les anciens indices (documents
+    qui ne sont plus montrés dans l'appli) dont le dossier n'est plus là : l'appli l'a mis à la corbeille sur une case
+    cochée par Franck (lot 5). Ce n'est pas un défaut."""
     carnet = dossier_carnet(racine, dossier)
     problemes = []
-    rendu = {"bon": False, "problemes": problemes, "documents": 0, "retires": 0, "poids": 0}
+    rendu = {"bon": False, "problemes": problemes, "documents": 0, "retires": 0, "purges": 0, "poids": 0}
     if not os.path.isdir(carnet):
         problemes.append("Ce chantier n'a pas encore de dossier de carnet.")
         return rendu
@@ -407,11 +431,11 @@ def verifier(racine, dossier):
                 rendu["poids"] += os.path.getsize(os.path.join(dossier_lu, f))
             except OSError:
                 pass
-            if DOUBLON.search(f):
+            if est_doublon(dossier_lu, f):
                 problemes.append("Doublon fabriqué par Drive : « %s »." % os.path.relpath(os.path.join(dossier_lu, f), carnet))
     sous_dossiers = sorted(n for n in os.listdir(carnet) if os.path.isdir(os.path.join(carnet, n)))
     for n in sous_dossiers:
-        if DOUBLON.search(n):
+        if est_doublon(carnet, n):
             problemes.append("Dossier en double fabriqué par Drive : « %s »." % n)
     listes = listes_du_carnet(carnet)
     if len(listes) > 1:
@@ -429,20 +453,49 @@ def verifier(racine, dossier):
             documents = []
             problemes.append("La liste « %s » est illisible (%s)." % (CARNET_FICHIER, e))
     connus = set()
+    montres = documents_montres(documents)
     for d in documents:
         if isinstance(d, dict) and isinstance(d.get("dossier"), str):
             connus.add(d["dossier"].lower())
         if isinstance(d, dict) and d.get("retire") is True:
             rendu["retires"] += 1
             continue
+        if ancien_indice_purge(carnet, d, montres):
+            rendu["purges"] += 1
+            continue
         rendu["documents"] += 1
         problemes.extend(defauts_document(carnet, d))
     for n in sous_dossiers:
         if n.lower() not in connus:
             en_cours = os.path.isfile(os.path.join(carnet, n, ETAT_FICHIER))
-            problemes.append("Le dossier « %s » n'est dans aucun document de la liste%s." % (n, " (dépôt commencé et pas fini : relancez-le)" if en_cours else ""))
+            problemes.append("Le dossier « %s » n'est dans aucun document de la liste%s." % (n, " (dépôt commencé et pas fini : relance-le)" if en_cours else ""))
     rendu["bon"] = not problemes
     return rendu
+
+
+def document_bien_forme(d):
+    """La même règle que le serveur (carnetDocuments_) : identifiant sûr, dossier sans « / », liste de pages."""
+    return (isinstance(d, dict) and isinstance(d.get("id"), str) and bool(NOM_SUR.match(d["id"])) and isinstance(d.get("dossier"), str)
+            and bool(d["dossier"].strip()) and not re.search(r"[/\\]", d["dossier"]) and isinstance(d.get("pages"), list))
+
+
+def documents_montres(documents):
+    """Les documents que l'appli montre : jamais un document retiré, et pour chaque code seulement le DERNIER déposé."""
+    par_code = {}
+    for d in documents:
+        if document_bien_forme(d) and d.get("retire") is not True:
+            par_code[str(d.get("code") or d["id"])] = d
+    return list(par_code.values())
+
+
+def ancien_indice_purge(carnet, d, montres):
+    """Vrai pour un ancien indice (bien formé, plus montré, et dont aucun document montré n'utilise le dossier)
+    dont le dossier est absent : il a été purgé de Drive par l'appli (lot 5)."""
+    if not document_bien_forme(d) or any(d is m for m in montres):
+        return False
+    if any(m["dossier"].lower() == d["dossier"].lower() for m in montres):
+        return False
+    return not os.path.isdir(os.path.join(carnet, d["dossier"]))
 
 
 def defauts_document(carnet, d):
@@ -507,7 +560,7 @@ def lire_arguments(argv=None):
     a.add_argument("-h", "--help", action="help", help="affiche cette aide")
     a.add_argument("--racine", help="dossier racine du Drive de l'appli sur ce PC (à défaut : clé « racine » de _prive/depot.json)")
     a.add_argument("--dossier", required=True, help="nom du dossier du chantier, sous la racine")
-    a.add_argument("--chantier", help="nom du chantier dans l'appli (par défaut : le nom du dossier)")
+    a.add_argument("--chantier", help="nom exact du chantier dans l'appli (facultatif : sans lui, le carnet ne porte pas de nom et le serveur se fie au dossier)")
     a.add_argument("--pdf", help="chemin du PDF à déposer")
     a.add_argument("--code", help="code du document : %s" % ", ".join(sorted(DPI_PAR_CODE)))
     a.add_argument("--indice", help="indice du document : 1 à 3 lettres ou chiffres (A, B…)")
@@ -526,13 +579,15 @@ def main(argv=None):
     try:
         racine = o.racine or racine_notee()
         if not racine:
-            raise Refus("La racine du Drive de l'appli n'est pas donnée : ajoutez --racine \"<dossier>\", "
-                        "ou créez le fichier _prive/depot.json contenant {\"racine\": \"<dossier>\"}.")
+            raise Refus("La racine du Drive de l'appli n'est pas donnée : ajoute --racine \"<dossier>\", "
+                        "ou crée le fichier _prive/depot.json contenant {\"racine\": \"<dossier>\"}.")
         if o.verifier:
             r = verifier(racine, o.dossier)
             for p in r["problemes"]:
                 print("  ! " + p)
-            print("Carnet : %d document(s) montré(s), %d retiré(s) ; %.1f Mo en tout." % (r["documents"], r["retires"], r["poids"] / 1048576))
+            print("Carnet : %d document(s) présent(s), %d retiré(s) ; %.1f Mo en tout." % (r["documents"], r["retires"], r["poids"] / 1048576))
+            if r["purges"]:
+                print("%d ancien(s) indice(s) purgé(s) de Drive par l'appli (dossier absent : c'est normal)." % r["purges"])
             print("Tout est bon." if r["bon"] else "%d défaut(s) trouvé(s)." % len(r["problemes"]))
             return 0 if r["bon"] else 1
         if o.retirer:
@@ -546,7 +601,7 @@ def main(argv=None):
         debut = time.time()
         r = deposer(racine, o.dossier, o.chantier, o.pdf, o.code, o.indice, o.intitule, limite=o.limite)
         if not r["termine"]:
-            print("Arrêt à la limite de temps : %d page(s) faite(s), il en reste %d. RELANCEZ LA MÊME COMMANDE : le travail reprend où il en est."
+            print("Arrêt à la limite de temps : %d page(s) faite(s), il en reste %d. RELANCE LA MÊME COMMANDE : le travail reprend où il en est."
                   % (r["faites"], r["restent"]))
             return 3
         print("Déposé : %s, %d page(s), %.1f Mo d'images, en %.0f s, dans « %s ». Le document apparaît dans l'appli quand "
@@ -554,7 +609,7 @@ def main(argv=None):
         return 0
     except OSError as e:
         # disque plein, Drive pour ordinateur arrêté, chemin trop long, fichier verrouillé… : rien n'est annoncé dans la liste
-        print("ARRÊT : le dossier n'a pas pu être lu ou écrit (%s). Vérifiez que Google Drive pour ordinateur tourne, puis relancez la même commande (si elle répond « déjà au carnet », le document y est : contrôlez avec --verifier)." % e, file=sys.stderr)
+        print("ARRÊT : le dossier n'a pas pu être lu ou écrit (%s). Vérifie que Google Drive pour ordinateur tourne, puis relance la même commande (si elle répond « déjà au carnet », le document y est : contrôle avec --verifier)." % e, file=sys.stderr)
         return 2
     except Refus as e:
         print("REFUS : %s" % e, file=sys.stderr)
