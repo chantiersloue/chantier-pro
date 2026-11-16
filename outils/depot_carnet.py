@@ -24,6 +24,7 @@ import os
 import re
 import sys
 import time
+import unicodedata
 
 # ── Réglages (faciles à modifier) ───────────────────────────────────────────
 # Les codes de documents acceptés au carnet, et la finesse du rendu (dpi = points d'image par pouce).
@@ -188,6 +189,19 @@ def ecrire_json(chemin, objet):
             os.remove(temporaire)        # notre propre fichier temporaire : la seule chose que le programme supprime
 
 
+def est_doublon(dossier, nom):
+    """Vrai si « nom » finit par « (n) » ET que le même nom sans « (n) » existe à côté : une copie fabriquée par Drive.
+    Un nom qui finit par « (2) » sans son jumeau est un vrai nom, pas un doublon."""
+    trouve = DOUBLON.search(nom)
+    if not trouve:
+        return False
+    voulu = unicodedata.normalize("NFC", nom[:trouve.start()] + (trouve.group(1) or "")).casefold()
+    try:
+        return any(unicodedata.normalize("NFC", present).casefold() == voulu for present in os.listdir(dossier))
+    except OSError:
+        return False
+
+
 def nom_simple(nom):
     return bool(nom) and nom not in (".", "..") and not re.search(r'[/\\:*?"<>|]', nom)
 
@@ -308,8 +322,8 @@ def deposer(racine, dossier, chantier, pdf, code, indice, intitule, limite=LIMIT
         liste = lire_carnet(carnet, chantier)
         for d in (liste or {}).get("documents", []):
             if isinstance(d, dict) and d.get("id") == ident and d.get("retire") is not True:
-                raise Refus("Le document %s est déjà au carnet de ce chantier. Rien n'est écrasé : prenez l'indice suivant, "
-                            "ou retirez d'abord l'ancien avec --retirer %s." % (ident, ident))
+                raise Refus("Le document %s est déjà au carnet de ce chantier. Rien n'est écrasé : prenez l'indice suivant "
+                            "(retirer l'ancien ne libère pas son indice pour un PDF modifié)." % ident)
         return liste
 
     controler_liste()
@@ -407,11 +421,11 @@ def verifier(racine, dossier):
                 rendu["poids"] += os.path.getsize(os.path.join(dossier_lu, f))
             except OSError:
                 pass
-            if DOUBLON.search(f):
+            if est_doublon(dossier_lu, f):
                 problemes.append("Doublon fabriqué par Drive : « %s »." % os.path.relpath(os.path.join(dossier_lu, f), carnet))
     sous_dossiers = sorted(n for n in os.listdir(carnet) if os.path.isdir(os.path.join(carnet, n)))
     for n in sous_dossiers:
-        if DOUBLON.search(n):
+        if est_doublon(carnet, n):
             problemes.append("Dossier en double fabriqué par Drive : « %s »." % n)
     listes = listes_du_carnet(carnet)
     if len(listes) > 1:

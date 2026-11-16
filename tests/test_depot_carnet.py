@@ -324,7 +324,7 @@ class LesRefus(Base):
 
     def test_document_deja_present(self):
         racine = self.copie()
-        self.refus(racine, "déjà au carnet", lambda: dc.deposer(racine, CHANTIER, None, self.pdf, "001", "A", "PLAN D'ESSAI"))
+        self.refus(racine, "déjà au carnet.*indice suivant", lambda: dc.deposer(racine, CHANTIER, None, self.pdf, "001", "A", "PLAN D'ESSAI"))
         self.refus(racine, "déjà au carnet", lambda: self.deposer_petit(racine, code="001", indice="A", intitule="AUTRE NOM"))
 
     def test_carnet_json_illisible(self):
@@ -454,6 +454,22 @@ class Verification(Base):
         self.assertIn("Plusieurs listes", texte)
         self.assertIn("« 105 Z INCONNU » n'est dans aucun document", texte)
         self.assertEqual(contenu(racine), avant)
+
+    def test_un_nom_fini_par_un_numero_entre_parentheses_n_est_un_doublon_que_s_il_a_un_jumeau(self):
+        dossier = tempfile.mkdtemp(dir=self.temp)
+        for nom in ("plan.pdf", "plan (1).pdf", "IMG (12).jpg", "Façade (2)", "Dossier", "Dossier (1)"):
+            with open(os.path.join(dossier, nom), "w") as f:
+                f.write("x")
+        for nom, attendu in (("plan (1).pdf", True), ("IMG (12).jpg", False), ("Façade (2)", False), ("Dossier (1)", True),
+                             ("plan.pdf", False), ("absent (3).pdf", False)):
+            self.assertIs(dc.est_doublon(dossier, nom), attendu, nom)
+        self.assertIs(dc.est_doublon(os.path.join(dossier, "inexistant"), "plan (1).pdf"), False)
+        # Dans le carnet : un dossier « … (2) » sans jumeau n'est plus pris pour un doublon de Drive (il reste « inconnu de la liste »)
+        racine = self.copie()
+        os.mkdir(os.path.join(self.carnet(racine), "105 A PLAN (2)"))
+        problemes = "\n".join(dc.verifier(racine, CHANTIER)["problemes"])
+        self.assertNotIn("en double", problemes)
+        self.assertIn("n'est dans aucun document", problemes)
 
     def test_chantier_sans_carnet(self):
         racine = nouvelle_racine(self.temp)

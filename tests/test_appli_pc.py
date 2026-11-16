@@ -17,7 +17,9 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 import unicodedata
+import xml.etree.ElementTree as ET
 import unittest
 from unittest import mock
 
@@ -173,11 +175,14 @@ class Correspondance(Monde):
         ecrire(os.path.join(self.racine, "un fichier.txt"))
         chantiers = self.reglages["chantiers"]
         for nom, attendu in (("_À CLASSER", "technique"), ("ADMINISTRATIF", "technique"), ("administratif", "technique"),
-                             ("PLANNING", "planning"), ("un fichier.txt", "n'est pas un dossier"), ("ABSENT", "n'est pas un dossier"),
+                             ("PLANNING", "technique"), ("un fichier.txt", "n'est pas un dossier"), ("ABSENT", "n'est pas un dossier"),
                              (DRIVE_1 + " (1)", "double"), (DRIVE_1, "déjà associé au chantier n° 901"), ("..", "simple nom")):
             self.assertRegex(ap.refus_dossier_drive(self.racine, nom, chantiers, "902") or "", attendu, nom)
         os.mkdir(os.path.join(self.racine, "CALENDRIER EQUIPE"))
-        self.assertRegex(ap.refus_dossier_drive(self.racine, "CALENDRIER EQUIPE", chantiers, "902", planning="Calendrier équipe".replace("é", "E")), "planning")
+        self.assertRegex(ap.refus_dossier_drive(self.racine, "CALENDRIER EQUIPE", chantiers, "902", planning="Calendrier équipe".replace("é", "E")), "technique")
+        os.mkdir(os.path.join(self.racine, "CHANTIER SEUL (2)"))
+        self.assertIsNone(ap.refus_dossier_drive(self.racine, "CHANTIER SEUL (2)", chantiers, "902"), "« (2) » sans son jumeau : un vrai nom")
+        os.rmdir(os.path.join(self.racine, "CHANTIER SEUL (2)"))
         self.assertIsNone(ap.refus_dossier_drive(self.racine, DRIVE_2, chantiers, "902"))
         self.assertIsNone(ap.refus_dossier_drive(self.racine, DRIVE_1, chantiers, "901"), "son propre dossier")
         self.assertEqual(ap.dossiers_drive_libres(self.racine, chantiers), ["CALENDRIER EQUIPE", DRIVE_2])
@@ -257,9 +262,12 @@ class Candidats(Monde):
         self.bordereau(1, "901-10-042A-A-ANCIEN NUMERO.pdf")
         self.bordereau(1, "901-10-041-A-ANCIEN NUMERO HORS CARNET.pdf")
         self.bordereau(1, "901-10-103-B-TABLEAU DE PORTES.pdf")
+        self.bordereau(1, "901-10-105-RDC-PLAN DU REZ DE CHAUSSEE.pdf")
         vu = self.voir()
         self.assertEqual(sorted((c["id"], c["ancien_code"]) for c in vu["candidats"]), [("103-B", None), ("105-A", "042A")])
-        self.assertEqual(self.motifs(vu), ["autre-chantier", "non-reconnu", "non-reconnu"])
+        self.assertEqual(self.motifs(vu), ["autre-chantier", "nom", "non-reconnu", "non-reconnu"])
+        self.assertRegex([x["texte"] for x in vu["signales"] if x["motif"] == "nom"][0], "105-RDC-.*nom non reconnu", "« RDC » n'est pas un indice")
+        os.remove(os.path.join(self.pc, PC_1, D08, "BORDEREAU 1", "901-10-105-RDC-PLAN DU REZ DE CHAUSSEE.pdf"))
         self.assertEqual(vu["hors_carnet"], 1, "041 → 102 : connu, pas au carnet, pas signalé")
         self.assertIn("Ancien numéro 042A", "\n".join(ap.decrire_candidat([c for c in vu["candidats"] if c["ancien_code"]][0])))
         # Une table propre au chantier l'emporte ; un numéro « hors carnet » déclaré n'est plus signalé
@@ -341,24 +349,27 @@ class Depot(Monde):
         chemin = self.bordereau(1, "901-10-105-A-RESERVATIONS.pdf")
         candidats = ap.candidats_carnet(self.reglages)["candidats"]
         ap.traiter_carnet(self.reglages, candidats, self.ecartes, saisies("o"), self.dire)
-        self.assertEqual(ap.candidats_carnet(self.reglages), {"candidats": [], "signales": [], "hors_carnet": 0, "ecartes": 0})
+        self.assertEqual(ap.candidats_carnet(self.reglages), {"candidats": [], "signales": [], "hors_carnet": 0, "ecartes": 0, "retires": 0})
         shutil.copy(COMMUN["autre"], chemin)
         vu = ap.candidats_carnet(self.reglages)
         self.assertEqual((vu["candidats"], self.motifs(vu)), ([], ["change"]))
         self.assertIn("A CHANGÉ DEPUIS SON DÉPÔT", vu["signales"][0]["texte"])
-        # Une fois l'ancien retiré par le menu, le document est proposé de nouveau
+        self.assertIn("indice suivant", vu["signales"][0]["texte"])
+        # L'ancien est retiré par le menu : aucun fichier n'est supprimé, et le document n'est PAS reproposé à chaque lancement
         avant = photo(self.racine)
         rendu = ap.retirer_document(self.reglages, saisies("1", "1", "o"), self.dire)
         self.assertEqual(rendu["id"], "105-A")
         self.assertEqual(set(photo(self.racine)), set(avant), "retirer ne supprime aucun fichier")
-        candidats = ap.candidats_carnet(self.reglages)["candidats"]
-        self.assertEqual([c["id"] for c in candidats], ["105-A"])
-        # … mais le carnet n'écrase jamais : sous le même indice, le fichier refait est refusé (il faut l'indice suivant)
-        avant = photo(self.racine)
-        bilan = ap.traiter_carnet(self.reglages, candidats, self.ecartes, saisies("o"), self.dire)
-        self.assertEqual((bilan["deposes"], len(bilan["refuses"])), ([], 1))
-        self.assertIn("indice suivant", bilan["refuses"][0][1])
-        self.assertEqual(photo(self.racine), avant, "rien n'est écrasé")
+        vu = ap.candidats_carnet(self.reglages)
+        self.assertEqual((vu["candidats"], self.motifs(vu), vu["retires"]), ([], ["change"], 0))
+        self.assertRegex(vu["signales"][0]["texte"], "retiré du carnet.*indice suivant")
+        # Le fichier d'origine remis à sa place : retiré, et identique à ce qui avait été déposé → ni proposé, ni signalé
+        shutil.copy(COMMUN["pdf"], chemin)
+        vu = ap.candidats_carnet(self.reglages)
+        self.assertEqual((vu["candidats"], vu["signales"], vu["retires"]), ([], [], 1))
+        # Le même document sous l'indice suivant est proposé normalement
+        self.bordereau(2, "901-10-105-B-RESERVATIONS.pdf", COMMUN["autre"])
+        self.assertEqual([c["id"] for c in ap.candidats_carnet(self.reglages)["candidats"]], ["105-B"])
 
     def test_retirer_abandonne(self):
         self.bordereau(1, "901-10-105-A-RESERVATIONS.pdf")
@@ -448,6 +459,15 @@ class Rapatriement(Monde):
         f(COTES + "/PRISE DE COTES ESSAI 2026-11-12 (1).pdf", "doublon")
         f(COTES + " (1)/DANS UN DOSSIER EN DOUBLE.pdf", "hors")
         f(QUITUS + "/COPIES (2)/QUITUS.pdf", "dans un dossier en double")
+        copies[QUITUS + "/COPIES/ORIGINAL.pdf"] = "le dossier d'origine du doublon"
+        copies["05 - CHANTIER/PHOTOS CHANTIER/IMG (12).jpg"] = "« (12) » sans jumeau : une vraie photo, copiée"
+        copies["05 - CHANTIER/PHOTOS CHANTIER/Façade (2)/vue.jpg"] = "un dossier « (2) » sans jumeau : un vrai dossier"
+        for relatif in list(copies)[-3:]:
+            os.utime(f(relatif, copies[relatif]), (1760000000, 1760000000))
+        f(COTES + "/MEME TAILLE.pdf", "contenu A")
+        self.dans_pc(COTES + "/MEME TAILLE.pdf", "contenu B")
+        f(COTES + "/RESTE.pdf.partiel", "reste d'une écriture")
+        self.dans_pc(COTES + "/VIEUX.pdf.partiel", "reste d'une copie")
         f(COTES + "/desktop.ini", "systeme")
         f("Divers/ANCIEN.pdf", "hors rangement")
         f("A LA RACINE.pdf", "hors rangement")
@@ -471,7 +491,7 @@ class Rapatriement(Monde):
             with open(cible, encoding="utf-8") as lu:
                 self.assertEqual(lu.read(), contenu)
             self.assertEqual(int(os.path.getmtime(cible)), 1760000000)
-        self.assertEqual([a["chemin"] for a in plan["deja"]], [COTES + "/DEJA LA.pdf"])
+        self.assertEqual([a["chemin"] for a in plan["deja"]], [COTES + "/DEJA LA.pdf", COTES + "/MEME TAILLE.pdf"])
         self.assertEqual(plan["erreurs"], [])
         # Ce qui est signalé sans être copié
         signales = {}
@@ -479,6 +499,7 @@ class Rapatriement(Monde):
             signales.setdefault(s["motif"], []).append(s["chemin"])
         self.assertEqual({m: sorted(c) for m, c in signales.items()}, {
             "taille-differente": [COTES + "/AUTRE TAILLE.pdf"],
+            "autre-contenu": [COTES + "/MEME TAILLE.pdf"],
             "raccourci": [COTES + "/Compte rendu.gdoc", COTES + "/Tableau.GSHEET"],
             "doublon": sorted([COTES + "/PRISE DE COTES ESSAI 2026-11-12 (1).pdf", QUITUS + "/COPIES (2)/QUITUS.pdf"]),
             "hors-rangement": sorted([COTES + " (1)/DANS UN DOSSIER EN DOUBLE.pdf", "Divers/ANCIEN.pdf", "A LA RACINE.pdf"]),
@@ -495,7 +516,9 @@ class Rapatriement(Monde):
         ajoutes = {n for n in apres if n not in pc and apres[n] != "dossier"}
         self.assertEqual(ajoutes, {PC_1 + "/" + c for c in copies} | {PC_1 + "/" + ap.PROVENANCE})
         for interdit in ("ADMINISTRATIF", "ABSENCE", "CARNET", "Plans", "_À CLASSER", ".partiel", ".tmp"):
-            self.assertFalse([n for n in apres if interdit in n], interdit)
+            self.assertFalse([n for n in apres if interdit in n and n not in pc], interdit)
+        with open(os.path.join(self.pc, PC_1, COTES, "MEME TAILLE.pdf"), encoding="utf-8") as lu:
+            self.assertEqual(lu.read(), "contenu B", "jamais écrasé")
         self.assertEqual(ap.a_classer(self.racine), ["QUITUS INCONNU.pdf"])
 
         # (a) La liste de provenance, dans le dossier du chantier sur le PC
@@ -504,18 +527,22 @@ class Rapatriement(Monde):
         self.assertEqual((provenance["version"], provenance["chantier"], provenance["numero"]), (1, "Chantier Essai Un", "901"))
         self.assertEqual(sorted(e["chemin"] for e in provenance["fichiers"]), sorted(list(copies) + [COTES + "/DEJA LA.pdf"]))
         for e in provenance["fichiers"]:
-            self.assertEqual(sorted(e), ["chemin", "copie_le", "taille"])
+            # « déjà présent » : inscrit seulement après comparaison du contenu, et c'est noté
+            deja = e["chemin"] == COTES + "/DEJA LA.pdf"
+            self.assertEqual(sorted(e), ["chemin", "copie_le", "taille", "verifie"] if deja else ["chemin", "copie_le", "taille"])
+            self.assertEqual(e.get("verifie"), "contenu" if deja else None)
             self.assertEqual(e["taille"], os.path.getsize(os.path.join(self.pc, PC_1, e["chemin"])))
             self.assertEqual(e["copie_le"], "2026-11-13T08:30:00+01:00")
-        self.assertEqual(plan["ajoutes"], 6)
+        self.assertEqual(plan["ajoutes"], 9)
         # (b) Le relevé de présence, dans le Drive : format exact du contrat
         index = self.index()
         self.assertEqual(list(index), ["version", "chantier", "numero", "releve_le", "fichiers"])
         self.assertEqual((index["version"], index["chantier"], index["numero"], index["releve_le"]),
                          (1, "Chantier Essai Un", "901", "2026-11-13T08:30:00+01:00"))
-        attendus = sorted(list(copies) + [COTES + "/DEJA LA.pdf", COTES + "/AUTRE TAILLE.pdf", COTES + "/0-OLD/ANCIENNE.pdf",
-                                          "05 - CHANTIER/COMPTE RENDU/CR MOE 12.pdf"])
-        self.assertEqual([e["chemin"] for e in index["fichiers"]], attendus, "tout ce qui est dans le dossier du PC pour ces sous-dossiers, et rien d'autre")
+        attendus = sorted(list(copies) + [COTES + "/DEJA LA.pdf"])
+        self.assertEqual([e["chemin"] for e in index["fichiers"]], attendus,
+                         "seulement les fiches du Drive qui sont à leur place sur le PC : ni les documents de Franck (CR de la MOE, 0-OLD), "
+                         "ni un fichier d'une autre taille ou d'un autre contenu, ni un reste « .partiel »")
         for e in index["fichiers"]:
             self.assertEqual(list(e), ["chemin", "taille"])
             self.assertEqual(e["taille"], os.path.getsize(os.path.join(self.pc, PC_1, e["chemin"])))
@@ -525,7 +552,7 @@ class Rapatriement(Monde):
         self.assertNotIn(self.racine, texte)
         self.assertNotIn(self.pc, texte)
 
-    def test_relance_cumul_et_entree_dont_le_fichier_a_disparu(self):
+    def test_relance_cumul_et_fiche_deplacee_par_franck(self):
         self.fiche(COTES + "/A.pdf", "a")
         self.fiche(COTES + "/B.pdf", "bb")
         self.rapatrier()
@@ -538,16 +565,30 @@ class Rapatriement(Monde):
         self.assertEqual(os.stat(os.path.join(self.pc, PC_1, ap.PROVENANCE)).st_mtime_ns, date)
         self.assertEqual(self.index()["releve_le"], "2027-06-01T09:30:00+02:00", "heure d'été")
         # Franck a rangé A.pdf ailleurs dans le dossier du chantier, et une nouvelle fiche est arrivée
-        os.makedirs(os.path.join(self.pc, PC_1, "06 - COURRIER"))
-        shutil.move(os.path.join(self.pc, PC_1, COTES, "A.pdf"), os.path.join(self.pc, PC_1, "06 - COURRIER", "A.pdf"))
+        os.makedirs(os.path.join(self.pc, PC_1, COTES, "0-OLD"))
+        shutil.move(os.path.join(self.pc, PC_1, COTES, "A.pdf"), os.path.join(self.pc, PC_1, COTES, "0-OLD", "A.pdf"))
         self.fiche(COTES + "/C.pdf", "ccc")
         plan = self.rapatrier(maintenant=plus_tard)
-        self.assertEqual(sorted(a["chemin"] for a in plan["copies"]), [COTES + "/A.pdf", COTES + "/C.pdf"], "A est recopié : il manquait")
+        self.assertEqual([a["chemin"] for a in plan["copies"]], [COTES + "/C.pdf"], "A, déjà copié une fois, n'est JAMAIS recopié : son choix est respecté")
+        self.assertFalse(os.path.exists(os.path.join(self.pc, PC_1, COTES, "A.pdf")))
+        self.assertEqual([(x["motif"], x["chemin"]) for x in plan["signales"]], [("absente", COTES + "/A.pdf")])
+        self.assertRegex("\n".join(ap.lignes_a_voir(plan)), "fiche de l'appli absente du dossier du PC : déplacée ou supprimée \\?.*A\\.pdf")
         provenance = self.provenance()
-        self.assertEqual(provenance["fichiers"][:2], premiere["fichiers"], "les entrées existantes sont gardées telles quelles")
         self.assertEqual([e["chemin"] for e in provenance["fichiers"]], [COTES + "/A.pdf", COTES + "/B.pdf", COTES + "/C.pdf"], "jamais de doublon")
+        self.assertEqual(provenance["fichiers"][1], premiere["fichiers"][1], "les entrées existantes sont gardées telles quelles")
+        self.assertEqual({k: v for k, v in provenance["fichiers"][0].items() if k != "absente_signalee_le"}, premiere["fichiers"][0])
+        self.assertEqual(provenance["fichiers"][0]["absente_signalee_le"], "2027-06-01T09:30:00+02:00")
         self.assertEqual(provenance["fichiers"][2]["copie_le"], "2027-06-01T09:30:00+02:00")
-        # Une entrée dont le fichier a disparu du dossier du PC (et du Drive) reste dans la liste
+        self.assertEqual([e["chemin"] for e in self.index()["fichiers"]], [COTES + "/B.pdf", COTES + "/C.pdf"], "A n'est plus à sa place : pas au relevé")
+        # Les jours suivants : même ligne (le fichier « A VOIR » ne change donc pas) ; au bout de sept jours, on n'en parle plus
+        date = os.stat(os.path.join(self.pc, PC_1, ap.PROVENANCE)).st_mtime_ns
+        plan = self.rapatrier(maintenant=plus_tard + datetime.timedelta(days=3))
+        self.assertEqual(([x["motif"] for x in plan["signales"]], plan["copies"]), (["absente"], []))
+        self.assertEqual(os.stat(os.path.join(self.pc, PC_1, ap.PROVENANCE)).st_mtime_ns, date)
+        plan = self.rapatrier(maintenant=plus_tard + datetime.timedelta(days=8))
+        self.assertEqual((plan["signales"], plan["copies"], len(plan["absentes"])), ([], [], 1))
+        self.assertEqual(sorted(os.listdir(os.path.join(self.pc, PC_1, COTES))), ["0-OLD", "B.pdf", "C.pdf"])
+        # Une entrée dont le fichier a disparu du dossier du PC ET du Drive reste dans la liste, telle quelle
         self.reglages["chantiers"]["902"] = {"chantier": "Deux", "dossier_drive": DRIVE_2}
         ecrire(os.path.join(self.pc, PC_2, ap.PROVENANCE), json.dumps(
             {"version": 1, "chantier": "Deux", "numero": "902", "note": "gardée", "fichiers": [{"chemin": COTES + "/PARTI.pdf", "taille": 5, "copie_le": "x"}]}))
@@ -557,6 +598,83 @@ class Rapatriement(Monde):
         self.assertEqual(liste["fichiers"][0], {"chemin": COTES + "/PARTI.pdf", "taille": 5, "copie_le": "x"})
         self.assertEqual((liste["note"], [e["chemin"] for e in liste["fichiers"]][1:]), ("gardée", [COTES + "/NOUVEAU.pdf"]))
         self.assertRegex(liste["fichiers"][1]["copie_le"], r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+0[12]:00$")
+
+    def test_un_fichier_apparu_entre_temps_n_est_jamais_ecrase(self):
+        if os.name != "nt":
+            self.skipTest("le renommage qui refuse d'écraser est celui de Windows")
+        self.fiche(COTES + "/A.pdf", "version du Drive")
+        cible = os.path.join(self.pc, PC_1, COTES, "A.pdf")
+        vraie = ap.copier_blocs
+
+        def apparition(lecture, ecriture):
+            vraie(lecture, ecriture)
+            ecrire(cible, "posé là par Franck pendant la copie")
+
+        # 1. Le contrôle fait juste avant le renommage le voit
+        with mock.patch.object(ap, "copier_blocs", apparition):
+            plan = self.rapatrier()
+        self.assertEqual((plan["copies"], len(plan["erreurs"])), ([], 1))
+        with open(cible, encoding="utf-8") as f:
+            self.assertEqual(f.read(), "posé là par Franck pendant la copie")
+        self.assertEqual(os.listdir(os.path.dirname(cible)), ["A.pdf"], "la copie inachevée est retirée")
+        # 2. Même si ce contrôle ne voyait rien (fichier apparu à la dernière seconde), le renommage lui-même refuse d'écraser
+        os.remove(cible)
+        os.remove(os.path.join(self.racine, DRIVE_1, ap.INDEX))
+        with mock.patch.object(ap, "copier_blocs", apparition), mock.patch.object(ap.os.path, "lexists", lambda chemin: False):
+            with self.assertRaises(FileExistsError):
+                ap.copier_fichier(os.path.join(self.racine, DRIVE_1, COTES, "A.pdf"), cible)
+        with open(cible, encoding="utf-8") as f:
+            self.assertEqual(f.read(), "posé là par Franck pendant la copie", "jamais écrasé")
+        self.assertEqual(os.listdir(os.path.dirname(cible)), ["A.pdf"])
+
+    def test_restes_partiel_jamais_copies_ni_au_releve(self):
+        self.fiche(COTES + "/A.pdf", "a")
+        self.fiche(COTES + "/B.pdf.partiel", "reste dans le Drive")
+        self.fiche(COTES + "/C.tmp", "temporaire")
+        self.dans_pc(COTES + "/D.pdf.partiel", "reste sur le PC")
+        plan = self.rapatrier()
+        self.assertEqual([a["chemin"] for a in plan["copies"]], [COTES + "/A.pdf"])
+        self.assertEqual(plan["signales"], [])
+        self.assertEqual([e["chemin"] for e in self.index()["fichiers"]], [COTES + "/A.pdf"])
+        self.assertEqual([e["chemin"] for e in self.provenance()["fichiers"]], [COTES + "/A.pdf"])
+        self.assertEqual(sorted(os.listdir(os.path.join(self.pc, PC_1, COTES))), ["A.pdf", "D.pdf.partiel"])
+
+    def test_releve_impossible_a_ecrire_le_compte_rendu_dit_vrai(self):
+        self.fiche(COTES + "/A.pdf", "a")
+        vraie = ap.ecrire_json
+
+        def panne(chemin, objet, lisible=True):
+            if os.path.basename(chemin) == ap.INDEX:
+                raise PermissionError("Drive pour ordinateur refuse l'écriture")
+            vraie(chemin, objet, lisible)
+
+        with mock.patch.object(ap, "ecrire_json", panne):
+            bilan = ap.rapatrier_tout(self.reglages, dire=self.dire, maintenant=self.instant)
+        self.assertEqual((bilan["copies"], bilan["refuses"], bilan["ecritures"]), (1, 0, 1), "la copie faite reste comptée")
+        self.assertTrue(os.path.isfile(os.path.join(self.pc, PC_1, COTES, "A.pdf")))
+        self.assertEqual([e["chemin"] for e in self.provenance()["fichiers"]], [COTES + "/A.pdf"])
+        texte = ap.lire_a_voir(self.pc)
+        self.assertRegex(texte, "le relevé « releve-pc.json » n'a pas pu être écrit dans le Drive")
+        self.assertNotIn("n'a pas pu se faire", texte)
+        self.assertIn("1 fichier(s) copié(s)", self.texte())
+
+    def test_la_liste_de_chaque_dossier_n_est_lue_qu_une_fois(self):
+        for n in range(40):
+            self.fiche(COTES + "/FICHE %02d.pdf" % n, "x")
+        self.rapatrier()
+        vraie, lectures = os.listdir, []
+
+        def compter(chemin):
+            lectures.append(chemin)
+            return vraie(chemin)
+
+        with mock.patch.object(ap.os, "listdir", compter):
+            plan = ap.plan_rapatriement(self.reglages, "901")
+        self.assertEqual(len(plan["deja"]), 40)
+        dans_le_dossier = [c for c in lectures if c == os.path.join(self.pc, PC_1, "05 - CHANTIER", "PRISE DE COTES")]
+        self.assertLessEqual(len(dans_le_dossier), 1, "pas une relecture du dossier par fichier")
+        self.assertLess(len(lectures), 20)
+        self.assertIsNone(ap._LISTES, "la mémoire ne sert que le temps du parcours")
 
     def test_simuler_n_ecrit_rien(self):
         self.fiche(COTES + "/A.pdf", "a")
@@ -641,6 +759,7 @@ class Rapatriement(Monde):
         self.assertEqual((plan["copies"], [a["chemin"] for a in plan["deja"]]), ([], [COTES + "/" + compose]))
         self.assertEqual(len(os.listdir(os.path.join(self.pc, PC_1, COTES))), 1, "pas de second fichier au même nom")
         self.assertEqual([e["chemin"] for e in self.index()["fichiers"]], [COTES + "/" + compose])
+        self.assertEqual(self.provenance()["fichiers"][0]["verifie"], "contenu")
 
     def test_chantier_sans_dossier_du_pc_ou_drive_technique(self):
         self.reglages["chantiers"]["905"] = {"chantier": "Cinq", "dossier_drive": DRIVE_2}
@@ -699,9 +818,48 @@ class Verrou(Monde):
         self.poser("AUTRE-PC", 77, age=3600)
         with self.assertRaises(dc.Refus):
             self.prendre(False)
-        self.poser("AUTRE-PC", 77, age=13 * 3600)
+        self.poser("AUTRE-PC", 77, age=3 * 3600)
         self.prendre(False)
         self.assertEqual(lire(self.verrou)["machine"], "PC-ESSAI")
+
+    def test_verrou_de_plus_de_deux_heures_repris_meme_si_son_numero_est_vivant(self):
+        self.poser("PC-ESSAI", 77, age=3600)
+        with self.assertRaises(dc.Refus):
+            self.prendre(True)
+        self.poser("PC-ESSAI", 77, age=2 * 3600 + 60)
+        moi = self.prendre(True)
+        self.assertIn("a été repris", self.texte())
+        self.assertEqual((lire(self.verrou)["processus"], lire(self.verrou)["instant"]), (4242, 1000000), "le verrou porte l'heure de démarrage")
+        ap.liberer_verrou(self.verrou, moi)
+        self.assertEqual(os.listdir(self.prive), ["depot.json"], "ni verrou, ni reste de reprise")
+
+    def test_deux_reprises_en_meme_temps_une_seule_passe(self):
+        self.poser("PC-ESSAI", 77)
+        vrai = os.rename
+
+        def devance(source, cible):
+            # Un autre programme reprend le verrou orphelin juste avant nous : il l'écarte, puis pose le sien
+            vrai(source, cible)
+            os.remove(cible)
+            ecrire(self.verrou, json.dumps({"machine": "PC-ESSAI", "processus": 99, "instant": 1000000, "date": "à l'instant"}))
+            raise FileNotFoundError(source)
+
+        with mock.patch.object(ap.os, "rename", devance), self.assertRaisesRegex(dc.Refus, "déjà en cours"):
+            ap.prendre_verrou(self.verrou, self.dire, vivant=lambda numero: numero == 99, horloge=lambda: 1000000, machine="PC-ESSAI", processus=4242)
+        self.assertEqual(lire(self.verrou)["processus"], 99, "le verrou de l'autre est intact")
+
+    def test_le_verrou_est_rafraichi_pendant_un_long_travail(self):
+        heure = [1000000]
+        moi = ap.prendre_verrou(self.verrou, self.dire, horloge=lambda: heure[0], machine="PC-ESSAI", processus=4242)
+        heure[0] += 60
+        ap.battre()
+        self.assertEqual(lire(self.verrou)["instant"], 1000000, "pas avant dix minutes")
+        heure[0] += 700
+        ap.battre()
+        self.assertEqual(lire(self.verrou)["instant"], 1000760)
+        ap.liberer_verrou(self.verrou, moi)
+        ap.battre()
+        self.assertFalse(os.path.exists(self.verrou))
 
     def test_verrou_illisible_recent(self):
         ecrire(self.verrou, "pas du json")
@@ -754,7 +912,7 @@ class LigneDeCommande(Monde):
 
     def test_verrou_vivant_refuse(self):
         ecrire(os.path.join(self.prive, ap.VERROU_FICHIER),
-               json.dumps({"machine": ap.socket.gethostname(), "processus": os.getppid() or 4, "instant": 0, "date": "hier"}))
+               json.dumps({"machine": ap.socket.gethostname(), "processus": os.getppid() or 4, "instant": time.time(), "date": "à l'instant"}))
         with mock.patch.object(ap, "processus_vivant", lambda numero: True):
             avant = self.photos()
             code, _, erreur = self.lancer()
@@ -767,11 +925,12 @@ class LigneDeCommande(Monde):
         self.bordereau(1, "901-10-777-A-INCONNU.pdf")
         self.fiche(COTES + "/A.pdf", "a")
         self.fiche("Divers/B.pdf", "b")
+        self.fiche(COTES + "/X.pdf", "x", dossier=DRIVE_2)
         avant = self.photos()
         code, sortie, erreur = self.lancer("--lister")
         self.assertEqual((code, erreur), (0, ""))
         self.assertEqual(self.photos(), avant)
-        for attendu in ("VOIR SEULEMENT", "n° 901", PC_2, DRIVE_2, "105 A RESERVATIONS", "non reconnu", "1 fichier(s) à copier",
+        for attendu in ("VOIR SEULEMENT", "n° 901", PC_1, DRIVE_2, "105 A RESERVATIONS", "non reconnu", "1 fichier(s) à copier",
                         "hors des dossiers de fiches", "_À CLASSER"):
             self.assertIn(attendu, sortie)
 
@@ -779,13 +938,14 @@ class LigneDeCommande(Monde):
         self.bordereau(1, "901-10-105-A-RESERVATIONS.pdf")
         self.fiche(COTES + "/A.pdf", "a")
         self.fiche(COTES + "/B.gdoc", "{}")
+        self.fiche(COTES + "/X.pdf", "x", dossier=DRIVE_2)
         demander = saisies("o", "o")
         code, sortie, erreur = self.lancer(demander=demander)
         self.assertEqual((code, erreur, demander.reste), (0, "", []))
         self.assertTrue(os.path.isfile(os.path.join(self.racine, DRIVE_1, "CARNET", "carnet.json")))
         self.assertTrue(os.path.isfile(os.path.join(self.pc, PC_1, COTES, "A.pdf")))
         for attendu in ("BILAN", "Carnet : 1 déposé(s)", "Recopie des fiches : 1 fichier(s) copié(s) dans les dossiers de chantier du PC, 0 déjà présent(s), 1 signalé(s)",
-                        "VÉRIFIEZ L'ICÔNE DE MEGA", "Rien n'a été supprimé"):
+                        "VÉRIFIER QUE MEGA A FINI DE SYNCHRONISER", "Rien n'a été supprimé"):
             self.assertIn(attendu, sortie)
         self.assertEqual(sorted(os.listdir(self.prive)), ["appli-pc", "depot.json"], "le verrou est libéré")
         journal = os.listdir(os.path.join(self.prive, "appli-pc"))
@@ -845,14 +1005,57 @@ class LigneDeCommande(Monde):
         self.assertIn("est retiré", sortie)
         self.assertIs(lire(os.path.join(self.racine, DRIVE_1, "CARNET", "carnet.json"))["documents"][0]["retire"], True)
 
+    def test_un_seul_chantier(self):
+        self.lancer("--associer", demander=saisies("", "1", ""))
+        self.bordereau(1, "901-10-105-A-RESERVATIONS.pdf")
+        self.bordereau(1, "902-10-106-A-REPERAGE.pdf", chantier=PC_2)
+        self.fiche(COTES + "/UN.pdf", "1")
+        self.fiche(COTES + "/DEUX.pdf", "2", dossier=DRIVE_2)
+        # Voir seulement : le chantier 902 et lui seul
+        avant = self.photos()
+        code, sortie, _ = self.lancer("--lister", "--chantier", "902")
+        self.assertEqual((code, self.photos()), (0, avant))
+        self.assertIn("n° 902", sortie)
+        self.assertNotIn("n° 901", sortie)
+        self.assertIn("106 A REPERAGE", sortie)
+        self.assertNotIn("105 A RESERVATIONS", sortie)
+        # Tout traiter pour le 902 seul : son plan, ses fiches ; rien pour le 901 ; « A VOIR » n'est pas écrit
+        drive, pc, _ = self.photos()
+        demander = saisies("o", "o")
+        code, sortie, erreur = self.lancer("--chantier", "902", demander=demander)
+        self.assertEqual((code, erreur, demander.reste), (0, "", []))
+        self.assertIn("UN SEUL CHANTIER : le n° 902", sortie)
+        self.assertIn("1 chantier(s)", demander.questions[-1])
+        apres_drive, apres_pc = photo(self.racine), photo(self.pc)
+        self.assertTrue(os.path.isfile(os.path.join(self.pc, PC_2, COTES, "DEUX.pdf")))
+        self.assertTrue(os.path.isfile(os.path.join(self.racine, DRIVE_2, "CARNET", "carnet.json")))
+        self.assertTrue(all(n.startswith(PC_2 + "/") for n in apres_pc if n not in pc), "rien hors du dossier du chantier 902")
+        self.assertTrue(all(n.startswith(DRIVE_2 + "/") for n in apres_drive if n not in drive))
+        self.assertEqual({n: v for n, v in apres_pc.items() if n in pc}, pc)
+        self.assertFalse(os.path.exists(os.path.join(self.pc, ap.A_VOIR)))
+        # Le passage automatique accepte aussi --chantier (essai), sans toucher aux autres
+        self.fiche(COTES + "/TROIS.pdf", "3", dossier=DRIVE_2)
+        self.assertEqual(self.lancer("--rapatrier", "--auto", "--chantier", "902")[0], 0)
+        self.assertTrue(os.path.isfile(os.path.join(self.pc, PC_2, COTES, "TROIS.pdf")))
+        self.assertFalse(os.path.exists(os.path.join(self.pc, PC_1, COTES, "UN.pdf")))
+        # Un numéro inconnu, ou qui n'est pas un nombre : refus avant toute écriture
+        for numero, attendu in (("777", "n'est pas reconnu"), ("9O2", "n'est pas un nombre")):
+            avant = self.photos()
+            code, _, erreur = self.lancer("--chantier", numero, demander=saisies("o", "o"))
+            self.assertEqual(code, 2)
+            self.assertIn(attendu, erreur)
+            self.assertEqual(self.photos(), avant)
+
+
 
 class Automatique(Monde):
     """La recopie sans personne : chantiers trouvés par leur numéro, fichier « A VOIR », journal, verrou."""
 
     def setUp(self):
         super().setUp()
-        for nom in ("903 - CHANTIER TROIS", "904-CHANTIER QUATRE", "905 CHANTIER CINQ"):
-            os.makedirs(os.path.join(self.racine, nom))
+        # Des dossiers de chantier de l'appli : chacun a au moins un sous-dossier de fiches
+        for nom in ("903 - CHANTIER TROIS", "904-CHANTIER QUATRE", "905 CHANTIER CINQ", DRIVE_2, DRIVE_1 + " (1)"):
+            os.makedirs(os.path.join(self.racine, nom, "05 - CHANTIER", "PRISE DE COTES"))
         for nom in ("903 - OPERATION TROIS - VILLE", "904-OPERATION QUATRE", "905 OPERATION CINQ"):
             os.makedirs(os.path.join(self.pc, nom))
         self.journal = os.path.join(self.prive, "appli-pc", "auto.txt")
@@ -873,25 +1076,53 @@ class Automatique(Monde):
             return f.read().splitlines()
 
     def test_chantiers_trouves_par_le_numero_en_tete_du_nom(self):
+        # Un dossier qui commence par des chiffres mais que l'appli n'utilise pas (aucun sous-dossier de fiches) : ignoré, sans bruit
+        os.makedirs(os.path.join(self.racine, "2024 - archives", "Divers"))
+        ecrire(os.path.join(self.racine, "2024 - archives", "Divers", "vieux.pdf"))
+        os.makedirs(os.path.join(self.pc, "2024 - ARCHIVES DU BUREAU"))
+        os.makedirs(os.path.join(self.racine, "DOSSIER QUELCONQUE"))
+        # … alors qu'un dossier qui n'a que le carnet est bien un dossier de chantier de l'appli
+        os.makedirs(os.path.join(self.racine, "908 - AVEC CARNET SEUL", "CARNET"))
+        os.makedirs(os.path.join(self.pc, "908 - OPERATION HUIT"))
         avant = self.photos()
         suivis, a_voir = ap.chantiers_suivis(self.reglages)
         self.assertEqual(self.photos(), avant, "chercher les chantiers n'écrit rien")
         self.assertEqual({n: f["dossier_drive"] for n, f in suivis.items()},
-                         {"901": DRIVE_1, "903": "903 - CHANTIER TROIS", "904": "904-CHANTIER QUATRE", "905": "905 CHANTIER CINQ"})
+                         {"901": DRIVE_1, "903": "903 - CHANTIER TROIS", "904": "904-CHANTIER QUATRE", "905": "905 CHANTIER CINQ",
+                          "908": "908 - AVEC CARNET SEUL"})
         self.assertEqual(suivis["901"]["chantier"], "Chantier Essai Un", "la correspondance garde le nom dans l'appli")
         self.assertEqual(suivis["903"]["chantier"], "903 - CHANTIER TROIS", "sans correspondance : le nom du dossier")
         texte = "\n".join(a_voir)
         self.assertEqual(len(a_voir), 2, a_voir)
         self.assertRegex(texte, "« %s » : pas de numéro de chantier" % DRIVE_2)
         self.assertRegex(texte, r"« %s \(1\) » : c'est un dossier en double" % DRIVE_1)
-        for technique in ("ADMINISTRATIF", "_À CLASSER", "PLANNING"):
-            self.assertNotIn(technique, texte)
-        # La correspondance passe avant le numéro lu dans le nom
+        for ignore in ("ADMINISTRATIF", "_À CLASSER", "PLANNING", "2024", "QUELCONQUE"):
+            self.assertNotIn(ignore, texte)
+        bilan = ap.rapatrier_tout(self.reglages, dire=self.dire)
+        self.assertEqual((bilan["copies"], [n for n in photo(self.pc) if n.startswith("2024") and "/" in n]), (0, []), "rien pour « 2024 - archives »")
+
+    def test_la_correspondance_ne_peut_pas_contredire_le_numero_du_dossier(self):
+        self.monde_propre()
+        # Une faute de frappe dans depot.json : le dossier « 903 - … » relié au chantier 904
         self.reglages["chantiers"]["904"] = {"chantier": "Quatre", "dossier_drive": "903 - CHANTIER TROIS"}
+        self.fiche(COTES + "/F3.pdf", "3", dossier="903 - CHANTIER TROIS")
+        self.fiche(COTES + "/F4.pdf", "4", dossier="904-CHANTIER QUATRE")
         suivis, a_voir = ap.chantiers_suivis(self.reglages)
         self.assertNotIn("903", suivis)
-        self.assertNotIn("904", suivis, "deux dossiers du Drive pour le n° 904 : rien n'est deviné")
-        self.assertRegex("\n".join(a_voir), "n° 904 : plusieurs dossiers du Drive")
+        self.assertEqual(suivis["904"]["dossier_drive"], "904-CHANTIER QUATRE", "le vrai dossier 904 garde son lien")
+        self.assertEqual(len(a_voir), 1)
+        self.assertRegex(a_voir[0], "« 903 - CHANTIER TROIS » : son nom commence par le numéro 903, mais .* n° 904")
+        self.noter_reglages()
+        self.assertEqual(self.auto(), 0)
+        self.assertFalse([n for n in photo(self.pc) if n.endswith("F3.pdf")], "les fiches du 903 ne vont nulle part")
+        self.assertTrue(os.path.isfile(os.path.join(self.pc, "904-OPERATION QUATRE", COTES, "F4.pdf")))
+        self.assertIn("numéro 903, mais", ap.lire_a_voir(self.pc))
+        # La correspondance sert pour un dossier SANS numéro : c'est son seul lien
+        self.reglages["chantiers"] = {"901": self.reglages["chantiers"]["901"], "905": {"chantier": "Cinq", "dossier_drive": "DOSSIER SANS NUMERO NI FICHE"}}
+        os.makedirs(os.path.join(self.racine, "DOSSIER SANS NUMERO NI FICHE"))
+        suivis, a_voir = ap.chantiers_suivis(self.reglages)
+        self.assertNotIn("905", suivis, "deux dossiers du Drive pour le n° 905 : rien n'est deviné")
+        self.assertRegex("\n".join(a_voir), "n° 905 : plusieurs dossiers du Drive")
 
     def test_copie_automatique_dans_le_bon_dossier(self):
         self.monde_propre()
@@ -924,28 +1155,55 @@ class Automatique(Monde):
         self.assertEqual(self.auto(), 0)
         texte = ap.lire_a_voir(self.pc)
         self.assertIn("Rien à signaler.", texte)
-        self.assertRegex(texte, r"Dernier passage : le \d{2}/\d{2}/\d{4} à \d{2}:\d{2}")
-        with open(os.path.join(self.pc, ap.A_VOIR), "rb") as f:
+        self.assertRegex(texte, r"Mis à jour le \d{2}/\d{2}/\d{4} à \d{2}:\d{2}")
+        fichier = os.path.join(self.pc, ap.A_VOIR)
+        with open(fichier, "rb") as f:
             brut = f.read()
         self.assertTrue(brut.startswith(b"\xef\xbb\xbf") and b"\r\n" in brut, "lisible dans le Bloc-notes")
         self.assertEqual(len(self.lignes_du_journal()), 1)
         self.assertIn("0 fichier(s) copié(s)", self.lignes_du_journal()[0])
-        # Deuxième passage : une ligne de plus ; « A VOIR » est réécrit ; le relevé du Drive, inchangé, n'est pas refait
+        # Deuxième passage : une ligne de plus au journal ; NI « A VOIR » NI le relevé du Drive, inchangés, ne sont réécrits
         releve = os.path.join(self.racine, DRIVE_1, ap.INDEX)
-        avant_releve, drive = os.stat(releve).st_mtime_ns, photo(self.racine)
-        ecrire(os.path.join(self.pc, ap.A_VOIR), "ancien contenu")
+        avant_releve, avant_a_voir, drive, pc = os.stat(releve).st_mtime_ns, os.stat(fichier).st_mtime_ns, photo(self.racine), photo(self.pc)
         self.assertEqual(self.auto(), 0)
         self.assertEqual(len(self.lignes_du_journal()), 2)
-        self.assertIn("Rien à signaler.", ap.lire_a_voir(self.pc))
-        self.assertEqual(os.stat(releve).st_mtime_ns, avant_releve)
-        self.assertEqual(photo(self.racine), drive)
+        self.assertEqual((os.stat(releve).st_mtime_ns, os.stat(fichier).st_mtime_ns), (avant_releve, avant_a_voir))
+        self.assertEqual((photo(self.racine), photo(self.pc)), (drive, pc), "un passage sans rien de neuf n'écrit rien hors de _prive")
+        # « A VOIR » est réécrit quand ses lignes changent…
+        self.fiche(COTES + "/Lien.gdoc", "{}")
+        self.assertEqual(self.auto(), 0)
+        self.assertIn("raccourci Google", ap.lire_a_voir(self.pc))
         self.assertEqual(sorted(n for n in os.listdir(self.pc) if not os.path.isdir(os.path.join(self.pc, n))), [ap.A_VOIR], "pas de fichier temporaire")
-        # … mais un relevé de plus d'un jour est refait
+        os.remove(os.path.join(self.racine, DRIVE_1, COTES, "Lien.gdoc"))
+        self.assertEqual(self.auto(), 0)
+        self.assertIn("Rien à signaler.", ap.lire_a_voir(self.pc))
+        # … et au moins une fois par jour, comme le relevé
+        avant_hier = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=2)
+        with open(fichier, "w", encoding="utf-8-sig", newline="") as f:
+            f.write(ap.texte_a_voir([], avant_hier))
         vieux = lire(releve)
         vieux["releve_le"] = "2026-01-01T08:00:00+01:00"
         ecrire(releve, json.dumps(vieux))
+        ancien = ap.lire_a_voir(self.pc)
         self.assertEqual(self.auto(), 0)
+        self.assertNotEqual(ap.lire_a_voir(self.pc), ancien)
         self.assertNotEqual(lire(releve)["releve_le"], vieux["releve_le"])
+
+    def test_a_voir_reessaie_si_le_fichier_est_occupe(self):
+        vrai, essais = os.replace, []
+
+        def occupe(source, cible):
+            essais.append(cible)
+            if len(essais) < 3:
+                raise PermissionError("fichier ouvert")
+            vrai(source, cible)
+
+        with mock.patch.object(ap.os, "replace", occupe), mock.patch.object(ap.time, "sleep", lambda secondes: None):
+            self.assertTrue(ap.ecrire_a_voir(self.pc, ["un point"]))
+        self.assertEqual(len(essais), 3)
+        self.assertEqual(ap.points_a_voir(self.pc)[0], ["un point"])
+        self.assertFalse(ap.ecrire_a_voir(self.pc, ["un point"]), "mêmes lignes : pas réécrit")
+        self.assertTrue(ap.ecrire_a_voir(self.pc, ["un autre point"]))
 
     def test_aucun_ou_plusieurs_dossiers_du_pc_rien_n_est_devine(self):
         self.monde_propre()
@@ -969,22 +1227,42 @@ class Automatique(Monde):
         for attendu in (r"n° 906 \(dossier du Drive « 906 - SANS DOSSIER PC »\) : aucun dossier de chantier du PC ne commence par le numéro 906",
                         r"n° 907 .*plusieurs dossiers de chantier du PC commencent par le numéro 907 \(« 907 - OPERATION », « 907-OPERATION BIS »\)",
                         r"« CHANTIER SANS NUMERO » : pas de numéro de chantier", r"PAS de la même taille.*MEME NOM\.pdf",
-                        r"hors des dossiers de fiches.*Divers/HORS\.pdf", r"raccourci Google.*Lien\.gdoc", r"6 point\(s\) demandent votre attention"):
+                        r"hors des dossiers de fiches.*Divers/HORS\.pdf", r"raccourci Google.*Lien\.gdoc", r"6 point\(s\) demandent ton attention"):
             self.assertRegex(texte, attendu)
         self.assertNotIn(self.racine, texte)
         self.assertNotIn(self.pc, texte)
         self.assertIn("6 point(s) à voir", self.lignes_du_journal()[0])
 
-    def test_verrou_pris_sort_sans_erreur(self):
+    def test_verrou_pris_sort_sans_erreur_et_le_dit(self):
+        self.monde_propre()
+        self.fiche(COTES + "/Lien.gdoc", "{}")
+        self.assertEqual(self.auto(), 0)                    # un premier passage : un point connu dans « A VOIR »
         self.fiche(COTES + "/A.pdf", "a", dossier="903 - CHANTIER TROIS")
         ecrire(os.path.join(self.prive, ap.VERROU_FICHIER),
-               json.dumps({"machine": ap.socket.gethostname(), "processus": 4, "instant": 0, "date": "hier"}))
+               json.dumps({"machine": ap.socket.gethostname(), "processus": 4, "instant": time.time(), "date": "à l'instant"}))
         drive, pc = photo(self.racine), photo(self.pc)
         with mock.patch.object(ap, "processus_vivant", lambda numero: True):
             self.assertEqual(self.auto(), 0)
-        self.assertEqual((photo(self.racine), photo(self.pc)), (drive, pc), "rien n'est copié, « A VOIR » n'est pas touché")
-        self.assertIn("un autre passage", self.lignes_du_journal()[0])
-        self.assertTrue(os.path.exists(os.path.join(self.prive, ap.VERROU_FICHIER)), "le verrou de l'autre reste")
+            apres = photo(self.pc)
+            self.assertEqual(photo(self.racine), drive)
+            self.assertEqual({n: v for n, v in apres.items() if n != ap.A_VOIR}, {n: v for n, v in pc.items() if n != ap.A_VOIR}, "rien n'est copié")
+            self.assertIn("un autre passage", self.lignes_du_journal()[-1])
+            self.assertTrue(os.path.exists(os.path.join(self.prive, ap.VERROU_FICHIER)), "le verrou de l'autre reste")
+            # C'est écrit dans « A VOIR », en PLUS des points déjà connus, et une seule fois
+            texte = ap.lire_a_voir(self.pc)
+            self.assertRegex(texte, "PASSAGE NON FAIT : la recopie automatique a trouvé le programme déjà occupé")
+            self.assertIn("raccourci Google", texte)
+            self.assertIn("2 point(s)", texte)
+            date = os.stat(os.path.join(self.pc, ap.A_VOIR)).st_mtime_ns
+            self.assertEqual(self.auto(), 0)
+            self.assertEqual(os.stat(os.path.join(self.pc, ap.A_VOIR)).st_mtime_ns, date, "même ligne : pas réécrit")
+            # Un verrou resté là depuis trente jours, même si son numéro de programme est vivant : repris, le travail se fait
+            ecrire(os.path.join(self.prive, ap.VERROU_FICHIER),
+                   json.dumps({"machine": ap.socket.gethostname(), "processus": 4, "instant": time.time() - 30 * 86400, "date": "il y a un mois"}))
+            self.assertEqual(self.auto(), 0)
+        self.assertTrue(os.path.isfile(os.path.join(self.pc, "903 - OPERATION TROIS - VILLE", COTES, "A.pdf")))
+        self.assertNotIn("PASSAGE NON FAIT", ap.lire_a_voir(self.pc))
+        self.assertEqual(sorted(os.listdir(self.prive)), ["appli-pc", "depot.json"])
 
     def test_drive_arrete_signale_et_ancienne_cle(self):
         # L'ancienne clé du réglage est encore lue
@@ -992,16 +1270,25 @@ class Automatique(Monde):
         self.reglages["mega"] = self.pc
         self.noter_reglages()
         self.monde_propre()
+        self.fiche(COTES + "/Lien.gdoc", "{}")
         self.assertEqual(self.auto(), 0)
-        # Drive pour ordinateur arrêté : rien n'est copié, c'est écrit dans « A VOIR », code 2
+        self.assertIn("raccourci Google", ap.lire_a_voir(self.pc))
+        # Drive pour ordinateur arrêté : rien n'est copié, code 2 ; la ligne est AJOUTÉE aux points connus, qui ne sont pas effacés
         shutil.move(os.path.join(self.racine, "dossiers.json"), os.path.join(self.temp, "dossiers.json"))
         self.fiche(COTES + "/A.pdf", "a")
         drive = photo(self.racine)
         self.assertEqual(self.auto(), 2)
         self.assertEqual(photo(self.racine), drive)
         self.assertFalse(os.path.exists(os.path.join(self.pc, PC_1, COTES, "A.pdf")))
-        self.assertRegex(ap.lire_a_voir(self.pc), "n'a pas pu se faire.*Google Drive pour ordinateur")
+        texte = ap.lire_a_voir(self.pc)
+        self.assertRegex(texte, "PASSAGE NON FAIT : la recopie des fiches n'a pas pu se faire.*Google Drive pour ordinateur")
+        self.assertIn("raccourci Google", texte)
         self.assertIn("PAS FAIT", self.lignes_du_journal()[-1])
+        # Drive revenu : le passage se fait, la ligne « non fait » disparaît
+        shutil.move(os.path.join(self.temp, "dossiers.json"), os.path.join(self.racine, "dossiers.json"))
+        self.assertEqual(self.auto(), 0)
+        self.assertNotIn("PASSAGE NON FAIT", ap.lire_a_voir(self.pc))
+        self.assertTrue(os.path.isfile(os.path.join(self.pc, PC_1, COTES, "A.pdf")))
         # Réglages absents : code 2, une ligne au journal, rien d'autre
         os.remove(self.reglages_fichier)
         self.assertEqual(self.auto(), 2)
@@ -1033,99 +1320,155 @@ class Automatique(Monde):
         ap.noter_auto(self.prive, ["encore"])
         self.assertEqual(sorted(os.listdir(dossier)), ["auto-ancien.txt", "auto.txt"], "un seul ancien journal est gardé")
 
-    def test_option_a_voir(self):
+    def test_option_a_voir_et_dernier_passage(self):
         code, sortie, _ = self.lancer("--a-voir")
         self.assertEqual(code, 0)
         self.assertIn("n'existe pas encore", sortie)
+        self.assertIn("n'a encore jamais tourné", sortie)
+        self.assertIn("jamais tourné", self.lancer("--etat")[1])
         ap.ecrire_a_voir(self.pc, ["un point à regarder"])
         code, sortie, _ = self.lancer("--a-voir")
         self.assertIn("- un point à regarder", sortie)
-        self.assertIn("1 point(s) demandent votre attention", sortie)
+        self.assertIn("1 point(s) demandent ton attention", sortie)
+        # Après un passage automatique : la date du dernier passage ; --etat ne dit rien tant que tout va bien
+        self.monde_propre()
+        self.assertEqual(self.auto(), 0)
+        self.assertRegex(self.lancer("--a-voir")[1], r"Dernier passage automatique réussi : le \d{2}/\d{2}/\d{4} à \d{2}:\d{2}\.")
+        self.assertEqual(self.lancer("--etat"), (0, "", ""))
+        # Plus de 3 heures sans passage réussi : le menu et « A VOIR » préviennent
+        dernier = os.path.join(self.prive, "appli-pc", ap.DERNIER_PASSAGE)
+        ecrire(dernier, json.dumps({"instant": time.time() - 4 * 3600, "date": "14/11/2026 à 06:00"}))
+        for option in ("--etat", "--a-voir"):
+            sortie = self.lancer(option)[1]
+            self.assertRegex(sortie, "ATTENTION : la recopie automatique des fiches n'a pas tourné depuis le 14/11/2026 à 06:00")
+            self.assertIn("installer-tache.bat", sortie)
+        # Un passage refusé (Drive arrêté) ne compte pas comme un passage réussi
+        shutil.move(os.path.join(self.racine, "dossiers.json"), os.path.join(self.temp, "dossiers.json"))
+        self.assertEqual(self.auto(), 2)
+        self.assertIn("ATTENTION", self.lancer("--etat")[1])
+
 
 
 class TachePlanifiee(Monde):
-    """La tâche du Planificateur de Windows : on vérifie les commandes construites, sans jamais en lancer une."""
-    PYTHONW = r"C:\Python Essai\pythonw.exe"
-    SCRIPT = r"C:\Depot Essai\outils\appli_pc.py"
+    """La tâche du Planificateur de Windows : on vérifie sa description (XML) et les commandes, sans jamais en lancer une."""
+    PYTHONW = "C:\\Program Files\\Python Été & Cie\\pythonw.exe"
+    SCRIPT = "C:\\Dépôt d'essai <1>\\chantier-pro\\outils\\appli_pc.py"
+    ESPACE = "{http://schemas.microsoft.com/windows/2004/02/mit/task}"
+    DEPART = datetime.datetime(2026, 11, 14, 8, 37, 12)
 
     def faux_lanceur(self, codes=()):
         codes = list(codes)
 
         def lanceur(arguments):
             lanceur.commandes.append(arguments)
+            if "/xml" in arguments:
+                with open(arguments[arguments.index("/xml") + 1], "rb") as f:
+                    lanceur.xml.append(f.read())
             return (codes.pop(0) if codes else 0), "message de Windows"
 
-        lanceur.commandes = []
+        lanceur.commandes, lanceur.xml = [], []
         return lanceur
 
-    def test_commande_de_la_tache(self):
-        lancement = '"%s" "%s" --rapatrier --auto' % (self.PYTHONW, self.SCRIPT)
-        self.assertEqual(ap.commande_tache(ap.TACHE, "HOURLY", self.PYTHONW, self.SCRIPT),
-                         ["schtasks", "/create", "/tn", "ChantierPro - recopie des fiches", "/tr", lancement, "/sc", "HOURLY", "/mo", "1", "/f"])
-        self.assertEqual(ap.commande_tache(ap.TACHE_SESSION, "ONLOGON", self.PYTHONW, self.SCRIPT),
-                         ["schtasks", "/create", "/tn", "ChantierPro - recopie des fiches (ouverture de session)", "/tr", lancement, "/sc", "ONLOGON", "/f"])
-        avec = ap.commande_tache(ap.TACHE, "HOURLY", self.PYTHONW, self.SCRIPT, ("--reglages", r"C:\Un Dossier\depot.json"))
-        self.assertTrue(avec[5].endswith(r'--rapatrier --auto --reglages "C:\Un Dossier\depot.json"'))
-        self.assertNotIn("python.exe", lancement, "pythonw : aucune fenêtre noire")
-        for interdit in ("/ru", "/rl", "/rp"):
-            self.assertNotIn(interdit, avec, "aucun droit d'administrateur, aucun mot de passe")
-        with self.assertRaises(ValueError):
-            ap.commande_tache(ap.TACHE, "DAILY", self.PYTHONW, self.SCRIPT)
-        with self.assertRaisesRegex(dc.Refus, "trop long"):
-            ap.commande_tache(ap.TACHE, "HOURLY", self.PYTHONW, "C:\\" + "x" * 300 + ".py")
-        self.assertEqual(ap.commande_retrait(ap.TACHE), ["schtasks", "/delete", "/tn", "ChantierPro - recopie des fiches", "/f"])
+    def valeur(self, racine, chemin):
+        return racine.find("/".join(self.ESPACE + m for m in chemin.split("/"))).text
 
-    def test_installer_les_deux_taches(self):
+    def test_description_de_la_tache(self):
+        texte = ap.xml_tache(self.PYTHONW, self.SCRIPT, "C:\\Dépôt d'essai <1>\\chantier-pro", "PC-ESSAI\\franck", self.DEPART,
+                             ("--reglages", "C:\\Un Dossier\\depot.json"))
+        self.assertTrue(texte.startswith('<?xml version="1.0" encoding="UTF-16"?>'))
+        racine = ET.fromstring(texte.split("?>", 1)[1])          # bien formé, y compris avec « & », « < », espaces et accents
+        v = lambda chemin: self.valeur(racine, chemin)           # noqa: E731
+        # Deux déclencheurs dans UNE tâche : toutes les heures, et à l'ouverture de session de CET utilisateur seulement
+        declencheurs = racine.find(self.ESPACE + "Triggers")
+        self.assertEqual([d.tag.replace(self.ESPACE, "") for d in declencheurs], ["TimeTrigger", "LogonTrigger"])
+        self.assertEqual(v("Triggers/TimeTrigger/Repetition/Interval"), "PT1H")
+        self.assertEqual(v("Triggers/TimeTrigger/Repetition/StopAtDurationEnd"), "false")
+        self.assertEqual(v("Triggers/TimeTrigger/StartBoundary"), "2026-11-14T08:37:12")
+        self.assertEqual(v("Triggers/LogonTrigger/UserId"), "PC-ESSAI\\franck", "pas « tout utilisateur »")
+        # Sans élévation, dans la session ouverte
+        self.assertEqual(v("Principals/Principal/UserId"), "PC-ESSAI\\franck")
+        self.assertEqual(v("Principals/Principal/LogonType"), "InteractiveToken")
+        self.assertEqual(v("Principals/Principal/RunLevel"), "LeastPrivilege")
+        self.assertNotIn("HighestAvailable", texte)
+        self.assertNotIn("Password", texte)
+        # Réglages
+        for nom, attendu in (("DisallowStartIfOnBatteries", "false"), ("StopIfGoingOnBatteries", "false"), ("MultipleInstancesPolicy", "IgnoreNew"),
+                             ("ExecutionTimeLimit", "PT1H"), ("StartWhenAvailable", "true"), ("Enabled", "true"), ("Hidden", "false"),
+                             ("RunOnlyIfNetworkAvailable", "false"), ("WakeToRun", "false")):
+            self.assertEqual(v("Settings/" + nom), attendu, nom)
+        # Ce qui est lancé : sans fenêtre (pythonw), en mode automatique, depuis le dépôt
+        self.assertEqual(v("Actions/Exec/Command"), self.PYTHONW)
+        self.assertEqual(v("Actions/Exec/Arguments"), '"%s" --rapatrier --auto --reglages "C:\\Un Dossier\\depot.json"' % self.SCRIPT)
+        self.assertEqual(v("Actions/Exec/WorkingDirectory"), "C:\\Dépôt d'essai <1>\\chantier-pro")
+        self.assertNotIn("python.exe", texte)
+        self.assertEqual(ap.commande_tache(ap.TACHE, "C:\\Temp\\t.xml"),
+                         ["schtasks", "/create", "/tn", "ChantierPro - recopie des fiches", "/xml", "C:\\Temp\\t.xml", "/f"])
+        self.assertEqual(ap.commande_retrait(ap.TACHE), ["schtasks", "/delete", "/tn", "ChantierPro - recopie des fiches", "/f"])
+        for interdit in ("/ru", "/rl", "/rp", "/sc"):
+            self.assertNotIn(interdit, ap.commande_tache(ap.TACHE, "t.xml"))
+
+    def test_installer_une_seule_tache(self):
         pythonw = ecrire(os.path.join(self.temp, "pythonw.exe"))
         lanceur = self.faux_lanceur()
-        self.assertEqual(ap.installer_tache(self.dire, lanceur, pythonw=pythonw, script=self.SCRIPT), 0)
-        self.assertEqual(lanceur.commandes, [ap.commande_tache(ap.TACHE, "HOURLY", pythonw, self.SCRIPT),
-                                             ap.commande_tache(ap.TACHE_SESSION, "ONLOGON", pythonw, self.SCRIPT)])
-        for attendu in ("toutes les heures", "à chaque ouverture de session", "Planificateur de tâches", ap.A_VOIR):
+        self.assertEqual(ap.installer_tache(self.dire, lanceur, pythonw=pythonw, script=self.SCRIPT, utilisateur="PC-ESSAI\\franck",
+                                            maintenant=self.DEPART), 0)
+        creation, menage = lanceur.commandes
+        self.assertEqual(creation[:5] + creation[6:], ["schtasks", "/create", "/tn", ap.TACHE, "/xml", "/f"])
+        self.assertEqual(menage, ap.commande_retrait(ap.TACHE_ANCIENNE), "l'ancienne seconde tâche est retirée si elle existe")
+        self.assertFalse(os.path.exists(creation[5]), "le fichier temporaire de description est supprimé")
+        self.assertTrue(lanceur.xml[0].startswith(b"\xff\xfe"), "écrit en UTF-16, comme l'attend le Planificateur")
+        racine = ET.fromstring(lanceur.xml[0].decode("utf-16").split("?>", 1)[1])
+        self.assertEqual(self.valeur(racine, "Actions/Exec/Command"), pythonw)
+        self.assertEqual(self.valeur(racine, "Triggers/LogonTrigger/UserId"), "PC-ESSAI\\franck")
+        self.assertEqual(self.valeur(racine, "Triggers/TimeTrigger/StartBoundary"), "2026-11-14T08:37:00")
+        for attendu in ("toutes les heures", "ouverture de ta session", "Planificateur de tâches", ap.A_VOIR, "mise à jour de Python"):
             self.assertIn(attendu, self.texte())
 
-    def test_ouverture_de_session_refusee_la_tache_horaire_reste(self):
-        pythonw = ecrire(os.path.join(self.temp, "pythonw.exe"))
-        lanceur = self.faux_lanceur([0, 1])
-        self.assertEqual(ap.installer_tache(self.dire, lanceur, pythonw=pythonw, script=self.SCRIPT), 0)
-        self.assertEqual(len(lanceur.commandes), 2)
-        self.assertIn("n'a pas pu être créée sans droits d'administrateur", self.texte())
-        self.assertIn("la tâche horaire seule est gardée", self.texte())
-
-    def test_tache_horaire_refusee(self):
+    def test_tache_refusee_par_windows(self):
         pythonw = ecrire(os.path.join(self.temp, "pythonw.exe"))
         lanceur = self.faux_lanceur([1])
-        self.assertEqual(ap.installer_tache(self.dire, lanceur, pythonw=pythonw, script=self.SCRIPT), 1)
+        self.assertEqual(ap.installer_tache(self.dire, lanceur, pythonw=pythonw, script=self.SCRIPT, utilisateur="PC-ESSAI\\franck"), 1)
         self.assertEqual(len(lanceur.commandes), 1, "on n'insiste pas")
+        self.assertFalse(os.path.exists(lanceur.commandes[0][5]))
         self.assertIn("n'a PAS pu être créée", self.texte())
+        self.assertIn("message de Windows", self.texte())
         with self.assertRaisesRegex(dc.Refus, "pythonw"):
             ap.installer_tache(self.dire, lanceur, pythonw=os.path.join(self.temp, "absent.exe"), script=self.SCRIPT)
         self.assertEqual(len(lanceur.commandes), 1)
 
-    def test_retirer_les_taches(self):
+    def test_retirer_la_tache_et_l_ancien_nom(self):
         lanceur = self.faux_lanceur([0, 1])
         self.assertEqual(ap.retirer_tache(self.dire, lanceur), 0)
-        self.assertEqual(lanceur.commandes, [ap.commande_retrait(ap.TACHE), ap.commande_retrait(ap.TACHE_SESSION)])
-        self.assertIn("Tâche retirée", self.texte())
+        self.assertEqual(lanceur.commandes, [ap.commande_retrait(ap.TACHE), ap.commande_retrait(ap.TACHE_ANCIENNE)])
+        self.assertIn("Tâche retirée : « %s »." % ap.TACHE, self.texte())
+        self.assertNotIn(ap.TACHE_ANCIENNE, self.texte(), "l'ancien nom absent : aucun message, aucune erreur")
+        self.lignes.clear()
+        lanceur = self.faux_lanceur([1, 0])
+        self.assertEqual(ap.retirer_tache(self.dire, lanceur), 0)
         self.assertIn("rien à retirer", self.texte())
+        self.assertIn("Tâche retirée : « %s »." % ap.TACHE_ANCIENNE, self.texte())
 
     def test_par_la_ligne_de_commande(self):
-        if not os.path.isfile(os.path.join(os.path.dirname(sys.executable), "pythonw.exe")):
-            self.skipTest("pas de pythonw.exe à côté de ce Python")
         avant = self.photos()
         lanceur = self.faux_lanceur()
-        code, sortie, _ = self.lancer("--installer-tache", lanceur=lanceur)
-        self.assertEqual(code, 0)
-        self.assertEqual([c[:4] + c[6:] for c in lanceur.commandes],
-                         [["schtasks", "/create", "/tn", ap.TACHE, "/sc", "HOURLY", "/mo", "1", "/f"],
-                          ["schtasks", "/create", "/tn", ap.TACHE_SESSION, "/sc", "ONLOGON", "/f"]])
-        lancement = lanceur.commandes[0][5]
-        self.assertRegex(lancement, r'^"[^"]+pythonw\.exe" "[^"]+appli_pc\.py" --rapatrier --auto --reglages ')
-        self.assertIn(self.reglages_fichier, lancement, "la tâche lancera le programme avec les mêmes réglages")
+        faux_python = ecrire(os.path.join(self.temp, "python", "python.exe"))
+        ecrire(os.path.join(self.temp, "python", "pythonw.exe"))
+        with mock.patch.object(ap.sys, "executable", faux_python):
+            code, sortie, erreur = self.lancer("--installer-tache", lanceur=lanceur)
+        self.assertEqual((code, erreur), (0, ""))
+        self.assertEqual(len(lanceur.commandes), 2)
+        racine = ET.fromstring(lanceur.xml[0].decode("utf-16").split("?>", 1)[1])
+        self.assertEqual(self.valeur(racine, "Actions/Exec/Command"), os.path.join(self.temp, "python", "pythonw.exe"))
+        arguments = self.valeur(racine, "Actions/Exec/Arguments")
+        self.assertRegex(arguments, r'^"[^"]+appli_pc\.py" --rapatrier --auto --reglages ')
+        self.assertIn(self.reglages_fichier, arguments, "la tâche lancera le programme avec les mêmes réglages")
+        self.assertEqual(self.valeur(racine, "Actions/Exec/WorkingDirectory"), DEPOT)
+        self.assertTrue(self.valeur(racine, "Triggers/LogonTrigger/UserId"))
         lanceur = self.faux_lanceur()
         code, sortie, _ = self.lancer("--retirer-tache", lanceur=lanceur)
         self.assertEqual((code, len(lanceur.commandes)), (0, 2))
-        self.assertEqual(self.photos(), avant, "installer ou retirer la tâche n'écrit aucun fichier")
+        shutil.rmtree(os.path.join(self.temp, "python"))
+        self.assertEqual(self.photos(), avant, "installer ou retirer la tâche n'écrit aucun fichier dans les dossiers")
 
 
 if __name__ == "__main__":
