@@ -229,7 +229,7 @@ Une ligne par chose qui peut être mise à la corbeille de Drive. Le serveur n'e
 |D|Fichiers|Nombre de fichiers qui partiraient|
 |E|Possible ?|oui / non|
 |F|Pourquoi (ou ce qui manque)|Si c'est non : ce qui manque, et quoi faire|
-|G|Mettre à la corbeille|**Case cochée par Franck.** Traitée dans la demi-heure, après une nouvelle vérification de toutes les conditions|
+|G|Mettre à la corbeille|**Case cochée par Franck.** N'agit que sur une ligne à l'état « Proposé ». Traitée dans la demi-heure, après une nouvelle vérification de toutes les conditions|
 |H|État|Proposé, Impossible, En cours, Fait, Fait (mail à envoyer), Annulation en cours, Annulé|
 |I|Message|Ce que le serveur a fait la dernière fois sur cette ligne|
 |J|Mis à la corbeille le||
@@ -253,7 +253,7 @@ Le journal : une ligne par fichier (ou par dossier de document du carnet), écri
 |E|Taille (octets)||
 |F|Fichiers|1 pour un fichier ; le nombre de fichiers contenus pour un dossier|
 |G|Noté le||
-|H|État|à faire, fait, refusé : …, échec : …, non fait (exécution coupée), remis, non remis (…)|
+|H|État|à faire, fait, refusé : …, échec : …, non fait (exécution coupée), non fait (temps écoulé), remis, non remis (…) ; « — purge précédente » ajouté aux lignes d'une annulation plus ancienne sur la même clé|
 |I|Mis à jour le||
 
 ## Onglet « Dossiers chantiers » (lot 1.5)

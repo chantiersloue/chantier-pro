@@ -1,10 +1,10 @@
 // ═══════════════════════════════════════════════════════════════
 // LOUÉ APP — SERVEUR COMPLET, À COLLER DANS APPS SCRIPT (fichier « Code.gs », tout remplacer)
 // FICHIER GÉNÉRÉ AUTOMATIQUEMENT par « node outils/construire.js » — NE PAS MODIFIER À LA MAIN :
-// les sources sont dans le dossier apps-script/ du dépôt. Version du serveur 02ee60fdfc (pages 17c0695f82)
+// les sources sont dans le dossier apps-script/ du dépôt. Version du serveur 67000c0b14 (pages 17c0695f82)
 // ═══════════════════════════════════════════════════════════════
 
-const EMPREINTE_SERVEUR = '02ee60fdfc';
+const EMPREINTE_SERVEUR = '67000c0b14';
 
 // ████ Config.gs ████
 // ═══════════════════════════════════════════════════════════════
@@ -3338,6 +3338,7 @@ const STK_SEUIL_ALERTE = 80;                // alerte : il est temps de purger
 const STK_SEUIL_CRITIQUE = 95;              // critique : à 100 %, plus aucun mail ne part ni n'arrive
 const STK_RAPPEL_ALERTE_JOURS = 30;         // 80 % : un mail au franchissement, puis un par mois au plus tant que la place reste au-dessus
 const STK_RAPPEL_CRITIQUE_JOURS = 7;        // 95 % : un mail au franchissement (toujours), puis un rappel par semaine
+const STK_RETOUR_CRITIQUE = 2;              // le niveau « 95 % » n'est quitté qu'en dessous de 93 % (95 − 2) : pas de mail à chaque oscillation
 // Objectif de Franck : tenir 35 à 40 chantiers en cours. Pour dire combien de chantiers tiennent encore avant l'alerte,
 // chaque nouveau chantier est compté au poids moyen d'un chantier en cours AUJOURD'HUI, multiplié par cette marge :
 // un chantier en cours est en moyenne à mi-parcours, il pèsera plus lourd à sa clôture (calcul volontairement prudent).
@@ -3398,13 +3399,16 @@ function stkMail_(sujet, texte) {
 }
 // Un onglet du lot 5 dont les titres ont été changés : rien n'est lu ni écrit, et Franck est prévenu (un mail par jour
 // au plus ; la marque du jour n'est posée que si le mail est parti)
+let STK_PLACE_ = null;   // la place du compte lue par l'exécution en cours (pour le mail ci-dessous)
 function stkAlerteOnglet_(nom) {
   const props = PropertiesService.getScriptProperties(), cle = 'ALERTE_STOCKAGE_' + jour_();
   if (props.getProperty(cle)) return;
+  let place = '';
+  try { const p = STK_PLACE_ || placeCompte_(); place = 'Place du compte Google en ce moment : ' + stkPlaceTexte_(p) + ' (les alertes de place, elles, continuent de partir).\n\n'; } catch (e) {}
   if (stkMail_('[Loué App] Onglet « ' + nom + ' » modifié — suivi du stockage arrêté',
     'Les titres de l’onglet « ' + nom + ' » du Sheet ne sont plus ceux attendus : le serveur n’y lit et n’y écrit plus rien '
-    + '(ni mesure de la place, ni purge) tant que ce n’est pas réparé.\n\n'
-    + 'Pour réparer : renommez cet onglet (par exemple « ' + nom + ' ancien »), puis lancez installerLot5Production '
+    + '(ni détail par chantier, ni purge) tant que ce n’est pas réparé.\n\n' + place
+    + 'Pour réparer : renomme cet onglet (par exemple « ' + nom + ' ancien »), puis lance installerLot5Production '
     + '(ou installerLot5Test sur la copie TEST) dans l’éditeur Apps Script : un onglet neuf sera créé.\n'
     + 'Rien n’est perdu dans Drive : aucune mise à la corbeille n’est faite pendant ce temps.')) props.setProperty(cle, '1');
 }
@@ -3429,7 +3433,7 @@ function stkTitresBons_(sh) {
 function stkCreerOnglet_() {
   const sh = SpreadsheetApp.getActiveSpreadsheet().insertSheet(SHEET_STOCKAGE);
   sh.getRange(1, 1, STK_RESUME.length, 1).setValues(STK_RESUME.map(t => [t])).setFontWeight('bold');
-  sh.getRange(STK_R.etat, 2).setValue('Pas encore de mesure : la première se fait dans la nuit (ou lancez mesurerStockage).');
+  sh.getRange(STK_R.etat, 2).setValue('Pas encore de mesure : la première se fait dans la nuit (ou lance mesurerStockage).');
   sh.getRange(STK_R.rappel, 2).setValue(STK_RAPPEL);
   sh.getRange(STK_LIGNE_TITRES, 1, 1, STK_ENTETES.length).setValues([STK_ENTETES]).setFontWeight('bold').setBackground('#1A2B4A').setFontColor('white');
   const lignes = Math.max(1, sh.getMaxRows() - STK_LIGNE_TITRES);
@@ -3471,12 +3475,10 @@ function placeCompte_() {
   let erreur = '';
   if (typeof Drive !== 'undefined' && Drive && Drive.About && typeof Drive.About.get === 'function') {
     try {
-      const a = Drive.About.get({ fields: 'storageQuota' }) || {};
-      const q = a.storageQuota || null;
-      // API Drive v3 (storageQuota), ou v2 (quotaBytes…) si c'est cette version qui est activée
-      const utilise = Number(q ? q.usage : a.quotaBytesUsedAggregate), limite = Number(q ? q.limit : a.quotaBytesTotal);
-      const drive = Number(q ? q.usageInDrive : a.quotaBytesUsed), corbeille = Number(q ? q.usageInDriveTrash : a.quotaBytesUsedInTrash);
-      if (isFinite(utilise) && utilise >= 0) {
+      // API Drive version 3 (celle que l'éditeur propose). Une autre version, ou une réponse sans chiffre : repli sur DriveApp.
+      const q = (Drive.About.get({ fields: 'storageQuota' }) || {}).storageQuota || {};
+      const utilise = Number(q.usage), limite = Number(q.limit), drive = Number(q.usageInDrive), corbeille = Number(q.usageInDriveTrash);
+      if (q.usage !== undefined && isFinite(utilise) && utilise >= 0) {
         return stkPlace_('service avancé Drive', utilise, limite, isFinite(drive) ? drive : null, isFinite(corbeille) ? corbeille : null);
       }
       erreur = 'réponse sans chiffre';
@@ -3508,7 +3510,8 @@ function stkAlertes_(place) {
   const seuil = place.pourcent >= STK_SEUIL_CRITIQUE ? STK_SEUIL_CRITIQUE : place.pourcent >= STK_SEUIL_ALERTE ? STK_SEUIL_ALERTE : 0;
   const critique = seuil === STK_SEUIL_CRITIQUE;
   let ecrire = false, envoye = false;
-  if (seuil < niveau) { niveau = seuil; ecrire = true; }   // la place est redescendue : le seuil pourra prévenir de nouveau
+  // la place est redescendue : le seuil pourra prévenir de nouveau (pour 95 % : seulement une fois repassé sous 93 %)
+  if (seuil < niveau && !(niveau === STK_SEUIL_CRITIQUE && place.pourcent >= STK_SEUIL_CRITIQUE - STK_RETOUR_CRITIQUE)) { niveau = seuil; ecrire = true; }
   const franchi = seuil > niveau;
   const attendu = critique ? maintenant - dernierCritique >= STK_RAPPEL_CRITIQUE_JOURS * JOUR
     : !dernierAlerte || maintenant - dernierAlerte >= STK_RAPPEL_ALERTE_JOURS * JOUR;
@@ -3532,18 +3535,25 @@ function stkTexteAlerte_(seuil, place, rappel) {
   if (seuil === STK_SEUIL_CRITIQUE) lignes.push('À 100 %, plus aucun fichier ne peut être créé dans Drive et PLUS AUCUN MAIL NE PART NI N’ARRIVE : les fiches des poseurs '
     + 'resteraient dans leurs téléphones (elles ne sont pas perdues), mais plus rien n’arriverait au bureau, pas même ce mail.', '');
   lignes.push('Pour libérer de la place :',
-    '1. onglet « Purges » du Sheet : cochez « Mettre à la corbeille » sur les lignes où c’est possible (anciens indices du carnet, chantiers terminés) ;',
-    '2. un fichier mis à la corbeille compte encore 30 jours : si la place presse, ouvrez la corbeille de Drive et supprimez-y les fichiers voulus, un par un '
+    '1. onglet « Purges » du Sheet : coche « Mettre à la corbeille » sur les lignes où c’est possible (anciens indices du carnet, chantiers terminés) ;',
+    '2. un fichier mis à la corbeille compte encore 30 jours : si la place presse, ouvre la corbeille de Drive et supprime-y les fichiers voulus, un par un '
       + '(pas « Vider la corbeille », qui supprimerait aussi les purges encore annulables) ;',
-    '3. Gmail compte aussi : supprimez les anciens « Messages envoyés » avec pièce jointe (les PDF sont dans Drive et dans le dossier du chantier sur le PC), puis videz la corbeille de Gmail.',
+    '3. Gmail compte aussi : supprime les anciens « Messages envoyés » avec pièce jointe (les PDF sont dans Drive et dans le dossier du chantier sur le PC), puis vide la corbeille de Gmail.',
     '', 'Mode d’emploi : docs/lot5-procedure.md.');
-  lignes.push(seuil === STK_SEUIL_CRITIQUE ? 'Vous recevrez un rappel par semaine tant que la place reste au-dessus de ' + STK_SEUIL_CRITIQUE + ' %.'
-    : 'Alerte à ' + STK_SEUIL_ALERTE + ' % : vous recevrez ce mail une fois par mois au plus tant que la place reste au-dessus ; à ' + STK_SEUIL_CRITIQUE + ' %, un mail urgent part toujours.');
+  lignes.push(seuil === STK_SEUIL_CRITIQUE ? 'Tu recevras un rappel par semaine tant que la place reste au-dessus de ' + STK_SEUIL_CRITIQUE + ' %.'
+    : 'Alerte à ' + STK_SEUIL_ALERTE + ' % : tu recevras ce mail une fois par mois au plus tant que la place reste au-dessus ; à ' + STK_SEUIL_CRITIQUE + ' %, un mail urgent part toujours.');
   return lignes.join('\n');
 }
 
+// Statut d'un chantier tel qu'il est écrit dans la liste (« terminé », « TERMINÉ » → « Terminé ») ; un autre texte est rendu tel quel
+function stkStatut_(v) {
+  const s = stkNfc_(v).trim(), bas = s.toLowerCase();
+  for (let i = 0; i < STATUTS_CHANTIER.length; i++) if (STATUTS_CHANTIER[i].toLowerCase() === bas) return STATUTS_CHANTIER[i];
+  return s;
+}
 // ── Date « Terminé » de l'onglet Chantiers : posée quand le statut passe à « Terminé », effacée s'il change ──
-// Seule la cellule de la date est écrite, jamais le reste de la ligne. Une date déjà saisie n'est pas remplacée.
+// Seule la cellule de la date est écrite, jamais le reste de la ligne. Sur un chantier « Terminé », une date déjà saisie
+// (par Franck) n'est jamais remplacée. Sur un chantier qui n'est PAS « Terminé », une date est effacée, même saisie à la main.
 function stkDatesTermine_() {
   const rendu = { colonne: false, posees: 0, effacees: 0 };
   const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_CHANTIERS);
@@ -3555,7 +3565,7 @@ function stkDatesTermine_() {
   lignes.forEach((r, i) => {
     const nom = String(r[0] || '').trim();
     if (!nom) return;
-    const termine = String(r[2] || '').trim() === STATUTS_CHANTIER[2], vide = r[COL - 1] === '' || r[COL - 1] == null;
+    const termine = stkStatut_(r[2]) === STATUTS_CHANTIER[2], vide = r[COL - 1] === '' || r[COL - 1] == null;
     if (termine !== vide) return;   // « Terminé » avec sa date, ou autre statut sans date : rien à faire
     // relu juste avant d'écrire : si l'onglet a été trié entre-temps, on ne touche pas la ligne d'un autre chantier
     if (String(sh.getRange(i + 2, 1).getValue()).trim() !== nom) return;
@@ -3572,7 +3582,7 @@ function stkChantiers_() {
   lignesChantiers_().forEach(r => {
     const nom = String(r[0]).trim(), cle = cleChantier_(nom);
     if (parCle[cle]) { parCle[cle].lignes++; return; }
-    parCle[cle] = { nom: nom, cle: cle, statut: String(r[2] || '').trim(), termine: stkDateMs_(r.length > 9 ? r[9] : ''), lignes: 1 };
+    parCle[cle] = { nom: nom, cle: cle, statut: stkStatut_(r[2]), termine: stkDateMs_(r.length > 9 ? r[9] : ''), lignes: 1 };
   });
   return parCle;
 }
@@ -3608,9 +3618,11 @@ function stkCategorie_(chemin, cats) {
 // Ce que contient un dossier, tout compris : poids et nombre de fichiers par sorte. Fichiers à la corbeille non comptés.
 // avecListe : rend aussi la liste des fiches et des photos (identifiant, chemin depuis le dossier, taille).
 // depasse() : limite de temps ; « complet » passe à false si elle est atteinte avant la fin. LECTURE SEULE.
-function stkInventaire_(dossier, cats, depasse, avecListe) {
+// autres : { identifiant de dossier: chantier } (onglet « Dossiers chantiers »). Un sous-dossier qui est le dossier d'un
+// chantier n'est PAS parcouru (il est mesuré à part) : il est rendu dans « etrangers », et bloque la purge de celui-ci.
+function stkInventaire_(dossier, cats, depasse, avecListe, autres) {
   const r = { complet: true, octets: { carnet: 0, fiches: 0, photos: 0, autres: 0 }, nb: { carnet: 0, fiches: 0, photos: 0, autres: 0 },
-    total: 0, fichiers: 0, liste: [] };
+    total: 0, fichiers: 0, liste: [], etrangers: [] };
   const pile = [{ d: dossier, chemin: '' }];
   while (pile.length) {
     if (depasse()) { r.complet = false; break; }
@@ -3626,7 +3638,9 @@ function stkInventaire_(dossier, cats, depasse, avecListe) {
     const sous = x.d.getFolders();
     while (sous.hasNext()) {
       const d = sous.next();
-      if (!d.isTrashed()) pile.push({ d: d, chemin: prefixe + stkNfc_(d.getName()) });
+      if (d.isTrashed()) continue;
+      if (autres && autres[d.getId()]) { r.etrangers.push({ nom: autres[d.getId()], chemin: prefixe + stkNfc_(d.getName()) }); continue; }
+      pile.push({ d: d, chemin: prefixe + stkNfc_(d.getName()) });
     }
   }
   return r;
@@ -3697,12 +3711,19 @@ function stkPasse_(peutCommencer) {
 function stkMesurer_() {
   const debut = chronoMs_(), depasse = () => chronoMs_() - debut > STK_DUREE_MAX_MS;
   const props = PropertiesService.getScriptProperties();
-  const sh = feuilleStockage_();          // titres contrôlés avant toute écriture
-  feuillePurges_(); feuillePurgesDetail_();
-  const dates = stkDatesTermine_();
-  // 1. La place du compte (lue à chaque passage) et les alertes
-  const place = placeCompte_(), maintenant = maintenant_();
+  // 1. La place du compte (lue à chaque passage) et les alertes, AVANT tout contrôle d'onglet : un onglet modifié à la
+  //    main arrête le détail par chantier, jamais l'alerte de place
+  const place = STK_PLACE_ = placeCompte_(), maintenant = maintenant_();
   const alerte = stkAlertes_(place);
+  const sh = feuilleStockage_();          // titres contrôlés avant toute écriture
+  try { feuillePurges_(); feuillePurgesDetail_(); }
+  catch (e) {
+    // L'onglet Stockage, lui, est bon : son état reste juste (place, alerte), et il dit pourquoi le détail s'arrête
+    if (e && e.ongletModifie) sh.getRange(1, 2, 4, 1).setValues([[stkEtat_(place, alerte, '') + ' ⚠ Détail par chantier arrêté : ' + e.message], [stkPlaceTexte_(place)],
+      [new Date(maintenant)], [stkSource_(place)]].map(l => l.map(cellule_)));
+    throw e;
+  }
+  const dates = stkDatesTermine_();
   // 2. Le tour : commencé ici, ou repris
   const liste = stkUnites_();
   let suite = stkSuite_();
@@ -3724,7 +3745,7 @@ function stkMesurer_() {
     const u = liste.unites[i];
     if (suite.apres && u.id <= suite.apres) continue;      // déjà mesuré lors d'un passage précédent
     if (depasse()) { fini = false; break; }
-    const inv = stkInventaire_(u.dossier, cats, depasse, u.type === 'chantier');
+    const inv = stkInventaire_(u.dossier, cats, depasse, u.type === 'chantier', ctx.idsDossiers);
     // Limite de temps au milieu d'un dossier : il sera refait en entier au passage suivant. S'il est le premier du passage,
     // il ne tiendra jamais dans un passage : ce qui a été vu est écrit, et la ligne dit que la mesure est incomplète.
     if (!inv.complet && faitsCePassage) { fini = false; break; }
@@ -3738,6 +3759,7 @@ function stkMesurer_() {
         try { p = prgProposerChantier_(u, inv, ctx, depasse); }
         catch (e) { if (e && e.ongletModifie) throw e; p.texte = 'propositions non calculées : ' + e.message; }
       }
+      if (inv.etrangers.length) p.texte = ['⚠ contient le dossier d’un autre chantier (« ' + inv.etrangers[0].nom + ' », dans « ' + inv.etrangers[0].chemin + ' ») : sors-le de là', p.texte].filter(Boolean).join(' ; ');
       stkEcrireLigne_(sh, 'chantier:' + u.id, [
         u.noms.join(' + ') + (inv.complet ? '' : ' — ⚠ mesure incomplète (dossier trop gros pour un passage)'),
         c ? c.statut : '', c && c.termine && !isNaN(c.termine) ? new Date(c.termine) : '',
@@ -3762,7 +3784,8 @@ function stkMesurer_() {
       '', '', '', '', '', '', '', '', '', '', '', date, '']);
     const total = suite.octets + (Number(suite.octetsRacine) || 0);   // tout ce qui a été mesuré dans le Drive de l'appli
     const reste = Math.max(0, place.utilise - total);
-    stkEcrireLigne_(sh, STK_CLE_RESTE, ['Reste du compte (Gmail, Photos, corbeille, autres fichiers)' + (suite.incomplets ? ' — approximatif : ' + suite.incomplets + ' dossier(s) mesuré(s) en partie' : ''),
+    stkEcrireLigne_(sh, STK_CLE_RESTE, [(place.source === 'DriveApp' ? 'Reste vu par DriveApp (corbeille et autres fichiers de Drive ; Gmail et Photos seulement si DriveApp les compte)'
+      : 'Reste du compte (Gmail, Photos, corbeille, autres fichiers)') + (suite.incomplets ? ' — approximatif : ' + suite.incomplets + ' dossier(s) mesuré(s) en partie' : ''),
       '', '', stkMo_(reste), '', '', '', stkMo_(reste), '', '', '', '', date, '']);
     stkLignesDisparues_(sh, liste.unites);
     appli = stkGoTexte_(total) + ' dans ' + suite.fichiers + ' fichier(s) — tour complet du ' + stkJour_(maintenant)
@@ -3785,14 +3808,8 @@ function stkMesurer_() {
   }
   // 4. Le haut de l'onglet
   const pct = Math.floor(place.pourcent);
-  const etat = !fini ? 'Mesure en cours : ' + suite.faits + ' dossier(s) sur ' + liste.unites.length + ' — place utilisée : ' + pct + ' %'
-    : alerte.seuil === STK_SEUIL_CRITIQUE ? 'URGENT : ' + pct + ' % — à 100 %, plus aucun mail ne part ni n’arrive. Libérez de la place (onglet « Purges »).'
-    : alerte.seuil ? 'Attention : ' + pct + ' % (alerte à ' + STK_SEUIL_ALERTE + ' %) — il est temps de purger (onglet « Purges »).'
-    : 'Tout va bien : ' + pct + ' % (alerte à ' + STK_SEUIL_ALERTE + ' %)';
-  const avance = place.source !== 'DriveApp';
-  const source = avance ? 'Service avancé Drive : total du compte (Drive, Gmail et Photos)'
-    : 'DriveApp : Google ne garantit pas que ce chiffre compte Gmail et Photos — à comparer avec one.google.com/storage'
-      + (place.erreurAvance ? ' (service avancé Drive en panne : ' + place.erreurAvance + ')' : ' (service avancé Drive non activé)');
+  const etat = stkEtat_(place, alerte, fini ? '' : 'Mesure en cours : ' + suite.faits + ' dossier(s) sur ' + liste.unites.length);
+  const source = stkSource_(place);
   const inconnu = 'non connu sans le service avancé Drive';
   const enCours = Object.keys(liste.chantiers).filter(k => liste.chantiers[k].statut === STATUTS_CHANTIER[1]).length;
   // Tour pas fini : le poids moyen et la place pour d'autres chantiers restent ceux du dernier tour complet
@@ -3805,6 +3822,20 @@ function stkMesurer_() {
   return (fini ? 'Tour de mesure terminé' : 'À suivre') + ' : ' + suite.faits + ' dossier(s) mesuré(s) sur ' + liste.unites.length + ', place utilisée ' + pct + ' % (' + place.source + ').'
     + (alerte.envoye ? ' Mail d’alerte envoyé (seuil ' + alerte.seuil + ' %).' : '')
     + (dates.posees || dates.effacees ? ' Dates « Terminé » : ' + dates.posees + ' posée(s), ' + dates.effacees + ' effacée(s).' : '');
+}
+
+// La phrase d'état du haut de l'onglet. tour : « Mesure en cours : n dossier(s) sur m », ou '' si le tour est fini.
+// Au-dessus d'un seuil, l'alerte passe toujours en premier, même pendant un tour de plusieurs nuits.
+function stkEtat_(place, alerte, tour) {
+  const pct = Math.floor(place.pourcent);
+  if (alerte.seuil === STK_SEUIL_CRITIQUE) return 'URGENT : ' + pct + ' % — à 100 %, plus aucun mail ne part ni n’arrive. Libère de la place (onglet « Purges »).' + (tour ? ' ' + tour + '.' : '');
+  if (alerte.seuil) return 'Attention : ' + pct + ' % (alerte à ' + STK_SEUIL_ALERTE + ' %) — il est temps de purger (onglet « Purges »).' + (tour ? ' ' + tour + '.' : '');
+  return tour ? tour + ' — place utilisée : ' + pct + ' % (alerte à ' + STK_SEUIL_ALERTE + ' %)' : 'Tout va bien : ' + pct + ' % (alerte à ' + STK_SEUIL_ALERTE + ' %)';
+}
+function stkSource_(place) {
+  return place.source !== 'DriveApp' ? 'Service avancé Drive : total du compte (Drive, Gmail et Photos)'
+    : 'DriveApp : Google ne garantit pas que ce chiffre compte Gmail et Photos — à comparer avec one.google.com/storage'
+      + (place.erreurAvance ? ' (service avancé Drive en panne : ' + place.erreurAvance + ')' : ' (service avancé Drive non activé)');
 }
 
 // Fin de tour : la ligne d'un dossier de chantier qui n'existe plus (mis à la corbeille, sorti de la racine) le dit
@@ -3878,7 +3909,9 @@ const PRG_RELEVE_PURGE_HEURES = 48;         // … et au moment où la case est 
 const PRG_FICHIER_A_VOIR = 'CHANTIERPRO - A VOIR.txt';   // sur le PC : le fichier où la recopie automatique dit ce qui ne va pas
 const PRG_ANNULATION_JOURS = 25;            // la case « Annuler » sert 25 jours
 const PRG_CORBEILLE_JOURS = 30;             // Drive vide sa corbeille au bout de 30 jours : la place est libérée à ce moment-là
-const PRG_PAQUET = 40;                      // éléments journalisés puis mis à la corbeille par paquet
+const PRG_PAQUET = 10;                      // fichiers (ou dossiers du carnet) journalisés puis mis à la corbeille par paquet
+const PRG_MAX_MINUTES_JOUR = 30;            // temps passé à purger, par jour, toutes exécutions confondues (quota de 90 min de déclencheurs)
+const PRG_DEPOT_RECENT_H = 24;              // un dossier du carnet modifié depuis moins de 24 h n'est pas touché (dépôt en cours ?)
 const PRG_VERROU_MS = 7 * 60 * 1000;
 const PRG_JOUR_MS = 24 * 3600 * 1000;
 const PRG_QUOI = { indices: 'Anciens indices du carnet', termine: 'Chantier terminé' };
@@ -3892,8 +3925,8 @@ const PRG_COLONNES_TEXTE = [COL_P.chantier, COL_P.quoi, COL_P.possible, COL_P.po
 const PRG_COLONNES_DATE = [COL_P.faitLe, COL_P.libere, COL_P.jusquau, COL_P.maj];
 const PRG_DETAIL_ENTETES = ['Clé de la ligne', 'Type', 'Identifiant', 'Chemin', 'Taille (octets)', 'Fichiers', 'Noté le', 'État', 'Mis à jour le'];
 const COL_D = { cle: 1, type: 2, id: 3, chemin: 4, taille: 5, fichiers: 6, note: 7, etat: 8, maj: 9 };
-const PRG_RECOPIE = 'vérifiez que la recopie automatique tourne sur le PC (fichier « ' + PRG_FICHIER_A_VOIR + ' »)';
-const PRG_AVANT_DE_COCHER = 'Avant de cocher : vérifiez sur le PC que MEGA a fini de synchroniser le dossier du chantier. Le relevé devra avoir moins de '
+const PRG_RECOPIE = 'vérifie que la recopie automatique tourne sur le PC (fichier « ' + PRG_FICHIER_A_VOIR + ' »)';
+const PRG_AVANT_DE_COCHER = 'Avant de cocher : vérifie sur le PC que MEGA a fini de synchroniser le dossier du chantier. Le relevé devra avoir moins de '
   + PRG_RELEVE_PURGE_HEURES + ' heures au moment du traitement. Après la mise à la corbeille, la place n’est rendue que ' + PRG_CORBEILLE_JOURS + ' jours plus tard.';
 
 // ── Onglets (titres contrôlés avant toute lecture et toute écriture) ──
@@ -3932,9 +3965,12 @@ function prgLigne_(sh, cle) {
   return 0;
 }
 // Écrit des cellules de la ligne d'une clé : { numéroDeColonne: valeur }. Rien d'autre n'est touché sur la ligne.
-function prgEcrire_(sh, cle, cellules) {
+// siLibre : ne rien écrire si la ligne est entre-temps passée « En cours », « Annulation en cours » ou « Fait » (la mesure
+// de la nuit et le traitement des cases peuvent se croiser).
+function prgEcrire_(sh, cle, cellules, siLibre) {
   const ligne = prgLigne_(sh, cle);
   if (!ligne) return false;
+  if (siLibre) { const e = sh.getRange(ligne, COL_P.etat).getValue(); if (prgEstFait_(e) || prgEstOccupe_(e)) return false; }
   cellules[COL_P.maj] = new Date(maintenant_());
   Object.keys(cellules).forEach(c => sh.getRange(ligne, Number(c)).setValue(cellule_(cellules[c])));
   return true;
@@ -3963,7 +3999,9 @@ function prgEnvironnement_() {
 function prgContexte_(chantiers, cats) {
   let planning = '';
   try { planning = drivePlanningId_(); } catch (e) {}
-  return { racineId: driveRootId_(), planningId: planning, chantiers: chantiers || stkChantiers_(), lignesDossiers: stkLignesDossiers_(),
+  const lignesDossiers = stkLignesDossiers_(), idsDossiers = {};
+  lignesDossiers.forEach(l => { if (l.id && !idsDossiers[l.id]) idsDossiers[l.id] = l.chantier; });   // identifiant de dossier → chantier
+  return { racineId: driveRootId_(), planningId: planning, chantiers: chantiers || stkChantiers_(), lignesDossiers: lignesDossiers, idsDossiers: idsDossiers,
     cats: cats || stkCategories_(), carnetChemin: stkConf_().documents.carnet, env: prgEnvironnement_(), sousRacine: {} };
 }
 
@@ -3991,12 +4029,12 @@ function prgDossierSur_(c, ctx) {
   const non = raison => ({ ok: false, raison: raison });
   if (ctx.env) return non(ctx.env);
   if (!c || !c.lignes) return non('chantier absent de l’onglet Chantiers');
-  if (c.lignes > 1) return non('deux lignes portent ce nom dans l’onglet Chantiers : corrigez-le');
+  if (c.lignes > 1) return non('deux lignes portent ce nom dans l’onglet Chantiers : corrige-le');
   const lignes = ctx.lignesDossiers.filter(l => l.cle === c.cle && l.id);
-  if (!lignes.length) return non('le dossier de ce chantier n’est pas noté dans l’onglet « ' + SHEET_DOSSIERS + ' » (il n’est jamais pris par ressemblance de nom) : ajoutez-y une ligne avec son identifiant');
+  if (!lignes.length) return non('le dossier de ce chantier n’est pas noté dans l’onglet « ' + SHEET_DOSSIERS + ' » (il n’est jamais pris par ressemblance de nom) : ajoute-y une ligne avec son identifiant');
   const ids = lignes.map(l => l.id).filter((x, i, t) => t.indexOf(x) === i);
-  if (ids.length > 1) return non('plusieurs dossiers sont notés pour ce chantier dans « ' + SHEET_DOSSIERS + ' » : n’en gardez qu’un');
-  if (lignes.some(l => l.aVerifier)) return non('la ligne de ce chantier dans « ' + SHEET_DOSSIERS + ' » porte la mention « À vérifier » : vérifiez que c’est le bon dossier, puis effacez cette mention');
+  if (ids.length > 1) return non('plusieurs dossiers sont notés pour ce chantier dans « ' + SHEET_DOSSIERS + ' » : n’en garde qu’un');
+  if (lignes.some(l => l.aVerifier)) return non('la ligne de ce chantier dans « ' + SHEET_DOSSIERS + ' » porte la mention « À vérifier » : vérifie que c’est le bon dossier, puis efface cette mention');
   const autres = ctx.lignesDossiers.filter(l => l.id === ids[0] && l.cle !== c.cle);
   if (autres.length) return non('le même dossier est noté pour un autre chantier (« ' + autres[0].chantier + ' ») dans « ' + SHEET_DOSSIERS + ' »');
   let d;
@@ -4004,16 +4042,36 @@ function prgDossierSur_(c, ctx) {
   if (d.isTrashed()) return non('le dossier du chantier est à la corbeille');
   if (ids[0] === ctx.racineId || ids[0] === ctx.planningId || estDossierTechnique_(d)) return non('le dossier noté dans « ' + SHEET_DOSSIERS + ' » n’est pas un dossier de chantier');
   if (!prgDescendDe_(d, ctx.racineId, ctx.sousRacine)) return non('le dossier du chantier n’est pas dans le Drive de cet environnement');
+  const dessus = prgChantierAuDessus_(d, ctx);
+  if (dessus) return non('le dossier de ce chantier est rangé dans le dossier d’un autre chantier (« ' + dessus + ' ») : sors-le de là');
   return { ok: true, dossier: d, id: ids[0] };
+}
+// Le dossier est-il rangé, à n'importe quelle profondeur, dans le dossier d'un autre chantier ? Rend le nom de ce chantier, ou ''.
+function prgChantierAuDessus_(dossier, ctx) {
+  let niveau = [dossier];
+  for (let n = 0; n < 25 && niveau.length; n++) {
+    const suivants = [];
+    for (let i = 0; i < niveau.length; i++) {
+      const it = niveau[i].getParents();
+      while (it.hasNext()) {
+        const p = it.next(), id = p.getId();
+        if (id === ctx.racineId) continue;
+        if (ctx.idsDossiers[id]) return ctx.idsDossiers[id];
+        suivants.push(p);
+      }
+    }
+    niveau = suivants;
+  }
+  return '';
 }
 
 // §4.3-1 — « Terminé » depuis au moins PRG_JOURS_APRES_TERMINE jours : '' si c'est le cas, sinon ce qui manque
 function prgTermineDepuis_(c) {
   if (!c || c.statut !== STATUTS_CHANTIER[2]) return 'le chantier n’est pas au statut « Terminé »';
   if (c.termine === null) return 'pas de date « Terminé » dans l’onglet Chantiers (elle se pose toute seule à la prochaine mesure, puis il faut attendre ' + PRG_JOURS_APRES_TERMINE + ' jours)';
-  if (isNaN(c.termine)) return 'date « Terminé » illisible dans l’onglet Chantiers : écrivez-la sous la forme 31/12/2026';
+  if (isNaN(c.termine)) return 'date « Terminé » illisible dans l’onglet Chantiers : écris-la sous la forme 31/12/2026';
   const maintenant = maintenant_();
-  if (c.termine > maintenant) return 'date « Terminé » dans le futur (' + stkJour_(c.termine) + ') : elle est ignorée, corrigez-la';
+  if (c.termine > maintenant) return 'date « Terminé » dans le futur (' + stkJour_(c.termine) + ') : elle est ignorée, corrige-la';
   const possible = c.termine + PRG_JOURS_APRES_TERMINE * PRG_JOUR_MS;
   if (possible > maintenant) return 'terminé depuis le ' + stkJour_(c.termine) + ' : purge possible à partir du ' + stkJour_(possible) + ' (' + PRG_JOURS_APRES_TERMINE + ' jours après la clôture)';
   return '';
@@ -4023,11 +4081,11 @@ function prgTermineDepuis_(c) {
 // ageMaxMs : âge maximal du relevé, en millisecondes. Rend { ok, raison, lignes: { '/chemin': [tailles] }, date }.
 function prgReleve_(dossier, c, ageMaxMs) {
   const non = raison => ({ ok: false, raison: raison });
-  const relancer = ' : ' + PRG_RECOPIE + ', puis attendez la prochaine mesure';
+  const relancer = ' : ' + PRG_RECOPIE + ', puis attends la prochaine mesure';
   const it = dossier.getFilesByName(PRG_RELEVE), trouves = [];
   while (it.hasNext()) { const f = it.next(); if (!f.isTrashed()) trouves.push(f); }
   if (!trouves.length) return non('pas de relevé « ' + PRG_RELEVE + ' » dans le dossier du chantier' + relancer);
-  if (trouves.length > 1) return non('deux relevés « ' + PRG_RELEVE + ' » dans le dossier du chantier : supprimez le plus ancien' + relancer);
+  if (trouves.length > 1) return non('deux relevés « ' + PRG_RELEVE + ' » dans le dossier du chantier : supprime le plus ancien' + relancer);
   let lu;
   try { lu = JSON.parse(trouves[0].getBlob().getDataAsString('UTF-8')); } catch (e) { return non('relevé « ' + PRG_RELEVE + ' » illisible' + relancer); }
   if (!lu || typeof lu !== 'object' || Number(lu.version) !== 1 || !Array.isArray(lu.fichiers)) return non('relevé « ' + PRG_RELEVE + ' » d’un format inconnu' + relancer);
@@ -4037,7 +4095,7 @@ function prgReleve_(dossier, c, ageMaxMs) {
   const date = typeof lu.releve_le === 'string' ? Date.parse(lu.releve_le) : NaN;
   if (isNaN(date)) return non('date du relevé illisible' + relancer);
   const maintenant = maintenant_();
-  if (date > maintenant + 3600 * 1000) return non('relevé daté du futur (' + stkJour_(date) + ') : vérifiez l’horloge du PC' + relancer);
+  if (date > maintenant + 3600 * 1000) return non('relevé daté du futur (' + stkJour_(date) + ') : vérifie l’horloge du PC' + relancer);
   const limite = ageMaxMs >= 3 * PRG_JOUR_MS ? Math.round(ageMaxMs / PRG_JOUR_MS) + ' jours' : Math.round(ageMaxMs / 3600000) + ' heures';
   if (maintenant - date > ageMaxMs) return non('relevé du ' + texteDate_(date) + ' : il a plus de ' + limite + relancer);
   const lignes = {};
@@ -4074,11 +4132,11 @@ function prgEnvoisEnAttente_(c) {
 }
 
 // §4.2 — Le carnet d'un chantier, vu PAR DOSSIER de document, avec la même lecture que celle des téléphones.
-// Rend { existe, erreur, dossier, id, maj, json, anciens: [dossiers que plus aucun document montré ne désigne],
+// Rend { existe, erreur, dossier, id, maj, json, manquants: [documents montrés sans dossier], anciens: [dossiers que plus aucun document montré ne désigne],
 //        tous: [dossiers connus de carnet.json], laisses: [textes] }.
 // Un dossier inconnu de carnet.json (dépôt en cours, posé à la main), mal décrit, ou en double : jamais rendu.
 function prgCarnet_(dossierChantier, c, ctx) {
-  const r = { existe: false, erreur: '', dossier: null, id: '', maj: 0, json: null, anciens: [], tous: [], laisses: [] };
+  const r = { existe: false, erreur: '', dossier: null, id: '', maj: 0, json: null, anciens: [], tous: [], laisses: [], manquants: [] };
   const carnets = sousDossiersParChemin_(dossierChantier, ctx.carnetChemin);
   if (!carnets.length) return r;
   r.existe = true;
@@ -4088,7 +4146,7 @@ function prgCarnet_(dossierChantier, c, ctx) {
   let lu, montres;
   try { lu = carnetListe_(r.dossier); montres = carnetDocuments_(lu.liste, c.nom, dossierChantier.getName()); }
   catch (e) { if (!e || !e.carnet) throw e; r.erreur = 'carnet : ' + e.message; return r; }
-  if (lu.doublon) { r.erreur = 'deux listes « ' + CARNET_FICHIER + ' » dans le carnet : supprimez la plus ancienne'; return r; }
+  if (lu.doublon) { r.erreur = 'deux listes « ' + CARNET_FICHIER + ' » dans le carnet : supprime la plus ancienne'; return r; }
   r.maj = lu.maj;
   const fichiers = r.dossier.getFilesByName(CARNET_FICHIER);
   while (fichiers.hasNext()) { const f = fichiers.next(); if (!f.isTrashed()) r.json = f; }
@@ -4114,15 +4172,19 @@ function prgCarnet_(dossierChantier, c, ctx) {
     if (compte[cle] > 1) r.laisses.push('« ' + x.nom + ' » (deux dossiers de ce nom)');
     else if (douteux[cle]) r.laisses.push('« ' + x.nom + ' » (mal décrit dans la liste du carnet)');
     else if (!connus['/' + x.nom]) r.laisses.push('« ' + x.nom + ' » (inconnu de la liste du carnet : dépôt en cours ?)');
+    else if (prgRecent_(x.api)) r.laisses.push('« ' + x.nom + ' » (modifié depuis moins de ' + PRG_DEPOT_RECENT_H + ' heures : dépôt en cours ?)');
     else { r.tous.push(x); if (!montresParNom[cle]) r.anciens.push(x); }
   });
+  // Les documents MONTRÉS dans l'appli dont le dossier d'images manque ou est à la corbeille
+  montres.forEach(d => { if (!compte['/' + large(d.dossier)]) r.manquants.push(String(d.id)); });
   return r;
 }
 function prgElementsCarnet_(dossiers, ctx, depasse, r) {
   const aucun = { carnet: '', photos: '', fiches: [] };
   dossiers.forEach(x => {
-    const p = stkInventaire_(x.api, aucun, depasse, false);
+    const p = stkInventaire_(x.api, aucun, depasse, false, ctx.idsDossiers);
     if (!p.complet && r.raisons.indexOf(PRG_TROP_GROS) < 0) r.raisons.push(PRG_TROP_GROS);
+    if (p.etrangers.length) r.raisons.push(prgEtrangers_(p.etrangers));
     r.items.push({ type: 'dossier', id: x.id, chemin: ctx.cats.carnet + '/' + x.nom, taille: p.total, fichiers: p.fichiers });
     r.octets += p.total; r.nb += p.fichiers;
   });
@@ -4132,9 +4194,22 @@ function prgLaisses_(car) {
   return car.laisses.length ? car.laisses.length + ' dossier(s) du carnet laissé(s) en place : ' + stkCourt_(car.laisses) : '';
 }
 
+// Un dossier de document du carnet touché depuis moins de 24 heures (lui-même ou l'un de ses fichiers) : un dépôt est
+// peut-être en cours de synchronisation, il n'est ni proposé ni mis à la corbeille
+function prgRecent_(dossier) {
+  const limite = maintenant_() - PRG_DEPOT_RECENT_H * 3600 * 1000;
+  try {
+    if (dossier.getLastUpdated().getTime() > limite) return true;
+    const it = dossier.getFiles();
+    while (it.hasNext()) { const f = it.next(); if (!f.isTrashed() && f.getLastUpdated().getTime() > limite) return true; }
+  } catch (e) { return true; }   // date illisible : dans le doute, on n'y touche pas
+  return false;
+}
+
 // Garde appelée juste avant CHAQUE mise à la corbeille : '' si elle est permise, sinon la raison du refus
 function prgGarde_(dossierChantier, ctx, carnet) {
   const cache = {}, idChantier = dossierChantier.getId(), idCarnet = carnet ? carnet.getId() : '';
+  let sousRacine = null;   // la remontée « dossier du chantier → racine » n'est faite qu'une fois par exécution
   return (api, item) => {
     const id = api.getId();
     if (id === idChantier || id === ctx.racineId || id === ctx.planningId || id === idCarnet) return 'dossier protégé';
@@ -4148,6 +4223,7 @@ function prgGarde_(dossierChantier, ctx, carnet) {
       while (it.hasNext()) { n++; if (it.next().getId() !== idCarnet) bon = false; }
       if (!idCarnet || !n || !bon) return 'hors du dossier du carnet';
     }
+    if (item.type === 'dossier' && prgRecent_(api)) return 'modifié depuis moins de ' + PRG_DEPOT_RECENT_H + ' heures (dépôt en cours ?)';
     if (item.liste) {
       // carnet.json en dernier, et seulement s'il ne reste plus aucun dossier dans le carnet
       const it = carnet.getFolders();
@@ -4155,9 +4231,13 @@ function prgGarde_(dossierChantier, ctx, carnet) {
     }
     if (!prgDescendDe_(api, idChantier, cache)) return 'hors du dossier du chantier';
     // « descend de la racine de cet environnement » (la copie TEST et la production sont dans le même compte)
-    if (ctx.env || !prgDescendDe_(dossierChantier, ctx.racineId, {})) return 'hors du Drive de cet environnement';
+    if (sousRacine === null) sousRacine = !ctx.env && prgDescendDe_(dossierChantier, ctx.racineId, ctx.sousRacine);
+    if (!sousRacine) return 'hors du Drive de cet environnement';
     return '';
   };
+}
+function prgEtrangers_(etrangers) {
+  return 'le dossier d’un autre chantier (« ' + etrangers[0].nom + ' ») est rangé dans ce dossier (« ' + etrangers[0].chemin + ' ») : sors-le de là ; rien n’est proposé tant qu’il y est';
 }
 
 // ── Les deux examens. Chacun rend { possible, raisons, infos, items, octets, nb, dossierId, garde, carnet } ──
@@ -4185,16 +4265,19 @@ function prgExaminerTermine_(c, ctx, ageReleveMs, depasse, inv, dossierMesure) {
   if (!ident.ok) { r.raisons.push(ident.raison); return r; }   // sans dossier sûr, rien d'autre n'est lu
   r.dossierId = ident.id;
   const attente = prgEnvoisEnAttente_(c);
-  if (attente) r.raisons.push(attente + ' envoi(s) en attente ou abandonné(s) pour ce chantier (onglet « ' + SHEET_ATTENTE + ' ») : attendez qu’ils partent, ou réglez-les');
+  if (attente) r.raisons.push(attente + ' envoi(s) en attente ou abandonné(s) pour ce chantier (onglet « ' + SHEET_ATTENTE + ' ») : attends qu’ils partent, ou règle-les');
   const releve = prgReleve_(ident.dossier, c, ageReleveMs);
   if (!releve.ok) r.raisons.push(releve.raison);
-  if (!inv || !dossierMesure || dossierMesure.getId() !== ident.id) inv = stkInventaire_(ident.dossier, ctx.cats, depasse, true);
+  if (!inv || !dossierMesure || dossierMesure.getId() !== ident.id) inv = stkInventaire_(ident.dossier, ctx.cats, depasse, true, ctx.idsDossiers);
   if (!inv.complet) r.raisons.push(PRG_TROP_GROS);
+  // Le dossier d'un AUTRE chantier rangé quelque part dans celui-ci : ses fiches ne sont jamais lues comme celles de ce
+  // chantier (le parcours n'y descend pas), et la purge est bloquée tant qu'il y est
+  if (inv.etrangers && inv.etrangers.length) r.raisons.push(prgEtrangers_(inv.etrangers));
   if (releve.ok) {
     const cmp = prgComparer_(inv.liste, releve), exemples = t => stkCourt_(t.slice(0, 3).map(x => '« ' + x + ' »')) + (t.length > 3 ? '…' : '');
-    if (cmp.doublons.length) r.raisons.push('deux fichiers de même nom dans un dossier du Drive (' + exemples(cmp.doublons) + ') : renommez-en un, puis attendez la prochaine recopie du PC et la prochaine mesure');
-    if (cmp.absents.length) r.raisons.push(cmp.absents.length + ' fiche(s) ou photo(s) absente(s) du relevé (' + exemples(cmp.absents) + ') : ' + PRG_RECOPIE + ', puis attendez la prochaine mesure');
-    if (cmp.tailles.length) r.raisons.push(cmp.tailles.length + ' fichier(s) dont la taille n’est pas celle du relevé (' + exemples(cmp.tailles) + ') : ' + PRG_RECOPIE + ', puis attendez la prochaine mesure');
+    if (cmp.doublons.length) r.raisons.push('deux fichiers de même nom dans un dossier du Drive (' + exemples(cmp.doublons) + ') : renomme-en un, puis attends la prochaine recopie du PC et la prochaine mesure');
+    if (cmp.absents.length) r.raisons.push(cmp.absents.length + ' fiche(s) ou photo(s) absente(s) du relevé (' + exemples(cmp.absents) + ') : ' + PRG_RECOPIE + ', puis attends la prochaine mesure');
+    if (cmp.tailles.length) r.raisons.push(cmp.tailles.length + ' fichier(s) dont la taille n’est pas celle du relevé (' + exemples(cmp.tailles) + ') : ' + PRG_RECOPIE + ', puis attends la prochaine mesure');
   }
   // Fiches et photos : fichier par fichier, seulement ceux qui viennent d'être comparés. Les dossiers restent en place.
   inv.liste.forEach(f => { r.items.push({ type: 'fichier', id: f.id, chemin: f.chemin, taille: f.taille, fichiers: 1 }); r.octets += f.taille; r.nb++; });
@@ -4222,7 +4305,7 @@ function prgExaminer_(nature, c, ctx, ageReleveMs, depasse, inv, dossierMesure) 
 function prgPourquoi_(nature, exam) {
   const phrase = t => t.charAt(0).toUpperCase() + t.slice(1);
   if (exam.possible) {
-    return ['Possible : ' + exam.items.length + ' élément(s), ' + exam.nb + ' fichier(s).'].concat(exam.infos.map(x => phrase(x) + '.'))
+    return ['Possible : ' + exam.nb + ' fichier(s) partiraient à la corbeille.'].concat(exam.infos.map(x => phrase(x) + '.'))
       .concat(nature === 'termine' ? [PRG_AVANT_DE_COCHER] : ['Ces indices ne sont plus montrés dans l’appli ; les PDF d’origine sont dans le dossier du chantier sur le PC.']).join(' ');
   }
   return exam.raisons.concat(exam.infos).map(x => phrase(x) + '.').join(' ');
@@ -4235,11 +4318,28 @@ function prgProposerChantier_(u, inv, ctx, depasse) {
   const c = ctx.chantiers[u.cles[0]] || { nom: u.noms[0], cle: u.cles[0], statut: '', termine: null, lignes: 0 };
   const rendu = { indices: '', indicesMo: '', depot: '', texte: '' }, textes = [];
   const exI = prgExaminerIndices_(c, ctx, depasse, u.dossier);
-  if (exI.carnet && exI.carnet.existe && !exI.carnet.erreur) {
+  const carnetLu = exI.carnet && exI.carnet.existe && !exI.carnet.erreur;
+  if (carnetLu) {
     rendu.depot = exI.carnet.maj ? new Date(exI.carnet.maj) : '';
     rendu.indices = exI.items.length; rendu.indicesMo = stkMo_(exI.octets);
   }
   textes.push(prgProposer_(sh, 'indices', c, u.id, exI, exI.items.length > 0));
+  // Un document MONTRÉ dans l'appli dont le dossier d'images manque ou est à la corbeille (un ancien indice purgé redevient
+  // le document montré quand le nouvel indice est retiré) : dit ici, et sur la ligne « Anciens indices » de ce chantier
+  if (carnetLu && exI.carnet.manquants.length) {
+    const alerte = '⚠ ' + exI.carnet.manquants.length + ' document(s) du carnet montré(s) dans l’appli sans leurs images (' + stkCourt_(exI.carnet.manquants)
+      + ') : coche « Annuler » sur la ligne « ' + PRG_QUOI.indices + ' » de ce chantier (onglet « ' + SHEET_PURGES + ' »), ou redépose le document';
+    textes.unshift(alerte);
+    // sur TOUTES les lignes « Anciens indices » de ce chantier : celle à annuler est une ligne « Fait », pas forcément la dernière
+    const base = prgCleBase_('indices', c, u.id) + '|';
+    prgLignes_(sh).forEach(x => {
+      const cle = String(x.r[COL_P.cle - 1]), message = String(x.r[COL_P.message - 1] || '');
+      if (cle.indexOf(base) !== 0 || message.indexOf(alerte) > -1) return;
+      const m = {};
+      m[COL_P.message] = alerte + '. ' + message;
+      prgEcrire_(sh, cle, m);
+    });
+  }
   const termine = c.statut === STATUTS_CHANTIER[2];
   const active = prgActive_(prgLignes_(sh), prgCleBase_('termine', c, u.id));
   if (termine || (active && !prgEstFait_(active.r[COL_P.etat - 1]))) {
@@ -4259,6 +4359,20 @@ function prgActive_(lignes, base) {
   });
   return active;
 }
+// Plus grand numéro déjà utilisé pour cette base dans le journal « Purges détail » (une ligne « Fait » supprimée de l'onglet
+// Purges ne doit jamais faire réutiliser sa clé : le journal de l'ancienne purge se mélangerait à la nouvelle)
+function prgNumeroJournal_(base) {
+  const shD = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_PURGES_DETAIL);
+  let max = 0;
+  if (!shD || shD.getLastRow() < 2) return max;
+  shD.getRange(2, COL_D.cle, shD.getLastRow() - 1, 1).getValues().forEach(v => {
+    const cle = String(v[0]);
+    if (cle.indexOf(base + '|') !== 0) return;
+    const n = Number(cle.slice(base.length + 1));
+    if (n > max) max = n;
+  });
+  return max;
+}
 // Écrit la proposition : une nouvelle ligne si la base n'en a pas (ou si la précédente est « Fait » et qu'il y a de nouveau
 // quelque chose), sinon ses cellules de proposition sont mises à jour. Les cases, les dates d'une purge faite, les lignes
 // en cours : jamais touchées. creer : faut-il une ligne s'il n'y en a pas ?
@@ -4276,7 +4390,7 @@ function prgProposer_(sh, nature, c, idDossier, exam, creer) {
   cellules[COL_P.possible] = exam.possible ? 'oui' : 'non'; cellules[COL_P.pourquoi] = prgPourquoi_(nature, exam);
   cellules[COL_P.etat] = exam.possible ? PRG_ETAT.propose : PRG_ETAT.impossible;
   if (!active || fait) {
-    const cle = base + '|' + (active ? active.n + 1 : 1), ligne = sh.getLastRow() + 1;
+    const cle = base + '|' + (Math.max(active ? active.n : 0, prgNumeroJournal_(base)) + 1), ligne = sh.getLastRow() + 1;
     stkAssurerLignes_(sh, ligne);
     PRG_COLONNES_TEXTE.forEach(col => sh.getRange(ligne, col).setNumberFormat('@'));
     sh.getRange(ligne, COL_P.corbeille).insertCheckboxes(); sh.getRange(ligne, COL_P.annuler).insertCheckboxes();
@@ -4284,7 +4398,7 @@ function prgProposer_(sh, nature, c, idDossier, exam, creer) {
     valeurs[COL_P.corbeille - 1] = false; valeurs[COL_P.annuler - 1] = false;
     valeurs[COL_P.maj - 1] = new Date(maintenant_()); valeurs[COL_P.cle - 1] = cle;
     sh.getRange(ligne, 1, 1, PRG_ENTETES.length).setValues([valeurs.map(cellule_)]);
-  } else prgEcrire_(sh, active.cle, cellules);
+  } else if (!prgEcrire_(sh, active.cle, cellules, true)) return court + ' : purge en cours';   // l'état a changé entre la lecture et l'écriture
   return court + (exam.possible ? ' : purge possible (onglet « ' + SHEET_PURGES + ' »)' : ' : purge impossible pour l’instant (onglet « ' + SHEET_PURGES + ' »)');
 }
 
@@ -4295,19 +4409,20 @@ function prgDetail_(shD) {
   return derniere < 2 ? [] : shD.getRange(2, 1, derniere - 1, PRG_DETAIL_ENTETES.length).getValues().map((r, i) => ({ ligne: i + 2, r: r }));
 }
 function prgEcrireDetail_(shD, ligne, etat) { shD.getRange(ligne, COL_D.etat, 1, 2).setValues([[cellule_(etat), new Date(maintenant_())]]); }
-// Ce que la ligne a réellement mis à la corbeille (d'après le journal)
+// Ce que la ligne a réellement mis à la corbeille (d'après le journal) ; « autres » : refusés ou en échec
 function prgTotaux_(shD, cle) {
   const t = { elements: 0, fichiers: 0, octets: 0, autres: 0 };
   prgDetail_(shD).forEach(x => {
     if (String(x.r[COL_D.cle - 1]) !== cle) return;
     const etat = String(x.r[COL_D.etat - 1]);
     if (etat === 'fait') { t.elements++; t.fichiers += Number(x.r[COL_D.fichiers - 1]) || 0; t.octets += Number(x.r[COL_D.taille - 1]) || 0; }
-    else if (/^(refusé|échec|non fait)/.test(etat)) t.autres++;
+    else if (/^(refusé|échec)/.test(etat)) t.autres++;
   });
   return t;
 }
 // Le journal d'ABORD : chaque paquet est écrit « à faire » (et réellement enregistré : flush) avant sa première mise à la
-// corbeille ; puis chaque élément est marqué « fait », « refusé : … » ou « échec : … ». Rend false si le temps a manqué.
+// corbeille ; puis chaque fichier ou dossier est marqué « fait », « refusé : … » ou « échec : … ». Le temps est regardé
+// avant CHAQUE mise à la corbeille : ce qui reste du paquet est alors marqué « non fait ». Rend false si le temps a manqué.
 function prgExecuter_(shD, cle, items, garde, depasse) {
   for (let i = 0; i < items.length; i += PRG_PAQUET) {
     if (depasse()) return false;
@@ -4318,7 +4433,9 @@ function prgExecuter_(shD, cle, items, garde, depasse) {
     shD.getRange(debut, 1, paquet.length, PRG_DETAIL_ENTETES.length)
       .setValues(paquet.map(x => [cle, x.type, x.id, x.chemin, x.taille, x.fichiers, date, 'à faire', date].map(cellule_)));
     SpreadsheetApp.flush();
+    let coupe = false;
     const etats = paquet.map(x => {
+      if (coupe || depasse()) { coupe = true; return 'non fait (temps écoulé)'; }
       try {
         const api = prgElement_(x.type, x.id), refus = garde(api, x);
         if (refus) return 'refusé : ' + refus;
@@ -4328,6 +4445,7 @@ function prgExecuter_(shD, cle, items, garde, depasse) {
     });
     prgMarquer_(shD, cle, debut, paquet, etats);
     SpreadsheetApp.flush();
+    if (coupe) return false;
   }
   return true;
 }
@@ -4346,7 +4464,8 @@ function prgMarquer_(shD, cle, debut, paquet, etats) {
     if (l) prgEcrireDetail_(shD, l.ligne, etats[i]);
   });
 }
-// Reprise après une exécution coupée : une ligne restée « à faire » dit si son élément est parti à la corbeille ou non
+// Reprise après une exécution coupée : une ligne restée « à faire » dit si son fichier est parti à la corbeille ou non.
+// Appelée à CHAQUE traitement d'une clé, quel que soit l'état affiché par la ligne.
 function prgReprendre_(shD, cle) {
   prgDetail_(shD).forEach(x => {
     if (String(x.r[COL_D.cle - 1]) !== cle || String(x.r[COL_D.etat - 1]) !== 'à faire') return;
@@ -4356,6 +4475,15 @@ function prgReprendre_(shD, cle) {
     prgEcrireDetail_(shD, x.ligne, etat);
   });
 }
+// Avant une nouvelle purge sur la même clé (après une annulation) : les lignes « remis » de l'annulation précédente sont
+// rangées, pour que le bilan de la prochaine annulation ne compte que ses propres lignes
+function prgRanger_(shD, cle) {
+  prgDetail_(shD).forEach(x => {
+    const etat = String(x.r[COL_D.etat - 1]);
+    if (String(x.r[COL_D.cle - 1]) === cle && /^(remis|non remis)/.test(etat) && etat.indexOf(PRG_AVANT) < 0) prgEcrireDetail_(shD, x.ligne, etat + PRG_AVANT);
+  });
+}
+const PRG_AVANT = ' — purge précédente';
 
 // ── Verrou de la purge : une propriété datée, JAMAIS le verrou du script (celui des fiches) ──
 function prgPrendre_() {
@@ -4365,6 +4493,18 @@ function prgPrendre_() {
   return true;
 }
 function prgRendre_() { PropertiesService.getScriptProperties().deleteProperty('PURGE_EN_COURS'); }
+// ── Plafond par jour du temps passé à purger (les 90 minutes de déclencheurs du compte servent aussi aux fiches) ──
+// Propriété PURGE_TEMPS : { jour, ms }. Rend les millisecondes encore permises aujourd'hui.
+function prgBudget_() {
+  let t = {};
+  try { t = JSON.parse(PropertiesService.getScriptProperties().getProperty('PURGE_TEMPS') || '{}') || {}; } catch (e) { t = {}; }
+  return PRG_MAX_MINUTES_JOUR * 60 * 1000 - (t.jour === jour_() ? Number(t.ms) || 0 : 0);
+}
+function prgCompter_(ms) {
+  const utilise = PRG_MAX_MINUTES_JOUR * 60 * 1000 - prgBudget_() + Math.max(0, ms);
+  PropertiesService.getScriptProperties().setProperty('PURGE_TEMPS', JSON.stringify({ jour: jour_(), ms: utilise }));
+}
+const PRG_SUITE_DEMAIN = 'Temps de purge du jour épuisé (' + PRG_MAX_MINUTES_JOUR + ' minutes par jour, pour ne jamais gêner l’envoi des fiches) : la suite demain, toute seule.';
 
 // ── Le traitement des cases (déclencheur dédié, toutes les 30 minutes) ──
 function traiterPurges() {
@@ -4372,123 +4512,185 @@ function traiterPurges() {
   if (!sh || sh.getLastRow() < 2) return 'rien';
   if (!noteTitresBons_(sh, PRG_ENTETES)) { stkAlerteOnglet_(SHEET_PURGES); return 'onglet modifié'; }
   // Rien à faire (aucune case cochée, aucune purge à reprendre, aucun mail à renvoyer) : on sort tout de suite
-  const aFaire = prgLignes_(sh).filter(x => x.r[COL_P.corbeille - 1] === true || x.r[COL_P.annuler - 1] === true
-    || prgEstOccupe_(x.r[COL_P.etat - 1]) || String(x.r[COL_P.etat - 1]) === PRG_ETAT.mail).map(x => String(x.r[COL_P.cle - 1]));
+  const lignes = prgLignes_(sh);
+  const aFaire = lignes.filter(x => x.r[COL_P.corbeille - 1] === true || x.r[COL_P.annuler - 1] === true
+    || prgEstOccupe_(x.r[COL_P.etat - 1]) || String(x.r[COL_P.etat - 1]) === PRG_ETAT.mail);
   if (!aFaire.length) return 'rien';
   if (!prgPrendre_()) return 'occupé';
-  const debut = chronoMs_(), depasse = () => chronoMs_() - debut > STK_DUREE_MAX_MS;
+  const debut = chronoMs_();
   let traitees = 0;
   try {
     let shD;
     try { shD = feuillePurgesDetail_(); } catch (e) { return 'onglet modifié'; }   // sans journal, aucune mise à la corbeille
-    const ctx = prgContexte_();
-    for (let i = 0; i < aFaire.length; i++) {
+    // Une clé présente deux fois (ligne copiée-collée) : aucune de ses lignes n'est traitée, elles le disent
+    const compte = {}, cles = [];
+    lignes.forEach(x => { const k = '/' + x.r[COL_P.cle - 1]; compte[k] = (compte[k] || 0) + 1; });
+    aFaire.forEach(x => {
+      const cle = String(x.r[COL_P.cle - 1]);
+      if (compte['/' + cle] > 1) { prgDoublon_(sh, x.ligne, cle); traitees++; }
+      else if (cles.indexOf(cle) < 0) cles.push(cle);
+    });
+    const ctx = prgContexte_(), budget = prgBudget_();
+    const depasse = () => chronoMs_() - debut > STK_DUREE_MAX_MS;
+    const temps = { depasse: depasse, depassePurge: () => depasse() || chronoMs_() - debut > budget, epuise: () => chronoMs_() - debut > budget };
+    for (let i = 0; i < cles.length; i++) {
       if (depasse()) break;
-      try { prgTraiterLigne_(sh, shD, aFaire[i], ctx, depasse); }
+      try { prgTraiterLigne_(sh, shD, cles[i], ctx, temps); }
       catch (e) {
         console.error('traiterPurges :', e && e.message);
-        prgArreter_(sh, shD, aFaire[i], 'Erreur le ' + texteDate_(maintenant_()) + ' : ' + (e && e.message ? e.message : e) + '.');
+        prgArreter_(sh, shD, cles[i], 'Erreur le ' + texteDate_(maintenant_()) + ' : ' + (e && e.message ? e.message : e) + '.');
       }
       traitees++;
     }
-  } finally { prgRendre_(); }
+  } finally { prgCompter_(chronoMs_() - debut); prgRendre_(); }
   return traitees + ' ligne(s) traitée(s)';
 }
+// Une ligne dont la clé existe en double : cases décochées, message. Écrit par numéro de ligne, après avoir relu la clé.
+function prgDoublon_(sh, ligne, cle) {
+  if (String(sh.getRange(ligne, COL_P.cle).getValue()) !== cle) return;
+  const message = 'Cette ligne existe en double (copier-coller ?) : rien n’est fait sur aucune des deux. Supprime la copie, puis recoche.';
+  if (sh.getRange(ligne, COL_P.corbeille).getValue() === true) sh.getRange(ligne, COL_P.corbeille).setValue(false);
+  if (sh.getRange(ligne, COL_P.annuler).getValue() === true) sh.getRange(ligne, COL_P.annuler).setValue(false);
+  if (String(sh.getRange(ligne, COL_P.message).getValue()) !== message) sh.getRange(ligne, COL_P.message).setValue(message);
+}
 
-function prgTraiterLigne_(sh, shD, cle, ctx, depasse) {
-  const ligne = prgLigne_(sh, cle);
-  if (!ligne) return;
-  const r = sh.getRange(ligne, 1, 1, PRG_ENTETES.length).getValues()[0];
+function prgTraiterLigne_(sh, shD, cle, ctx, temps) {
+  if (!prgLigne_(sh, cle)) return;
+  prgReprendre_(shD, cle);   // toujours : un journal resté « à faire » est tranché d'après l'état réel des fichiers
+  const lire = () => { const l = prgLigne_(sh, cle); return l ? sh.getRange(l, 1, 1, PRG_ENTETES.length).getValues()[0] : null; };
+  let r = lire();
+  if (!r) return;
+  const k = prgLireCle_(cle), c = k ? ctx.chantiers[k.chantier] : null;
   const corbeille = r[COL_P.corbeille - 1] === true, annuler = r[COL_P.annuler - 1] === true, etat = String(r[COL_P.etat - 1]);
-  const enCours = /^en cours/i.test(etat), annulation = /^annulation en cours/i.test(etat), fait = prgEstFait_(etat);
-  const dire = (message, autres) => { const c = autres || {}; c[COL_P.message] = message; prgEcrire_(sh, cle, c); };
-  const decocher = () => { const c = {}; c[COL_P.corbeille] = false; c[COL_P.annuler] = false; return c; };
-  if (corbeille && annuler && !enCours && !annulation) {
-    dire('Les deux cases étaient cochées : rien n’a été fait, et elles ont été décochées. Cochez-en une seule.', decocher());
+  const enCours = /^en cours/i.test(etat), annulation = /^annulation en cours/i.test(etat);
+  let fait = prgEstFait_(etat);
+  const dire = (message, autres) => { const m = autres || {}; m[COL_P.message] = message; prgEcrire_(sh, cle, m); };
+  const decocher = () => { const m = {}; m[COL_P.corbeille] = false; m[COL_P.annuler] = false; return m; };
+  // Le journal dit que des fichiers sont à la corbeille alors que la ligne ne dit ni « En cours » ni « Fait » (état
+  // écrasé pendant une purge) : la ligne est remise en ordre, pour que « Annuler » marche
+  if (!fait && !enCours && !annulation && prgTotaux_(shD, cle).elements > 0) {
+    prgFinir_(sh, shD, cle, 'Ligne remise en ordre : une purge avait commencé sur cette ligne.');
     return;
   }
-  if (annulation || (annuler && !enCours)) {
+  // La ligne affichée ne correspond plus à sa clé (tri d'une partie des colonnes) : jamais de purge ni d'annulation « à l'aveugle »
+  if (!k || cleChantier_(r[COL_P.chantier - 1]) !== k.chantier || String(r[COL_P.quoi - 1]).trim() !== PRG_QUOI[k.nature]) {
+    if (enCours) { prgFinir_(sh, shD, cle, 'Arrêtée : la ligne ne correspondait plus à sa clé (onglet trié en partie ?).'); return; }
+    const m = decocher();
+    if (k) { m[COL_P.chantier] = c ? c.nom : k.chantier; m[COL_P.quoi] = PRG_QUOI[k.nature]; }
+    if (!fait && !annulation) { m[COL_P.etat] = PRG_ETAT.impossible; m[COL_P.possible] = 'non'; }
+    dire('Cette ligne avait été mélangée (tri d’une partie des colonnes ?) : le chantier affiché n’était plus celui de sa clé. Rien n’a été fait. '
+      + 'Le chantier et « Quoi » sont remis ; attends la prochaine mesure avant de recocher.', m);
+    return;
+  }
+  if (corbeille && annuler && !enCours && !annulation) {
+    dire('Les deux cases étaient cochées : rien n’a été fait, et elles ont été décochées. Coches-en une seule.', decocher());
+    return;
+  }
+  // « Annuler » cochée pendant une purge en plusieurs passages : la purge s'arrête là, puis ce qui est parti est annulé
+  if (annuler && enCours) {
+    fait = prgFinir_(sh, shD, cle, 'Purge arrêtée : « Annuler » a été cochée.', true);
+    if (!fait) { const m = {}; m[COL_P.annuler] = false; prgEcrire_(sh, cle, m); return; }
+    r = lire();
+    if (r) prgAnnuler_(sh, shD, cle, r, false, temps.depasse);
+    return;
+  }
+  if (annulation || annuler) {
     if (!fait && !annulation) { dire('Rien à annuler sur cette ligne : rien n’a été mis à la corbeille.', decocher()); return; }
-    prgAnnuler_(sh, shD, cle, r, annulation, depasse);
+    prgAnnuler_(sh, shD, cle, r, annulation, temps.depasse);
     return;
   }
   if (corbeille || enCours) {
     if (fait) { dire('Déjà fait : rien de plus n’a été mis à la corbeille. S’il reste des fichiers, une nouvelle ligne sera proposée à la prochaine mesure.', decocher()); return; }
-    prgPurger_(sh, shD, cle, r, enCours, corbeille, ctx, depasse);
+    // La case n'agit que sur une ligne « Proposé » : ce que tu as lu à l'écran est ce qui est fait
+    if (!enCours && etat !== PRG_ETAT.propose) {
+      dire('Cette ligne n’est pas « ' + PRG_ETAT.propose + ' » : rien n’a été fait, la case est décochée. Attends la prochaine mesure (cette nuit) ; si elle dit « Possible ? oui », recoche.', decocher());
+      return;
+    }
+    if (temps.epuise()) { if (String(r[COL_P.message - 1]) !== PRG_SUITE_DEMAIN) dire(PRG_SUITE_DEMAIN); return; }
+    prgPurger_(sh, shD, cle, k, c, enCours, corbeille, ctx, temps);
     return;
   }
-  if (etat === PRG_ETAT.mail) prgMailPurge_(sh, shD, cle, r);   // le mail d'une purge faite n'était pas parti : nouvel essai
+  if (etat === PRG_ETAT.mail) prgMailPurge_(sh, shD, cle);   // le mail d'une purge faite n'était pas parti : nouvel essai
 }
 
 // Une case « Mettre à la corbeille » : tout est REVÉRIFIÉ, puis journal, puis corbeille
-function prgPurger_(sh, shD, cle, r, enCours, cochee, ctx, depasse) {
-  const k = prgLireCle_(cle), c = k ? ctx.chantiers[k.chantier] : null;
-  if (enCours) prgReprendre_(shD, cle);
-  if (enCours && !cochee) { prgFinir_(sh, shD, cle, r, 'Arrêtée : la case a été décochée pendant la purge.'); return; }
+function prgPurger_(sh, shD, cle, k, c, enCours, cochee, ctx, temps) {
+  if (enCours && !cochee) { prgFinir_(sh, shD, cle, 'Arrêtée : la case a été décochée pendant la purge.'); return; }
   let refus = '', exam = null;
-  if (!k || !c) refus = 'Ce chantier n’est plus dans l’onglet Chantiers.';
+  if (!c) refus = 'Ce chantier n’est plus dans l’onglet Chantiers.';
   else {
-    exam = prgExaminer_(k.nature, c, ctx, PRG_RELEVE_PURGE_HEURES * 3600 * 1000, depasse, null, null);
+    exam = prgExaminer_(k.nature, c, ctx, PRG_RELEVE_PURGE_HEURES * 3600 * 1000, temps.depasse, null, null);
     if (exam.dossierId && exam.dossierId !== k.dossier) refus = 'Le dossier du chantier n’est plus celui de cette ligne.';
     else if (!exam.possible) refus = prgPourquoi_(k.nature, exam);
   }
   if (refus) {
-    if (enCours) { prgFinir_(sh, shD, cle, r, 'Arrêtée avant la fin : ' + refus); return; }
+    if (enCours) { prgFinir_(sh, shD, cle, 'Arrêtée avant la fin : ' + refus); return; }
     const cellules = {};
     cellules[COL_P.corbeille] = false; cellules[COL_P.possible] = 'non'; cellules[COL_P.pourquoi] = refus; cellules[COL_P.etat] = PRG_ETAT.impossible;
     cellules[COL_P.message] = 'Refusé le ' + texteDate_(maintenant_()) + ' : les conditions ne sont plus réunies. Rien n’a été mis à la corbeille.';
     prgEcrire_(sh, cle, cellules);
     return;
   }
+  if (!enCours) prgRanger_(shD, cle);
   const cellules = {};
   cellules[COL_P.etat] = PRG_ETAT.enCours; cellules[COL_P.message] = 'Mise à la corbeille en cours depuis le ' + texteDate_(maintenant_()) + '.';
   prgEcrire_(sh, cle, cellules);
   SpreadsheetApp.flush();
-  const fini = prgExecuter_(shD, cle, exam.items, exam.garde, depasse);
+  const fini = prgExecuter_(shD, cle, exam.items, exam.garde, temps.depassePurge);
   if (exam.carnet && exam.carnet.id) cacheScript_().remove('carnet:liste:1:' + exam.carnet.id + ':n');   // les téléphones relisent le carnet
-  if (!fini) { const m = {}; m[COL_P.message] = 'En cours : la suite au prochain passage (30 minutes au plus).'; prgEcrire_(sh, cle, m); return; }
-  prgFinir_(sh, shD, cle, r, '');
+  if (!fini) {
+    const m = {};
+    m[COL_P.message] = temps.epuise() ? PRG_SUITE_DEMAIN : 'En cours : la suite au prochain passage (30 minutes au plus).';
+    prgEcrire_(sh, cle, m);
+    return;
+  }
+  prgFinir_(sh, shD, cle, '');
 }
-// Fin d'une purge (complète, ou arrêtée) : la ligne dit ce qui a été fait d'après le journal, et le mail part
-function prgFinir_(sh, shD, cle, r, remarque) {
+// Fin d'une purge (complète, ou arrêtée) : la ligne dit ce qui a été fait d'après le journal, et le mail part.
+// sansMail : la purge est arrêtée pour être annulée aussitôt. Rend true si quelque chose est à la corbeille.
+function prgFinir_(sh, shD, cle, remarque, sansMail) {
   const t = prgTotaux_(shD, cle), maintenant = maintenant_(), cellules = {};
   cellules[COL_P.corbeille] = false;
   if (!t.elements) {
     cellules[COL_P.etat] = PRG_ETAT.impossible;
-    cellules[COL_P.message] = [remarque, 'Rien n’a été mis à la corbeille' + (t.autres ? ' (' + t.autres + ' élément(s) refusé(s) ou en échec : voir « ' + SHEET_PURGES_DETAIL + ' »).' : '.')].filter(Boolean).join(' ');
+    cellules[COL_P.message] = [remarque, 'Rien n’a été mis à la corbeille' + (t.autres ? ' (' + t.autres + ' fichier(s) ou dossier(s) refusé(s) ou en échec : voir « ' + SHEET_PURGES_DETAIL + ' »).' : '.')].filter(Boolean).join(' ');
     prgEcrire_(sh, cle, cellules);
-    return;
+    return false;
   }
-  cellules[COL_P.etat] = PRG_ETAT.mail;
+  cellules[COL_P.etat] = sansMail ? PRG_ETAT.fait : PRG_ETAT.mail;
   cellules[COL_P.faitLe] = new Date(maintenant); cellules[COL_P.nbFaits] = t.fichiers;
   cellules[COL_P.libere] = new Date(maintenant + PRG_CORBEILLE_JOURS * PRG_JOUR_MS);
   cellules[COL_P.jusquau] = new Date(maintenant + PRG_ANNULATION_JOURS * PRG_JOUR_MS);
-  cellules[COL_P.message] = [remarque, t.fichiers + ' fichier(s) à la corbeille (' + stkMo_(t.octets) + ' Mo)'
-    + (t.autres ? ' ; ' + t.autres + ' élément(s) laissé(s) en place (voir « ' + SHEET_PURGES_DETAIL + ' »)' : '') + '. Pour annuler : cochez « Annuler » avant le '
+  cellules[COL_P.message] = [remarque, t.fichiers + ' fichier(s) à la corbeille (' + String(stkMo_(t.octets)).replace('.', ',') + ' Mo)'
+    + (t.autres ? ' ; ' + t.autres + ' fichier(s) ou dossier(s) laissé(s) en place (voir « ' + SHEET_PURGES_DETAIL + ' »)' : '') + '. Pour annuler : coche « Annuler » avant le '
     + stkJour_(maintenant + PRG_ANNULATION_JOURS * PRG_JOUR_MS) + '.'].filter(Boolean).join(' ');
-  prgEcrire_(sh, cle, cellules);
-  prgMailPurge_(sh, shD, cle, r);
+  prgEcrire_(sh, cle, cellules);   // si la ligne a été supprimée entre-temps, le mail part quand même
+  if (!sansMail) prgMailPurge_(sh, shD, cle);
+  return true;
 }
-// Un mail à Franck à chaque mise à la corbeille ; s'il ne part pas, la ligne reste « Fait (mail à envoyer) » et il repartira
-function prgMailPurge_(sh, shD, cle, r) {
-  const ligne = prgLigne_(sh, cle);
-  if (!ligne) return;
-  const v = sh.getRange(ligne, 1, 1, PRG_ENTETES.length).getValues()[0], t = prgTotaux_(shD, cle);
-  const date = d => stkEstDate_(d) ? stkJour_(d.getTime()) : '?';
-  const chantier = String(v[COL_P.chantier - 1] || r[COL_P.chantier - 1]), quoi = String(v[COL_P.quoi - 1] || r[COL_P.quoi - 1]);
-  const texte = ['Vous avez coché « Mettre à la corbeille » dans l’onglet « ' + SHEET_PURGES + ' » du Sheet.', '',
+// Un mail à Franck à chaque mise à la corbeille ; s'il ne part pas, la ligne reste « Fait (mail à envoyer) » et il repartira.
+// Le chantier et la sorte de purge viennent de la CLÉ (jamais du texte affiché, que Franck peut avoir trié ou modifié) ;
+// le mail part même si la ligne a disparu de l'onglet.
+function prgMailPurge_(sh, shD, cle) {
+  const ligne = prgLigne_(sh, cle), v = ligne ? sh.getRange(ligne, 1, 1, PRG_ENTETES.length).getValues()[0] : null;
+  const t = prgTotaux_(shD, cle), k = prgLireCle_(cle), maintenant = maintenant_();
+  const connu = k ? stkChantiers_()[k.chantier] : null;
+  const chantier = connu ? connu.nom : (k ? k.chantier : cle), quoi = k ? PRG_QUOI[k.nature] : '';
+  const jour = (cellule, defaut) => stkJour_(v && stkEstDate_(cellule) ? cellule.getTime() : defaut);
+  const faitLe = jour(v && v[COL_P.faitLe - 1], maintenant), libere = jour(v && v[COL_P.libere - 1], maintenant + PRG_CORBEILLE_JOURS * PRG_JOUR_MS);
+  const jusquau = jour(v && v[COL_P.jusquau - 1], maintenant + PRG_ANNULATION_JOURS * PRG_JOUR_MS);
+  const texte = ['Tu as coché « Mettre à la corbeille » dans l’onglet « ' + SHEET_PURGES + ' » du Sheet.', '',
     'Chantier : ' + chantier, 'Quoi : ' + quoi,
-    'Mis à la corbeille de Drive le ' + date(v[COL_P.faitLe - 1]) + ' : ' + t.fichiers + ' fichier(s), ' + stkMo_(t.octets) + ' Mo'
-      + (t.autres ? ' (' + t.autres + ' élément(s) laissé(s) en place : voir l’onglet « ' + SHEET_PURGES_DETAIL + ' »)' : '') + '.', '',
+    'Mis à la corbeille de Drive le ' + faitLe + ' : ' + t.fichiers + ' fichier(s), ' + String(stkMo_(t.octets)).replace('.', ',') + ' Mo'
+      + (t.autres ? ' (' + t.autres + ' fichier(s) ou dossier(s) laissé(s) en place : voir l’onglet « ' + SHEET_PURGES_DETAIL + ' »)' : '') + '.', '',
     'Rien n’est supprimé définitivement : tout est dans la corbeille de Drive, et la liste exacte est dans l’onglet « ' + SHEET_PURGES_DETAIL + ' ».',
-    'La place sera vraiment libérée le ' + date(v[COL_P.libere - 1]) + ' (la corbeille compte dans les 15 Go pendant ' + PRG_CORBEILLE_JOURS + ' jours).', '',
-    'POUR ANNULER : dans l’onglet « ' + SHEET_PURGES + ' », cochez la case « Annuler » de cette ligne avant le ' + date(v[COL_P.jusquau - 1])
-      + '. Tout ressort de la corbeille dans la demi-heure.',
-    'Passé cette date et jusqu’au ' + date(v[COL_P.libere - 1]) + ', c’est encore possible à la main dans la corbeille de Drive.', '',
-    'Si MEGA n’avait pas fini de synchroniser le dossier du chantier sur le PC, annulez, laissez MEGA finir, puis recommencez.'].join('\n');
-  const cellules = {};
-  cellules[COL_P.etat] = stkMail_('[Loué App] Mise à la corbeille — ' + chantier + ' — ' + quoi, texte) ? PRG_ETAT.fait : PRG_ETAT.mail;
-  prgEcrire_(sh, cle, cellules);
+    'La place sera vraiment libérée le ' + libere + ' (la corbeille compte dans les 15 Go pendant ' + PRG_CORBEILLE_JOURS + ' jours).', '',
+    v ? 'POUR ANNULER : dans l’onglet « ' + SHEET_PURGES + ' », coche la case « Annuler » de cette ligne avant le ' + jusquau + '. Tout ressort de la corbeille dans la demi-heure.'
+      : 'ATTENTION : la ligne de cette purge n’est plus dans l’onglet « ' + SHEET_PURGES + ' » (supprimée ?) : la case « Annuler » n’existe donc plus. Pour annuler, restaure les fichiers à la main dans la corbeille de Drive.',
+    'Jusqu’au ' + libere + ', c’est aussi possible à la main dans la corbeille de Drive.', '',
+    'Si MEGA n’avait pas fini de synchroniser le dossier du chantier sur le PC, annule, laisse MEGA finir, puis recommence.'].join('\n');
+  const parti = stkMail_('[Loué App] Mise à la corbeille — ' + chantier + ' — ' + quoi, texte);
+  if (v) { const cellules = {}; cellules[COL_P.etat] = parti ? PRG_ETAT.fait : PRG_ETAT.mail; prgEcrire_(sh, cle, cellules); }
 }
 // Une erreur inattendue pendant le traitement d'une ligne : la ligne le dit, les cases sont décochées (pas de nouvel essai
 // toutes les 30 minutes), et ce qui est déjà parti à la corbeille reste annulable
@@ -4497,7 +4699,7 @@ function prgArreter_(sh, shD, cle, message) {
     const ligne = prgLigne_(sh, cle);
     if (!ligne) return;
     const r = sh.getRange(ligne, 1, 1, PRG_ENTETES.length).getValues()[0], etat = String(r[COL_P.etat - 1]);
-    if (/^en cours/i.test(etat)) { prgReprendre_(shD, cle); prgFinir_(sh, shD, cle, r, message); return; }
+    if (/^en cours/i.test(etat)) { prgReprendre_(shD, cle); prgFinir_(sh, shD, cle, message); return; }
     const cellules = {};
     cellules[COL_P.corbeille] = false; cellules[COL_P.annuler] = false; cellules[COL_P.message] = message + ' Les cases ont été décochées.';
     if (/^annulation en cours/i.test(etat)) cellules[COL_P.etat] = PRG_ETAT.fait;   // ce qui n'est pas revenu reste annulable
@@ -4533,11 +4735,12 @@ function prgAnnuler_(sh, shD, cle, r, reprise, depasse) {
     if (i % PRG_PAQUET === PRG_PAQUET - 1) SpreadsheetApp.flush();
   }
   if (coupe) { const m = {}; m[COL_P.message] = 'Annulation en cours : la suite au prochain passage (30 minutes au plus).'; prgEcrire_(sh, cle, m); return; }
-  // Bilan d'après le journal : ce qui est revenu, ce qui n'a pas pu revenir
+  // Bilan de CETTE annulation d'après le journal (les lignes d'une annulation précédente sont rangées à part)
   let remis = 0, perdus = 0;
   prgDetail_(shD).forEach(x => {
-    if (String(x.r[COL_D.cle - 1]) !== cle) return;
-    const etat = String(x.r[COL_D.etat - 1]), n = Number(x.r[COL_D.fichiers - 1]) || 1;
+    const etat = String(x.r[COL_D.etat - 1]);
+    if (String(x.r[COL_D.cle - 1]) !== cle || etat.indexOf(PRG_AVANT) > -1) return;
+    const n = Number(x.r[COL_D.fichiers - 1]) || 1;
     if (etat === 'remis') remis += n; else if (/^non remis/.test(etat)) perdus += n;
   });
   const k = prgLireCle_(cle);
@@ -4577,7 +4780,7 @@ function etapesLot5_() {
 function infosLot5_() {
   const place = placeCompte_();
   return ['Place du compte : ' + stkPlaceTexte_(place) + ' — chiffre lu par : ' + place.source + '.',
-    place.source === 'DriveApp' ? 'Service avancé Drive : non activé. Comparez ce chiffre avec celui de one.google.com/storage : s’ils diffèrent, activez-le (docs/lot5-procedure.md).'
+    place.source === 'DriveApp' ? 'Service avancé Drive : non activé. Compare ce chiffre avec celui de one.google.com/storage : s’ils diffèrent, active-le (docs/lot5-procedure.md).'
       : 'Service avancé Drive : activé (total du compte, part de Drive et de la corbeille).',
     'Première mesure : dans la nuit, ou tout de suite en lançant mesurerStockage (à relancer tant que le journal dit « À suivre »).',
     'Rien n’est jamais mis à la corbeille sans une case cochée dans l’onglet « ' + SHEET_PURGES + ' ».'].join('\n');

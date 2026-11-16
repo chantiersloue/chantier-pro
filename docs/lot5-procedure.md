@@ -14,11 +14,12 @@
 - Un onglet technique ***Purges détail*** : la liste exacte de ce que chaque purge a mis à la corbeille.
 - La colonne **Date « Terminé »** de l'onglet *Chantiers* se remplit toute seule quand tu passes un chantier à « Terminé » (et s'efface si tu changes d'avis).
 
-### Les trois règles de sécurité
+### Les quatre règles de sécurité
 
 1. **Jamais de suppression définitive par l'appli.** Elle met à la **corbeille de Drive**, qui garde les fichiers 30 jours. Pendant 25 jours, la case « Annuler » remet tout en place.
 2. **Jamais sans ta case cochée**, et tout est revérifié au moment où la case est traitée.
 3. **Une fiche ne part à la corbeille que si elle est dans le dossier du chantier sur le PC** : l'appli la compare, une par une (même nom, même taille), au relevé `releve-pc.json` écrit par le programme du PC. MEGA, lui, sauvegarde ce dossier du PC : l'appli ne parle pas à MEGA.
+4. **Le carnet, lui, part sans comparaison avec le PC.** Les images du carnet (anciens indices, ou carnet d'un chantier terminé) sont fabriquées à partir des PDF du dossier du chantier sur le PC : l'appli ne vérifie pas que ces PDF y sont encore. Si tu as un doute sur un plan, regarde dans le dossier du chantier avant de cocher. Un dossier du carnet modifié depuis moins de 24 heures (dépôt en cours) n'est jamais touché.
 
 Quelques mots utilisés plus bas :
 - **déclencheur** : un réveil qui lance une fonction du serveur tout seul (la nuit, toutes les 30 minutes…) ;
@@ -102,6 +103,8 @@ Quand tout est vert, écris-moi : **« Lot 5 validé sur TEST »**. Je retire al
 
 ## Lire l'onglet « Purges », cocher, annuler
 
+**À savoir avant tout** : la case « Mettre à la corbeille » n'agit que sur une ligne dont l'état est **« Proposé »**. Sur toute autre ligne, elle est décochée avec le message « attends la prochaine mesure ». Ce que tu lis à l'écran est donc toujours ce qui sera fait.
+
 Une ligne par chose qui **peut** partir à la corbeille :
 
 - **« Anciens indices du carnet »** : les anciennes versions des plans, que l'appli ne montre plus. Les PDF d'origine sont dans le dossier du chantier sur le PC. Possible à tout moment, même sur un chantier en cours.
@@ -142,6 +145,19 @@ Coche « Annuler » sur la ligne, dans les **25 jours**. Dans la demi-heure, tou
 
 Entre le 26e et le 30e jour, c'est encore possible **à la main** dans la corbeille de Drive (clic droit → Restaurer), avec la liste de *Purges détail*.
 
+### Ce que la ligne peut te dire d'inhabituel
+
+| Message | Ce qui s'est passé, et quoi faire |
+|---|---|
+| « Cette ligne avait été mélangée (tri d'une partie des colonnes ?) » | Tu as trié une partie des colonnes sans la colonne « Clé » : la ligne n'affichait plus le bon chantier. Rien n'a été fait. Pour trier, sélectionne **toutes** les colonnes (ou utilise un filtre). Attends la prochaine mesure, puis recoche |
+| « Cette ligne existe en double (copier-coller ?) » | Supprime la copie, puis recoche |
+| « Temps de purge du jour épuisé (30 minutes par jour) : la suite demain » | Normal sur une grosse purge : le serveur garde du temps pour les fiches. Elle reprend toute seule le lendemain. « Annuler », lui, n'attend jamais |
+| « Le dossier d'un autre chantier (« … ») est rangé dans ce dossier » | Un dossier de chantier a été glissé dans celui-ci, dans Drive. Sors-le de là : tant qu'il y est, rien n'est proposé |
+| « ⚠ document(s) du carnet montré(s) dans l'appli sans leurs images » | Tu as purgé un ancien indice, puis retiré le nouvel indice : l'appli remontre l'ancien, dont les images sont à la corbeille. Coche « Annuler » sur la ligne « Anciens indices du carnet » de ce chantier, ou redépose le document |
+| « Ligne remise en ordre : une purge avait commencé sur cette ligne » | Une purge avait été coupée ; le serveur a retrouvé dans son journal ce qui était parti. La ligne est « Fait » : tu peux annuler normalement |
+
+Si tu coches « Annuler » pendant qu'une grosse purge est « En cours », elle s'arrête là, et ce qui était déjà parti revient.
+
 ### Si la place presse avant 30 jours
 
 L'appli ne vide jamais la corbeille. Si tu as besoin de la place tout de suite : ouvre la corbeille de Drive, **sélectionne les fichiers voulus** et supprime-les. **N'utilise pas « Vider la corbeille »** : cela supprimerait aussi les autres purges encore annulables.
@@ -166,7 +182,25 @@ Chaque fiche envoyée par mail reste aussi, avec son PDF, dans **« Messages env
 
 Les PDF de ces mails sont dans Drive (jusqu'à la purge) et dans le dossier du chantier sur le PC : tu ne perds rien.
 
+## La date « Terminé », en pratique
+
+- Tu passes un chantier à « Terminé » : la date du jour s'écrit toute seule dans la colonne J (la nuit suivante). Tu peux la corriger à la main : **sur un chantier « Terminé », ta date n'est jamais remplacée**.
+- Tu repasses le chantier à un autre statut : **la date est effacée, même si c'est toi qui l'avais tapée**. C'est voulu : le délai de 30 jours repart de zéro à la prochaine clôture.
+- « terminé » ou « TERMINÉ » sont compris comme « Terminé ».
+
+## À vérifier sur la copie TEST, avec moi (ce que le faux serveur ne peut pas dire)
+
+1. **Le chiffre de place**, comparé à celui de one.google.com/storage, avec et sans le service avancé Drive ; et si l'activer demande une nouvelle autorisation.
+2. **Les durées** : combien de secondes par fichier pour une purge, et combien de temps dure un tour de mesure complet (le plafond de 30 minutes de purge par jour sera réglé là-dessus).
+3. **Un dossier mis à la corbeille** : son contenu est-il bien vu « à la corbeille », « Annuler » le fait-il revenir en entier, et un téléphone relit-il le carnet après l'annulation.
+4. **Un seul `releve-pc.json`** (et un seul `carnet.json`) hors corbeille après plusieurs réécritures par le PC. S'il y en a deux, l'appli bloque (« deux relevés ») : c'est sans danger, mais il faudra corriger le programme du PC.
+5. **Les noms que Drive pour ordinateur modifie** (« : », « ? », doublons « (1) ») : ces fiches resteraient « absentes du relevé » pour toujours. Sans danger, mais bloquant pour la purge du chantier.
+6. **Le Sheet TEST est une copie** : son onglet *Dossiers chantiers* porte des identifiants de dossiers de production. La mesure de TEST les lira (lecture seule) ; la purge les refuse (testé). À constater dans l'onglet *Purges* de TEST.
+7. **Refaire à la main** deux essais : trier une plage sans la colonne « Clé » puis cocher (la ligne doit refuser et se remettre en ordre) ; copier-coller une ligne puis cocher la copie (elle doit se décocher et le dire).
+
 ## Retour arrière
+
+**Ne reviens pas en arrière tant qu'une ligne de l'onglet *Purges* est « En cours » ou « Annulation en cours »** : attends qu'elle soit « Fait » ou « Annulé » (une demi-heure au plus, ou le lendemain si elle dit « la suite demain »).
 
 1. Éditeur Apps Script de la production → fonction **`retirerDeclencheurs`** → **▶ Exécuter** (retire tous les déclencheurs de l'appli).
 2. Recolle le serveur **v9.1** (le `Code.gs` de la livraison précédente), puis lance **`installerDeclencheurs`** : il repose les trois déclencheurs d'avant (mails en attente, comptes, modification du Sheet).
@@ -188,4 +222,4 @@ Déjà tranché par toi le 14/11/2026 : les **anciens indices** sont proposés �
 
 Un point apparu pendant la construction :
 
-6. **Le nom du relevé** est `releve-pc.json`. Le contrat des skills (`docs/contrat-skills.md`) et le plan du lot 4c parlent encore de `mega-index.json` : ils sont à mettre d'accord avant de construire le programme du PC.
+6. **Le nom du relevé** est `releve-pc.json` : le contrat des skills (`docs/contrat-skills.md`) et le programme du PC (`outils/appli_pc.py`, lot 4c) disent maintenant la même chose, et le contrat reprend les deux délais (moins de 7 jours pour proposer, moins de 48 heures pour purger).

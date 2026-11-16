@@ -23,6 +23,7 @@ const STK_SEUIL_ALERTE = 80;                // alerte : il est temps de purger
 const STK_SEUIL_CRITIQUE = 95;              // critique : à 100 %, plus aucun mail ne part ni n'arrive
 const STK_RAPPEL_ALERTE_JOURS = 30;         // 80 % : un mail au franchissement, puis un par mois au plus tant que la place reste au-dessus
 const STK_RAPPEL_CRITIQUE_JOURS = 7;        // 95 % : un mail au franchissement (toujours), puis un rappel par semaine
+const STK_RETOUR_CRITIQUE = 2;              // le niveau « 95 % » n'est quitté qu'en dessous de 93 % (95 − 2) : pas de mail à chaque oscillation
 // Objectif de Franck : tenir 35 à 40 chantiers en cours. Pour dire combien de chantiers tiennent encore avant l'alerte,
 // chaque nouveau chantier est compté au poids moyen d'un chantier en cours AUJOURD'HUI, multiplié par cette marge :
 // un chantier en cours est en moyenne à mi-parcours, il pèsera plus lourd à sa clôture (calcul volontairement prudent).
@@ -83,13 +84,16 @@ function stkMail_(sujet, texte) {
 }
 // Un onglet du lot 5 dont les titres ont été changés : rien n'est lu ni écrit, et Franck est prévenu (un mail par jour
 // au plus ; la marque du jour n'est posée que si le mail est parti)
+let STK_PLACE_ = null;   // la place du compte lue par l'exécution en cours (pour le mail ci-dessous)
 function stkAlerteOnglet_(nom) {
   const props = PropertiesService.getScriptProperties(), cle = 'ALERTE_STOCKAGE_' + jour_();
   if (props.getProperty(cle)) return;
+  let place = '';
+  try { const p = STK_PLACE_ || placeCompte_(); place = 'Place du compte Google en ce moment : ' + stkPlaceTexte_(p) + ' (les alertes de place, elles, continuent de partir).\n\n'; } catch (e) {}
   if (stkMail_('[Loué App] Onglet « ' + nom + ' » modifié — suivi du stockage arrêté',
     'Les titres de l’onglet « ' + nom + ' » du Sheet ne sont plus ceux attendus : le serveur n’y lit et n’y écrit plus rien '
-    + '(ni mesure de la place, ni purge) tant que ce n’est pas réparé.\n\n'
-    + 'Pour réparer : renommez cet onglet (par exemple « ' + nom + ' ancien »), puis lancez installerLot5Production '
+    + '(ni détail par chantier, ni purge) tant que ce n’est pas réparé.\n\n' + place
+    + 'Pour réparer : renomme cet onglet (par exemple « ' + nom + ' ancien »), puis lance installerLot5Production '
     + '(ou installerLot5Test sur la copie TEST) dans l’éditeur Apps Script : un onglet neuf sera créé.\n'
     + 'Rien n’est perdu dans Drive : aucune mise à la corbeille n’est faite pendant ce temps.')) props.setProperty(cle, '1');
 }
@@ -114,7 +118,7 @@ function stkTitresBons_(sh) {
 function stkCreerOnglet_() {
   const sh = SpreadsheetApp.getActiveSpreadsheet().insertSheet(SHEET_STOCKAGE);
   sh.getRange(1, 1, STK_RESUME.length, 1).setValues(STK_RESUME.map(t => [t])).setFontWeight('bold');
-  sh.getRange(STK_R.etat, 2).setValue('Pas encore de mesure : la première se fait dans la nuit (ou lancez mesurerStockage).');
+  sh.getRange(STK_R.etat, 2).setValue('Pas encore de mesure : la première se fait dans la nuit (ou lance mesurerStockage).');
   sh.getRange(STK_R.rappel, 2).setValue(STK_RAPPEL);
   sh.getRange(STK_LIGNE_TITRES, 1, 1, STK_ENTETES.length).setValues([STK_ENTETES]).setFontWeight('bold').setBackground('#1A2B4A').setFontColor('white');
   const lignes = Math.max(1, sh.getMaxRows() - STK_LIGNE_TITRES);
@@ -156,12 +160,10 @@ function placeCompte_() {
   let erreur = '';
   if (typeof Drive !== 'undefined' && Drive && Drive.About && typeof Drive.About.get === 'function') {
     try {
-      const a = Drive.About.get({ fields: 'storageQuota' }) || {};
-      const q = a.storageQuota || null;
-      // API Drive v3 (storageQuota), ou v2 (quotaBytes…) si c'est cette version qui est activée
-      const utilise = Number(q ? q.usage : a.quotaBytesUsedAggregate), limite = Number(q ? q.limit : a.quotaBytesTotal);
-      const drive = Number(q ? q.usageInDrive : a.quotaBytesUsed), corbeille = Number(q ? q.usageInDriveTrash : a.quotaBytesUsedInTrash);
-      if (isFinite(utilise) && utilise >= 0) {
+      // API Drive version 3 (celle que l'éditeur propose). Une autre version, ou une réponse sans chiffre : repli sur DriveApp.
+      const q = (Drive.About.get({ fields: 'storageQuota' }) || {}).storageQuota || {};
+      const utilise = Number(q.usage), limite = Number(q.limit), drive = Number(q.usageInDrive), corbeille = Number(q.usageInDriveTrash);
+      if (q.usage !== undefined && isFinite(utilise) && utilise >= 0) {
         return stkPlace_('service avancé Drive', utilise, limite, isFinite(drive) ? drive : null, isFinite(corbeille) ? corbeille : null);
       }
       erreur = 'réponse sans chiffre';
@@ -193,7 +195,8 @@ function stkAlertes_(place) {
   const seuil = place.pourcent >= STK_SEUIL_CRITIQUE ? STK_SEUIL_CRITIQUE : place.pourcent >= STK_SEUIL_ALERTE ? STK_SEUIL_ALERTE : 0;
   const critique = seuil === STK_SEUIL_CRITIQUE;
   let ecrire = false, envoye = false;
-  if (seuil < niveau) { niveau = seuil; ecrire = true; }   // la place est redescendue : le seuil pourra prévenir de nouveau
+  // la place est redescendue : le seuil pourra prévenir de nouveau (pour 95 % : seulement une fois repassé sous 93 %)
+  if (seuil < niveau && !(niveau === STK_SEUIL_CRITIQUE && place.pourcent >= STK_SEUIL_CRITIQUE - STK_RETOUR_CRITIQUE)) { niveau = seuil; ecrire = true; }
   const franchi = seuil > niveau;
   const attendu = critique ? maintenant - dernierCritique >= STK_RAPPEL_CRITIQUE_JOURS * JOUR
     : !dernierAlerte || maintenant - dernierAlerte >= STK_RAPPEL_ALERTE_JOURS * JOUR;
@@ -217,18 +220,25 @@ function stkTexteAlerte_(seuil, place, rappel) {
   if (seuil === STK_SEUIL_CRITIQUE) lignes.push('À 100 %, plus aucun fichier ne peut être créé dans Drive et PLUS AUCUN MAIL NE PART NI N’ARRIVE : les fiches des poseurs '
     + 'resteraient dans leurs téléphones (elles ne sont pas perdues), mais plus rien n’arriverait au bureau, pas même ce mail.', '');
   lignes.push('Pour libérer de la place :',
-    '1. onglet « Purges » du Sheet : cochez « Mettre à la corbeille » sur les lignes où c’est possible (anciens indices du carnet, chantiers terminés) ;',
-    '2. un fichier mis à la corbeille compte encore 30 jours : si la place presse, ouvrez la corbeille de Drive et supprimez-y les fichiers voulus, un par un '
+    '1. onglet « Purges » du Sheet : coche « Mettre à la corbeille » sur les lignes où c’est possible (anciens indices du carnet, chantiers terminés) ;',
+    '2. un fichier mis à la corbeille compte encore 30 jours : si la place presse, ouvre la corbeille de Drive et supprime-y les fichiers voulus, un par un '
       + '(pas « Vider la corbeille », qui supprimerait aussi les purges encore annulables) ;',
-    '3. Gmail compte aussi : supprimez les anciens « Messages envoyés » avec pièce jointe (les PDF sont dans Drive et dans le dossier du chantier sur le PC), puis videz la corbeille de Gmail.',
+    '3. Gmail compte aussi : supprime les anciens « Messages envoyés » avec pièce jointe (les PDF sont dans Drive et dans le dossier du chantier sur le PC), puis vide la corbeille de Gmail.',
     '', 'Mode d’emploi : docs/lot5-procedure.md.');
-  lignes.push(seuil === STK_SEUIL_CRITIQUE ? 'Vous recevrez un rappel par semaine tant que la place reste au-dessus de ' + STK_SEUIL_CRITIQUE + ' %.'
-    : 'Alerte à ' + STK_SEUIL_ALERTE + ' % : vous recevrez ce mail une fois par mois au plus tant que la place reste au-dessus ; à ' + STK_SEUIL_CRITIQUE + ' %, un mail urgent part toujours.');
+  lignes.push(seuil === STK_SEUIL_CRITIQUE ? 'Tu recevras un rappel par semaine tant que la place reste au-dessus de ' + STK_SEUIL_CRITIQUE + ' %.'
+    : 'Alerte à ' + STK_SEUIL_ALERTE + ' % : tu recevras ce mail une fois par mois au plus tant que la place reste au-dessus ; à ' + STK_SEUIL_CRITIQUE + ' %, un mail urgent part toujours.');
   return lignes.join('\n');
 }
 
+// Statut d'un chantier tel qu'il est écrit dans la liste (« terminé », « TERMINÉ » → « Terminé ») ; un autre texte est rendu tel quel
+function stkStatut_(v) {
+  const s = stkNfc_(v).trim(), bas = s.toLowerCase();
+  for (let i = 0; i < STATUTS_CHANTIER.length; i++) if (STATUTS_CHANTIER[i].toLowerCase() === bas) return STATUTS_CHANTIER[i];
+  return s;
+}
 // ── Date « Terminé » de l'onglet Chantiers : posée quand le statut passe à « Terminé », effacée s'il change ──
-// Seule la cellule de la date est écrite, jamais le reste de la ligne. Une date déjà saisie n'est pas remplacée.
+// Seule la cellule de la date est écrite, jamais le reste de la ligne. Sur un chantier « Terminé », une date déjà saisie
+// (par Franck) n'est jamais remplacée. Sur un chantier qui n'est PAS « Terminé », une date est effacée, même saisie à la main.
 function stkDatesTermine_() {
   const rendu = { colonne: false, posees: 0, effacees: 0 };
   const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_CHANTIERS);
@@ -240,7 +250,7 @@ function stkDatesTermine_() {
   lignes.forEach((r, i) => {
     const nom = String(r[0] || '').trim();
     if (!nom) return;
-    const termine = String(r[2] || '').trim() === STATUTS_CHANTIER[2], vide = r[COL - 1] === '' || r[COL - 1] == null;
+    const termine = stkStatut_(r[2]) === STATUTS_CHANTIER[2], vide = r[COL - 1] === '' || r[COL - 1] == null;
     if (termine !== vide) return;   // « Terminé » avec sa date, ou autre statut sans date : rien à faire
     // relu juste avant d'écrire : si l'onglet a été trié entre-temps, on ne touche pas la ligne d'un autre chantier
     if (String(sh.getRange(i + 2, 1).getValue()).trim() !== nom) return;
@@ -257,7 +267,7 @@ function stkChantiers_() {
   lignesChantiers_().forEach(r => {
     const nom = String(r[0]).trim(), cle = cleChantier_(nom);
     if (parCle[cle]) { parCle[cle].lignes++; return; }
-    parCle[cle] = { nom: nom, cle: cle, statut: String(r[2] || '').trim(), termine: stkDateMs_(r.length > 9 ? r[9] : ''), lignes: 1 };
+    parCle[cle] = { nom: nom, cle: cle, statut: stkStatut_(r[2]), termine: stkDateMs_(r.length > 9 ? r[9] : ''), lignes: 1 };
   });
   return parCle;
 }
@@ -293,9 +303,11 @@ function stkCategorie_(chemin, cats) {
 // Ce que contient un dossier, tout compris : poids et nombre de fichiers par sorte. Fichiers à la corbeille non comptés.
 // avecListe : rend aussi la liste des fiches et des photos (identifiant, chemin depuis le dossier, taille).
 // depasse() : limite de temps ; « complet » passe à false si elle est atteinte avant la fin. LECTURE SEULE.
-function stkInventaire_(dossier, cats, depasse, avecListe) {
+// autres : { identifiant de dossier: chantier } (onglet « Dossiers chantiers »). Un sous-dossier qui est le dossier d'un
+// chantier n'est PAS parcouru (il est mesuré à part) : il est rendu dans « etrangers », et bloque la purge de celui-ci.
+function stkInventaire_(dossier, cats, depasse, avecListe, autres) {
   const r = { complet: true, octets: { carnet: 0, fiches: 0, photos: 0, autres: 0 }, nb: { carnet: 0, fiches: 0, photos: 0, autres: 0 },
-    total: 0, fichiers: 0, liste: [] };
+    total: 0, fichiers: 0, liste: [], etrangers: [] };
   const pile = [{ d: dossier, chemin: '' }];
   while (pile.length) {
     if (depasse()) { r.complet = false; break; }
@@ -311,7 +323,9 @@ function stkInventaire_(dossier, cats, depasse, avecListe) {
     const sous = x.d.getFolders();
     while (sous.hasNext()) {
       const d = sous.next();
-      if (!d.isTrashed()) pile.push({ d: d, chemin: prefixe + stkNfc_(d.getName()) });
+      if (d.isTrashed()) continue;
+      if (autres && autres[d.getId()]) { r.etrangers.push({ nom: autres[d.getId()], chemin: prefixe + stkNfc_(d.getName()) }); continue; }
+      pile.push({ d: d, chemin: prefixe + stkNfc_(d.getName()) });
     }
   }
   return r;
@@ -382,12 +396,19 @@ function stkPasse_(peutCommencer) {
 function stkMesurer_() {
   const debut = chronoMs_(), depasse = () => chronoMs_() - debut > STK_DUREE_MAX_MS;
   const props = PropertiesService.getScriptProperties();
-  const sh = feuilleStockage_();          // titres contrôlés avant toute écriture
-  feuillePurges_(); feuillePurgesDetail_();
-  const dates = stkDatesTermine_();
-  // 1. La place du compte (lue à chaque passage) et les alertes
-  const place = placeCompte_(), maintenant = maintenant_();
+  // 1. La place du compte (lue à chaque passage) et les alertes, AVANT tout contrôle d'onglet : un onglet modifié à la
+  //    main arrête le détail par chantier, jamais l'alerte de place
+  const place = STK_PLACE_ = placeCompte_(), maintenant = maintenant_();
   const alerte = stkAlertes_(place);
+  const sh = feuilleStockage_();          // titres contrôlés avant toute écriture
+  try { feuillePurges_(); feuillePurgesDetail_(); }
+  catch (e) {
+    // L'onglet Stockage, lui, est bon : son état reste juste (place, alerte), et il dit pourquoi le détail s'arrête
+    if (e && e.ongletModifie) sh.getRange(1, 2, 4, 1).setValues([[stkEtat_(place, alerte, '') + ' ⚠ Détail par chantier arrêté : ' + e.message], [stkPlaceTexte_(place)],
+      [new Date(maintenant)], [stkSource_(place)]].map(l => l.map(cellule_)));
+    throw e;
+  }
+  const dates = stkDatesTermine_();
   // 2. Le tour : commencé ici, ou repris
   const liste = stkUnites_();
   let suite = stkSuite_();
@@ -409,7 +430,7 @@ function stkMesurer_() {
     const u = liste.unites[i];
     if (suite.apres && u.id <= suite.apres) continue;      // déjà mesuré lors d'un passage précédent
     if (depasse()) { fini = false; break; }
-    const inv = stkInventaire_(u.dossier, cats, depasse, u.type === 'chantier');
+    const inv = stkInventaire_(u.dossier, cats, depasse, u.type === 'chantier', ctx.idsDossiers);
     // Limite de temps au milieu d'un dossier : il sera refait en entier au passage suivant. S'il est le premier du passage,
     // il ne tiendra jamais dans un passage : ce qui a été vu est écrit, et la ligne dit que la mesure est incomplète.
     if (!inv.complet && faitsCePassage) { fini = false; break; }
@@ -423,6 +444,7 @@ function stkMesurer_() {
         try { p = prgProposerChantier_(u, inv, ctx, depasse); }
         catch (e) { if (e && e.ongletModifie) throw e; p.texte = 'propositions non calculées : ' + e.message; }
       }
+      if (inv.etrangers.length) p.texte = ['⚠ contient le dossier d’un autre chantier (« ' + inv.etrangers[0].nom + ' », dans « ' + inv.etrangers[0].chemin + ' ») : sors-le de là', p.texte].filter(Boolean).join(' ; ');
       stkEcrireLigne_(sh, 'chantier:' + u.id, [
         u.noms.join(' + ') + (inv.complet ? '' : ' — ⚠ mesure incomplète (dossier trop gros pour un passage)'),
         c ? c.statut : '', c && c.termine && !isNaN(c.termine) ? new Date(c.termine) : '',
@@ -447,7 +469,8 @@ function stkMesurer_() {
       '', '', '', '', '', '', '', '', '', '', '', date, '']);
     const total = suite.octets + (Number(suite.octetsRacine) || 0);   // tout ce qui a été mesuré dans le Drive de l'appli
     const reste = Math.max(0, place.utilise - total);
-    stkEcrireLigne_(sh, STK_CLE_RESTE, ['Reste du compte (Gmail, Photos, corbeille, autres fichiers)' + (suite.incomplets ? ' — approximatif : ' + suite.incomplets + ' dossier(s) mesuré(s) en partie' : ''),
+    stkEcrireLigne_(sh, STK_CLE_RESTE, [(place.source === 'DriveApp' ? 'Reste vu par DriveApp (corbeille et autres fichiers de Drive ; Gmail et Photos seulement si DriveApp les compte)'
+      : 'Reste du compte (Gmail, Photos, corbeille, autres fichiers)') + (suite.incomplets ? ' — approximatif : ' + suite.incomplets + ' dossier(s) mesuré(s) en partie' : ''),
       '', '', stkMo_(reste), '', '', '', stkMo_(reste), '', '', '', '', date, '']);
     stkLignesDisparues_(sh, liste.unites);
     appli = stkGoTexte_(total) + ' dans ' + suite.fichiers + ' fichier(s) — tour complet du ' + stkJour_(maintenant)
@@ -470,14 +493,8 @@ function stkMesurer_() {
   }
   // 4. Le haut de l'onglet
   const pct = Math.floor(place.pourcent);
-  const etat = !fini ? 'Mesure en cours : ' + suite.faits + ' dossier(s) sur ' + liste.unites.length + ' — place utilisée : ' + pct + ' %'
-    : alerte.seuil === STK_SEUIL_CRITIQUE ? 'URGENT : ' + pct + ' % — à 100 %, plus aucun mail ne part ni n’arrive. Libérez de la place (onglet « Purges »).'
-    : alerte.seuil ? 'Attention : ' + pct + ' % (alerte à ' + STK_SEUIL_ALERTE + ' %) — il est temps de purger (onglet « Purges »).'
-    : 'Tout va bien : ' + pct + ' % (alerte à ' + STK_SEUIL_ALERTE + ' %)';
-  const avance = place.source !== 'DriveApp';
-  const source = avance ? 'Service avancé Drive : total du compte (Drive, Gmail et Photos)'
-    : 'DriveApp : Google ne garantit pas que ce chiffre compte Gmail et Photos — à comparer avec one.google.com/storage'
-      + (place.erreurAvance ? ' (service avancé Drive en panne : ' + place.erreurAvance + ')' : ' (service avancé Drive non activé)');
+  const etat = stkEtat_(place, alerte, fini ? '' : 'Mesure en cours : ' + suite.faits + ' dossier(s) sur ' + liste.unites.length);
+  const source = stkSource_(place);
   const inconnu = 'non connu sans le service avancé Drive';
   const enCours = Object.keys(liste.chantiers).filter(k => liste.chantiers[k].statut === STATUTS_CHANTIER[1]).length;
   // Tour pas fini : le poids moyen et la place pour d'autres chantiers restent ceux du dernier tour complet
@@ -490,6 +507,20 @@ function stkMesurer_() {
   return (fini ? 'Tour de mesure terminé' : 'À suivre') + ' : ' + suite.faits + ' dossier(s) mesuré(s) sur ' + liste.unites.length + ', place utilisée ' + pct + ' % (' + place.source + ').'
     + (alerte.envoye ? ' Mail d’alerte envoyé (seuil ' + alerte.seuil + ' %).' : '')
     + (dates.posees || dates.effacees ? ' Dates « Terminé » : ' + dates.posees + ' posée(s), ' + dates.effacees + ' effacée(s).' : '');
+}
+
+// La phrase d'état du haut de l'onglet. tour : « Mesure en cours : n dossier(s) sur m », ou '' si le tour est fini.
+// Au-dessus d'un seuil, l'alerte passe toujours en premier, même pendant un tour de plusieurs nuits.
+function stkEtat_(place, alerte, tour) {
+  const pct = Math.floor(place.pourcent);
+  if (alerte.seuil === STK_SEUIL_CRITIQUE) return 'URGENT : ' + pct + ' % — à 100 %, plus aucun mail ne part ni n’arrive. Libère de la place (onglet « Purges »).' + (tour ? ' ' + tour + '.' : '');
+  if (alerte.seuil) return 'Attention : ' + pct + ' % (alerte à ' + STK_SEUIL_ALERTE + ' %) — il est temps de purger (onglet « Purges »).' + (tour ? ' ' + tour + '.' : '');
+  return tour ? tour + ' — place utilisée : ' + pct + ' % (alerte à ' + STK_SEUIL_ALERTE + ' %)' : 'Tout va bien : ' + pct + ' % (alerte à ' + STK_SEUIL_ALERTE + ' %)';
+}
+function stkSource_(place) {
+  return place.source !== 'DriveApp' ? 'Service avancé Drive : total du compte (Drive, Gmail et Photos)'
+    : 'DriveApp : Google ne garantit pas que ce chiffre compte Gmail et Photos — à comparer avec one.google.com/storage'
+      + (place.erreurAvance ? ' (service avancé Drive en panne : ' + place.erreurAvance + ')' : ' (service avancé Drive non activé)');
 }
 
 // Fin de tour : la ligne d'un dossier de chantier qui n'existe plus (mis à la corbeille, sorti de la racine) le dit

@@ -125,7 +125,7 @@ test('poids par chantier et par sous-dossier, lignes datées, corbeille non comp
   assert.ok(/^Dossiers techniques/.test(tech[K.nom]) && /_À CLASSER/.test(tech[K.nom]) && tech[K.total] === 2 && tech[K.fichiers] === 2, JSON.stringify(tech));
   assert.ok(/aucun chantier \(1\) : VIEUX DOSSIER/.test(orph[K.nom]) && orph[K.total] === 2, JSON.stringify(orph));
   assert.ok(/^Chantiers sans dossier \(1\) : GAMMA SANS DOSSIER/.test(sans[K.nom]), sans[K.nom]);
-  assert.ok(/^Reste du compte/.test(reste[K.nom]) && reste[K.total] === 85, 'reste = 100 − 10 − 1 − 2 − 2 : ' + reste[K.total]);
+  assert.ok(/^Reste vu par DriveApp/.test(reste[K.nom]) && /Gmail et Photos seulement si DriveApp les compte/.test(reste[K.nom]) && reste[K.total] === 85, 'reste = 100 − 10 − 1 − 2 − 2 : ' + reste[K.total]);
   const r = resume(g);
   assert.ok(/^Tout va bien : 0 % \(alerte à 80 %\)/.test(r[0]), r[0]);
   assert.strictEqual(r[1], '0,1 Go sur 15 Go (0 %)');
@@ -206,6 +206,7 @@ test('avec le service avancé Drive : total du compte, part de Drive, de Gmail e
   assert.ok(/^Service avancé Drive/.test(r[3]), r[3]);
   assert.deepStrictEqual([r[4], r[5], r[6]], ['6 Go', '3 Go', '1 Go']);
   assert.strictEqual(ligneS(g, 'special:reste')[K.total], 9 * 1024 - 15, 'reste = total du compte − ce qui a été mesuré');
+  assert.ok(/^Reste du compte \(Gmail, Photos, corbeille, autres fichiers\)/.test(ligneS(g, 'special:reste')[K.nom]), 'avec le service avancé, le reste contient bien Gmail');
   g.etat.driveAvance = null;   // le service répond par une erreur
   mesurer(g);
   r = resume(g);
@@ -351,7 +352,7 @@ test('seul l’ancien indice que plus aucun document montré ne désigne est pro
   mesurer(g);
   const l = ligneP(g, 'INDICES', 'Anciens indices du carnet');
   assert.deepStrictEqual([l[P.possible], l[P.etat], l[P.poids], l[P.fichiers], l[P.corbeille], l[P.annuler]], ['oui', 'Proposé', 5, 2, false, false], l[P.pourquoi]);
-  assert.ok(/^Possible : 1 élément\(s\), 2 fichier\(s\)/.test(l[P.pourquoi]) && /laissé\(s\) en place/.test(l[P.pourquoi]) && /DEPOT EN COURS/.test(l[P.pourquoi]) && /deux dossiers de ce nom/.test(l[P.pourquoi]), l[P.pourquoi]);
+  assert.ok(/^Possible : 2 fichier\(s\) partiraient à la corbeille\./.test(l[P.pourquoi]) && /laissé\(s\) en place/.test(l[P.pourquoi]) && /DEPOT EN COURS/.test(l[P.pourquoi]) && /deux dossiers de ce nom/.test(l[P.pourquoi]), l[P.pourquoi]);
   assert.strictEqual(l[P.cle], 'indices|indices|' + x.d.id + '|1', 'clé fixe : nature, chantier, identifiant du dossier');
   const s = ligneS(g, 'chantier:' + x.d.id);
   assert.deepStrictEqual([s[K.indices], s[K.indicesMo]], [1, 5]);
@@ -394,7 +395,8 @@ test('anciens indices : dossier du chantier trouvé par son nom seulement (pas d
   cocher(g, 'INDICES', 'Anciens indices du carnet');
   g.ctx.traiterPurges();
   assert.ok(!corbeille(x.ancien) && g.etat.corbeilles.length === 0, 'case cochée quand même : refusé, rien à la corbeille');
-  assert.ok(/^Refusé le/.test(ligneP(g, 'INDICES', 'Anciens indices du carnet')[P.message]));
+  assert.ok(/n’est pas « Proposé » : rien n’a été fait, la case est décochée\. Attends la prochaine mesure/.test(ligneP(g, 'INDICES', 'Anciens indices du carnet')[P.message]));
+  assert.strictEqual(ligneP(g, 'INDICES', 'Anciens indices du carnet')[P.corbeille], false);
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════
@@ -404,7 +406,7 @@ test('tout est réuni : proposé, avec le poids, le nombre de fichiers et le rap
   mesurer(g);
   const l = ligneP(g, 'FINI');
   assert.deepStrictEqual([l[P.possible], l[P.etat], l[P.fichiers], l[P.corbeille], l[P.annuler]], ['oui', 'Proposé', 6, false, false], l[P.pourquoi]);
-  assert.ok(/^Possible : 6 élément\(s\), 6 fichier\(s\)/.test(l[P.pourquoi]), l[P.pourquoi]);
+  assert.ok(/^Possible : 6 fichier\(s\) partiraient à la corbeille\./.test(l[P.pourquoi]) && !/élément/.test(l[P.pourquoi]), l[P.pourquoi]);
   assert.ok(/MEGA a fini de synchroniser le dossier du chantier/.test(l[P.pourquoi]) && /moins de 48 heures/.test(l[P.pourquoi]) && /la place n’est rendue que 30 jours plus tard/.test(l[P.pourquoi]), l[P.pourquoi]);
   assert.ok(/2 fichier\(s\) hors des dossiers de l’appli \(relevé compris\)/.test(l[P.pourquoi]), l[P.pourquoi]);
   assert.strictEqual(l[P.cle], 'termine|fini|' + x.d.id + '|1');
@@ -429,15 +431,15 @@ refuse('« Terminé » depuis moins de 30 jours (la ligne dit à partir de quand
 refuse('date « Terminé » dans le futur : ignorée', { termine: new Date(MAINTENANT + 10 * JOUR) }, /dans le futur/);
 refuse('date « Terminé » illisible', { termine: 'l’an dernier' }, /illisible/);
 refuse('statut « Terminé » sans date (elle vient d’être posée : 30 jours à attendre)', { termine: '' }, /terminé depuis le 13\/11\/2026/i);
-refuse('pas de relevé (la ligne dit quoi faire)', { releve: false }, /Pas de relevé « releve-pc\.json ».*vérifiez que la recopie automatique tourne sur le PC \(fichier « CHANTIERPRO - A VOIR\.txt »\), puis attendez la prochaine mesure/);
+refuse('pas de relevé (la ligne dit quoi faire)', { releve: false }, /Pas de relevé « releve-pc\.json ».*vérifie que la recopie automatique tourne sur le PC \(fichier « CHANTIERPRO - A VOIR\.txt »\), puis attends la prochaine mesure/);
 refuse('relevé sous l’ancien nom mega-index.json : pas accepté', { nomReleve: 'mega-index.json' }, /Pas de relevé « releve-pc\.json »/);
-refuse('relevé de plus de 7 jours', { dateReleve: MAINTENANT - 8 * JOUR }, /Relevé du 05\/11\/2026 10:00 : il a plus de 7 jours : vérifiez que la recopie automatique tourne sur le PC \(fichier « CHANTIERPRO - A VOIR\.txt »\)/);
+refuse('relevé de plus de 7 jours', { dateReleve: MAINTENANT - 8 * JOUR }, /Relevé du 05\/11\/2026 10:00 : il a plus de 7 jours : vérifie que la recopie automatique tourne sur le PC \(fichier « CHANTIERPRO - A VOIR\.txt »\)/);
 refuse('relevé daté du futur', { dateReleve: MAINTENANT + 3 * JOUR }, /daté du futur/);
 refuse('relevé d’un autre chantier', { chantierReleve: 'UN AUTRE CHANTIER' }, /celui d’un autre chantier \(« UN AUTRE CHANTIER »\)/);
 refuse('relevé illisible', {}, /illisible/, (g, x) => { x.releve.contenu = '{ pas du json'; });
 refuse('deux relevés', {}, /Deux relevés/, (g, x) => releve(g, x.d, 'FINI', x.lignesReleve));
 refuse('une fiche absente du relevé (la ligne dit quoi faire)', { lignesReleve: [[QUITUS + '/QUITUS A 2026-01-10.pdf', 1000], [PHOTOS + '/photo 1.jpg', 5000]] },
-  /1 fiche\(s\) ou photo\(s\) absente\(s\) du relevé \(« .*QUITUS B 2026-01-11\.pdf »\) : vérifiez que la recopie automatique tourne sur le PC .*, puis attendez la prochaine mesure/);
+  /1 fiche\(s\) ou photo\(s\) absente\(s\) du relevé \(« .*QUITUS B 2026-01-11\.pdf »\) : vérifie que la recopie automatique tourne sur le PC .*, puis attends la prochaine mesure/);
 refuse('une fiche dont la taille n’est pas celle du relevé', { lignesReleve: [[QUITUS + '/QUITUS A 2026-01-10.pdf', 1000], [QUITUS + '/QUITUS B 2026-01-11.pdf', 2001], [PHOTOS + '/photo 1.jpg', 5000]] }, /taille n’est pas celle du relevé/);
 refuse('deux fichiers de même nom dans un dossier du Drive (bloqué, avec le nom), même si le relevé a deux lignes',
   { lignesReleve: [[QUITUS + '/QUITUS A 2026-01-10.pdf', 1000], [QUITUS + '/QUITUS A 2026-01-10.pdf', 1000], [QUITUS + '/QUITUS B 2026-01-11.pdf', 2000], [PHOTOS + '/photo 1.jpg', 5000]] },
@@ -541,12 +543,12 @@ test('chantier terminé : fiches et photos fichier par fichier, dossiers gardés
   assert.strictEqual(l[P.faitLe].getTime(), MAINTENANT);
   assert.strictEqual(l[P.libere].getTime(), MAINTENANT + 30 * JOUR, 'place libérée 30 jours plus tard');
   assert.strictEqual(l[P.jusquau].getTime(), MAINTENANT + 25 * JOUR, 'annulation possible 25 jours');
-  assert.ok(/6 fichier\(s\) à la corbeille/.test(l[P.message]) && /cochez « Annuler » avant le 08\/12\/2026/.test(l[P.message]), l[P.message]);
+  assert.ok(/6 fichier\(s\) à la corbeille/.test(l[P.message]) && /coche « Annuler » avant le 08\/12\/2026/.test(l[P.message]), l[P.message]);
   assert.strictEqual(g.mails.length, mails + 1, 'un mail');
   const m = g.mails[mails];
   assert.strictEqual(m.to, 'franck@loue.test');
   assert.ok(/Mise à la corbeille — FINI — Chantier terminé/.test(m.sujet), m.sujet);
-  assert.ok(/6 fichier\(s\)/.test(m.texte) && /POUR ANNULER/.test(m.texte) && /avant le 08\/12\/2026/.test(m.texte) && /libérée le 13\/12\/2026/.test(m.texte) && /Rien n’est supprimé définitivement/.test(m.texte), m.texte);
+  assert.ok(/^Tu as coché/.test(m.texte) && !/[Vv]ous|cochez|vérifiez/.test(m.texte) && /6 fichier\(s\)/.test(m.texte) && /POUR ANNULER/.test(m.texte) && /avant le 08\/12\/2026/.test(m.texte) && /libérée le 13\/12\/2026/.test(m.texte) && /Rien n’est supprimé définitivement/.test(m.texte), m.texte);
   assert.strictEqual(g.proprietes.PURGE_EN_COURS, undefined, 'verrou de la purge rendu');
   assert.strictEqual(g.etat.verrousScript, 0, 'le verrou des fiches n’a jamais été demandé');
   assert.strictEqual(g.ctx.traiterPurges(), 'rien', 'passage suivant : plus rien à faire');
@@ -633,9 +635,10 @@ test('limite de temps pendant une purge : elle s’arrête proprement et continu
   mesurer(g); cocher(g, 'FINI');
   let t = 0;
   g.ctx.chronoMs_ = () => t;
-  g.etat.avantCorbeille = () => { if (g.etat.corbeilles.length === 50) t = 10 * 60 * 1000; };   // les 4 minutes sont passées pendant le 2e paquet
+  g.etat.avantCorbeille = () => { if (g.etat.corbeilles.length === 53) t = 10 * 60 * 1000; };   // les 4 minutes passent pendant la 54e mise à la corbeille
   g.ctx.traiterPurges();
-  assert.strictEqual(g.etat.corbeilles.length, 80, 'le paquet en cours est fini, le suivant n’est pas commencé');
+  assert.strictEqual(g.etat.corbeilles.length, 54, 'le temps est regardé avant CHAQUE fichier : arrêt net, au milieu d’un paquet de 10');
+  assert.strictEqual(detail(g).filter(l => l[D.etat] === 'non fait (temps écoulé)').length, 6, 'le reste du paquet journalisé est marqué « non fait »');
   assert.deepStrictEqual([ligneP(g, 'FINI')[P.etat], ligneP(g, 'FINI')[P.corbeille]], ['En cours', true]);
   assert.ok(/suite au prochain passage/.test(ligneP(g, 'FINI')[P.message]));
   assert.strictEqual(detail(g).filter(l => l[D.etat] === 'à faire').length, 0);
@@ -731,7 +734,7 @@ test('fichier sorti du dossier du chantier après la comparaison (hors de la rac
   assert.ok(/^refusé : hors du dossier du chantier/.test(detail(g).filter(l => l[D.id] === deplace.id)[0][D.etat]));
   const l = ligneP(g, 'FINI');
   assert.deepStrictEqual([l[P.etat], l[P.nbFaits]], ['Fait', 5]);
-  assert.ok(/1 élément\(s\) laissé\(s\) en place/.test(l[P.message]), l[P.message]);
+  assert.ok(/1 fichier\(s\) ou dossier\(s\) laissé\(s\) en place/.test(l[P.message]), l[P.message]);
   // la garde elle-même : jamais le dossier du chantier, le relevé, le dossier CARNET, la racine
   const ctx = g.ctx.prgContexte_(), garde = g.ctx.prgGarde_(x.d.api, ctx, x.carnet.api);
   assert.strictEqual(garde(x.d.api, { type: 'dossier' }), 'dossier protégé');
@@ -900,6 +903,359 @@ test('textes : ni caractère de contrôle, ni U+2028/U+2029 bruts dans les fichi
     if (!fs.existsSync(path.join(RACINE, f))) return;
     const m = fs.readFileSync(path.join(RACINE, f), 'utf8').match(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f\u2028\u2029]/);
     assert.ok(!m, f + ' : caractère U+' + (m ? m[0].charCodeAt(0).toString(16) : ''));
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════
+console.log('\nLot 5 — corrections après la relecture indépendante (I1 à I5, M1 à M14, mutations)');
+const purgeEnDeuxTemps = () => {   // une purge de 106 fichiers arrêtée par le temps au 54e : la ligne reste « En cours »
+  const g = environnement(), x = chantierFini(g, 'FINI');
+  for (let i = 0; i < 100; i++) { fichier(g, x.photos, 'p' + i + '.jpg', 10 + i); x.lignesReleve.push([PHOTOS + '/p' + i + '.jpg', 10 + i]); }
+  x.releve.contenu = JSON.stringify({ version: 1, chantier: 'FINI', releve_le: new Date(g.now - JOUR).toISOString(), fichiers: x.lignesReleve.map(f => ({ chemin: f[0], taille: f[1] })) });
+  mesurer(g); cocher(g, 'FINI');
+  g.t = 0; g.ctx.chronoMs_ = () => g.t;
+  g.etat.avantCorbeille = () => { if (g.etat.corbeilles.length === 53) g.t = 10 * 60 * 1000; };
+  g.ctx.traiterPurges();
+  g.t = 0; g.etat.avantCorbeille = null;
+  assert.strictEqual(ligneP(g, 'FINI')[P.etat], 'En cours');
+  return { g: g, x: x };
+};
+test('I1 — onglet trié en partie (colonnes A à O échangées entre deux lignes, pas la clé) : rien ne part, la case est décochée, la ligne est remise en ordre et le dit', () => {
+  const g = environnement(), x = chantierFini(g, 'FINI X'), y = chantierFini(g, 'FINI Y');
+  mesurer(g);
+  const lx = ligneP(g, 'FINI X'), ly = ligneP(g, 'FINI Y');
+  for (let i = 0; i < 15; i++) { const t = lx[i]; lx[i] = ly[i]; ly[i] = t; }
+  assert.ok(ly[P.chantier] === 'FINI X' && /\|fini y\|/.test(ly[P.cle]), 'la ligne qui affiche « FINI X » porte la clé de FINI Y');
+  ly[P.corbeille] = true;   // Franck coche en face de « FINI X »
+  g.ctx.traiterPurges();
+  assert.strictEqual(g.etat.corbeilles.length, 0, 'ni les fiches de X, ni celles de Y');
+  assert.deepStrictEqual([ly[P.chantier], ly[P.quoi], ly[P.corbeille], ly[P.etat], ly[P.possible]], ['FINI Y', 'Chantier terminé', false, 'Impossible', 'non']);
+  assert.ok(/avait été mélangée/.test(ly[P.message]) && /Rien n’a été fait/.test(ly[P.message]) && /attends la prochaine mesure/.test(ly[P.message]), ly[P.message]);
+  assert.strictEqual(g.mails.length, 0);
+  assert.ok(![x.f1, y.f1].some(corbeille));
+  // « Quoi » qui ne correspond plus à la clé : même refus
+  mesurer(g);
+  const l = ligneP(g, 'FINI X');
+  l[P.quoi] = 'Anciens indices du carnet'; l[P.corbeille] = true;
+  g.ctx.traiterPurges();
+  assert.ok(g.etat.corbeilles.length === 0 && l[P.corbeille] === false && l[P.quoi] === 'Chantier terminé' && /mélangée/.test(l[P.message]));
+  // le nom écrit dans le mail vient de la clé, pas du texte affiché
+  mesurer(g);
+  const l2 = ligneP(g, 'FINI X');
+  l2[P.chantier] = 'fini x'; l2[P.corbeille] = true;   // même chantier, écrit autrement
+  g.ctx.traiterPurges();
+  assert.ok(corbeille(x.f1) && !corbeille(y.f1));
+  assert.ok(/— FINI X — Chantier terminé$/.test(g.mails[0].sujet) && /Chantier : FINI X/.test(g.mails[0].texte), g.mails[0].sujet);
+});
+test('I2 — le dossier d’un autre chantier rangé dans un dossier de fiches : ses fiches ne partent jamais avec, et la purge est bloquée et le dit ; lui-même n’est jamais accepté comme dossier de chantier', () => {
+  const g = environnement(), a = chantierFini(g, 'FINI', { releve: false });
+  const b = chantierFini(g, 'B DEDANS', { parent: a.quitus });
+  // la recopie du PC a copié tout le sous-arbre : le relevé de FINI contient aussi les fiches de B
+  releve(g, a.d, 'FINI', a.lignesReleve.concat(b.lignesReleve.map(f => [QUITUS + '/B DEDANS/' + f[0], f[1]])));
+  mesurer(g);
+  const la = ligneP(g, 'FINI'), lb = ligneP(g, 'B DEDANS');
+  assert.deepStrictEqual([la[P.possible], lb[P.possible]], ['non', 'non']);
+  assert.ok(/Le dossier d’un autre chantier \(« B DEDANS »\) est rangé dans ce dossier \(« .*QUITUS\/B DEDANS »\) : sors-le de là/.test(la[P.pourquoi]), la[P.pourquoi]);
+  assert.ok(/est rangé dans le dossier d’un autre chantier \(« FINI »\) : sors-le de là/.test(lb[P.pourquoi]), lb[P.pourquoi]);
+  assert.strictEqual(la[P.fichiers], 6, 'les fiches de B ne sont pas comptées dans celles de FINI');
+  assert.ok(/contient le dossier d’un autre chantier/.test(ligneS(g, 'chantier:' + a.d.id)[K.purge]));
+  la[P.etat] = 'Proposé'; lb[P.etat] = 'Proposé'; la[P.corbeille] = true; lb[P.corbeille] = true;   // même en forçant l'état : la revérification refuse
+  g.ctx.traiterPurges();
+  assert.strictEqual(g.etat.corbeilles.length, 0);
+  assert.ok(![a.f1, b.f1, b.docA].some(corbeille));
+  // et le poids de B n'est pas compté deux fois
+  assert.strictEqual(ligneS(g, 'chantier:' + a.d.id)[K.fichiers], 8);
+  assert.strictEqual(ligneS(g, 'chantier:' + b.d.id)[K.fichiers], 8);
+});
+test('I3 — un onglet du lot aux titres modifiés ne fait jamais taire l’alerte de place : le mail URGENT part, le mail « onglet modifié » donne le pourcentage, l’état en haut de Stockage reste juste', () => {
+  const g = environnement({ stockage: { utilise: GO } });
+  chantierFini(g, 'FINI');
+  mesurer(g);
+  g.feuilles['Purges détail'].lignes[0][1] = 'Sorte';
+  g.etat.stockage.utilise = Math.round(15 * GO * 0.962);
+  const m = mesurer(g);
+  assert.ok(/^Mesure arrêtée/.test(m), m);
+  assert.strictEqual(mailsDe(g, /URGENT/).length, 1, 'l’alerte de place part quand même');
+  const onglet = mailsDe(g, /Onglet « Purges détail » modifié/);
+  assert.strictEqual(onglet.length, 1);
+  assert.ok(/Place du compte Google en ce moment : .*\(96 %\)/.test(onglet[0].texte) && /renomme cet onglet/.test(onglet[0].texte), onglet[0].texte);
+  assert.ok(/^URGENT : 96 %/.test(resume(g)[0]) && /Détail par chantier arrêté/.test(resume(g)[0]), resume(g)[0]);
+  assert.strictEqual(resume(g)[1], '14,43 Go sur 15 Go (96 %)');
+  // onglet Stockage lui-même modifié : l'alerte part aussi (nuit suivante, seuil franchi de nouveau après une baisse)
+  const g2 = environnement({ stockage: { utilise: GO } });
+  mesurer(g2);
+  g2.feuilles['Stockage'].lignes[0][0] = 'Mon titre';
+  g2.etat.stockage.utilise = Math.round(15 * GO * 0.85);
+  mesurer(g2);
+  assert.strictEqual(mailsDe(g2, /Place Google : 85 %/).length, 1);
+});
+test('I4 — plafond par jour du temps de purge : au-delà, « la suite demain », rien ne part, la case reste cochée ; l’annulation reste possible ; le lendemain la purge se fait', () => {
+  const g = environnement(), x = chantierFini(g, 'FINI');
+  mesurer(g); cocher(g, 'FINI');
+  const jour = g.ctx.jour_();
+  g.proprietes.PURGE_TEMPS = JSON.stringify({ jour: jour, ms: 31 * 60 * 1000 });
+  g.ctx.traiterPurges();
+  let l = ligneP(g, 'FINI');
+  assert.ok(g.etat.corbeilles.length === 0 && l[P.corbeille] === true && l[P.etat] === 'Proposé');
+  assert.ok(/Temps de purge du jour épuisé \(30 minutes par jour/.test(l[P.message]) && /la suite demain/.test(l[P.message]), l[P.message]);
+  g.proprietes.PURGE_TEMPS = JSON.stringify({ jour: '2020-01-01', ms: 31 * 60 * 1000 });   // un autre jour : le compteur repart
+  g.ctx.traiterPurges();
+  assert.strictEqual(ligneP(g, 'FINI')[P.etat], 'Fait');
+  assert.strictEqual(JSON.parse(g.proprietes.PURGE_TEMPS).jour, jour, 'le temps passé est compté sur le jour');
+  g.proprietes.PURGE_TEMPS = JSON.stringify({ jour: jour, ms: 31 * 60 * 1000 });
+  cocher(g, 'FINI', undefined, P.annuler); g.ctx.traiterPurges();
+  assert.ok(!corbeille(x.f1) && ligneP(g, 'FINI')[P.etat] === 'Annulé', 'annuler n’est jamais retardé par le plafond');
+});
+test('I4 — le plafond du jour arrête aussi une purge en route ; le temps passé s’ajoute ; la remontée « dossier du chantier → racine » n’est faite qu’une fois par exécution', () => {
+  const g = environnement(), x = chantierFini(g, 'FINI');
+  mesurer(g); cocher(g, 'FINI');
+  g.proprietes.PURGE_TEMPS = JSON.stringify({ jour: g.ctx.jour_(), ms: 30 * 60 * 1000 - 5000 });   // il reste 5 secondes aujourd'hui
+  let t = 0, remontees = 0;
+  g.ctx.chronoMs_ = () => t;
+  const parents = x.d.api.getParents;
+  x.d.api.getParents = () => { remontees++; return parents(); };
+  g.etat.avantCorbeille = () => { if (g.etat.corbeilles.length === 1) t = 6000; };
+  g.ctx.traiterPurges();
+  assert.strictEqual(g.etat.corbeilles.length, 2);
+  assert.ok(/la suite demain/.test(ligneP(g, 'FINI')[P.message]) && ligneP(g, 'FINI')[P.etat] === 'En cours', ligneP(g, 'FINI')[P.message]);
+  assert.strictEqual(JSON.parse(g.proprietes.PURGE_TEMPS).ms, 30 * 60 * 1000 + 1000, '6 secondes de plus au compteur du jour');
+  assert.ok(remontees <= 3, 'remontées depuis le dossier du chantier : ' + remontees + ' (et non une par fichier)');
+  g.ctx.traiterPurges();
+  assert.strictEqual(g.etat.corbeilles.length, 2, 'plafond atteint : plus rien aujourd’hui');
+});
+test('I5 — ancien indice purgé, puis nouvel indice retiré : l’appli remontre l’ancien, sans images → dit dans Stockage et sur la ligne à annuler ; « Annuler » répare', () => {
+  const g = environnement(), x = carnetIndices(g), QUOI = 'Anciens indices du carnet';
+  fichier(g, sous(g, x.carnet, '103 B COUPE'), 'p1.webp', MO);   // le dossier du document 103-B, que la liste annonce
+  mesurer(g); cocher(g, 'INDICES', QUOI); g.ctx.traiterPurges();
+  const faite = ligneP(g, 'INDICES', QUOI);
+  assert.ok(corbeille(x.ancien) && faite[P.etat] === 'Fait');
+  const l = JSON.parse(x.json.contenu);
+  l.documents.filter(d => d.id === '101-B')[0].retire = true;   // l'indice B est retiré : l'appli remontre l'indice A
+  x.json.contenu = JSON.stringify(l);
+  mesurer(g);
+  const s = ligneS(g, 'chantier:' + x.d.id)[K.purge];
+  assert.ok(/^⚠ 1 document\(s\) du carnet montré\(s\) dans l’appli sans leurs images \(101-A\) : coche « Annuler » sur la ligne « Anciens indices du carnet » de ce chantier \(onglet « Purges »\), ou redépose le document/.test(s), s);
+  assert.ok(/^⚠ 1 document\(s\) du carnet montré\(s\) dans l’appli sans leurs images \(101-A\)/.test(faite[P.message]) && /coche « Annuler »/.test(faite[P.message]), faite[P.message]);
+  assert.strictEqual(faite[P.etat], 'Fait', 'l’état de la ligne n’est pas touché');
+  faite[P.annuler] = true; g.ctx.traiterPurges();
+  assert.ok(!corbeille(x.ancien) && faite[P.etat] === 'Annulé');
+  mesurer(g);
+  assert.ok(!/sans leurs images/.test(ligneS(g, 'chantier:' + x.d.id)[K.purge]), ligneS(g, 'chantier:' + x.d.id)[K.purge]);
+});
+test('M1 — état « En cours » écrasé puis exécution tuée : au traitement suivant le journal est tranché, la ligne redevient « Fait », et « Annuler » marche', () => {
+  const g = environnement(), x = chantierFini(g, 'FINI');
+  mesurer(g); cocher(g, 'FINI');
+  const marquer = g.ctx.prgMarquer_, arreter = g.ctx.prgArreter_;
+  g.ctx.prgMarquer_ = () => { throw new Error('COUPURE'); }; g.ctx.prgArreter_ = () => {};
+  g.ctx.traiterPurges();
+  g.ctx.prgMarquer_ = marquer; g.ctx.prgArreter_ = arreter;
+  const l = ligneP(g, 'FINI');
+  assert.ok(g.etat.corbeilles.length === 6 && detail(g).every(d => d[D.etat] === 'à faire'), 'six fichiers à la corbeille, journal resté « à faire »');
+  l[P.etat] = 'Impossible'; l[P.corbeille] = false; l[P.message] = 'Rien n’a été mis à la corbeille.';   // l'état écrasé par un passage croisé
+  l[P.annuler] = true;
+  g.ctx.traiterPurges();
+  assert.ok(detail(g).every(d => d[D.etat] === 'fait'), 'journal tranché d’après l’état réel des fichiers');
+  assert.ok(/^Fait/.test(l[P.etat]) && l[P.nbFaits] === 6 && /Ligne remise en ordre/.test(l[P.message]), l[P.etat] + ' / ' + l[P.message]);
+  g.ctx.traiterPurges();
+  assert.strictEqual(l[P.etat], 'Annulé');
+  assert.ok(![x.f1, x.f2, x.p1, x.docA, x.docB, x.json].some(corbeille), 'tout est revenu');
+  // la mesure de la nuit ne réécrit jamais « Proposé » par-dessus une ligne passée « En cours » entre sa lecture et son écriture
+  const g2 = environnement(); chantierFini(g2, 'FINI'); mesurer(g2);
+  const l2 = ligneP(g2, 'FINI'), ecrire = g2.ctx.prgEcrire_;
+  g2.ctx.prgEcrire_ = (sh, cle, cellules, siLibre) => { l2[P.etat] = 'En cours'; return ecrire(sh, cle, cellules, siLibre); };
+  mesurer(g2);
+  assert.strictEqual(l2[P.etat], 'En cours');
+});
+test('M2 — ligne « Fait » supprimée par Franck : la clé n’est jamais réutilisée (numéro = plus grand numéro vu dans Purges ET dans Purges détail, plus un)', () => {
+  const g = environnement(), x = chantierFini(g, 'FINI');
+  mesurer(g); cocher(g, 'FINI'); g.ctx.traiterPurges();
+  const f = g.feuilles['Purges'];
+  f.lignes = f.lignes.filter(l => !(l[P.chantier] === 'FINI' && l[P.quoi] === 'Chantier terminé'));   // ménage de Franck
+  fichier(g, x.quitus, 'QUITUS TARDIF.pdf', 900);
+  x.releve.contenu = JSON.stringify({ version: 1, chantier: 'FINI', releve_le: new Date(g.now).toISOString(), fichiers: [{ chemin: QUITUS + '/QUITUS TARDIF.pdf', taille: 900 }] });
+  mesurer(g);
+  assert.strictEqual(ligneP(g, 'FINI')[P.cle], 'termine|fini|' + x.d.id + '|2');
+  cocher(g, 'FINI'); g.ctx.traiterPurges();
+  assert.deepStrictEqual([ligneP(g, 'FINI')[P.etat], ligneP(g, 'FINI')[P.nbFaits]], ['Fait', 1]);
+  assert.ok(/^1 fichier\(s\) à la corbeille/.test(ligneP(g, 'FINI')[P.message]), ligneP(g, 'FINI')[P.message]);
+  cocher(g, 'FINI', undefined, P.annuler); g.ctx.traiterPurges();
+  assert.ok(/1 fichier\(s\) remis en place\./.test(ligneP(g, 'FINI')[P.message]) && !/PAS pu revenir/.test(ligneP(g, 'FINI')[P.message]), ligneP(g, 'FINI')[P.message]);
+  assert.ok(corbeille(x.f1), 'la première purge, elle, n’est pas touchée par cette annulation');
+});
+test('M3 — purge, annulation, purge, annulation : le bilan ne compte que cette annulation', () => {
+  const g = environnement(), x = chantierFini(g, 'FINI');
+  for (let tour = 0; tour < 2; tour++) {
+    mesurer(g); cocher(g, 'FINI'); g.ctx.traiterPurges();
+    cocher(g, 'FINI', undefined, P.annuler); g.ctx.traiterPurges();
+    assert.ok(/ : 6 fichier\(s\) remis en place\./.test(ligneP(g, 'FINI')[P.message]), 'tour ' + (tour + 1) + ' : ' + ligneP(g, 'FINI')[P.message]);
+  }
+  assert.strictEqual(detail(g).filter(d => d[D.etat] === 'remis').length, 6);
+  assert.strictEqual(detail(g).filter(d => d[D.etat] === 'remis — purge précédente').length, 6);
+  assert.ok(!corbeille(x.f1));
+});
+test('M4 — la case n’agit que sur une ligne « Proposé » : ligne « Impossible » dont les conditions sont devenues vraies depuis la nuit → décochée, « attends la prochaine mesure »', () => {
+  const g = environnement(), x = chantierFini(g, 'FINI', { releve: false });
+  mesurer(g);
+  assert.strictEqual(ligneP(g, 'FINI')[P.etat], 'Impossible');
+  releve(g, x.d, 'FINI', x.lignesReleve);   // le relevé arrive dans la journée : tout est maintenant réuni
+  cocher(g, 'FINI'); g.ctx.traiterPurges();
+  const l = ligneP(g, 'FINI');
+  assert.ok(g.etat.corbeilles.length === 0 && l[P.corbeille] === false && l[P.etat] === 'Impossible');
+  assert.ok(/n’est pas « Proposé »/.test(l[P.message]) && /Attends la prochaine mesure/.test(l[P.message]), l[P.message]);
+  assert.strictEqual(g.ctx.traiterPurges(), 'rien');
+  mesurer(g); cocher(g, 'FINI'); g.ctx.traiterPurges();
+  assert.strictEqual(ligneP(g, 'FINI')[P.etat], 'Fait', 'après la mesure, la ligne dit « Proposé » et la case agit');
+});
+test('M5 — ligne dupliquée par copier-coller : rien ne part, les cases sont décochées, les lignes le disent, et plus aucun passage inutile ensuite', () => {
+  const g = environnement(), x = chantierFini(g, 'FINI');
+  mesurer(g);
+  const copie = ligneP(g, 'FINI').slice();
+  copie[P.corbeille] = true;
+  g.feuilles['Purges'].lignes.push(copie);
+  g.ctx.traiterPurges();
+  assert.ok(g.etat.corbeilles.length === 0 && !corbeille(x.f1));
+  assert.ok(copie[P.corbeille] === false && /existe en double/.test(copie[P.message]) && /Supprime la copie/.test(copie[P.message]), copie[P.message]);
+  assert.strictEqual(g.ctx.traiterPurges(), 'rien');
+});
+test('M6 — ligne supprimée pendant la purge : la purge va au bout, et le mail part quand même (il dit que la case « Annuler » n’existe plus)', () => {
+  const g = environnement(), x = chantierFini(g, 'FINI');
+  mesurer(g); cocher(g, 'FINI');
+  g.etat.avantCorbeille = () => { const f = g.feuilles['Purges']; f.lignes = f.lignes.filter(l => !(l[P.chantier] === 'FINI' && l[P.quoi] === 'Chantier terminé')); };
+  g.ctx.traiterPurges();
+  assert.strictEqual(g.etat.corbeilles.length, 6);
+  assert.strictEqual(detail(g).filter(d => d[D.etat] === 'fait').length, 6, 'le journal existe');
+  const m = mailsDe(g, /Mise à la corbeille — FINI — Chantier terminé/);
+  assert.strictEqual(m.length, 1);
+  assert.ok(/6 fichier\(s\)/.test(m[0].texte) && /n’est plus dans l’onglet « Purges »/.test(m[0].texte) && /à la main dans la corbeille de Drive/.test(m[0].texte), m[0].texte);
+});
+test('M8 — 95 % qui oscille : pas de mail URGENT à chaque retour ; le niveau n’est quitté qu’en dessous de 93 %', () => {
+  const g = environnement();
+  placer(g, 96);
+  assert.strictEqual(mailsDe(g, /URGENT/).length, 1);
+  placer(g, 94); placer(g, 96); placer(g, 93.5); placer(g, 97);
+  assert.strictEqual(alertes(g).length, 1, 'entre 93 % et 95 % : toujours le même épisode');
+  placer(g, 92); placer(g, 96);
+  assert.strictEqual(mailsDe(g, /URGENT/).length, 2, 'repassé sous 93 %, puis de nouveau au-dessus de 95 % : nouveau mail');
+});
+test('M9 — statut écrit « terminé » ou « TERMINÉ » : reconnu ; une date saisie par Franck sur un chantier terminé n’est jamais écrasée', () => {
+  const g = environnement(), saisie = new Date(2026, 8, 1);
+  const x = chantierFini(g, 'FINI', { statut: 'terminé', termine: saisie });
+  g.feuilles['Chantiers'].lignes.push(['AUTRE', '', 'TERMINÉ', '', '', '', '', '', '', '', '']);
+  mesurer(g);
+  const l = g.feuilles['Chantiers'].lignes;
+  assert.strictEqual(l[1][9], saisie, 'date saisie gardée malgré la casse du statut');
+  assert.strictEqual(l[2][9].getTime(), MAINTENANT, 'date posée pour « TERMINÉ »');
+  assert.strictEqual(ligneS(g, 'chantier:' + x.d.id)[K.statut], 'Terminé');
+  assert.strictEqual(ligneP(g, 'FINI')[P.possible], 'oui', ligneP(g, 'FINI')[P.pourquoi]);
+});
+test('M10 — pendant un tour de mesure sur plusieurs nuits, « URGENT » reste visible en haut de l’onglet', () => {
+  const g = environnement({ stockage: { utilise: Math.round(15 * GO * 0.962) } });
+  ['C1', 'C2', 'C3', 'C4', 'C5', 'C6'].forEach(n => { const d = chantier(g, n); fichier(g, sous(g, d, QUITUS), 'q.pdf', MO); fichier(g, sous(g, d, PHOTOS), 'p.jpg', MO); });
+  let appels = 0;
+  g.ctx.chronoMs_ = () => (++appels > 12 ? 10 * 60 * 1000 : 0);
+  assert.ok(/^À suivre/.test(mesurer(g)));
+  assert.ok(/^URGENT : 96 % — .* Mesure en cours : \d+ dossier\(s\) sur 6\.$/.test(resume(g)[0]), resume(g)[0]);
+});
+test('M11 — service avancé Drive d’une autre version (réponse sans « storageQuota ») : repli sur DriveApp, et l’onglet le dit', () => {
+  const g = environnement({ stockage: { utilise: 3 * GO }, driveAvance: { usage: 9 * GO, limit: 15 * GO } });
+  g.ctx.Drive.About.get = () => ({ quotaBytesTotal: String(15 * GO), quotaBytesUsedAggregate: String(9 * GO) });
+  mesurer(g);
+  assert.strictEqual(resume(g)[1], '3 Go sur 15 Go (20 %)');
+  assert.ok(/^DriveApp/.test(resume(g)[3]) && /en panne : réponse sans chiffre/.test(resume(g)[3]), resume(g)[3]);
+});
+test('M12 — « Annuler » cochée pendant une purge en plusieurs passages : la purge s’arrête là, puis tout ce qui était parti revient', () => {
+  const { g, x } = purgeEnDeuxTemps();
+  cocher(g, 'FINI', undefined, P.annuler);
+  g.ctx.traiterPurges();
+  assert.strictEqual(g.etat.corbeilles.filter(c => c.valeur === true).length, 54, 'aucune mise à la corbeille de plus');
+  assert.strictEqual(g.etat.corbeilles.filter(c => c.valeur === false).length, 54, 'les 54 fichiers partis sont revenus');
+  const l = ligneP(g, 'FINI');
+  assert.deepStrictEqual([l[P.etat], l[P.corbeille], l[P.annuler]], ['Annulé', false, false]);
+  assert.ok(/54 fichier\(s\) remis en place/.test(l[P.message]), l[P.message]);
+  assert.ok(![x.f1, x.f2, x.p1, x.docA, x.json].some(corbeille));
+  assert.strictEqual(mailsDe(g, /Mise à la corbeille/).length, 0, 'pas de mail « mise à la corbeille » pour une purge annulée avant sa fin');
+});
+test('M14 — un dossier du carnet modifié depuis moins de 24 heures (dépôt en cours ?) n’est ni proposé ni mis à la corbeille', () => {
+  const g = environnement(), x = carnetIndices(g);
+  x.ancien.maj = g.now - 2 * 3600 * 1000;
+  mesurer(g);
+  assert.strictEqual(purges(g).length, 0, 'plus rien à proposer');
+  assert.strictEqual(ligneS(g, 'chantier:' + x.d.id)[K.indices], 0);
+  const ctx = g.ctx.prgContexte_(), garde = g.ctx.prgGarde_(x.d.api, ctx, x.carnet.api);
+  assert.ok(/^modifié depuis moins de 24 heures/.test(garde(x.ancien.api, { type: 'dossier' })));
+  x.ancien.maj = g.now - 30 * 3600 * 1000;
+  assert.strictEqual(garde(x.ancien.api, { type: 'dossier' }), '');
+  x.ancien.enfants[0].maj = g.now - 3600 * 1000;   // un fichier du dossier vient d'arriver
+  assert.ok(/^modifié depuis moins de 24 heures/.test(garde(x.ancien.api, { type: 'dossier' })));
+  g.now += 2 * JOUR; mesurer(g);
+  assert.strictEqual(ligneP(g, 'INDICES', 'Anciens indices du carnet')[P.possible], 'oui', 'deux jours plus tard : proposé');
+});
+test('mutation — « le dossier du chantier n’est plus celui de cette ligne » : refus', () => {
+  const g = environnement(), x = chantierFini(g, 'FINI');
+  mesurer(g);
+  const neuf = g.creerElement('dossier', 'FINI (nouveau dossier)', g.racine, { id: 'D-NEUF' });
+  fichier(g, sous(g, neuf, QUITUS), 'QUITUS A 2026-01-10.pdf', 1000);
+  releve(g, neuf, 'FINI', [[QUITUS + '/QUITUS A 2026-01-10.pdf', 1000]]);
+  g.feuilles['Dossiers chantiers'].lignes.filter(l => l[0] === 'FINI')[0][2] = 'D-NEUF';
+  cocher(g, 'FINI'); g.ctx.traiterPurges();
+  assert.strictEqual(g.etat.corbeilles.length, 0);
+  assert.ok(/Le dossier du chantier n’est plus celui de cette ligne/.test(ligneP(g, 'FINI')[P.pourquoi]), ligneP(g, 'FINI')[P.pourquoi]);
+  assert.ok(!corbeille(x.f1));
+});
+test('mutations — la garde : carnet.json seulement s’il ne reste aucun dossier dans le carnet ; un fichier déjà à la corbeille n’est pas compté comme fait', () => {
+  const g = environnement(), x = chantierFini(g, 'FINI');
+  const ctx = g.ctx.prgContexte_(), garde = g.ctx.prgGarde_(x.d.api, ctx, x.carnet.api);
+  const liste = { type: 'fichier', taille: x.json.api.getSize(), liste: true };
+  assert.ok(/des dossiers du carnet sont restés en place/.test(garde(x.json.api, liste)));
+  x.docA.corbeille = true;
+  assert.ok(/des dossiers du carnet sont restés en place/.test(garde(x.json.api, liste)), 'il en reste encore un');
+  x.docB.corbeille = true;
+  assert.strictEqual(garde(x.json.api, liste), '');
+  x.docA.corbeille = false; x.docB.corbeille = false;
+  // un fichier mis à la corbeille par quelqu'un d'autre entre la comparaison et la purge
+  mesurer(g); cocher(g, 'FINI');
+  g.etat.avantCorbeille = el => { if (el === x.f1) x.f2.corbeille = true; else if (el === x.f2) throw new Error('ne doit pas être appelé'); };
+  g.ctx.traiterPurges();
+  assert.strictEqual(detail(g).filter(d => d[D.id] === x.f2.id)[0][D.etat], 'refusé : déjà à la corbeille');
+  assert.strictEqual(ligneP(g, 'FINI')[P.nbFaits], 5, 'il n’est pas compté, et ne sera pas ressorti par « Annuler »');
+  cocher(g, 'FINI', undefined, P.annuler); g.ctx.traiterPurges();
+  assert.ok(corbeille(x.f2) && !corbeille(x.f1));
+});
+test('mutation — case décochée pendant une purge en plusieurs passages : la purge s’arrête, la ligne dit ce qui est parti, tout reste annulable', () => {
+  const { g } = purgeEnDeuxTemps();
+  ligneP(g, 'FINI')[P.corbeille] = false;
+  g.ctx.traiterPurges();
+  assert.strictEqual(g.etat.corbeilles.length, 54, 'rien de plus');
+  const l = ligneP(g, 'FINI');
+  assert.deepStrictEqual([l[P.etat], l[P.nbFaits]], ['Fait', 54]);
+  assert.ok(/^Arrêtée : la case a été décochée pendant la purge\./.test(l[P.message]), l[P.message]);
+  assert.strictEqual(mailsDe(g, /Mise à la corbeille/).length, 1);
+});
+test('mutations — dossier du chantier à la corbeille, ou dossier technique noté comme dossier de chantier : jamais accepté', () => {
+  const g = environnement(), x = chantierFini(g, 'FINI');
+  let ctx = g.ctx.prgContexte_();
+  assert.strictEqual(g.ctx.prgDossierSur_(ctx.chantiers['fini'], ctx).ok, true);
+  x.d.corbeille = true;
+  let r = g.ctx.prgDossierSur_(ctx.chantiers['fini'], ctx);
+  assert.ok(!r.ok && /le dossier du chantier est à la corbeille/.test(r.raison), r.raison);
+  x.d.corbeille = false;
+  const technique = sous(g, g.racine, '_À CLASSER');
+  g.feuilles['Dossiers chantiers'].lignes.filter(l => l[0] === 'FINI')[0][2] = technique.id;
+  ctx = g.ctx.prgContexte_();
+  r = g.ctx.prgDossierSur_(ctx.chantiers['fini'], ctx);
+  assert.ok(!r.ok && /n’est pas un dossier de chantier/.test(r.raison), r.raison);
+  g.feuilles['Dossiers chantiers'].lignes.filter(l => l[0] === 'FINI')[0][2] = 'RACINE';
+  ctx = g.ctx.prgContexte_();
+  assert.ok(/n’est pas un dossier de chantier/.test(g.ctx.prgDossierSur_(ctx.chantiers['fini'], ctx).raison));
+});
+test('textes — Franck est tutoyé partout (onglets, mails) : aucun vouvoiement dans les textes de Stockage.gs et de Purges.gs', () => {
+  ['Stockage.gs', 'Purges.gs'].forEach(f => {
+    fs.readFileSync(path.join(RACINE, 'apps-script', f), 'utf8').split('\n').forEach((ligne, i) => {
+      if (/^\s*\/\//.test(ligne)) return;
+      const textes = (ligne.match(/'[^']*'/g) || []).join(' ');
+      const m = textes.match(/(^|[^a-zà-ÿ])(vous|votre|vos|[a-zà-ÿ]{3,}ez)(?![a-zà-ÿ])/i);
+      assert.ok(!m || /chez|assez/i.test(m[0]), f + ':' + (i + 1) + ' : « ' + (m && m[0]) + ' »');
+    });
   });
 });
 

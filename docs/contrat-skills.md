@@ -251,7 +251,7 @@ Le bloc C du chapitre 8 contient les lignes à ajouter aux paragraphes concerné
 
 - `chemin` : relatif au dossier du chantier, avec des `/`. `taille` : en octets. `releve_le` : heure de Paris. Aucun chemin complet du PC, aucun lien.
 - **Limite à connaître** : le relevé prouve que le fichier est dans le dossier du chantier **sur le PC**, pas que MEGA (la sauvegarde) a fini de le synchroniser. Si la synchronisation de MEGA est arrêtée, il ne le voit pas. Le lot 5 te demandera donc de vérifier que MEGA a fini de synchroniser avant de cocher une purge.
-- **Relevé absent ou de plus de 30 jours : l'appli ne proposera pas la purge.** Un relevé manquant ne fait donc jamais rien supprimer ; il faut seulement que la recopie automatique tourne (ou relancer le programme) avant de purger.
+- **Relevé absent ou de plus de 7 jours : l'appli ne proposera pas la purge ; et au moment où la case de purge est traitée, il doit avoir moins de 48 heures.** Un relevé manquant ne fait donc jamais rien supprimer ; il faut seulement que la recopie automatique tourne (ou relancer le programme) avant de purger.
 
 ---
 
