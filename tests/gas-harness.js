@@ -258,6 +258,44 @@ function creerGoogle(options = {}) {
     const q = {}; Object.keys(etat.driveAvance).forEach(k => { q[k] = String(etat.driveAvance[k]); });
     return { storageQuota: q };
   } } };
+  // Lot 5 : service avancé « Gmail » (API Gmail v1), présent seulement si l'option gmail est donnée à la création.
+  // etat.gmail = [{ id, labels: ['SENT'…], taille, date (ms), de, a, cc, cci, objet, pj: vrai/faux }] : la boîte du compte.
+  // list comprend la recherche utilisée par le serveur (in:sent, has:attachment, subject:"…", before:AAAA/MM/JJ, -in:inbox,
+  // -is:starred, -to: -cc: -bcc:) ; trash et untrash posent et retirent le libellé TRASH ; il n'y a PAS de suppression.
+  etat.gmail = options.gmail || []; etat.corbeillesMail = []; etat.avantCorbeilleMail = null;
+  if (options.gmail) {
+    const trouver = id => { const m = etat.gmail.filter(x => x.id === id)[0]; if (!m) throw new Error('Requested entity was not found.'); return m; };
+    const cherche = (m, q) => {
+      if (m.labels.indexOf('TRASH') > -1 || m.labels.indexOf('SPAM') > -1) return false;
+      const sujets = (q.match(/(^| )subject:"[^"]*"/g) || []).map(s => s.replace(/^.*subject:"/, '').replace(/"$/, '').toLowerCase());
+      if (!sujets.every(s => String(m.objet).toLowerCase().indexOf(s) > -1)) return false;
+      const reste = q.replace(/(^| )subject:"[^"]*"/g, ' ').split(/\s+/).filter(Boolean);
+      return reste.every(t => {
+        if (t === 'in:sent') return m.labels.indexOf('SENT') > -1;
+        if (t === 'has:attachment') return !!m.pj;
+        if (t === '-in:inbox') return m.labels.indexOf('INBOX') < 0;
+        if (t === '-is:starred') return m.labels.indexOf('STARRED') < 0;
+        if (/^before:/.test(t)) { const d = t.slice(7).split('/').map(Number); return m.date < new Date(d[0], d[1] - 1, d[2]).getTime(); }
+        if (/^-(to|cc|bcc):/.test(t)) { const champ = { to: 'a', cc: 'cc', bcc: 'cci' }[t.slice(1, t.indexOf(':'))]; return String(m[champ] || '').toLowerCase().indexOf(t.slice(t.indexOf(':') + 1).toLowerCase()) < 0; }
+        throw new Error('faux Gmail : mot de recherche inconnu « ' + t + ' »');
+      });
+    };
+    contexte.Gmail = { Users: { Messages: {
+      list: (moi, o) => {
+        const tous = etat.gmail.filter(m => cherche(m, String((o && o.q) || ''))), debut = Number((o && o.pageToken) || 0), n = Math.min(500, (o && o.maxResults) || 100);
+        const rep = { messages: tous.slice(debut, debut + n).map(m => ({ id: m.id })) };
+        if (debut + n < tous.length) rep.nextPageToken = String(debut + n);
+        return rep;
+      },
+      get: (moi, id) => { const m = trouver(id); etat.lecturesMail = (etat.lecturesMail || 0) + 1;
+        return { id: m.id, labelIds: m.labels.slice(), sizeEstimate: m.taille, internalDate: String(m.date),
+          payload: { headers: [['From', m.de], ['To', m.a], ['Cc', m.cc], ['Bcc', m.cci], ['Subject', m.objet]].filter(h => h[1]).map(h => ({ name: h[0], value: h[1] })),
+            parts: [{ filename: '', mimeType: 'text/plain' }].concat(m.pj ? [{ filename: 'document.pdf', mimeType: 'application/pdf' }] : []) } }; },
+      trash: (moi, id) => { const m = trouver(id); if (typeof etat.avantCorbeilleMail === 'function') etat.avantCorbeilleMail(m);
+        if (m.labels.indexOf('TRASH') < 0) m.labels.push('TRASH'); etat.corbeillesMail.push({ id: id, valeur: true }); return { id: id }; },
+      untrash: (moi, id) => { const m = trouver(id); m.labels = m.labels.filter(l => l !== 'TRASH'); etat.corbeillesMail.push({ id: id, valeur: false }); return { id: id }; },
+    } } };
+  }
   return { contexte, feuilles, elements, mails, etat, proprietes, creerElement, declencheurs, cache };
 }
 

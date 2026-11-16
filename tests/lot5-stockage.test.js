@@ -810,7 +810,7 @@ test('le verrou du script (celui des fiches) n’est jamais pris par la mesure n
 // ═══════════════════════════════════════════════════════════════════════════════════════════
 console.log('\nLot 5 — jamais de suppression définitive ; installation ; livraison');
 test('aucun appel de suppression définitive dans A-COLLER-DANS-APPS-SCRIPT/Code.gs, ni dans les sources du lot 5', () => {
-  const INTERDITS = /Drive\s*\.\s*Files\s*\.\s*(remove|delete|emptyTrash|trash|update|patch)|emptyTrash|permanentlyDelete|Files\s*\.\s*remove|\.removeFile\s*\(|\.removeFolder\s*\(|\bUrlFetchApp\b|googleapis\.com\/drive/;
+  const INTERDITS = /Messages\s*\.\s*(remove|delete|batchDelete)|Threads\s*\.\s*(remove|delete|trash)|Drive\s*\.\s*Files\s*\.\s*(remove|delete|emptyTrash|trash|update|patch)|emptyTrash|permanentlyDelete|Files\s*\.\s*remove|\.removeFile\s*\(|\.removeFolder\s*\(|\bUrlFetchApp\b|googleapis\.com\/drive/;
   ['A-COLLER-DANS-APPS-SCRIPT/Code.gs', 'apps-script/Stockage.gs', 'apps-script/Purges.gs', 'apps-script-test/OutilsTest.gs'].forEach(f => {
     const code = fs.readFileSync(path.join(RACINE, f), 'utf8');
     const m = code.match(INTERDITS);

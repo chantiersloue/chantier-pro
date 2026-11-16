@@ -37,7 +37,8 @@ const PRG_MAX_MINUTES_JOUR = 30;            // temps passé à purger, par jour,
 const PRG_DEPOT_RECENT_H = 24;              // un dossier du carnet modifié depuis moins de 24 h n'est pas touché (dépôt en cours ?)
 const PRG_VERROU_MS = 7 * 60 * 1000;
 const PRG_JOUR_MS = 24 * 3600 * 1000;
-const PRG_QUOI = { indices: 'Anciens indices du carnet', termine: 'Chantier terminé' };
+const PRG_QUOI = { indices: 'Anciens indices du carnet', termine: 'Chantier terminé', mails: 'Mails envoyés de plus de 3 mois' };
+const PRG_COURT = { indices: 'anciens indices', termine: 'chantier terminé', mails: 'mails envoyés' };
 const PRG_ETAT = { propose: 'Proposé', impossible: 'Impossible', enCours: 'En cours', fait: 'Fait', mail: 'Fait (mail à envoyer)',
   annulation: 'Annulation en cours', annule: 'Annulé' };
 const PRG_ENTETES = ['Chantier', 'Quoi', 'Poids (Mo)', 'Fichiers', 'Possible ?', 'Pourquoi (ou ce qui manque)', 'Mettre à la corbeille', 'État', 'Message',
@@ -423,10 +424,12 @@ function prgExaminerTermine_(c, ctx, ageReleveMs, depasse, inv, dossierMesure) {
   return r;
 }
 function prgExaminer_(nature, c, ctx, ageReleveMs, depasse, inv, dossierMesure) {
+  if (nature === 'mails') return prgExaminerMails_(ctx, depasse, false);
   return nature === 'termine' ? prgExaminerTermine_(c, ctx, ageReleveMs, depasse, inv, dossierMesure) : prgExaminerIndices_(c, ctx, depasse, dossierMesure);
 }
 function prgPourquoi_(nature, exam) {
   const phrase = t => t.charAt(0).toUpperCase() + t.slice(1);
+  if (exam.possible && exam.pourquoi) return exam.pourquoi;
   if (exam.possible) {
     return ['Possible : ' + exam.nb + ' fichier(s) partiraient à la corbeille.'].concat(exam.infos.map(x => phrase(x) + '.'))
       .concat(nature === 'termine' ? [PRG_AVANT_DE_COCHER] : ['Ces indices ne sont plus montrés dans l’appli ; les PDF d’origine sont dans le dossier du chantier sur le PC.']).join(' ');
@@ -501,7 +504,7 @@ function prgNumeroJournal_(base) {
 // en cours : jamais touchées. creer : faut-il une ligne s'il n'y en a pas ?
 function prgProposer_(sh, nature, c, idDossier, exam, creer) {
   const base = prgCleBase_(nature, c, idDossier), active = prgActive_(prgLignes_(sh), base);
-  const etat = active ? String(active.r[COL_P.etat - 1]) : '', court = nature === 'termine' ? 'chantier terminé' : 'anciens indices';
+  const etat = active ? String(active.r[COL_P.etat - 1]) : '', court = PRG_COURT[nature];
   if (active && prgEstOccupe_(etat)) return court + ' : purge en cours';
   const fait = active && prgEstFait_(etat);
   const quand = fait && stkEstDate_(active.r[COL_P.faitLe - 1]) ? ' le ' + stkJour_(active.r[COL_P.faitLe - 1].getTime()) : '';
@@ -526,7 +529,14 @@ function prgProposer_(sh, nature, c, idDossier, exam, creer) {
 }
 
 // ── Journal « Purges détail » ──
-function prgElement_(type, id) { return type === 'dossier' ? DriveApp.getFolderById(id) : DriveApp.getFileById(id); }
+function prgElement_(type, id) { return type === 'mail' ? prgMailElement_(id) : type === 'dossier' ? DriveApp.getFolderById(id) : DriveApp.getFileById(id); }
+// Les mots de la ligne et du mail, selon que la purge porte sur Drive ou sur les mails envoyés
+function prgMots_(cle, texte) {
+  const k = prgLireCle_(cle);
+  if (!k || k.nature !== 'mails') return texte;
+  return texte.replace(/fichier\(s\) ou dossier\(s\)/g, 'mail(s)').replace(/fichier\(s\)/g, 'mail(s)').replace(/corbeille de Drive/g, 'corbeille de Gmail')
+    .replace(/ ; ils sont dans le dossier du chantier sur le PC/g, ' ; leurs PDF sont dans le dossier du chantier sur le PC');
+}
 function prgDetail_(shD) {
   const derniere = shD.getLastRow();
   return derniere < 2 ? [] : shD.getRange(2, 1, derniere - 1, PRG_DETAIL_ENTETES.length).getValues().map((r, i) => ({ ligne: i + 2, r: r }));
@@ -683,7 +693,7 @@ function prgTraiterLigne_(sh, shD, cle, ctx, temps) {
   const lire = () => { const l = prgLigne_(sh, cle); return l ? sh.getRange(l, 1, 1, PRG_ENTETES.length).getValues()[0] : null; };
   let r = lire();
   if (!r) return;
-  const k = prgLireCle_(cle), c = k ? ctx.chantiers[k.chantier] : null;
+  const k = prgLireCle_(cle), c = !k ? null : k.nature === 'mails' ? PRG_MAILS_C : ctx.chantiers[k.chantier];
   const corbeille = r[COL_P.corbeille - 1] === true, annuler = r[COL_P.annuler - 1] === true, etat = String(r[COL_P.etat - 1]);
   const enCours = /^en cours/i.test(etat), annulation = /^annulation en cours/i.test(etat);
   let fait = prgEstFait_(etat);
@@ -759,7 +769,8 @@ function prgPurger_(sh, shD, cle, k, c, enCours, cochee, ctx, temps) {
   cellules[COL_P.etat] = PRG_ETAT.enCours; cellules[COL_P.message] = 'Mise à la corbeille en cours depuis le ' + texteDate_(maintenant_()) + '.';
   prgEcrire_(sh, cle, cellules);
   SpreadsheetApp.flush();
-  const fini = prgExecuter_(shD, cle, exam.items, exam.garde, temps.depassePurge);
+  // « encore » (mails) : ce passage n'a pris qu'une partie de ce qui est à faire, la ligne reste « En cours »
+  const fini = prgExecuter_(shD, cle, exam.items, exam.garde, temps.depassePurge) && !exam.encore;
   if (exam.carnet && exam.carnet.id) cacheScript_().remove('carnet:liste:1:' + exam.carnet.id + ':n');   // les téléphones relisent le carnet
   if (!fini) {
     const m = {};
@@ -776,7 +787,7 @@ function prgFinir_(sh, shD, cle, remarque, sansMail) {
   cellules[COL_P.corbeille] = false;
   if (!t.elements) {
     cellules[COL_P.etat] = PRG_ETAT.impossible;
-    cellules[COL_P.message] = [remarque, 'Rien n’a été mis à la corbeille' + (t.autres ? ' (' + t.autres + ' fichier(s) ou dossier(s) refusé(s) ou en échec : voir « ' + SHEET_PURGES_DETAIL + ' »).' : '.')].filter(Boolean).join(' ');
+    cellules[COL_P.message] = prgMots_(cle, [remarque, 'Rien n’a été mis à la corbeille' + (t.autres ? ' (' + t.autres + ' fichier(s) ou dossier(s) refusé(s) ou en échec : voir « ' + SHEET_PURGES_DETAIL + ' »).' : '.')].filter(Boolean).join(' '));
     prgEcrire_(sh, cle, cellules);
     return false;
   }
@@ -784,9 +795,9 @@ function prgFinir_(sh, shD, cle, remarque, sansMail) {
   cellules[COL_P.faitLe] = new Date(maintenant); cellules[COL_P.nbFaits] = t.fichiers;
   cellules[COL_P.libere] = new Date(maintenant + PRG_CORBEILLE_JOURS * PRG_JOUR_MS);
   cellules[COL_P.jusquau] = new Date(maintenant + PRG_ANNULATION_JOURS * PRG_JOUR_MS);
-  cellules[COL_P.message] = [remarque, t.fichiers + ' fichier(s) à la corbeille (' + String(stkMo_(t.octets)).replace('.', ',') + ' Mo)'
+  cellules[COL_P.message] = prgMots_(cle, [remarque, t.fichiers + ' fichier(s) à la corbeille (' + String(stkMo_(t.octets)).replace('.', ',') + ' Mo)'
     + (t.autres ? ' ; ' + t.autres + ' fichier(s) ou dossier(s) laissé(s) en place (voir « ' + SHEET_PURGES_DETAIL + ' »)' : '') + '. Pour annuler : coche « Annuler » avant le '
-    + stkJour_(maintenant + PRG_ANNULATION_JOURS * PRG_JOUR_MS) + '.'].filter(Boolean).join(' ');
+    + stkJour_(maintenant + PRG_ANNULATION_JOURS * PRG_JOUR_MS) + '.'].filter(Boolean).join(' '));
   prgEcrire_(sh, cle, cellules);   // si la ligne a été supprimée entre-temps, le mail part quand même
   if (!sansMail) prgMailPurge_(sh, shD, cle);
   return true;
@@ -802,8 +813,9 @@ function prgMailPurge_(sh, shD, cle) {
   const jour = (cellule, defaut) => stkJour_(v && stkEstDate_(cellule) ? cellule.getTime() : defaut);
   const faitLe = jour(v && v[COL_P.faitLe - 1], maintenant), libere = jour(v && v[COL_P.libere - 1], maintenant + PRG_CORBEILLE_JOURS * PRG_JOUR_MS);
   const jusquau = jour(v && v[COL_P.jusquau - 1], maintenant + PRG_ANNULATION_JOURS * PRG_JOUR_MS);
-  const texte = ['Tu as coché « Mettre à la corbeille » dans l’onglet « ' + SHEET_PURGES + ' » du Sheet.', '',
-    'Chantier : ' + chantier, 'Quoi : ' + quoi,
+  const mails = !!k && k.nature === 'mails';
+  const texte = prgMots_(cle, ['Tu as coché « Mettre à la corbeille » dans l’onglet « ' + SHEET_PURGES + ' » du Sheet.', '',
+    mails ? 'Compte Gmail de l’appli' : 'Chantier : ' + chantier, 'Quoi : ' + quoi,
     'Mis à la corbeille de Drive le ' + faitLe + ' : ' + t.fichiers + ' fichier(s), ' + String(stkMo_(t.octets)).replace('.', ',') + ' Mo'
       + (t.autres ? ' (' + t.autres + ' fichier(s) ou dossier(s) laissé(s) en place : voir l’onglet « ' + SHEET_PURGES_DETAIL + ' »)' : '') + '.', '',
     'Rien n’est supprimé définitivement : tout est dans la corbeille de Drive, et la liste exacte est dans l’onglet « ' + SHEET_PURGES_DETAIL + ' ».',
@@ -811,7 +823,8 @@ function prgMailPurge_(sh, shD, cle) {
     v ? 'POUR ANNULER : dans l’onglet « ' + SHEET_PURGES + ' », coche la case « Annuler » de cette ligne avant le ' + jusquau + '. Tout ressort de la corbeille dans la demi-heure.'
       : 'ATTENTION : la ligne de cette purge n’est plus dans l’onglet « ' + SHEET_PURGES + ' » (supprimée ?) : la case « Annuler » n’existe donc plus. Pour annuler, restaure les fichiers à la main dans la corbeille de Drive.',
     'Jusqu’au ' + libere + ', c’est aussi possible à la main dans la corbeille de Drive.', '',
-    'Si MEGA n’avait pas fini de synchroniser le dossier du chantier sur le PC, annule, laisse MEGA finir, puis recommence.'].join('\n');
+    mails ? 'Les PDF de ces mails restent dans Drive (jusqu’à la purge de leur chantier) et dans les dossiers de chantier du PC.'
+      : 'Si MEGA n’avait pas fini de synchroniser le dossier du chantier sur le PC, annule, laisse MEGA finir, puis recommence.'].join('\n'));
   const parti = stkMail_('[Loué App] Mise à la corbeille — ' + chantier + ' — ' + quoi, texte);
   if (v) { const cellules = {}; cellules[COL_P.etat] = parti ? PRG_ETAT.fait : PRG_ETAT.mail; prgEcrire_(sh, cle, cellules); }
 }
@@ -838,6 +851,7 @@ function prgAnnuler_(sh, shD, cle, r, reprise, depasse) {
     cellules[COL_P.annuler] = false;
     cellules[COL_P.message] = 'Annulation refusée : le délai de ' + PRG_ANNULATION_JOURS + ' jours est passé (purge du ' + stkJour_(faitLe.getTime()) + '). Jusqu’au '
       + stkJour_(faitLe.getTime() + PRG_CORBEILLE_JOURS * PRG_JOUR_MS) + ', c’est encore possible à la main dans la corbeille de Drive (liste dans « ' + SHEET_PURGES_DETAIL + ' »).';
+    cellules[COL_P.message] = prgMots_(cle, cellules[COL_P.message]);
     prgEcrire_(sh, cle, cellules);
     return;
   }
@@ -874,7 +888,153 @@ function prgAnnuler_(sh, shD, cle, r, reprise, depasse) {
   cellules[COL_P.message] = 'Annulé le ' + texteDate_(maintenant_()) + ' : ' + remis + ' fichier(s) remis en place.'
     + (perdus ? ' ⚠ ' + perdus + ' fichier(s) n’ont PAS pu revenir (corbeille vidée à la main entre-temps ?) : voir « ' + SHEET_PURGES_DETAIL + ' » ; ils sont dans le dossier du chantier sur le PC.' : '')
     + ' La ligne sera proposée de nouveau à la prochaine mesure.';
+  cellules[COL_P.message] = prgMots_(cle, cellules[COL_P.message]);
   prgEcrire_(sh, cle, cellules);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+// MAILS ENVOYÉS DE PLUS DE 3 MOIS (décision de Franck du 16/11/2026) — une seule ligne de l'onglet « Purges »
+//
+// Chaque fiche part par mail avec son PDF, et Gmail garde une copie dans « Messages envoyés », qui compte dans les 15 Go.
+// Cette ligne propose de mettre à la CORBEILLE DE GMAIL (vidée par Google au bout de 30 jours) les mails que l'appli a
+// envoyés il y a plus de 90 jours. Même case, même journal écrit avant, même annulation de 25 jours que pour Drive.
+//
+// Quels mails, et seulement ceux-là (chaque mail est relu juste avant d'être mis à la corbeille) :
+//   - dans « Messages envoyés », envoyé PAR CE COMPTE sous le nom de l'entreprise (c'est ainsi que l'appli envoie) ;
+//   - objet qui COMMENCE par « [Loué App] » (un transfert ou une réponse commence par « TR: », « RE: »… : jamais touché) ;
+//   - avec au moins une pièce jointe ; de plus de 90 jours ;
+//   - jamais un brouillon, un mail suivi (étoile), un mail qui est aussi dans la boîte de réception, ni un mail dont ce
+//     compte est lui-même destinataire (c'est aussi un mail REÇU).
+// Mail par mail, jamais par fil de discussion : une réponse reçue dans le même fil n'est jamais touchée.
+// Les mails « Loué Menuiserie — … » envoyés aux adresses tapées à la main ne sont pas visés (peu nombreux).
+//
+// Copie TEST : elle est dans le MÊME compte Google que la production, et rien ne distingue un mail de l'une d'un mail de
+// l'autre. Sur la copie TEST, seuls les mails dont l'objet contient « CHANTIER TEST AUTO » (le chantier d'essai, qui
+// n'existe pas en production) sont visés ; l'âge peut y être réduit par la propriété PURGE_MAILS_JOURS_TEST (ignorée ailleurs).
+// Service utilisé : le service avancé Gmail (déjà dans le manifeste), qui sait agir mail par mail et sortir un mail de
+// la corbeille. Aucune suppression définitive : seulement Messages.trash et Messages.untrash.
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+const PRG_MAILS_JOURS = 90;                          // « plus de 3 mois »
+const PRG_MAILS_OBJET = '[Loué App] ';               // début de l'objet de tous les mails de fiches envoyés par l'appli
+const PRG_MAILS_CHANTIER_TEST = 'CHANTIER TEST AUTO';
+const PRG_MAILS_C = { nom: '(tout le compte)', cle: '(tout le compte)' }, PRG_MAILS_ID = 'envoyes';
+const PRG_MAILS_MAX_LISTE = 2000;                    // mails comptés au plus pour la proposition (au-delà : « plus de 2000 »)
+const PRG_MAILS_ECHANTILLON = 30;                    // mails lus pour estimer le poids
+const PRG_MAILS_PAR_PASSAGE = 200;                   // mails examinés puis mis à la corbeille par passage
+const PRG_ENTETES_MAIL = ['From', 'To', 'Cc', 'Bcc', 'Subject'];
+
+function prgGmailPresent_() { return typeof Gmail !== 'undefined' && !!Gmail && !!Gmail.Users && !!Gmail.Users.Messages; }
+function prgMailsCompte_() { return String(Session.getEffectiveUser().getEmail() || '').trim().toLowerCase(); }
+// Adresse sans son « +quelquechose » (franck+contact1@… arrive dans la boîte de franck@…)
+function prgAdresseNue_(a) { return String(a || '').trim().toLowerCase().replace(/\+[^@]*@/, '@'); }
+function prgMailsRegles_(ctx) {
+  const test = environnementReel_().env === 'TEST';
+  let jours = PRG_MAILS_JOURS;
+  if (test) { const j = Number(propriete_('PURGE_MAILS_JOURS_TEST')); if (j >= 1) jours = j; }
+  return { test: test, jours: jours, limite: maintenant_() - jours * PRG_JOUR_MS, compte: prgMailsCompte_() };
+}
+// La recherche Gmail : large filet, chaque mail est ensuite relu un par un (prgMailRefus_)
+function prgMailsRequete_(regles) {
+  const avant = Utilities.formatDate(new Date(regles.limite), 'Europe/Paris', 'yyyy/MM/dd');
+  return 'in:sent has:attachment subject:"' + PRG_MAILS_OBJET.trim() + '" before:' + avant + ' -in:inbox -is:starred'
+    + ' -to:' + regles.compte + ' -cc:' + regles.compte + ' -bcc:' + regles.compte
+    + (regles.test ? ' subject:"' + PRG_MAILS_CHANTIER_TEST + '"' : '');
+}
+// Identifiants des mails trouvés (max au plus) ; « plus » : il y en a davantage
+function prgMailsListe_(regles, max) {
+  const ids = [];
+  let jeton = null, plus = false;
+  do {
+    const o = { q: prgMailsRequete_(regles), maxResults: Math.min(500, max - ids.length) };
+    if (jeton) o.pageToken = jeton;
+    const rep = Gmail.Users.Messages.list('me', o) || {};
+    (rep.messages || []).forEach(m => { if (ids.length < max) ids.push(String(m.id)); });
+    jeton = rep.nextPageToken || null;
+    if (jeton && ids.length >= max) plus = true;
+  } while (jeton && ids.length < max);
+  return { ids: ids, plus: plus };
+}
+// Un mail, relu dans Gmail : { id, labels, taille, date, de, a, objet, pj }
+function prgMailLu_(id) {
+  const m = Gmail.Users.Messages.get('me', id, { format: 'full' }) || {};
+  const entetes = {};
+  ((m.payload && m.payload.headers) || []).forEach(h => { const n = String(h.name || '').toLowerCase(); entetes[n] = (entetes[n] ? entetes[n] + ', ' : '') + String(h.value || ''); });
+  const pj = p => !!p && ((String(p.filename || '') !== '') || (p.parts || []).some(pj));
+  return { id: String(id), labels: m.labelIds || [], taille: Number(m.sizeEstimate) || 0, date: Number(m.internalDate) || 0,
+    de: entetes.from || '', a: [entetes.to, entetes.cc, entetes.bcc].filter(Boolean).join(', '), objet: entetes.subject || '', pj: pj(m.payload) };
+}
+// '' si ce mail peut aller à la corbeille, sinon la raison. C'est LA règle : tout ce qui n'est pas sûr est refusé.
+function prgMailRefus_(m, regles) {
+  const a = l => m.labels.indexOf(l) > -1;
+  if (!a('SENT')) return 'pas dans les messages envoyés';
+  if (a('TRASH')) return 'déjà à la corbeille';
+  if (a('DRAFT')) return 'brouillon';
+  if (a('INBOX')) return 'aussi dans la boîte de réception (mail reçu)';
+  if (a('STARRED')) return 'mail suivi (étoile)';
+  if (a('SPAM')) return 'indésirable';
+  if (!regles.compte || m.de.toLowerCase().indexOf(regles.compte) < 0) return 'pas envoyé par ce compte';
+  if (m.de.indexOf(NOM_ENTREPRISE) < 0) return 'pas envoyé par l’appli (nom de l’expéditeur)';
+  if (m.objet.indexOf(PRG_MAILS_OBJET) !== 0) return 'objet qui ne commence pas par « ' + PRG_MAILS_OBJET.trim() + ' »';
+  if (regles.test && m.objet.indexOf(PRG_MAILS_CHANTIER_TEST) < 0) return 'copie TEST : seuls les mails du chantier d’essai sont visés';
+  if (!m.pj) return 'sans pièce jointe';
+  if (!(m.date > 0) || m.date > regles.limite) return 'envoyé depuis moins de ' + regles.jours + ' jours';
+  const destinataires = (m.a.match(/[^\s<>,;"]+@[^\s<>,;"]+/g) || []).map(prgAdresseNue_);
+  if (!destinataires.length) return 'destinataires illisibles';
+  if (destinataires.indexOf(prgAdresseNue_(regles.compte)) > -1) return 'ce compte est lui-même destinataire (mail reçu)';
+  return '';
+}
+// Un mail vu comme un fichier de Drive par le journal, la reprise et l'annulation
+function prgMailElement_(id) {
+  return { getId: () => id,
+    isTrashed: () => (Gmail.Users.Messages.get('me', id, { format: 'minimal' }).labelIds || []).indexOf('TRASH') > -1,
+    setTrashed: v => { if (v) Gmail.Users.Messages.trash('me', id); else Gmail.Users.Messages.untrash('me', id); } };   // corbeille de Gmail, jamais « delete »
+}
+// L'examen. proposition = true (mesure de la nuit) : compte et estime, sans lire chaque mail. Sinon (case cochée) : lit
+// chaque mail, garde ceux qui passent la règle, PRG_MAILS_PAR_PASSAGE au plus ; « encore » : il en restera après ce passage.
+function prgExaminerMails_(ctx, depasse, proposition) {
+  const r = { possible: false, raisons: [], infos: [], items: [], octets: 0, nb: 0, dossierId: PRG_MAILS_ID, garde: null, carnet: null, encore: false, pourquoi: '' };
+  if (ctx.env) { r.raisons.push(ctx.env); return r; }
+  if (!prgGmailPresent_()) { r.raisons.push('le service avancé Gmail n’est pas activé sur ce serveur : dans l’éditeur Apps Script, « Services » (le +) → « Gmail API » → Ajouter (à faire une fois)'); return r; }
+  const regles = prgMailsRegles_(ctx);
+  if (!regles.compte) { r.raisons.push('adresse du compte illisible : aucun mail n’est visé'); return r; }
+  const liste = prgMailsListe_(regles, proposition ? PRG_MAILS_MAX_LISTE : PRG_MAILS_PAR_PASSAGE * 3);
+  const avant = stkJour_(regles.limite);
+  if (proposition) {
+    let bons = 0, octets = 0, lus = 0;
+    for (let i = 0; i < liste.ids.length && lus < PRG_MAILS_ECHANTILLON && !depasse(); i++) {
+      const m = prgMailLu_(liste.ids[i]);
+      lus++;
+      if (!prgMailRefus_(m, regles)) { bons++; octets += m.taille; }
+    }
+    const nombre = lus ? Math.round(liste.ids.length * bons / lus) : 0;
+    r.nb = nombre; r.octets = bons ? Math.round(octets / bons * nombre) : 0;
+    for (let i = 0; i < nombre; i++) r.items.push(null);   // seul le nombre compte pour une proposition
+    if (!nombre) { r.raisons.push('aucun mail de l’appli de plus de ' + regles.jours + ' jours à mettre à la corbeille'); return r; }
+    r.possible = true;
+    r.pourquoi = 'Possible : environ ' + (liste.plus ? 'plus de ' : '') + nombre + ' mail(s) envoyé(s) par l’appli avant le ' + avant + ', avec pièce jointe (environ '
+      + String(stkMo_(r.octets)).replace('.', ',') + ' Mo, estimation). Seuls les mails dont l’objet commence par « ' + PRG_MAILS_OBJET.trim() + ' » et que ce compte n’a pas reçus lui-même sont visés'
+      + (regles.test ? ' ; sur la copie TEST, seulement ceux du chantier d’essai' : '') + '. Les PDF restent dans Drive (jusqu’à la purge du chantier) et dans le dossier du chantier sur le PC. '
+      + 'Avant de cocher : vérifie que tu n’as plus besoin de retrouver ces mails dans Gmail. Après la mise à la corbeille, Gmail ne rend la place que ' + PRG_CORBEILLE_JOURS + ' jours plus tard.';
+    return r;
+  }
+  for (let i = 0; i < liste.ids.length && r.items.length < PRG_MAILS_PAR_PASSAGE && !depasse(); i++) {
+    const m = prgMailLu_(liste.ids[i]);
+    if (prgMailRefus_(m, regles)) continue;
+    r.items.push({ type: 'mail', id: m.id, chemin: texteDate_(m.date) + ' — ' + m.objet.slice(0, 150), taille: m.taille, fichiers: 1 });
+    r.octets += m.taille; r.nb++;
+  }
+  r.encore = liste.plus || liste.ids.length > PRG_MAILS_PAR_PASSAGE;
+  if (!r.items.length) { r.raisons.push('aucun mail de l’appli de plus de ' + regles.jours + ' jours à mettre à la corbeille'); return r; }
+  // La garde : le mail est RELU dans Gmail juste avant sa mise à la corbeille
+  r.garde = (api, item) => { const m = prgMailLu_(item.id), refus = prgMailRefus_(m, regles); return refus || (m.taille !== item.taille ? 'mail changé depuis l’examen' : ''); };
+  r.possible = true;
+  return r;
+}
+// Appelée par la mesure de la nuit, à la fin d'un tour : la ligne n'est créée que s'il y a quelque chose à gagner
+function prgProposerMails_(ctx, depasse) {
+  const sh = feuillePurges_();
+  const exam = prgExaminerMails_(ctx, depasse, true);
+  return prgProposer_(sh, 'mails', PRG_MAILS_C, PRG_MAILS_ID, exam, exam.possible);
 }
 
 // ── Installation du lot 5 (une fonction par environnement ; relançable sans danger) ──
@@ -906,6 +1066,7 @@ function infosLot5_() {
     place.source === 'DriveApp' ? 'Service avancé Drive : non activé. Compare ce chiffre avec celui de one.google.com/storage : s’ils diffèrent, active-le (docs/lot5-procedure.md).'
       : 'Service avancé Drive : activé (total du compte, part de Drive et de la corbeille).',
     'Première mesure : dans la nuit, ou tout de suite en lançant mesurerStockage (à relancer tant que le journal dit « À suivre »).',
+    'Service avancé Gmail (pour la ligne « ' + PRG_QUOI.mails + ' ») : ' + (prgGmailPresent_() ? 'présent.' : 'ABSENT — dans l’éditeur : « Services » (le +) → « Gmail API » → Ajouter.'),
     'Rien n’est jamais mis à la corbeille sans une case cochée dans l’onglet « ' + SHEET_PURGES + ' ».'].join('\n');
 }
 function installerLot5_(attendu) {

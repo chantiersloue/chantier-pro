@@ -40,7 +40,7 @@ const STK_RESUME = ['Stockage du compte Google', 'Place utilisée', 'Mesurée le
   'Place pour d’autres chantiers', 'À savoir'];
 const STK_R = { etat: 1, place: 2, date: 3, source: 4, drive: 5, gmail: 6, corbeille: 7, appli: 8, enCours: 9, moyenne: 10, marge: 11, rappel: 12 };
 const STK_RAPPEL = 'Les fiches envoyées par mail restent aussi dans « Messages envoyés » de Gmail, qui compte dans les 15 Go : '
-  + 'la purge de Drive ne libère pas cette part (ménage de Gmail à la main : voir docs/lot5-procedure.md). '
+  + 'la purge de Drive ne libère pas cette part (pour elle : ligne « Mails envoyés de plus de 3 mois » de l’onglet « Purges »). '
   + 'Un fichier mis à la corbeille compte encore 30 jours.';
 const STK_LIGNE_TITRES = 14;                // la ligne de titres du tableau des chantiers
 const STK_ENTETES = ['Chantier', 'Statut', 'Date « Terminé »', 'Poids total (Mo)', 'dont carnet (Mo)', 'dont fiches (Mo)', 'dont photos (Mo)',
@@ -223,7 +223,7 @@ function stkTexteAlerte_(seuil, place, rappel) {
     '1. onglet « Purges » du Sheet : coche « Mettre à la corbeille » sur les lignes où c’est possible (anciens indices du carnet, chantiers terminés) ;',
     '2. un fichier mis à la corbeille compte encore 30 jours : si la place presse, ouvre la corbeille de Drive et supprime-y les fichiers voulus, un par un '
       + '(pas « Vider la corbeille », qui supprimerait aussi les purges encore annulables) ;',
-    '3. Gmail compte aussi : supprime les anciens « Messages envoyés » avec pièce jointe (les PDF sont dans Drive et dans le dossier du chantier sur le PC), puis vide la corbeille de Gmail.',
+    '3. Gmail compte aussi : même onglet, ligne « Mails envoyés de plus de 3 mois » (les PDF restent dans Drive et dans le dossier du chantier sur le PC) ;',
     '', 'Mode d’emploi : docs/lot5-procedure.md.');
   lignes.push(seuil === STK_SEUIL_CRITIQUE ? 'Tu recevras un rappel par semaine tant que la place reste au-dessus de ' + STK_SEUIL_CRITIQUE + ' %.'
     : 'Alerte à ' + STK_SEUIL_ALERTE + ' % : tu recevras ce mail une fois par mois au plus tant que la place reste au-dessus ; à ' + STK_SEUIL_CRITIQUE + ' %, un mail urgent part toujours.');
@@ -473,6 +473,8 @@ function stkMesurer_() {
       : 'Reste du compte (Gmail, Photos, corbeille, autres fichiers)') + (suite.incomplets ? ' — approximatif : ' + suite.incomplets + ' dossier(s) mesuré(s) en partie' : ''),
       '', '', stkMo_(reste), '', '', '', stkMo_(reste), '', '', '', '', date, '']);
     stkLignesDisparues_(sh, liste.unites);
+    // La ligne « Mails envoyés de plus de 3 mois » de l'onglet Purges (Gmail compte dans les 15 Go) : jamais bloquante
+    try { prgProposerMails_(ctx, depasse); } catch (e) { if (e && e.ongletModifie) throw e; console.error('prgProposerMails_ :', e && e.message); }
     appli = stkGoTexte_(total) + ' dans ' + suite.fichiers + ' fichier(s) — tour complet du ' + stkJour_(maintenant)
       + (suite.incomplets ? ' (⚠ ' + suite.incomplets + ' dossier(s) trop gros, mesuré(s) en partie)' : '');
     // Suivi de l'objectif (35 à 40 chantiers en cours) : rien si les données manquent (aucun chantier en cours mesuré, ou mesure en partie)
@@ -554,6 +556,7 @@ function verifierStockage_() {
     lignes.push('Place du compte : ' + stkPlaceTexte_(place) + ' — source : ' + place.source
       + (place.source === 'DriveApp' ? ' (service avancé Drive non activé : chiffre à comparer avec one.google.com/storage)' : ''));
   } catch (e) { ok(false, 'Place du compte illisible : ' + e.message); }
+  lignes.push((prgGmailPresent_() ? '✅ ' : '➖ ') + 'Service avancé Gmail (ligne « ' + PRG_QUOI.mails + ' » de l’onglet Purges)' + (prgGmailPresent_() ? '' : ' : absent, cette ligne ne sera pas proposée (éditeur → Services → Gmail API)'));
   const suite = stkSuite_();
   if (suite) lignes.push('Mesure du stockage : un tour est en cours (' + suite.faits + ' dossier(s) faits)');
   return lignes.join('\n');
