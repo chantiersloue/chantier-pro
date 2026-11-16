@@ -127,33 +127,34 @@ La liste des choses à faire de chaque chantier. Écrits par l'appli seulement. 
 - **Chantier renommé dans l'onglet *Chantiers*** : sa liste reste sous l'ancien nom. Remplace-le aussi dans la colonne B de l'onglet *Notes* (Édition → Rechercher et remplacer, dans cette feuille seulement).
 - Ne modifie rien d'autre à la main dans ces trois onglets.
 
-## Onglet « Comptes rendus » (lot 8b — créé par `installerLot8Test` / `installerLot8Production`, ou à la première note)
+## Onglet « Comptes rendus » (lot 8 — créé par `installerLot8Test` / `installerLot8Production`, ou à la première note)
 
-Une ligne par note de réunion reçue, écrite par l'appli. C'est là que le serveur lit le dernier numéro d'un chantier pour donner le suivant.
+Une ligne par note de réunion reçue, écrite **en une fois** par l'appli. Un compte rendu se désigne par sa **date de réunion** (il n'a pas de numéro). C'est dans la **dernière ligne arrivée** d'un chantier que le serveur lit ses points ouverts.
 
 |Colonne|Titre|Contenu|
 |-|-|-|
 |A|Numéro de fiche|Créé par le téléphone ; sert à ne jamais compter deux fois la même note|
 |B|Chantier|Le nom de l'onglet *Chantiers* (ou le nom tapé, si le chantier est hors liste)|
 |C|N° du chantier|Colonne E de l'onglet *Chantiers*, s'il est rempli|
-|D|N° du compte rendu|1, 2, 3… par chantier ; **vide** si le chantier est hors liste|
-|E|Date de la réunion|Telle qu'elle est sur la note (jj/mm/aaaa)|
-|F|Objet||
-|G|Rédigé par|Le nom affiché sur la note|
-|H|Compte qui a envoyé|« Nom (identifiant) », vérifié par le serveur, ou « sans compte »|
-|I|Présents|Noms séparés par « ; »|
-|J|Nom du PDF|Le fichier rangé dans Drive|
-|K|Reçu le|Heure du serveur|
-|L|Remarque de l'appli|« chantier hors liste : pas de numéro », « reçu après le CR n° 8 (daté du …) »|
+|D|Date de la réunion|Telle qu'elle est sur la note (jj/mm/aaaa)|
+|E|Objet||
+|F|Rédigé par|Le nom affiché sur la note|
+|G|Compte qui a envoyé|« Nom (identifiant) », vérifié par le serveur, ou « sans compte »|
+|H|Nom du PDF|Le fichier rangé dans Drive|
+|I|Reçu le|Heure du serveur. **C'est elle qui donne l'ordre des comptes rendus d'un chantier**|
+|J|Remarque de l'appli|« chantier hors liste », « reçu après le compte rendu du … », « Rédigé sans connaître le compte rendu du … », « gestes sur des points existants ignorés (pas d'accès au chantier) »…|
+|K|Points ouverts après cette note|Lisible par Franck : un point par ligne|
+|L|Points clos par cette note|Lisible par Franck : un point par ligne|
+|M|Données de l'appli (ne pas modifier)|Les points ouverts du chantier après cette note, les points clos par les 3 derniers comptes rendus, leurs identifiants et leurs dates. Texte technique, lu par l'appli|
+|N|Données de l'appli (suite)|La suite de la colonne M quand elle ne tient pas dans une cellule (plus de 45 000 caractères). Vide le plus souvent|
 
-- Colonnes de texte en « texte brut » ; une formule tapée dans l'objet ou un nom reste du texte.
-- **Ne change pas la ligne de titres.** Si elle change, l'appli n'écrit plus rien dans l'onglet : les notes partent quand même (PDF et mails), mais **sans numéro** et sans ligne ici, et Franck reçoit un mail (un par jour au plus). Remets les titres : la numérotation reprend à la suite du dernier numéro noté.
-- Tu peux trier l'onglet : l'appli retrouve une note par son numéro de fiche, jamais par sa place.
-- Le numéro suit l'**ordre d'arrivée** au serveur, pas la date de la réunion.
-- **Série d'un chantier** : les lignes qui ont le même N° de chantier (colonne C) ; à défaut, le même nom (colonne B, sans tenir compte des majuscules ni des espaces). Un chantier renommé garde sa série s'il a un N°.
-- **Ne modifie pas la colonne D à la main** : un numéro changé ou effacé fausse la suite de la série.
-- Aucune adresse de destinataire n'est gardée ici.
-- Les colonnes M à O (points ouverts et clos) arriveront avec le lot 8c.
+- Colonnes de texte en « texte brut » ; une formule tapée dans l'objet, un nom ou un point reste du texte.
+- **Ne change pas la ligne de titres, ni les colonnes M et N.** Si les titres changent, l'appli n'écrit plus rien dans l'onglet : les notes partent quand même (PDF et mails), mais sans ligne ici et **sans suivi de leurs points**, et Franck reçoit un mail (un par jour au plus). Remets les titres : tout reprend. Si une cellule M est abîmée, la note suivante part quand même ; les points repris par le téléphone sont recréés, et Franck reçoit un mail.
+- Tu peux trier l'onglet : l'appli retrouve une note par son numéro de fiche, et la dernière note d'un chantier par la colonne « Reçu le », jamais par sa place.
+- **Aucune adresse de destinataire** n'est gardée ici.
+- Chantier **hors liste** : la ligne est écrite, les colonnes K à N restent vides (points imprimés dans le PDF, pas suivis).
+- **Chantier renommé** : ses points suivent s'il a un N° (colonne C) ; sinon ils restent sous l'ancien nom.
+- Les **photos** ne sont pas gardées ici : elles sont dans le PDF de leur note.
 
 ## Onglet « Installation » (outillage)
 

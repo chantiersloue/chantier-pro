@@ -1,7 +1,7 @@
 # Lot 8 — Note de réunion : plan
 
 > Commande : `PLAN.md`, exigence 12 et « Lot 8 — Note de réunion » ; décision D9b-5 du 13/11/2026 (`DECISIONS.md`).
-> **Version 2**, après critique par un agent indépendant (ce qu'elle a fait changer : chapitre 12).
+> **Version 3 (16/11/2026)** : Franck a répondu aux questions du chapitre 11. **Ce que ses réponses ont changé est au chapitre 13**, qui l'emporte sur tout ce qui précède ; les chapitres 1 à 12 sont gardés tels qu'ils ont été validés (version 2, après critique par un agent indépendant : chapitre 12).
 > **Rédigée sans interview** : Franck est absent et a demandé d'avancer. Chaque choix fait à sa place est marqué **[Hypothèse]** et repris au chapitre 11. **Aucun code n'est écrit avant sa validation**, sauf accord pour 8a et 8b (chapitre 2).
 
 ## 1. La commande, en clair
@@ -296,3 +296,28 @@ Chaque point a été vérifié dans le code avant d'être adopté.
 - **I8, « reste x mails aujourd'hui »** : pas en 8b, qui ne lit rien sur le serveur ; ajouté en 8c.
 - **M2** : plutôt que du code nouveau dans la mise en page commune, les photos restent une liste à plat, dans l'ordre des points, avec une légende qui nomme le point.
 - **Deux livraisons au lieu de trois** : trois sont gardées, pour que 8a et 8b sortent sans attendre les réponses.
+
+## 13. Version 3 — ce que les réponses de Franck ont changé (16/11/2026)
+
+| Question | Réponse | Ce qui change |
+|---|---|---|
+| 1. Compléter en modifiant le texte | **oui** | comme prévu |
+| 2. Présents | **ils ne servent à rien** | **supprimés** partout (écran, brouillon, PDF, aperçu, serveur, onglet). Pas de rappel des présents |
+| 3, 4. Numéro du compte rendu | **pas de numéro, seulement la date** | **supprimé** partout. Un compte rendu se désigne par sa date de réunion : « compte rendu du 06/11/2026 ». La question 4 tombe |
+| 5. Histoire d'un point filtrable dans le Sheet | **non** | solution A du chapitre 5.3 : les points dans la ligne du compte rendu |
+| 6. Mails | **oui aux trois** | 2 adresses tapées à la main, 10 adresses connues par note (tenu par la page), moteur « un mail par adresse » inchangé |
+| 7. Les poseurs écrivent et reprennent les points de leurs chantiers | **oui** | comme prévu |
+| 8. Bouton « Reprendre les destinataires » | **non** | comme prévu |
+
+**Conséquences, là où le plan écrivait « CR n° x »**
+- Partout la **date** : « repris du compte rendu du 06/11 · ouvert depuis le 23/10 », « Rédigé sans connaître le compte rendu du 07/11/2026 », « ✓ Compte rendu du 06/11/2026 envoyé ».
+- **L'ordre des comptes rendus d'un chantier** est l'ordre d'arrivée au serveur : la ligne la plus récente en « Reçu le » (D8-22).
+- **« Le compte rendu d'où venait la liste »** est désigné par son **numéro de fiche** (colonne A), que la page reçoit avec la liste et renvoie avec sa note (D8-23).
+- **Une seule livraison** au lieu de trois : 8a, 8b et 8c n'ayant jamais été en production, ils sortent ensemble (serveur v11.1, appli 10.2). Le serveur v11.0 et l'appli 10.1 n'ont existé que sur la branche.
+- **Onglet *Comptes rendus*** : 14 colonnes (chapitre 4 remplacé par `docs/structure-sheet.md`) : plus de colonnes « N° du compte rendu » ni « Présents » ; les points en K à N.
+- **Page de repli** (chapitre 10) : `outils/repli-lot8/note-reunion.html`, essayée par `tests/lot8c-page.test.js`.
+- **Chapitre 5.8** (présents) : sans objet. La dictée reste celle du clavier.
+
+**Ce qui n'a pas changé** : les gestes (5.2), la reprise donnée par le serveur et gardée dans le téléphone (5.4), le brouillon qui ne contient que les gestes de la personne (5.6, `commun/brouillon.js` non modifié), les droits (5.7), « Clos récemment » pendant 3 comptes rendus, 40 nouveaux points et 10 photos par note.
+
+Tous les choix faits pendant la construction sont dans `DECISIONS.md` (D8-21 et suivantes).

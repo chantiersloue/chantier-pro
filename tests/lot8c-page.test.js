@@ -330,6 +330,27 @@ function scenarioDroits() {
   await envoyer(); r.lentPartie = await attendreFileVide(120);
   await reglage('normal');
   r.lignesLent = await lignesCR();
+
+  // Quota de mails presque atteint (5 restants) : la page prévient sous les destinataires
+  await reglage('quota');
+  await ouvrirNote();
+  r.quota = await page.evaluate(() => document.getElementById('dest-quota').textContent);
+  await reglage('normal');
+  await ouvrirNote();
+  r.quotaNormal = await page.evaluate(() => document.getElementById('dest-quota').textContent);
+
+  // Une liste gardée depuis plus d'un jour (autre chantier) est rafraîchie à l'ouverture (5 au plus), pas celle du chantier affiché
+  r.rafraichi = await page.evaluate(async () => {
+    await CR.lire('CHANTIER TEST 2');
+    const lireTout = () => new Promise(ok => { const o = indexedDB.open('loue_cr_local'); o.onsuccess = () => { const q = o.result.transaction('cache').objectStore('cache').getAll(); q.onsuccess = () => { o.result.close(); ok(q.result); }; }; });
+    const vieille = (await lireTout()).find(e => e.chantier === 'CHANTIER TEST 2');
+    vieille.date = Date.now() - 3 * 24 * 3600 * 1000;
+    await new Promise(ok => { const o = indexedDB.open('loue_cr_local'); o.onsuccess = () => { const t = o.result.transaction('cache', 'readwrite'); t.objectStore('cache').put(vieille); t.oncomplete = () => { o.result.close(); ok(); }; }; });
+    const n = await CR.rafraichirAnciennes('CHANTIER TEST 1');
+    await CR.gardee('CHANTIER TEST 2');
+    const apres = (await lireTout()).find(e => e.chantier === 'CHANTIER TEST 2');
+    return { n, rajeunie: Date.now() - apres.date < 60000 };
+  });
   await toutVider();
   return JSON.stringify(r);
 }`;
@@ -522,6 +543,9 @@ function partieDroits() {
   verifier('réseau lent (6 s par réponse) : la page affiche tout de suite la liste gardée (« mise à jour en cours… »), puis celle du bureau ; la note finit par partir',
     b.lentTout2s.cartes.length > 0 && /gardés dans le téléphone \(mise à jour en cours…\)\.$/.test(b.lentTout2s.info) && /^Points repris du compte rendu du /.test(b.lentApres.info) && b.lentPartie === true
     && b.lignesLent.some(x => x.objet === 'Réseau lent' && /Point écrit avec un réseau lent/.test(x.ouverts)), j([b.lentTout2s.info, b.lentApres.info, b.lentPartie]));
+  verifier('quota de mails presque atteint : « ⚠ Il ne reste que 5 mails possibles aujourd’hui … » sous les destinataires ; rien d’affiché en temps normal',
+    /^⚠ Il ne reste que \d+ mails? possibles? aujourd’hui pour toute l’appli/.test(b.quota) && b.quotaNormal === '', j([b.quota, b.quotaNormal]));
+  verifier('une liste gardée depuis plus d’un jour pour un autre chantier est rafraîchie à l’ouverture', b.rafraichi.n === 1 && b.rafraichi.rajeunie === true, j(b.rafraichi));
 }
 
 function partieAncienServeur() {
