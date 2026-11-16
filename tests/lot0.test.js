@@ -171,6 +171,41 @@ test('adresse libre : plafond de 10 par jour pour toute l\'appli', () => {
   assert.strictEqual(refuses, 2);
 });
 
+// Règle de Franck du 16/11/2026 (D5-25) : le chemin des adresses tapées à la main ne doit JAMAIS changer, quel que soit le
+// sort fait plus tard aux adresses connues (mail unique en copie cachée). Ce test est la photographie complète de ce chemin :
+// mêmes mails, mêmes objets, même texte imposé, même pièce jointe renommée, mêmes plafonds, même copie cachée au conducteur.
+test('photographie du chemin des adresses tapées à la main : un mail séparé par adresse, texte imposé, plafonds, copie cachée au conducteur', () => {
+  const g = environnement();
+  const r = poster(g, { type: 'note', chantier: 'CHANTIER TEST 1', auteur: 'Franck', date: '29/10/2026', objet: 'Réunion <script>',
+    commentaires: 'Texte libre de la fiche', destinataires: [FRANCK, ARCHI, 'client@gmail.test', 'voisin@orange.test', 'troisieme@x.test'] });
+  assert.strictEqual(r.status, 'ok');
+  const libres = g.mails.filter(m => /^Loué Menuiserie — /.test(m.sujet));
+  assert.deepStrictEqual(libres.map(m => [m.to, m.sujet, m.opts.bcc, m.opts.name, !!m.opts.htmlBody, m.opts.attachments.length]), [
+    ['client@gmail.test', 'Loué Menuiserie — Note de réunion — CHANTIER TEST 1', SEB, 'Loué Menuiserie', false, 1],
+    ['voisin@orange.test', 'Loué Menuiserie — Note de réunion — CHANTIER TEST 1', SEB, 'Loué Menuiserie', false, 1]], 'un mail par adresse tapée à la main, 2 par fiche au plus, conducteur du chantier en copie cachée');
+  libres.forEach(m => {
+    assert.strictEqual(m.texte, 'Bonjour,\n\nVeuillez trouver ci-joint le document « Note de réunion » établi par Loué Menuiserie.\n\nCordialement,\nLoué Menuiserie', 'texte imposé, rien de la fiche');
+    assert.ok(/^Loue Menuiserie - Note de réunion - \d{4}-\d{2}-\d{2}\.pdf$/.test(m.opts.attachments[0].nom), m.opts.attachments[0].nom);
+  });
+  // les adresses connues du Sheet : aujourd'hui un mail chacune, objet de la fiche, sans copie cachée, jamais mêlées aux adresses libres
+  const connues = g.mails.filter(m => /^\[Loué App\] Note de réunion/.test(m.sujet));
+  assert.deepStrictEqual(connues.map(m => m.to).sort(), [ARCHI, FRANCK, SEB].sort());
+  assert.ok(connues.every(m => !m.opts.bcc && m.sujet === '[Loué App] Note de réunion — CHANTIER TEST 1 — Réunion <script>'));
+  assert.ok(g.mails.every(m => [m.to].concat(m.opts.bcc ? [m.opts.bcc] : []).filter(a => /gmail\.test|orange\.test|x\.test/.test(a)).length <= 1), 'jamais deux adresses libres dans un même mail');
+  // la troisième adresse libre : refusée, journalisée, une alerte à Franck
+  assert.strictEqual(g.mails.filter(m => m.to === 'troisieme@x.test').length, 0);
+  assert.deepStrictEqual(journal(g).map(l => [l[3], l[4]]), [['client@gmail.test', 'envoyé'], ['voisin@orange.test', 'envoyé'], ['troisieme@x.test', 'refusé']]);
+  assert.ok(/copie cachée à seb@loue\.test/.test(journal(g)[0][5]) && /plus de 2 adresses libres sur la même fiche/.test(journal(g)[2][5]));
+  assert.strictEqual(g.mails.filter(m => m.to === FRANCK && /Envoi refusé/.test(m.sujet)).length, 1);
+  assert.strictEqual(g.mails.length, 6, '3 adresses connues + 2 libres + 1 alerte');
+  // le quota : chaque mail libre compte 2 destinataires (l'adresse et le conducteur en copie cachée)
+  assert.strictEqual(g.etat.quota, 100 - 3 - 2 * 2 - 1);
+  // plafond de 10 adresses libres par jour pour toute l'appli : inchangé
+  for (let i = 0; i < 5; i++) poster(g, { type: 'quitus', chantier: 'CHANTIER TEST 1', destinataires: ['p' + i + '@x.test', 'q' + i + '@x.test'] });
+  assert.strictEqual(journal(g).filter(l => l[4] === 'envoyé').length, 10);
+  assert.ok(journal(g).filter(l => l[4] === 'refusé').some(l => /plafond de 10 adresses libres par jour/.test(l[5])));
+});
+
 test('adresse mal formée : refusée sans envoi', () => {
   const g = environnement();
   poster(g, { type: 'quitus', chantier: 'CHANTIER TEST 1', destinataires: ['pas une adresse', 'a@b'] });

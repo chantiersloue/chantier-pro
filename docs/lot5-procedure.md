@@ -171,16 +171,34 @@ L'appli ne vide jamais la corbeille. Si tu as besoin de la place tout de suite :
 
 Si la place est déjà au-dessus d'un seuil le jour de l'installation, le mail part à la première mesure. Si un mail ne peut pas partir (panne, quota du jour épuisé), il repart à la mesure suivante.
 
-## Le ménage de Gmail (à la main)
+## La ligne « Mails envoyés de plus de 3 mois »
 
-Chaque fiche envoyée par mail reste aussi, avec son PDF, dans **« Messages envoyés »** de Gmail, qui compte dans les 15 Go. **La purge de Drive ne libère pas cette part.**
+Chaque fiche envoyée par mail reste aussi, avec son PDF, dans **« Messages envoyés »** de Gmail, qui compte dans les 15 Go. **La purge de Drive ne libère pas cette part.** D'après l'estimation, c'est ce qui remplirait le compte en deux à trois ans.
 
-1. Ouvre Gmail avec le compte de Loué.
-2. Dans la barre de recherche, tape : `in:sent has:attachment older_than:6m` (les messages envoyés avec pièce jointe, de plus de 6 mois).
-3. Coche tout (la case en haut de la liste, puis « Sélectionner toutes les conversations »), puis la corbeille.
-4. Colonne de gauche → **Corbeille** → **Vider la corbeille** (sinon Gmail attend 30 jours).
+**Ce que tu verras** : dans l'onglet *Purges*, **une seule ligne** « Mails envoyés de plus de 3 mois », chantier « (tout le compte) », proposée par la mesure de la nuit quand il y a quelque chose à gagner : le nombre de mails (environ) et leur poids (estimé).
 
-Les PDF de ces mails sont dans Drive (jusqu'à la purge) et dans le dossier du chantier sur le PC : tu ne perds rien.
+**Quels mails, et seulement ceux-là** (chaque mail est relu juste avant de partir) :
+- un mail **envoyé par l'appli** : dans « Messages envoyés », envoyé par ce compte sous le nom « Loué Menuiserie », avec un objet qui **commence** par « [Loué App] » ;
+- **avec une pièce jointe**, et de **plus de 90 jours** ;
+- **jamais** un mail reçu, une réponse, un transfert (« TR: », « RE: »), un brouillon, un mail avec une étoile, un mail qui est aussi dans la boîte de réception, ni un mail dont ce compte est lui-même destinataire ;
+- les mails envoyés aux adresses tapées à la main (objet « Loué Menuiserie — … ») ne sont pas visés.
+
+Le serveur agit **mail par mail**, jamais par conversation : une réponse reçue dans la même conversation n'est pas touchée.
+
+**Avant de cocher** :
+1. Demande-toi si tu as encore besoin de **retrouver ces mails dans Gmail** (à qui la fiche est partie, et quand). Les PDF, eux, restent dans Drive jusqu'à la purge du chantier, et dans le dossier du chantier sur le PC.
+2. Si tu utilises ce compte Google pour écrire toi-même des mails dont l'objet commence par « [Loué App] », dis-le-moi d'abord (ils ne partiraient que s'ils ont une pièce jointe, plus de 90 jours, et le nom d'expéditeur « Loué Menuiserie »).
+3. Si un mail compte pour toi, **mets-lui une étoile** dans Gmail : il ne partira jamais.
+
+**Quand tu coches** : dans la demi-heure, les mails partent à la **corbeille de Gmail**, par paquets (200 par passage, 30 minutes par jour au plus : une grosse première purge prend plusieurs jours, la ligne dit « En cours » puis « la suite demain »). Tu reçois un mail de compte rendu à la fin. **Gmail vide sa corbeille au bout de 30 jours** : la place est rendue à ce moment-là. La liste exacte est dans *Purges détail* (type « mail »).
+
+**Annuler** : la case « Annuler », pendant 25 jours : les mails ressortent de la corbeille et retrouvent leur place dans « Messages envoyés ».
+
+**Sur la copie TEST** : elle est dans le même compte Google que la production, et rien ne distingue leurs mails. Sur TEST, la ligne ne vise donc que les mails dont l'objet contient « CHANTIER TEST AUTO » (le chantier d'essai). Pour l'essai, je réduirai l'âge de 90 jours à 1 jour par un réglage qui n'existe que sur TEST.
+
+**Autorisations** : le serveur a déjà le droit complet sur Gmail (il envoie les fiches), et le « service avancé Gmail » est déjà dans son manifeste. **Aucune nouvelle autorisation n'est attendue** ; si Google en demande une à la première mesure, ne l'accepte pas sans m'en parler. Si `verifierConfig` dit « Service avancé Gmail : absent », une étape pour toi, une fois : éditeur Apps Script → **Services** (le « + ») → **Gmail API** → **Ajouter**.
+
+Si tu préfères le faire à la main un jour : dans Gmail, cherche `in:sent has:attachment older_than:3m`, coche, corbeille.
 
 ## La date « Terminé », en pratique
 
@@ -197,6 +215,7 @@ Les PDF de ces mails sont dans Drive (jusqu'à la purge) et dans le dossier du c
 5. **Les noms que Drive pour ordinateur modifie** (« : », « ? », doublons « (1) ») : ces fiches resteraient « absentes du relevé » pour toujours. Sans danger, mais bloquant pour la purge du chantier.
 6. **Le Sheet TEST est une copie** : son onglet *Dossiers chantiers* porte des identifiants de dossiers de production. La mesure de TEST les lira (lecture seule) ; la purge les refuse (testé). À constater dans l'onglet *Purges* de TEST.
 7. **Refaire à la main** deux essais : trier une plage sans la colonne « Clé » puis cocher (la ligne doit refuser et se remettre en ordre) ; copier-coller une ligne puis cocher la copie (elle doit se décocher et le dire).
+8. **La ligne des mails envoyés**, sur quelques mails du chantier d'essai : aucune nouvelle autorisation demandée ; les mails partent à la corbeille de Gmail et en ressortent par « Annuler », à leur place dans « Messages envoyés » ; comment Gmail range ensemble plusieurs mails de même objet ; le temps par mail.
 
 ## Retour arrière
 
@@ -208,18 +227,15 @@ Les PDF de ces mails sont dans Drive (jusqu'à la purge) et dans le dossier du c
 4. Les onglets *Stockage*, *Purges* et *Purges détail* peuvent rester : plus rien ne les lit.
 5. Une purge déjà faite reste annulable **à la main** dans la corbeille de Drive pendant 30 jours ; ses fichiers sont listés dans *Purges détail*.
 
-## Ce que je te demande de trancher (plan, chapitre 12)
+## Ce que tu as tranché le 16/11/2026, et ce qui reste
 
-1. **Pas de suppression définitive par le serveur.** Le plan d'origine prévoyait une case « Vider la corbeille de ce chantier maintenant ». Je ne l'ai pas construite : une suppression sans retour, déclenchée par une case d'un tableur, est le geste le plus dangereux du lot. Dis-moi si tu la veux quand même.
-2. **La durée de 30 jours** entre le passage à « Terminé » et la purge (tes consignes du 14/11/2026). Elle tient en une ligne du serveur : dis-moi si tu veux une autre durée.
-3. **Le seuil d'alerte de 80 %** (et le seuil critique de 95 %).
-4. **Les deux mesures pour Gmail**, qui ne sont PAS dans ce lot tant que tu ne les as pas validées. D'après l'estimation (plan, chapitre 6), Drive tient l'objectif de 40 chantiers en cours, mais **Gmail fait déborder le compte en deux à trois ans** : chaque fiche part en pièce jointe, aujourd'hui un mail par destinataire.
-   - (a) un seul mail par fiche pour tous les destinataires, au lieu d'un mail par adresse ;
-   - (b) une ligne de plus dans l'onglet *Purges*, « Mails envoyés de plus de 3 mois », avec la même case à cocher (corbeille de Gmail, vidée par Google après 30 jours). Les PDF restent dans le dossier du chantier sur le PC.
-5. **Le carnet d'un chantier clôturé** part en même temps que ses fiches. Préfères-tu qu'il reste plus longtemps (un poseur qui revient en SAV retrouverait les plans dans l'appli) ?
+Tranché :
+1. **Pas de suppression définitive par le serveur** : il ne fait que mettre à la corbeille.
+2. **30 jours** entre le passage à « Terminé » et la purge.
+3. **Alerte à 80 %**, seuil critique à **95 %**.
+4. **Le carnet d'un chantier clôturé part avec ses fiches.**
+5. **Les anciens indices** sont proposés même sur un chantier en cours.
+6. **La ligne « Mails envoyés de plus de 3 mois »** : construite (voir plus haut).
 
-Déjà tranché par toi le 14/11/2026 : les **anciens indices** sont proposés à la purge même sur un chantier en cours.
-
-Un point apparu pendant la construction :
-
-6. **Le nom du relevé** est `releve-pc.json` : le contrat des skills (`docs/contrat-skills.md`) et le programme du PC (`outils/appli_pc.py`, lot 4c) disent maintenant la même chose, et le contrat reprend les deux délais (moins de 7 jours pour proposer, moins de 48 heures pour purger).
+Reste à décider :
+7. **Un seul mail par fiche** pour les adresses connues du Sheet : tu l'as validé, avec ta règle (rien ne change pour les adresses tapées à la main). **Je ne l'ai pas codé dans ce lot** : c'est le chemin de toutes les fiches, et une question reste ouverte (qui est le destinataire visible ?). Tout est dans `docs/lot5-mail-unique.md` : deux solutions comparées, ma recommandation, et ce que je te demande.

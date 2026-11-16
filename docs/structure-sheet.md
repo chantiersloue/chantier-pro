@@ -224,7 +224,7 @@ Une ligne par chose qui peut être mise à la corbeille de Drive. Le serveur n'e
 |Colonne|Titre|Contenu|
 |-|-|-|
 |A|Chantier||
-|B|Quoi|« Anciens indices du carnet » ou « Chantier terminé »|
+|B|Quoi|« Anciens indices du carnet », « Chantier terminé », ou « Mails envoyés de plus de 3 mois » (une seule ligne, chantier « (tout le compte) »)|
 |C|Poids (Mo)|Ce qui partirait|
 |D|Fichiers|Nombre de fichiers qui partiraient|
 |E|Possible ?|oui / non|
@@ -247,7 +247,7 @@ Le journal : une ligne par fichier (ou par dossier de document du carnet), écri
 |Colonne|Titre|Contenu|
 |-|-|-|
 |A|Clé de la ligne|La clé de la ligne de l'onglet *Purges*|
-|B|Type|fichier ou dossier|
+|B|Type|fichier, dossier, ou mail (identifiant du mail dans Gmail)|
 |C|Identifiant|Identifiant Drive|
 |D|Chemin|Depuis le dossier du chantier|
 |E|Taille (octets)||

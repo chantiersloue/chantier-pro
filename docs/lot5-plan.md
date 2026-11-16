@@ -113,7 +113,7 @@ Un chantier complet : **70 à 90 Mo de carnet**. Photos des fiches : 0,2 à 0,4 
 | Gmail, « Messages envoyés » : chaque fiche part en pièce jointe, aujourd'hui **un mail par destinataire** : 2 à 6 Go de plus **par an**, jamais libérés par la purge de Drive | le poste qui fait déborder |
 | Déjà utilisé aujourd'hui | 3,3 Go (dont de gros fichiers anciens, qui partiront avec leurs chantiers) |
 
-**Conclusion** : Drive seul tient l'objectif (environ 6 à 8 Go pour 40 chantiers en cours, avec une purge 30 jours après la clôture). **Ce qui ne tient pas, c'est Gmail** : sans ménage, les copies des mails envoyés remplissent le compte en deux à trois ans. Deux mesures proposées à Franck, **hors de ce lot tant qu'il ne les a pas validées** :
+**Conclusion** : Drive seul tient l'objectif (environ 6 à 8 Go pour 40 chantiers en cours, avec une purge 30 jours après la clôture). **Ce qui ne tient pas, c'est Gmail** : sans ménage, les copies des mails envoyés remplissent le compte en deux à trois ans. Deux mesures, **validées par Franck le 16/11/2026** (la première reste à coder dans un lot à part : `docs/lot5-mail-unique.md` ; la seconde est construite) :
 1. un seul mail par fiche pour tous les destinataires au lieu d'un mail par adresse (divise ce poste par deux ou trois) ;
 2. une ligne de plus dans l'onglet *Purges*, « Mails envoyés de plus de 3 mois », avec la même case à cocher (mise à la corbeille de Gmail, vidée par Google après 30 jours) — les PDF restent dans le dossier du chantier sur le PC.
 
@@ -176,10 +176,12 @@ Un chantier complet : **70 à 90 Mo de carnet**. Photos des fiches : 0,2 à 0,4 
 - Date « Terminé » posée et effacée automatiquement ; relevé récent exigé au moment de la purge (48 heures depuis les décisions du 14/11/2026).
 - Estimation recalée ; politique de conservation reprise ; retour arrière écrit.
 
-## 12. Ce que je te demanderai de trancher
+## 12. Ce qui était à trancher — tranché par Franck le 16/11/2026
 
-1. **Pas de suppression définitive par le serveur** (§4.5).
-2. **La durée de 30 jours** entre la clôture (« Terminé ») et la purge.
-3. **Le seuil d'alerte de 80 %** (et le seuil critique de 95 %).
-4. **Les deux mesures pour Gmail** (chapitre 6) : un seul mail par fiche pour tous les destinataires ; une ligne « Mails envoyés de plus de 3 mois » dans l'onglet *Purges*.
-5. **Le carnet d'un chantier clôturé** part en même temps que ses fiches (ou reste plus longtemps ?).
+1. **Pas de suppression définitive par le serveur** : confirmé. Le serveur ne fait que mettre à la corbeille (Drive, et Gmail pour les mails envoyés).
+2. **30 jours** entre la clôture (« Terminé ») et la purge : confirmé.
+3. **Alerte à 80 %**, seuil critique à **95 %** : confirmé.
+4. **Le carnet d'un chantier clôturé part en même temps que ses fiches** : confirmé.
+5. **Les deux mesures pour Gmail** : validées.
+   - **« Mails envoyés de plus de 3 mois »** : construite dans ce lot (une ligne de l'onglet *Purges*, même case, même journal, même annulation ; corbeille de Gmail seulement ; mail par mail).
+   - **Un seul mail par fiche** pour les adresses connues du Sheet : **pas codé dans ce lot**. Règle de Franck : le chemin des adresses tapées à la main ne change pas (texte imposé, 2 par fiche, 10 par jour, copie cachée au conducteur). Raisons, solutions comparées et recommandation : `docs/lot5-mail-unique.md`.
