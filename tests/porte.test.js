@@ -457,7 +457,7 @@ function monde(reglages) {
     enLigne: { 'Code.js': '// ancien serveur TEST\n', 'appsscript.json': MANIFESTE }, deploye: '// ancien serveur TEST\n' }, reglages || {});
   fs.writeFileSync(o.fichierMonde, JSON.stringify(m));
   o.lire = () => JSON.parse(fs.readFileSync(o.fichierMonde, 'utf8'));
-  o.options = extra => Object.assign({ avecPorte: true, dossierClasp: o.dossierClasp, dossierJeton: o.dossierJeton, dossierPrive: o.dossierPrive,
+  o.options = extra => Object.assign({ avecPorte: true, prefixeTemp: 'loue-essai-clasp-', dossierClasp: o.dossierClasp, dossierJeton: o.dossierJeton, dossierPrive: o.dossierPrive,
     claspCmd: [process.execPath, path.join(__dirname, 'faux-clasp.js')], env: { FAUX_CLASP_MONDE: o.fichierMonde, clasp_config_project: 'C:/ailleurs/.clasp.json' }, dire: () => {}, pasMs: 5, maxMs: 300,
     etatDepot: () => ({ propre: true, source: 'outillage abc1234' }), sansSignaux: true, demander: async () => ' SCRIPT-TEST-123\n',
     porte: async () => ({ ok: false, code: 'ACTION_INCONNUE' }),   // JAMAIS la vraie porte dans les tests
@@ -606,7 +606,7 @@ test('envoi : le jeton est rangé dans un dossier temporaire de la commande, jam
   assert.ok(r.ok, r.rapport.join('\n'));
   assert.strictEqual(pendant, false, 'pendant l’envoi, rien à l’endroit habituel');
   assert.ok(!r.jetonRestant && !fs.existsSync(m.lire().jeton));
-  assert.strictEqual(fs.readdirSync(os.tmpdir()).filter(d => /^loue-clasp-/.test(d)).length, 0, 'le dossier temporaire du jeton est supprimé');
+  assert.strictEqual(fs.readdirSync(os.tmpdir()).filter(d => /^loue-essai-clasp-/.test(d)).length, 0, 'le dossier temporaire du jeton est supprimé');
 });
 test('envoi : un clasp qui range quand même le jeton à l’endroit habituel est rattrapé (filet de sécurité)', async () => {
   const m = monde({ ignoreAuth: true, logoutSansEffet: true }), r = await envoi.envoyer(m.options());
@@ -652,7 +652,7 @@ test('envoi : interruption (Ctrl+C) pendant la connexion puis pendant l’envoi 
     const texte = fs.readFileSync(path.join(m.dossierPrive, 'envois', cr[0]), 'utf8');
     assert.ok(/Commande interrompue/.test(texte) && attendu.test(texte) && /Jeton Google effacé du PC/.test(texte), texte);
   }
-  assert.strictEqual(fs.readdirSync(os.tmpdir()).filter(d => /^loue-clasp-/.test(d)).length, 0, 'aucun dossier de jeton oublié');
+  assert.strictEqual(fs.readdirSync(os.tmpdir()).filter(d => /^loue-essai-clasp-/.test(d)).length, 0, 'aucun dossier de jeton oublié');
 });
 test('envoi : le jeton est effacé AVANT la vérification en ligne ; un fichier vide laissé par « clasp logout » ne déclenche pas d’alerte', async () => {
   const m = monde({ ignoreAuth: true });
