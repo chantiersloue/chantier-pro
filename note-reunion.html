@@ -10,14 +10,40 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Note Réunion">
 <meta name="theme-color" content="#1A2B4A">
-<link rel="stylesheet" href="commun/style.css?v=b30077b6ce">
-<link rel="stylesheet" href="commun/fiche.css?v=b30077b6ce">
+<link rel="stylesheet" href="commun/style.css?v=9ea3361557">
+<link rel="stylesheet" href="commun/fiche.css?v=9ea3361557">
 <style>
 .photo-item-head .photo-item-num{flex:1;}
 .photo-legende{display:block;width:100%;min-height:48px;padding:0 12px;border:none;border-bottom:1px solid var(--border);background:#fff;font-size:16px;font-family:inherit;color:var(--text);outline:none;}
 .photo-item img{cursor:pointer;}
 .photo-item-head .btn-petit{min-height:48px;}
 #dest-ajouter{min-height:48px;}
+/* Lot 8c — points : cartes repliées, une colonne, boutons de 48 px au moins */
+body{padding-bottom:168px;}
+.pt{border:1px solid var(--border2);border-radius:var(--r);margin-bottom:8px;background:#fff;overflow:hidden;}
+.pt-tete{display:flex;align-items:stretch;}
+.pt-resume{flex:1;min-width:0;min-height:56px;padding:8px 10px;border:none;background:none;text-align:left;font:inherit;color:var(--text);cursor:pointer;}
+div.pt-resume{cursor:default;}
+.pt-texte{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600;}
+.pt-mention{display:block;font-size:13px;line-height:1.35;color:var(--muted);white-space:normal;margin-top:2px;}
+.pt-action{flex:none;min-width:88px;min-height:48px;margin:4px;align-self:center;}
+.pt-etat{flex:none;align-self:center;font-weight:800;font-size:14px;color:var(--green);padding:0 4px;white-space:nowrap;}
+.pt.clos{background:#EFECE8;}
+.pt.clos .pt-texte{color:var(--muted);}
+.pt-corps{padding:10px;border-top:1px solid var(--border);}
+.pt-corps[hidden]{display:none;}
+.pt-complet{white-space:pre-wrap;word-break:break-word;overflow-wrap:break-word;margin-bottom:10px;line-height:1.5;}
+.pt-corps textarea{margin-bottom:10px;}
+.pt-corps .photo-btns{flex-wrap:wrap;}
+.pt-corps .photo-btns .btn{min-width:120px;}
+.pt-regle{display:flex;align-items:center;gap:10px;min-height:48px;margin-bottom:10px;font-weight:600;cursor:pointer;}
+.pt-regle input{width:28px;height:28px;flex:none;accent-color:#0D7A6B;}
+.pt-num{font-weight:800;font-size:14px;color:var(--teal);margin-bottom:6px;display:flex;align-items:center;justify-content:space-between;gap:8px;}
+.pt.orphelin{border-color:#B45309;}
+#points-clos-bloc{margin-top:6px;}
+#points-clos-bloc summary{min-height:48px;display:flex;align-items:center;font-weight:700;color:var(--muted);cursor:pointer;}
+.bottom-bar{flex-wrap:wrap;}
+#btn-nouveau-point{flex:1 0 100%;border:1.5px dashed var(--teal);background:var(--teal-l);color:var(--teal);}
 /* Annotation des photos : plein écran, boutons de 48 px au moins (utilisables avec des gants) */
 .annot{position:fixed;inset:0;background:#111;z-index:200;display:flex;flex-direction:column;}
 .annot[hidden]{display:none;}
@@ -60,6 +86,7 @@ body.loue-test .annot{top:40px;}
         <button class="btn btn-secondary" type="button" id="dest-ajouter">+ Ajouter</button>
       </div>
       <div class="listes-info" id="dest-compteur" role="status"></div>
+      <div class="listes-info" id="dest-quota" role="status"></div>
     </div>
   </div>
 
@@ -91,11 +118,34 @@ body.loue-test .annot{top:40px;}
     </div>
   </div>
 
-  <!-- NOTES -->
+  <!-- POINTS REPRIS (lot 8c) : les points restés ouverts au dernier compte rendu du chantier -->
   <div class="section">
-    <div class="section-head" style="color:var(--teal)">Notes et commentaires</div>
+    <div class="section-head" style="color:var(--teal)" id="points-titre">Points ouverts</div>
     <div class="section-body">
-      <textarea class="meta-input" id="meta-commentaires" rows="6" placeholder="Points abordés, décisions prises… (le micro du clavier permet de dicter)"></textarea>
+      <div class="aide" id="points-info" role="status">Choisissez le chantier pour retrouver ses points ouverts.</div>
+      <div id="points-orphelins"></div>
+      <div id="points-liste"></div>
+      <details id="points-clos-bloc" hidden>
+        <summary id="points-clos-titre">Clos récemment</summary>
+        <div id="points-clos"></div>
+      </details>
+    </div>
+  </div>
+
+  <!-- NOUVEAUX POINTS (lot 8c) -->
+  <div class="section">
+    <div class="section-head" style="color:var(--teal)" id="nouveaux-titre">Nouveaux points</div>
+    <div class="section-body">
+      <div class="aide" id="nouveaux-aide">Touchez « + Nouveau point », en bas de l’écran, pour chaque sujet de la réunion. Un point resté ouvert reviendra tout seul dans la prochaine note de ce chantier.</div>
+      <div id="nouveaux-liste"></div>
+    </div>
+  </div>
+
+  <!-- REMARQUES GÉNÉRALES (le champ « Notes et commentaires » d'avant le lot 8c : même identifiant, un ancien brouillon y revient) -->
+  <div class="section">
+    <div class="section-head" style="color:var(--teal)">Remarques générales (facultatif)</div>
+    <div class="section-body">
+      <textarea class="meta-input" id="meta-commentaires" rows="4" placeholder="Ce qui ne va avec aucun point (le micro du clavier permet de dicter)"></textarea>
     </div>
   </div>
 
@@ -103,12 +153,13 @@ body.loue-test .annot{top:40px;}
   <div class="section">
     <div class="section-head" style="color:var(--teal)">Photos et croquis</div>
     <div class="section-body">
-      <div class="aide">Touchez une photo (ou « Annoter ») pour dessiner dessus. Vous pouvez y revenir : les traits se modifient et s’effacent jusqu’à l’envoi. Dans le PDF : une seule photo sous les notes, sinon deux photos par page.</div>
+      <div class="aide">Photos qui ne vont avec aucun point (pour la photo d’un point : ouvrez ce point). Touchez une photo (ou « Annoter ») pour dessiner dessus : les traits se modifient et s’effacent jusqu’à l’envoi.</div>
+      <div class="listes-info" id="photos-compteur" role="status" style="margin:0 0 8px"></div>
       <input type="file" id="photo-cam" accept="image/*" capture="environment" hidden onchange="ajouterPhotos(this.files);this.value=''">
       <input type="file" id="photo-galerie" accept="image/*" multiple hidden onchange="ajouterPhotos(this.files);this.value=''">
       <div class="photo-btns">
-        <button class="btn" type="button" onclick="document.getElementById('photo-cam').click()">📷 Prendre une photo</button>
-        <button class="btn" type="button" onclick="document.getElementById('photo-galerie').click()">🖼 Galerie</button>
+        <button class="btn" type="button" onclick="choisirPhoto('', 'cam')">📷 Prendre une photo</button>
+        <button class="btn" type="button" onclick="choisirPhoto('', 'galerie')">🖼 Galerie</button>
       </div>
       <div class="photos-list" id="photos-list"></div>
     </div>
@@ -117,6 +168,7 @@ body.loue-test .annot{top:40px;}
 </div>
 
 <div class="bottom-bar no-print">
+  <button class="btn" id="btn-nouveau-point" type="button" onclick="nouveauPoint()">+ Nouveau point</button>
   <a class="btn btn-secondary" href="index.html">‹ Retour</a>
   <button class="btn btn-green" id="btn-envoyer" type="button" onclick="envoyer()" style="flex:1">Envoyer la note</button>
 </div>
@@ -158,20 +210,21 @@ body.loue-test .annot{top:40px;}
   </div>
 </div>
 
-<script src="commun/config.js?v=b30077b6ce"></script>
-<script src="commun/api.js?v=b30077b6ce"></script>
-<script src="commun/ui.js?v=b30077b6ce"></script>
-<script src="commun/photos.js?v=b30077b6ce"></script>
-<script src="commun/brouillon.js?v=b30077b6ce"></script>
-<script src="commun/hors-ligne.js?v=b30077b6ce"></script>
-<script src="commun/adresses.js?v=b30077b6ce"></script>
-<script src="commun/destinataires.js?v=b30077b6ce"></script>
-<script src="modeles/mise-en-page.js?v=b30077b6ce"></script>
-<script src="modeles/note.js?v=b30077b6ce"></script>
+<script src="commun/config.js?v=9ea3361557"></script>
+<script src="commun/api.js?v=9ea3361557"></script>
+<script src="commun/ui.js?v=9ea3361557"></script>
+<script src="commun/photos.js?v=9ea3361557"></script>
+<script src="commun/brouillon.js?v=9ea3361557"></script>
+<script src="commun/hors-ligne.js?v=9ea3361557"></script>
+<script src="commun/adresses.js?v=9ea3361557"></script>
+<script src="commun/destinataires.js?v=9ea3361557"></script>
+<script src="commun/comptes-rendus.js?v=9ea3361557"></script>
+<script src="modeles/mise-en-page.js?v=9ea3361557"></script>
+<script src="modeles/note.js?v=9ea3361557"></script>
 <script>
 'use strict';
 // ── État de la fiche ──
-let photos = [];          // [{ id, blob, url, label, annotee, anciens, origine, traits }] (origine et traits : voir « Annotation »)
+let photos = [];          // [{ id, blob, url, label, point, annotee, anciens, origine, traits }] (point : identifiant du point, '' = photo générale ; origine et traits : voir « Annotation »)
 let LISTES = { contacts: [], contactNotes: [], chantiers: [] };
 const prevenir = () => document.dispatchEvent(new Event('change'));   // déclenche la sauvegarde du brouillon
 
@@ -240,14 +293,20 @@ majCompteur();
 // ── Photos : compressées dès qu'on les ajoute (200 à 400 Ko chacune) ──
 // Le serveur refuse une photo de plus de 1,5 Mo : la page ne garde jamais une image plus lourde que POIDS_MAX_PHOTO.
 const POIDS_MAX_PHOTO = 1400 * 1024;
+let photoPour = '';   // le point pour lequel on prend la photo ('' : photo générale)
+function choisirPhoto(point, source) {
+  photoPour = point || '';
+  document.getElementById(source === 'cam' ? 'photo-cam' : 'photo-galerie').click();
+}
 async function ajouterPhotos(fichiers) {
+  const pour = photoPour;
   for (const f of Array.from(fichiers || [])) {
     if (photos.length >= LOUE.PHOTOS_MAX) { LOUE.message(LOUE.PHOTOS_MAX + ' photos au maximum par note'); break; }
     try {
       let blob = await LOUE.compresserPhoto(f);
       if (blob.size > POIDS_MAX_PHOTO) blob = await LOUE.compresserPhoto(f, 1200);   // photo très détaillée : un peu plus petite
       if (blob.size > POIDS_MAX_PHOTO) throw new Error('Photo trop lourde pour être envoyée (1,5 Mo au plus). Reprenez-la d’un peu plus loin.');
-      photos.push({ id: LOUE.nouvelId('photo'), blob, url: URL.createObjectURL(blob), label: '', annotee: false, anciens: false, origine: null, traits: null });
+      photos.push({ id: LOUE.nouvelId('photo'), blob, url: URL.createObjectURL(blob), label: '', point: pour, annotee: false, anciens: false, origine: null, traits: null });
     } catch (err) { LOUE.message(err.message, 8000); }
   }
   afficherPhotos(); prevenir();
@@ -257,16 +316,27 @@ function retirerPhoto(i) {
   if (photos[i].annotee && !confirm('Retirer la photo ' + (i + 1) + ' ? Ses annotations seront perdues.')) return;
   URL.revokeObjectURL(photos[i].url); photos.splice(i, 1); afficherPhotos(); prevenir();
 }
+// Chaque photo est montrée dans la carte de son point (zone « data-photos »), sinon dans « Photos et croquis ».
+// Une zone dont le contenu n'a pas changé n'est pas réécrite : une légende en cours de frappe garde le curseur.
 function afficherPhotos() {
-  const liste = document.getElementById('photos-list');
+  const zones = { '': document.getElementById('photos-list') };
+  document.querySelectorAll('[data-photos]').forEach(z => { zones[z.getAttribute('data-photos')] = z; });
+  const html = {};
   // loading="lazy" : les photos hors de l'écran ne sont pas décodées (dix photos de 1 600 px ne tiennent pas toutes en mémoire)
-  liste.innerHTML = photos.map((p, i) =>
+  photos.forEach((p, i) => { const k = p.point && zones[p.point] ? p.point : ''; html[k] = (html[k] || '') +
     '<div class="photo-item"><div class="photo-item-head"><span class="photo-item-num">Photo ' + (i + 1) + (p.aVerifier ? ' ⚠ à vérifier' : p.annotee ? ' (annotée)' : '') + '</span>'
     + '<button class="btn btn-secondary btn-petit" type="button" onclick="ouvrirAnnotation(' + i + ')">✏️ Annoter</button>'
     + '<button class="btn btn-secondary btn-petit" type="button" onclick="retirerPhoto(' + i + ')">Retirer</button></div>'
     + '<input class="photo-legende" data-i="' + i + '" placeholder="Légende ou commentaire (facultatif)…" data-brouillon="non" aria-label="Légende de la photo ' + (i + 1) + '" value="' + LOUE.esc(p.label) + '">'
-    + '<img src="' + p.url + '" loading="lazy" decoding="async" alt="Photo ' + (i + 1) + ' — touchez pour annoter" onclick="ouvrirAnnotation(' + i + ')"></div>').join('');
-  liste.querySelectorAll('.photo-legende').forEach(el => el.addEventListener('input', () => { photos[+el.dataset.i].label = el.value; }));
+    + '<img src="' + p.url + '" loading="lazy" decoding="async" alt="Photo ' + (i + 1) + ' — touchez pour annoter" onclick="ouvrirAnnotation(' + i + ')"></div>'; });
+  Object.keys(zones).forEach(k => {
+    const z = zones[k], h = html[k] || '';
+    if (z.__html === h) return;
+    z.__html = h; z.innerHTML = h;
+    z.querySelectorAll('.photo-legende').forEach(el => el.addEventListener('input', () => { if (photos[+el.dataset.i]) photos[+el.dataset.i].label = el.value; }));
+  });
+  document.getElementById('photos-compteur').textContent = photos.length ? photos.length + ' photo' + (photos.length > 1 ? 's' : '') + ' sur ' + LOUE.PHOTOS_MAX + ' au maximum par note, tous points confondus.' : '';
+  if (typeof majMentionsPhotos === 'function') majMentionsPhotos();
 }
 // Remplace l'image affichée et envoyée d'une photo (l'ancienne adresse est rendue au navigateur)
 function changerImage(p, blob) {
@@ -501,15 +571,375 @@ function refaireImage(origine, traits) {
   });
 }
 
-// ── Brouillon automatique : champs + destinataires + photos (annotées ou non), leurs légendes et leurs traits ──
+// ── Points de la note (lot 8c) ──
+// La page reçoit du serveur la liste des points ouverts du chantier affiché (gardée dans le téléphone pour servir sans
+// réseau) et n'envoie que CE QUE LA PERSONNE A FAIT : pour chaque point, « rien », « complete », « clos », « rouvert » ou
+// « nouveau ». Une liste périmée ne peut donc rien défaire au bureau.
+//   LISTE    : ce qui est repris { base (numéro de fiche du compte rendu d'où vient la liste), date, ouverts, clos } ;
+//   GESTES   : gestes de la personne sur les points repris { identifiant : { g: 'complete' | 'clos' | 'rouvert', t: texte s'il est modifié } } ;
+//   NOUVEAUX : nouveaux points [{ id, t, regle }].
+// Seuls GESTES et NOUVEAUX vont dans le brouillon ; LISTE n'y entre jamais.
+const CR = LOUE.comptesRendus;
+let LISTE = null;
+let DATE_LISTE = '';          // date de réunion du compte rendu du bureau d'où vient la liste (sans les notes en attente)
+let GESTES = {};
+let GESTES_CHANTIER = '';     // le chantier (clé) pour lequel les gestes ont été faits
+let NOUVEAUX = [];
+let depliees = {};            // cartes des points repris ouvertes à l'écran
+let enEdition = {};           // points repris dont le texte est en cours de modification
+let chargement = 0;           // numéro de la dernière demande de liste (une réponse en retard est ignorée)
+let affichageEnRetard = false;
+const cleDuChantier = () => document.getElementById('meta-chantier').value.trim().toLowerCase();
+// « 06/11/2026 » → « 06/11 »
+function jourMois(d) { const m = String(d || '').match(/^(\d{1,2})\/(\d{1,2})\/\d{4}$/); return m ? ('0' + m[1]).slice(-2) + '/' + ('0' + m[2]).slice(-2) : String(d || ''); }
+function dansListe(t, id) { for (let i = 0; i < t.length; i++) if (t[i].id === id) return t[i]; return null; }
+function nbPhotos(id) { return photos.filter(p => p.point === id).length; }
+
+// Les points de la note, dans l'ordre où ils sont imprimés : repris (dont clos par cette note), rouverts, textes gardés
+// d'un point qui n'est plus dans la liste, puis nouveaux points. { id, g, t, m, regle, etat, mention }
+function pointsDeLaNote() {
+  const liste = [], memeChantier = !GESTES_CHANTIER || GESTES_CHANTIER === cleDuChantier(), vus = {};
+  const depuis = d => d ? 'ouvert depuis le ' + d : 'point ouvert';
+  if (LISTE && memeChantier) {
+    LISTE.ouverts.forEach(p => {
+      const g = GESTES[p.id]; vus[p.id] = true;
+      const t = g && g.t !== undefined && CR.nettoyer(g.t) ? CR.nettoyer(g.t) : p.t, modifie = t !== p.t;
+      const clos = !!g && g.g === 'clos';
+      liste.push({ id: p.id, g: clos ? 'clos' : (modifie ? 'complete' : 'rien'), t, m: modifie, etat: clos ? 'clos' : 'ouvert',
+        mention: (clos ? 'clos · ' : modifie ? 'complété · ' : '') + depuis(p.d) });
+    });
+    LISTE.clos.forEach(p => {
+      const g = GESTES[p.id];
+      if (!g || g.g !== 'rouvert') return;
+      vus[p.id] = true;
+      const t = g.t !== undefined && CR.nettoyer(g.t) ? CR.nettoyer(g.t) : p.t;
+      liste.push({ id: p.id, g: 'rouvert', t, m: t !== p.t, etat: 'ouvert', mention: 'rouvert (clos par le compte rendu du ' + p.k + ') · ' + depuis(p.d) });
+    });
+  }
+  // Gestes dont le point n'est pas (ou plus) dans la liste affichée : seul un texte TAPÉ est gardé, rien n'est jeté en silence.
+  // Autre chantier que celui des gestes : le texte part comme un nouveau point.
+  const muets = [];
+  Object.keys(GESTES).forEach(id => {
+    if (vus[id]) return;
+    const g = GESTES[id], t = g.t !== undefined ? CR.nettoyer(g.t) : '';
+    if (!memeChantier) { if (t) liste.push({ id: (id + '-n').slice(-40), g: 'nouveau', t, etat: 'ouvert', mention: 'nouveau point' }); return; }
+    if (t) liste.push({ id, g: g.g, t, m: true, etat: g.g === 'clos' ? 'clos' : 'ouvert', mention: '' });
+    // « clore » ou « rouvrir » sans texte sur un point qu'on ne voit plus (liste indisponible) : le geste part quand même,
+    // en FIN de liste (il n'est pas imprimé ici et ne décale pas les numéros « Point 3 — » des photos)
+    else if (!LISTE) muets.push({ id, g: g.g, t: '' });
+  });
+  NOUVEAUX.forEach(n => {
+    const t = CR.nettoyer(n.t);
+    if (!t) return;
+    liste.push({ id: n.id, g: 'nouveau', t, regle: !!n.regle, etat: n.regle ? 'clos' : 'ouvert', mention: n.regle ? 'nouveau point, réglé pendant la réunion' : 'nouveau point' });
+  });
+  liste.muets = muets;
+  return liste;
+}
+
+// ── Affichage des points repris ──
+function carteRepris(p, rouvert) {
+  const g = GESTES[p.id] || null, clos = !rouvert && !!g && g.g === 'clos';
+  const texte = g && g.t !== undefined ? g.t : p.t, modifie = CR.nettoyer(texte) !== p.t && !!CR.nettoyer(texte);
+  const ouverte = !!depliees[p.id], edition = !!enEdition[p.id];
+  let mention = p.attente ? 'note du ' + jourMois(p.attente) + ' (en attente d’envoi)' + (p.d && p.d !== p.attente ? ' · ouvert depuis le ' + jourMois(p.d) : '')
+    : (DATE_LISTE ? 'repris du compte rendu du ' + jourMois(DATE_LISTE) : 'repris') + (p.d && p.d !== DATE_LISTE ? ' · ouvert depuis le ' + jourMois(p.d) : '');
+  if (rouvert) mention = 'rouvert · clos par le compte rendu du ' + jourMois(p.k);
+  if (modifie) mention += ' · complété';
+  const n = nbPhotos(p.id);
+  return '<div class="pt' + (clos ? ' clos' : '') + '" data-id="' + LOUE.esc(p.id) + '">'
+    + '<div class="pt-tete">'
+    + '<button type="button" class="pt-resume" data-geste="deplier" aria-expanded="' + (ouverte ? 'true' : 'false') + '">'
+    + '<span class="pt-texte">' + LOUE.esc(CR.nettoyer(texte) || p.t) + '</span>'
+    + '<span class="pt-mention"><span data-mention>' + LOUE.esc(mention) + '</span><span data-nb-photos>' + (n ? ' · ' + n + ' photo' + (n > 1 ? 's' : '') : '') + '</span></span></button>'
+    + (clos ? '<span class="pt-etat">Clos ✓</span><button type="button" class="btn btn-secondary pt-action" data-geste="rouvrir">Rouvrir</button>'
+      : '<button type="button" class="btn btn-secondary pt-action" data-geste="clore">Clore</button>')
+    + '</div>'
+    + '<div class="pt-corps"' + (ouverte ? '' : ' hidden') + '>'
+    + (edition ? '<textarea class="meta-input" rows="5" maxlength="' + CR.MAX_TEXTE + '" data-texte data-brouillon="non" aria-label="Texte du point">' + LOUE.esc(texte) + '</textarea>'
+      : '<div class="pt-complet">' + LOUE.esc(CR.nettoyer(texte) || p.t) + '</div>')
+    + '<div class="photo-btns">'
+    + (edition ? '' : '<button class="btn" type="button" data-geste="completer">✏️ Compléter</button>')
+    + '<button class="btn" type="button" data-geste="photo-cam">📷 Photo</button><button class="btn" type="button" data-geste="photo-galerie">🖼 Galerie</button></div>'
+    + '<div class="photos-list" data-photos="' + LOUE.esc(p.id) + '"></div>'
+    + '</div></div>';
+}
+function afficherRepris(force) {
+  const zone = document.getElementById('points-liste'), actif = document.activeElement;
+  // On ne réécrit pas les cartes pendant qu'on tape dans l'une d'elles (le curseur sauterait) : ce sera fait en quittant le champ
+  if (!force && actif && zone.contains(actif) && (actif.tagName === 'TEXTAREA' || actif.tagName === 'INPUT')) { affichageEnRetard = true; return; }
+  affichageEnRetard = false;
+  const memeChantier = !GESTES_CHANTIER || GESTES_CHANTIER === cleDuChantier();
+  const ouverts = LISTE ? LISTE.ouverts : [];
+  const rouverts = LISTE && memeChantier ? LISTE.clos.filter(p => GESTES[p.id] && GESTES[p.id].g === 'rouvert') : [];
+  const closRecents = LISTE ? LISTE.clos.filter(p => rouverts.indexOf(p) < 0) : [];
+  zone.querySelectorAll('[data-photos]').forEach(z => { z.__html = null; });
+  zone.innerHTML = ouverts.map(p => carteRepris(p, false)).join('') + rouverts.map(p => carteRepris(p, true)).join('');
+  const encoreOuverts = ouverts.filter(p => !(GESTES[p.id] && GESTES[p.id].g === 'clos')).length + rouverts.length;
+  document.getElementById('points-titre').textContent = 'Points ouverts' + (LISTE ? ' (' + encoreOuverts + ')' : '');
+  // Clos récemment : la parade au point clos par erreur (rouvrable pendant 3 comptes rendus)
+  const bloc = document.getElementById('points-clos-bloc');
+  bloc.hidden = !closRecents.length;
+  document.getElementById('points-clos-titre').textContent = 'Clos récemment (' + closRecents.length + ')';
+  document.getElementById('points-clos').innerHTML = closRecents.map(p =>
+    '<div class="pt clos" data-id="' + LOUE.esc(p.id) + '"><div class="pt-tete"><div class="pt-resume"><span class="pt-texte">' + LOUE.esc(p.t) + '</span>'
+    + '<span class="pt-mention">' + LOUE.esc(p.attente ? 'clos par la note du ' + jourMois(p.attente) + ' (en attente d’envoi)' : 'clos par le compte rendu du ' + jourMois(p.k)) + '</span></div>'
+    + '<button type="button" class="btn btn-secondary pt-action" data-geste="rouvrir-clos">Rouvrir</button></div></div>').join('');
+  afficherOrphelins();
+  afficherPhotos();
+}
+// Textes tapés sur un point qui n'est plus dans la liste du jour (brouillon restauré plus tard) : montrés, jamais jetés
+function afficherOrphelins() {
+  const zone = document.getElementById('points-orphelins');
+  if (GESTES_CHANTIER && GESTES_CHANTIER !== cleDuChantier()) { zone.innerHTML = ''; return; }
+  zone.innerHTML = Object.keys(GESTES).map(id => {
+    const g = GESTES[id], t = g.t !== undefined ? CR.nettoyer(g.t) : '';
+    if (!t) return '';
+    const ouvert = LISTE ? dansListe(LISTE.ouverts, id) : null, clos = LISTE ? dansListe(LISTE.clos, id) : null;
+    if (ouvert || (clos && g.g === 'rouvert')) return '';
+    const quoi = clos ? 'Ce point a été clos par le compte rendu du ' + jourMois(clos.k) + '. Votre texte :'
+      : LISTE ? 'Ce point n’est plus dans la liste de ce chantier. Votre texte :' : 'Texte gardé d’un point repris (la liste des points n’est pas disponible). Il partira avec la note :';
+    return '<div class="pt orphelin" data-id="' + LOUE.esc(id) + '"><div class="pt-corps"><div class="pt-mention" style="margin-bottom:6px">' + LOUE.esc(quoi) + '</div>'
+      + '<div class="pt-complet">' + LOUE.esc(t) + '</div><div class="photo-btns">'
+      + (clos ? '<button class="btn" type="button" data-geste="orphelin-rouvrir">Rouvrir avec mon texte</button>' : '')
+      + '<button class="btn" type="button" data-geste="orphelin-nouveau">En faire un nouveau point</button>'
+      + '<button class="btn" type="button" data-geste="orphelin-retirer">Retirer mon texte</button></div></div></div>';
+  }).join('');
+}
+// Sous chaque carte repliée : le nombre de photos du point (mis à jour sans réécrire les cartes)
+function majMentionsPhotos() {
+  document.querySelectorAll('#points-liste .pt[data-id]').forEach(c => {
+    const n = nbPhotos(c.getAttribute('data-id')), e = c.querySelector('[data-nb-photos]');
+    if (e) e.textContent = n ? ' · ' + n + ' photo' + (n > 1 ? 's' : '') : '';
+  });
+}
+// Un geste : noté, puis les cartes sont réécrites. Un point sans geste ni texte modifié n'a AUCUNE entrée (brouillon vierge).
+function noterGeste(id, geste, texte) {
+  const p = LISTE ? (dansListe(LISTE.ouverts, id) || dansListe(LISTE.clos, id)) : null;
+  const g = Object.assign({}, GESTES[id] || {});
+  if (geste !== undefined) { if (geste) g.g = geste; else delete g.g; }
+  if (texte !== undefined) { if (p && (CR.nettoyer(texte) === p.t || !CR.nettoyer(texte))) delete g.t; else g.t = texte; }   // texte vidé ou remis comme avant : plus de modification
+  if (!g.g && g.t !== undefined) g.g = 'complete';
+  if (g.g === 'complete' && g.t === undefined) delete g.g;
+  if (g.g) { GESTES[id] = g; GESTES_CHANTIER = cleDuChantier(); } else delete GESTES[id];
+  if (!Object.keys(GESTES).length) GESTES_CHANTIER = '';
+}
+document.getElementById('points-liste').addEventListener('click', ev => {
+  const b = ev.target.closest('[data-geste]'), carte = ev.target.closest('.pt[data-id]');
+  if (!b || !carte) return;
+  const id = carte.getAttribute('data-id'), geste = b.getAttribute('data-geste');
+  const dansClos = LISTE ? dansListe(LISTE.clos, id) : null;
+  if (geste === 'deplier') { depliees[id] = !depliees[id]; if (!depliees[id]) delete enEdition[id]; }
+  else if (geste === 'completer') { enEdition[id] = true; depliees[id] = true; }
+  else if (geste === 'photo-cam' || geste === 'photo-galerie') { choisirPhoto(id, geste === 'photo-cam' ? 'cam' : 'galerie'); return; }
+  // « Clore » sur un point rouvert : il retourne dans « Clos récemment » (le geste « rouvert » est retiré)
+  else if (geste === 'clore') { if (dansClos) { delete GESTES[id]; if (!Object.keys(GESTES).length) GESTES_CHANTIER = ''; } else noterGeste(id, 'clos'); delete enEdition[id]; }
+  else if (geste === 'rouvrir') noterGeste(id, '');
+  afficherRepris(true); prevenir();
+  if (geste === 'completer') { const t = document.querySelector('#points-liste .pt[data-id="' + id + '"] textarea'); if (t) { t.focus(); t.setSelectionRange(t.value.length, t.value.length); } }
+});
+document.getElementById('points-liste').addEventListener('input', ev => {
+  const carte = ev.target.closest('.pt[data-id]');
+  if (!carte || !ev.target.hasAttribute('data-texte')) return;
+  const id = carte.getAttribute('data-id');
+  noterGeste(id, undefined, ev.target.value);
+  const resume = carte.querySelector('.pt-texte'), p = LISTE ? (dansListe(LISTE.ouverts, id) || dansListe(LISTE.clos, id)) : null;
+  if (resume) resume.textContent = CR.nettoyer(ev.target.value) || (p ? p.t : '');
+});
+document.getElementById('points-liste').addEventListener('focusout', () => {
+  if (affichageEnRetard) setTimeout(() => { if (affichageEnRetard) afficherRepris(); }, 80);
+});
+document.getElementById('points-clos').addEventListener('click', ev => {
+  const b = ev.target.closest('[data-geste="rouvrir-clos"]'), carte = ev.target.closest('.pt[data-id]');
+  if (!b || !carte) return;
+  const id = carte.getAttribute('data-id');
+  noterGeste(id, 'rouvert'); depliees[id] = false;
+  afficherRepris(true); prevenir();
+  LOUE.message('Point rouvert : il est de nouveau dans les points ouverts.', 4000);
+});
+document.getElementById('points-orphelins').addEventListener('click', ev => {
+  const b = ev.target.closest('[data-geste]'), carte = ev.target.closest('.pt[data-id]');
+  if (!b || !carte) return;
+  const id = carte.getAttribute('data-id'), g = GESTES[id], geste = b.getAttribute('data-geste');
+  if (!g) return;
+  const t = CR.nettoyer(g.t);
+  if (geste === 'orphelin-rouvrir') GESTES[id] = { g: 'rouvert', t: g.t };
+  else if (geste === 'orphelin-nouveau') { delete GESTES[id]; ajouterNouveau(t); photos.forEach(p => { if (p.point === id) p.point = NOUVEAUX[NOUVEAUX.length - 1].id; }); }
+  else if (geste === 'orphelin-retirer') { if (!confirm('Retirer ce texte ? Il ne partira pas avec la note.')) return; delete GESTES[id]; }
+  if (!Object.keys(GESTES).length) GESTES_CHANTIER = '';
+  afficherRepris(true); afficherNouveaux(); prevenir();
+});
+
+// ── Nouveaux points ──
+function ajouterNouveau(texte) {
+  if (NOUVEAUX.length >= CR.MAX_NOUVEAUX) { LOUE.message(CR.MAX_NOUVEAUX + ' nouveaux points au maximum par note', 6000); return null; }
+  const n = { id: CR.nouvelId(), t: texte || '', regle: false };
+  NOUVEAUX.push(n);
+  return n;
+}
+function nouveauPoint() {
+  const n = ajouterNouveau('');
+  if (!n) return;
+  afficherNouveaux(); prevenir();
+  const carte = document.querySelector('#nouveaux-liste .pt[data-id="' + n.id + '"]');
+  if (carte) { carte.scrollIntoView({ behavior: 'smooth', block: 'center' }); const t = carte.querySelector('textarea'); if (t) t.focus({ preventScroll: true }); }
+}
+function afficherNouveaux() {
+  const zone = document.getElementById('nouveaux-liste');
+  zone.querySelectorAll('[data-photos]').forEach(z => { z.__html = null; });
+  zone.innerHTML = NOUVEAUX.map((n, i) =>
+    '<div class="pt" data-id="' + LOUE.esc(n.id) + '"><div class="pt-corps">'
+    + '<div class="pt-num"><span>Nouveau point ' + (i + 1) + '</span><button class="btn btn-secondary btn-petit" type="button" data-geste="retirer" style="min-height:48px">Retirer</button></div>'
+    + '<textarea class="meta-input" rows="3" maxlength="' + CR.MAX_TEXTE + '" data-texte data-brouillon="non" placeholder="Texte du point (le micro du clavier permet de dicter)" aria-label="Texte du nouveau point ' + (i + 1) + '">' + LOUE.esc(n.t) + '</textarea>'
+    + '<label class="pt-regle"><input type="checkbox" data-regle data-brouillon="non"' + (n.regle ? ' checked' : '') + '> Réglé pendant la réunion</label>'
+    + '<div class="photo-btns"><button class="btn" type="button" data-geste="photo-cam">📷 Photo</button><button class="btn" type="button" data-geste="photo-galerie">🖼 Galerie</button></div>'
+    + '<div class="photos-list" data-photos="' + LOUE.esc(n.id) + '"></div>'
+    + '</div></div>').join('');
+  document.getElementById('nouveaux-titre').textContent = 'Nouveaux points' + (NOUVEAUX.length ? ' (' + NOUVEAUX.length + ')' : '');
+  document.getElementById('nouveaux-aide').hidden = NOUVEAUX.length > 0;
+  afficherPhotos();
+}
+document.getElementById('nouveaux-liste').addEventListener('click', ev => {
+  const b = ev.target.closest('[data-geste]'), carte = ev.target.closest('.pt[data-id]');
+  if (!b || !carte) return;
+  const id = carte.getAttribute('data-id'), geste = b.getAttribute('data-geste'), k = NOUVEAUX.findIndex(n => n.id === id);
+  if (k < 0) return;
+  if (geste === 'photo-cam' || geste === 'photo-galerie') { choisirPhoto(id, geste === 'photo-cam' ? 'cam' : 'galerie'); return; }
+  if (geste !== 'retirer') return;
+  const n = nbPhotos(id);
+  if ((CR.nettoyer(NOUVEAUX[k].t) || n) && !confirm('Retirer ce point' + (n ? ' et ses ' + n + ' photo(s)' : '') + ' ?')) return;
+  photos = photos.filter(p => { if (p.point !== id) return true; URL.revokeObjectURL(p.url); return false; });
+  NOUVEAUX.splice(k, 1);
+  afficherNouveaux(); prevenir();
+});
+document.getElementById('nouveaux-liste').addEventListener('input', ev => {
+  const carte = ev.target.closest('.pt[data-id]');
+  const n = carte ? NOUVEAUX.find(x => x.id === carte.getAttribute('data-id')) : null;
+  if (!n) return;
+  if (ev.target.hasAttribute('data-texte')) n.t = ev.target.value;
+  if (ev.target.hasAttribute('data-regle')) n.regle = ev.target.checked;
+});
+document.getElementById('nouveaux-liste').addEventListener('change', ev => {
+  const carte = ev.target.closest('.pt[data-id]');
+  const n = carte ? NOUVEAUX.find(x => x.id === carte.getAttribute('data-id')) : null;
+  if (n && ev.target.hasAttribute('data-regle')) n.regle = ev.target.checked;
+});
+
+// ── La liste du chantier affiché : téléphone d'abord (tout de suite), puis serveur ; puis les notes encore en attente ──
+function listeVide() { return { base: '', date: '', ouverts: [], clos: [], mailsRestants: null }; }
+function info(texte) { document.getElementById('points-info').textContent = texte; document.getElementById('points-info').hidden = !texte; }
+function majQuota() {
+  const n = LISTE && typeof LISTE.mailsRestants === 'number' ? LISTE.mailsRestants : null;
+  const e = document.getElementById('dest-quota');
+  if (e) e.textContent = n !== null && n < 20 ? '⚠ Il ne reste que ' + n + ' mail' + (n > 1 ? 's' : '') + ' possible' + (n > 1 ? 's' : '') + ' aujourd’hui pour toute l’appli : les autres partiront demain.' : '';
+}
+// Applique à la liste les notes de réunion de ce chantier encore dans le téléphone, puis affiche
+function poserListe(liste, texteInfo, numero) {
+  const chantier = document.getElementById('meta-chantier').value.trim();
+  return CR.enAttente(chantier).then(attente => {
+    if (numero !== chargement) return;
+    DATE_LISTE = liste ? liste.date : '';
+    let l = liste;
+    attente.forEach(note => { if (note.donnees && note.donnees.points) l = CR.simuler(l || listeVide(), note); });
+    const avecPoints = attente.filter(note => note.donnees && note.donnees.points);
+    LISTE = l;
+    rapprocher();
+    info(texteInfo + (avecPoints.length ? (texteInfo ? ' ' : '') + (avecPoints.length > 1 ? avecPoints.length + ' notes de ce chantier attendent' : 'Une note de ce chantier (du ' + jourMois(avecPoints[avecPoints.length - 1].donnees.date) + ') attend')
+      + ' encore d’être envoyée' + (avecPoints.length > 1 ? 's' : '') + ' : ' + (avecPoints.length > 1 ? 'leurs' : 'ses') + ' points sont repris ici.' : ''));
+    afficherRepris(); majQuota();
+  });
+}
+// Les gestes face à la liste du jour (brouillon restauré plus tard, liste qui a changé) : ce qui n'a plus de sens est retiré,
+// un texte tapé n'est JAMAIS retiré (il est montré avec un choix : afficherOrphelins)
+function rapprocher() {
+  if (!LISTE || !Object.keys(GESTES).length) return;
+  if (GESTES_CHANTIER && GESTES_CHANTIER !== cleDuChantier()) {
+    // Autre chantier : les textes tapés deviennent de nouveaux points, les simples « clore » / « rouvrir » sont retirés
+    let gardes = 0;
+    Object.keys(GESTES).forEach(id => { const t = GESTES[id].t !== undefined ? CR.nettoyer(GESTES[id].t) : ''; if (t && ajouterNouveau(t)) { gardes++; photos.forEach(p => { if (p.point === id) p.point = NOUVEAUX[NOUVEAUX.length - 1].id; }); } });
+    GESTES = {}; GESTES_CHANTIER = '';
+    if (gardes) { afficherNouveaux(); LOUE.message('Chantier changé : vos textes sont gardés comme nouveaux points.', 7000); }
+    return;
+  }
+  Object.keys(GESTES).forEach(id => {
+    const g = GESTES[id], aTexte = g.t !== undefined && !!CR.nettoyer(g.t);
+    const ouvert = dansListe(LISTE.ouverts, id), clos = dansListe(LISTE.clos, id);
+    if (ouvert) { if (g.g === 'rouvert') { if (aTexte) g.g = 'complete'; else delete GESTES[id]; } if (GESTES[id] && aTexte && CR.nettoyer(g.t) === ouvert.t) { delete g.t; if (g.g === 'complete') delete GESTES[id]; } return; }
+    if (clos && g.g === 'rouvert') return;
+    if (!aTexte) delete GESTES[id];          // « clore » un point déjà clos ou sorti de la liste : plus rien à faire
+  });
+  if (!Object.keys(GESTES).length) GESTES_CHANTIER = '';
+}
+let minuterieChantier = null;
+function chargerPoints(toutDeSuite) {
+  clearTimeout(minuterieChantier);
+  if (!toutDeSuite) { minuterieChantier = setTimeout(() => chargerPoints(true), 800); return; }
+  const numero = ++chargement, chantier = document.getElementById('meta-chantier').value.trim();
+  if (!chantier) { LISTE = null; DATE_LISTE = ''; info('Choisissez le chantier pour retrouver ses points ouverts.'); afficherRepris(); majQuota(); return; }
+  const quand = t => { const d = new Date(t); return ('0' + d.getDate()).slice(-2) + '/' + ('0' + (d.getMonth() + 1)).slice(-2); };
+  const texteListe = l => l.base ? 'Points repris du compte rendu du ' + l.date + '.' : 'Premier compte rendu de ce chantier : aucun point à reprendre.';
+  // 1. ce que le téléphone a gardé : affiché sans attendre le réseau
+  CR.gardee(chantier).then(g => { if (g && numero === chargement) return poserListe(g.liste, 'Points du ' + quand(g.date) + ', gardés dans le téléphone (mise à jour en cours…).', numero); })
+    .catch(() => {})
+    // 2. le serveur (ou, sans réseau, la liste gardée)
+    .then(() => CR.lire(chantier))
+    .then(r => {
+      if (numero !== chargement) return;
+      return poserListe(r.liste, r.depuisLeTelephone ? 'Pas de réseau : points du ' + quand(r.date) + ', gardés dans le téléphone.' : texteListe(r.liste), numero);
+    }, err => {
+      if (numero !== chargement) return;
+      const texte = err && err.interdit ? 'Ce chantier n’est pas dans vos chantiers : ses points ouverts ne sont pas affichés. Vos nouveaux points seront pris.'
+        : err && err.connexion ? 'Connectez-vous depuis l’accueil pour retrouver les points ouverts de ce chantier. Vous pouvez écrire de nouveaux points.'
+        : err && err.ancienServeur ? ''
+        : err && err.indisponible ? err.message + ' Vous pouvez écrire de nouveaux points.'
+        : 'Points de la dernière note indisponibles sans réseau. Écrivez vos nouveaux points : les anciens restent ouverts et reviendront à la note suivante.';
+      return poserListe(null, texte, numero);
+    }).catch(() => {});
+}
+['input'].forEach(e => document.getElementById('meta-chantier').addEventListener(e, () => chargerPoints(false)));
+document.getElementById('meta-chantier').addEventListener('change', () => chargerPoints(true));
+// Une note de réunion vient d'arriver au bureau (ou la connexion a changé) : la liste est relue
+if (LOUE.surEvenement) LOUE.surEvenement(ev => { if (ev.type === 'compte-rendu' || ev.type === 'compte') chargerPoints(true); });
+window.addEventListener('online', () => chargerPoints(true));
+
+// ── Brouillon : ce que la personne a fait, et rien d'autre ──
+function pointsDuBrouillon() {
+  const nouveaux = NOUVEAUX.filter(n => String(n.t || '').trim() || n.regle || nbPhotos(n.id)).map(n => ({ id: n.id, t: n.t, regle: !!n.regle }));
+  if (!Object.keys(GESTES).length && !nouveaux.length) return {};
+  return { points: { chantier: GESTES_CHANTIER, gestes: JSON.parse(JSON.stringify(GESTES)), nouveaux } };
+}
+function restaurerPoints(x) {
+  GESTES = {}; NOUVEAUX = []; GESTES_CHANTIER = ''; depliees = {}; enEdition = {};
+  if (x && typeof x === 'object') {
+    const g = x.gestes && typeof x.gestes === 'object' ? x.gestes : {};
+    Object.keys(g).forEach(id => {
+      const v = g[id] || {};
+      if (['complete', 'clos', 'rouvert'].indexOf(v.g) < 0 || !/^[A-Za-z0-9-]{6,40}$/.test(id)) return;
+      GESTES[id] = { g: v.g }; if (typeof v.t === 'string') { GESTES[id].t = v.t; enEdition[id] = true; depliees[id] = true; }
+    });
+    GESTES_CHANTIER = Object.keys(GESTES).length ? (typeof x.chantier === 'string' && x.chantier ? x.chantier : cleDuChantier()) : '';
+    (Array.isArray(x.nouveaux) ? x.nouveaux : []).slice(0, CR.MAX_NOUVEAUX).forEach(n => { if (n && /^[A-Za-z0-9-]{6,40}$/.test(String(n.id))) NOUVEAUX.push({ id: n.id, t: typeof n.t === 'string' ? n.t : '', regle: !!n.regle }); });
+  }
+  afficherNouveaux();
+  rapprocher(); afficherRepris(true);
+  chargerPoints(true);
+}
+function viderPoints() {
+  GESTES = {}; GESTES_CHANTIER = ''; NOUVEAUX = []; depliees = {}; enEdition = {};
+  afficherNouveaux(); afficherRepris(true);
+}
+
+// ── Brouillon automatique : champs + destinataires + photos (annotées ou non), leurs légendes et leurs traits, gestes sur les points ──
 // Reprend l'ancien brouillon de la page (« brouillon_note » : texte seul).
 // Le format contient celui d'avant le lot 8 : une photo sans trait est gardée exactement comme avant ; une photo annotée
 // garde EN PLUS son origine et ses traits. Un brouillon d'avant le lot 8 se restaure donc tel quel, et une page d'avant
 // le lot 8 relit un brouillon d'aujourd'hui (l'image finale est à sa place habituelle).
 LOUE.preRemplirChantier('meta-chantier');   // lot 2 : chantier choisi à l'accueil (avant la photo de la page vierge)
+chargerPoints(true);                        // lot 8c : points ouverts du chantier (rien de ce qui est reçu ici n'entre dans le brouillon)
+setTimeout(() => { CR.rafraichirAnciennes(document.getElementById('meta-chantier').value); }, 4000);
 let refections = Promise.resolve();   // images finales en cours de réfection après un brouillon restauré (une à la fois)
 function photoDuBrouillon(x) {
-  const p = { id: x.id || LOUE.nouvelId('photo'), blob: x.blob, url: URL.createObjectURL(x.blob), label: x.label || '', annotee: !!x.annotee, anciens: !!x.anciens, origine: null, traits: null };
+  const p = { id: x.id || LOUE.nouvelId('photo'), blob: x.blob, url: URL.createObjectURL(x.blob), label: x.label || '', point: typeof x.point === 'string' ? x.point : '', annotee: !!x.annotee, anciens: !!x.anciens, origine: null, traits: null };
   if (!traitsValables(x.traits)) return p;   // photo sans trait, ou annotée avant le lot 8 (traits fondus dans l'image)
   const origine = x.origine && x.origine.blob instanceof Blob ? x.origine.blob : null;
   let aRefaire = false;
@@ -532,35 +962,60 @@ const BROUILLON = LOUE.brouillon({
   champChantier: 'meta-chantier',
   cle: 'note',
   anciennesCles: ['brouillon_note'],
-  capturer: () => ({
+  capturer: () => Object.assign({
     destinataires: DEST.liste(),
     photos: photos.map(p => {
       const o = { id: p.id, blob: p.blob, label: p.label, annotee: !!p.annotee };
+      if (p.point) o.point = p.point;   // sans point : la photo est gardée exactement comme avant le lot 8c
       // « origine » a son propre identifiant : la brique du brouillon sait ainsi la retrouver dans sa copie complète
       // « à vérifier » : poids noté à −1, pour que l'image soit refaite à la prochaine restauration
       if (p.origine && p.traits) Object.assign(o, { origine: { id: p.id + '-o', blob: p.origine }, traits: p.traits, poids: p.aVerifier ? -1 : p.blob.size, poidsOrigine: p.origine.size });
       if (p.anciens) o.anciens = true;
       return o;
     }),
-  }),
+  // Lot 8c : seulement ce que la PERSONNE a fait (gestes sur les points repris, nouveaux points), jamais les points reçus du
+  // serveur ou gardés dans le téléphone. Rien de fait : le brouillon est exactement celui d'avant (pas de faux « Brouillon retrouvé »).
+  }, pointsDuBrouillon()),
   restaurer: x => {
     DEST.remettre(x.destinataires);
     photos.forEach(p => URL.revokeObjectURL(p.url));
     photos = (x.photos || []).filter(p => p && p.blob instanceof Blob).map(photoDuBrouillon);
+    restaurerPoints(x.points);
     afficherPhotos(); majCompteur();
   },
 });
 
-// ── Données de la fiche (mêmes noms de champs qu'avant la refonte) ──
+// ── Données de la fiche (mêmes noms de champs qu'avant la refonte, plus les points du lot 8c) ──
+// Le format CONTIENT celui d'avant : toutes les photos restent dans la liste à plat « photosBase64 » (la légende d'une photo
+// de point commence par « Point 3 — »), et « commentaires » porte une copie lisible de toute la note (points, puis
+// remarques) pour un serveur pas encore mis à jour : rien ne manque dans son PDF. Le nouveau serveur, lui, lit « points »
+// (les gestes) et « remarques » (le texte saisi) : il n'imprime rien deux fois.
 function donneesFiche(pourApercu) {
   const v = id => document.getElementById(id).value.trim();
-  return {
+  const texte = document.getElementById('meta-commentaires').value;
+  const pts = pointsDeLaNote();
+  const rang = {};
+  pts.forEach((p, i) => { rang[p.id] = i + 1; });
+  // Photos dans l'ordre des points, puis les photos générales
+  const ordre = photos.map((p, i) => ({ p, i, n: p.point && rang[p.point] ? rang[p.point] : 0 })).sort((x, y) => (x.n || 1e9) - (y.n || 1e9) || x.i - y.i);
+  const legende = o => o.n ? 'Point ' + o.n + (String(o.p.label || '').trim() ? ' — ' + o.p.label : '') : o.p.label;
+  const d = {
     chantier: v('meta-chantier'), auteur: v('meta-auteur'), date: v('meta-date'), objet: v('meta-objet'),
-    commentaires: document.getElementById('meta-commentaires').value,
+    commentaires: texte,
     destinataires: DEST.liste(),   // le serveur ajoute lui-même le conducteur du chantier (ou Franck)
     // Aperçu : photos lues sur place ; envoi : références aux photos envoyées une par une
-    photosBase64: photos.map(p => pourApercu ? { data: p.dataB64 || '', mimeType: 'image/jpeg', label: p.label } : { photoRef: p.id, label: p.label }),
+    photosBase64: ordre.map(o => pourApercu ? { data: o.p.dataB64 || '', mimeType: 'image/jpeg', label: legende(o) } : { photoRef: o.p.id, label: legende(o) }),
   };
+  if (pourApercu) { d.points = pts.map(p => ({ t: p.t, etat: p.etat, mention: p.mention })); return d; }
+  // Envoi. Sans aucun point ET sans liste connue, la note est exactement celle d'avant le lot 8c.
+  if (!pts.length && !pts.muets.length && !(LISTE && LISTE.base)) return d;
+  d.remarques = texte;
+  d.points = { base: LISTE ? LISTE.base : '', gestes: pts.concat(pts.muets).map(p => { const g = { id: p.id, g: p.g, t: p.t }; if (p.m) g.m = true; if (p.regle) g.regle = true; return g; }) };
+  if (pts.length) {
+    d.commentaires = 'POINTS\n' + pts.map((p, i) => (i + 1) + '. [' + (p.etat === 'clos' ? 'CLOS' : 'OUVERT') + '] ' + p.t + (p.mention ? ' (' + p.mention + ')' : '')).join('\n')
+      + (texte.trim() ? '\n\nREMARQUES GÉNÉRALES\n' + texte : '');
+  }
+  return d;
 }
 
 // ── Aperçu, impression, enregistrement en PDF (le même modèle que le PDF du mail) ──
@@ -581,6 +1036,7 @@ function imprimer(enPdf) {
 function viderFiche() {
   ['meta-objet', 'meta-commentaires'].forEach(id => { document.getElementById(id).value = ''; });
   DEST.vider(); majCompteur();
+  viderPoints();
   photos.forEach(p => URL.revokeObjectURL(p.url)); photos = []; afficherPhotos();
   dateDuJour();
   window.scrollTo(0, 0);
@@ -607,6 +1063,7 @@ async function envoyer() {
   }
   if (!champ('meta-auteur').value.trim()) { champ('meta-auteur').classList.add('error'); erreurs.push('« Rédigé par » manquant'); }
   await refections;   // brouillon restauré : les images annotées finissent d’être refaites avant de partir
+  if (NOUVEAUX.filter(n => CR.nettoyer(n.t)).length > CR.MAX_NOUVEAUX) erreurs.push(CR.MAX_NOUVEAUX + ' nouveaux points au maximum par note');
   photos.forEach((p, i) => { if (p.aVerifier) erreurs.push('photo ' + (i + 1) + ' : ses traits ne sont pas dans l’image (touchez la photo puis « Valider », ou retirez-la)'); });
   const bandeau = document.getElementById('valBanner');
   if (erreurs.length) {
@@ -630,16 +1087,19 @@ async function envoyer() {
     viderFiche();
     LOUE.viderFile();   // on reste sur la page : quitter maintenant couperait l'envoi en cours (il reprendrait plus tard)
     BROUILLON.reprendre();
+    chargerPoints(true);   // la note en attente est déjà reprise dans la liste (deux notes de suite sans réseau)
   } catch (err) {
     if (!enFile) {
       // Plan de secours : le téléphone refuse de garder la note (navigation privée, mémoire pleine) → envoi direct
       bouton.textContent = 'Envoi direct… ne quittez pas la page';
       try {
         const laDate = donneesFiche(false).date;
+        const leChantier = donneesFiche(false).chantier;
         const rep = await LOUE.envoyerDirect('note', donneesFiche(false), lesPhotos);
         await BROUILLON.effacer();
+        if (rep && rep.data && rep.data.points) await CR.garder(leChantier, rep.data.points);
         LOUE.message(LOUE.messageNoteEnvoyee(rep, laDate).texte, 9000);
-        viderFiche(); BROUILLON.reprendre();
+        viderFiche(); BROUILLON.reprendre(); chargerPoints(true);
       } catch (err2) {
         LOUE.message(err2.stockageBloque ? '⚠ La note n’est pas partie : ' + err2.message + '.' : err2.aConfirmer ? LOUE.MSG_DIRECT_A_CONFIRMER : err2.connexion ? LOUE.MSG_DIRECT_CONNEXION : '⚠ La note n’est pas partie : ' + err2.message + '. Gardez la page ouverte et réessayez quand il y aura du réseau.', err2.stockageBloque ? 0 : 12000);
       }

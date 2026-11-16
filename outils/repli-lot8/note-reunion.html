@@ -1,0 +1,674 @@
+<!DOCTYPE html>
+<!-- PAGE DE REPLI du lot 8 (retour arrière de la page, voir docs/lot8-procedure.md). Ce fichier ne sert que si la page
+     « note de réunion en points » (appli 10.2) doit reculer : il remplace alors note-reunion.html à la racine du dépôt.
+     C'est la page d'avant les points, qui relit sans rien perdre un brouillon écrit par la page 10.2. -->
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Loué App — Note de réunion</title>
+<link rel="icon" type="image/png" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Note Réunion">
+<meta name="theme-color" content="#1A2B4A">
+<link rel="stylesheet" href="commun/style.css?v=b30077b6ce">
+<link rel="stylesheet" href="commun/fiche.css?v=b30077b6ce">
+<style>
+.photo-item-head .photo-item-num{flex:1;}
+.photo-legende{display:block;width:100%;min-height:48px;padding:0 12px;border:none;border-bottom:1px solid var(--border);background:#fff;font-size:16px;font-family:inherit;color:var(--text);outline:none;}
+.photo-item img{cursor:pointer;}
+.photo-item-head .btn-petit{min-height:48px;}
+#dest-ajouter{min-height:48px;}
+/* Annotation des photos : plein écran, boutons de 48 px au moins (utilisables avec des gants) */
+.annot{position:fixed;inset:0;background:#111;z-index:200;display:flex;flex-direction:column;}
+.annot[hidden]{display:none;}
+body.loue-test .annot{top:40px;}
+.annot-barre{display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:6px 8px;background:var(--header-bg);}
+.annot-outil{min-width:48px;min-height:48px;border-radius:8px;border:2px solid transparent;background:rgba(255,255,255,.15);color:#fff;font-size:20px;font-family:inherit;cursor:pointer;}
+.annot-outil.active{border-color:#fff;background:rgba(255,255,255,.35);}
+.annot-couleur{width:48px;height:48px;border-radius:50%;border:3px solid rgba(255,255,255,.25);cursor:pointer;}
+.annot-couleur.active{border-color:#fff;box-shadow:0 0 0 2px var(--header-bg) inset;}
+.annot-taille{display:flex;align-items:center;gap:6px;color:#fff;font-size:14px;}
+.annot-taille input{width:90px;height:48px;accent-color:#0D7A6B;}
+.annot-zone{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;overflow:hidden;}
+#annot-canvas{display:block;touch-action:none;cursor:crosshair;background:#fff;}
+.annot-actions{display:flex;gap:8px;padding:8px 12px calc(8px + env(safe-area-inset-bottom,0px));background:var(--header-bg);}
+.annot-actions .btn{flex:1;}
+</style>
+</head>
+<body>
+
+<div class="topbar no-print">
+  <a class="btn btn-secondary btn-petit" href="index.html" aria-label="Retour à l'accueil">‹ Retour</a>
+  <span class="tb-name">Note de réunion</span>
+  <span id="loue-envoi-place"></span>
+  <button class="btn btn-secondary btn-petit" type="button" onclick="ouvrirApercu()">Aperçu</button>
+</div>
+
+<div class="main">
+
+  <div class="val-banner" id="valBanner" role="alert"></div>
+
+  <!-- DESTINATAIRES -->
+  <div class="section">
+    <div class="section-head" style="color:var(--teal)">Destinataires</div>
+    <div class="section-body">
+      <div class="aide">Le conducteur du chantier reçoit automatiquement une copie. Ajoutez ici les autres destinataires (2 adresses hors liste au maximum).</div>
+      <div class="dest-chips" id="dest-chips"></div>
+      <div class="dest-row">
+        <input class="meta-input" id="dest-input" type="email" inputmode="email" placeholder="nom@exemple.fr" autocomplete="off" data-brouillon="non">
+        <div class="dest-suggestions" id="dest-sugg"></div>
+        <button class="btn btn-secondary" type="button" id="dest-ajouter">+ Ajouter</button>
+      </div>
+      <div class="listes-info" id="dest-compteur" role="status"></div>
+    </div>
+  </div>
+
+  <!-- INFORMATIONS -->
+  <div class="section">
+    <div class="section-head" style="color:var(--teal)">Informations</div>
+    <div class="section-body">
+      <div class="meta-grid">
+        <div class="meta-field">
+          <label class="meta-label" for="meta-date">Date</label>
+          <input class="meta-input" id="meta-date" readonly>
+        </div>
+        <div class="meta-field">
+          <label class="meta-label" for="meta-auteur">Rédigé par <span class="oblig">*</span></label>
+          <input class="meta-input" id="meta-auteur" placeholder="Votre nom" list="liste-auteurs" autocomplete="off">
+          <datalist id="liste-auteurs"></datalist>
+        </div>
+        <div class="meta-field meta-full">
+          <label class="meta-label" for="meta-chantier">Chantier <span class="oblig">*</span></label>
+          <input class="meta-input" id="meta-chantier" list="liste-chantiers" placeholder="Choisir ou taper le chantier" autocomplete="off">
+          <datalist id="liste-chantiers"></datalist>
+          <div class="listes-info" id="listes-info"></div>
+        </div>
+        <div class="meta-field meta-full">
+          <label class="meta-label" for="meta-objet">Objet / titre de la réunion</label>
+          <input class="meta-input" id="meta-objet" placeholder="Ex. : réunion de chantier semaine 14">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- NOTES -->
+  <div class="section">
+    <div class="section-head" style="color:var(--teal)">Notes et commentaires</div>
+    <div class="section-body">
+      <textarea class="meta-input" id="meta-commentaires" rows="6" placeholder="Points abordés, décisions prises… (le micro du clavier permet de dicter)"></textarea>
+    </div>
+  </div>
+
+  <!-- PHOTOS -->
+  <div class="section">
+    <div class="section-head" style="color:var(--teal)">Photos et croquis</div>
+    <div class="section-body">
+      <div class="aide">Touchez une photo (ou « Annoter ») pour dessiner dessus. Vous pouvez y revenir : les traits se modifient et s’effacent jusqu’à l’envoi. Dans le PDF : une seule photo sous les notes, sinon deux photos par page.</div>
+      <input type="file" id="photo-cam" accept="image/*" capture="environment" hidden onchange="ajouterPhotos(this.files);this.value=''">
+      <input type="file" id="photo-galerie" accept="image/*" multiple hidden onchange="ajouterPhotos(this.files);this.value=''">
+      <div class="photo-btns">
+        <button class="btn" type="button" onclick="document.getElementById('photo-cam').click()">📷 Prendre une photo</button>
+        <button class="btn" type="button" onclick="document.getElementById('photo-galerie').click()">🖼 Galerie</button>
+      </div>
+      <div class="photos-list" id="photos-list"></div>
+    </div>
+  </div>
+
+</div>
+
+<div class="bottom-bar no-print">
+  <a class="btn btn-secondary" href="index.html">‹ Retour</a>
+  <button class="btn btn-green" id="btn-envoyer" type="button" onclick="envoyer()" style="flex:1">Envoyer la note</button>
+</div>
+
+<!-- ANNOTATION D'UNE PHOTO (plein écran) -->
+<div class="annot no-print" id="annot" role="dialog" aria-label="Annoter la photo" hidden>
+  <div class="annot-barre">
+    <button class="annot-outil active" type="button" data-outil="stylo" aria-label="Stylo" title="Stylo">✏️</button>
+    <button class="annot-outil" type="button" data-outil="fleche" aria-label="Flèche" title="Flèche">↗</button>
+    <button class="annot-outil" type="button" data-outil="rect" aria-label="Rectangle" title="Rectangle">▭</button>
+    <button class="annot-outil" type="button" data-outil="gomme" aria-label="Gomme" title="Gomme (efface le dessin)">🧽</button>
+    <button class="annot-couleur active" type="button" data-couleur="#E53E3E" style="background:#E53E3E" aria-label="Rouge"></button>
+    <button class="annot-couleur" type="button" data-couleur="#D97706" style="background:#D97706" aria-label="Orange"></button>
+    <button class="annot-couleur" type="button" data-couleur="#1454A0" style="background:#1454A0" aria-label="Bleu"></button>
+    <button class="annot-couleur" type="button" data-couleur="#196B3B" style="background:#196B3B" aria-label="Vert"></button>
+    <button class="annot-couleur" type="button" data-couleur="#141210" style="background:#141210" aria-label="Noir"></button>
+    <button class="annot-couleur" type="button" data-couleur="#FFFFFF" style="background:#FFFFFF" aria-label="Blanc"></button>
+    <label class="annot-taille">Taille <input type="range" min="1" max="20" value="3" id="annot-taille" data-brouillon="non"></label>
+    <button class="annot-outil" type="button" onclick="annulerTrait()" aria-label="Annuler le dernier trait" title="Annuler le dernier trait">↶</button>
+  </div>
+  <div class="annot-zone"><canvas id="annot-canvas"></canvas></div>
+  <div class="annot-actions">
+    <button class="btn btn-secondary" type="button" onclick="fermerAnnotation(false)">Annuler</button>
+    <button class="btn btn-green" type="button" onclick="fermerAnnotation(true)">Valider</button>
+  </div>
+</div>
+
+<!-- APERÇU (le même modèle que le PDF envoyé par mail) -->
+<div class="apercu" id="apercu" role="dialog" aria-label="Aperçu du PDF">
+  <div class="apercu-inner">
+    <div class="apercu-head">
+      <b>Aperçu du PDF</b>
+      <button class="btn btn-secondary btn-petit" type="button" onclick="imprimer()">🖨 Imprimer</button>
+      <button class="btn btn-secondary btn-petit" type="button" onclick="imprimer(true)">⬇ Enregistrer en PDF</button>
+      <button class="btn btn-secondary btn-petit" type="button" onclick="fermerApercu()">Fermer</button>
+    </div>
+    <iframe id="apercu-cadre" title="Aperçu de la note de réunion"></iframe>
+    <div class="apercu-aide">« Enregistrer en PDF » : dans la fenêtre qui s'ouvre, choisissez l'imprimante « Enregistrer au format PDF » (ou « Microsoft Print to PDF »).</div>
+  </div>
+</div>
+
+<script src="commun/config.js?v=b30077b6ce"></script>
+<script src="commun/api.js?v=b30077b6ce"></script>
+<script src="commun/ui.js?v=b30077b6ce"></script>
+<script src="commun/photos.js?v=b30077b6ce"></script>
+<script src="commun/brouillon.js?v=b30077b6ce"></script>
+<script src="commun/hors-ligne.js?v=b30077b6ce"></script>
+<script src="commun/adresses.js?v=b30077b6ce"></script>
+<script src="commun/destinataires.js?v=b30077b6ce"></script>
+<script src="modeles/mise-en-page.js?v=b30077b6ce"></script>
+<script src="modeles/note.js?v=b30077b6ce"></script>
+<script>
+'use strict';
+// ── État de la fiche ──
+let photos = [];          // [{ id, blob, url, label, annotee, anciens, origine, traits }] (origine et traits : voir « Annotation »)
+let LISTES = { contacts: [], contactNotes: [], chantiers: [] };
+const prevenir = () => document.dispatchEvent(new Event('change'));   // déclenche la sauvegarde du brouillon
+
+// ── Date du jour (remise à jour après chaque envoi) ──
+function dateDuJour() {
+  const now = new Date(), p = n => String(n).padStart(2, '0');
+  document.getElementById('meta-date').value = p(now.getDate()) + '/' + p(now.getMonth() + 1) + '/' + now.getFullYear();
+}
+dateDuJour();
+
+// ── Listes (chantiers, contacts) : réseau, sinon dernière liste gardée dans le téléphone ──
+let listesDuTelephone = false;
+LOUE.chargerListes().then(r => {
+  listesDuTelephone = !!r.depuisLeTelephone || !!r.partiel;   // lot 2 : liste ancienne, ou limitée à « mes chantiers » → on demande confirmation
+  LISTES = Object.assign(LISTES, r.donnees || {});
+  document.getElementById('liste-chantiers').innerHTML = (LISTES.chantiers || [])
+    .map(c => '<option value="' + LOUE.esc(c.nom) + '">' + LOUE.esc(c.reference || '') + '</option>').join('');
+  document.getElementById('liste-auteurs').innerHTML = (LISTES.contacts || [])
+    .map(c => '<option value="' + LOUE.esc(c.nom) + '"></option>').join('');
+  if (r.depuisLeTelephone) {
+    const d = new Date(r.date);
+    document.getElementById('listes-info').textContent = 'Pas de réseau : listes du ' + d.toLocaleDateString('fr-FR') + ' gardées dans le téléphone.';
+  }
+}).catch(() => {
+  document.getElementById('listes-info').textContent = 'Listes indisponibles (pas de réseau). Tapez le nom du chantier : la note partira quand même.';
+});
+
+// ── Destinataires (brique commune : une adresse tapée sans « + Ajouter » n'est plus perdue) ──
+const DEST = LOUE.destinataires({ contacts: () => (LISTES.contactNotes || []).concat(LISTES.contacts || []) });
+// Lot 8 : combien de mails partiront, et 10 adresses connues au plus par note (le quota du compte est de 100 mails par jour).
+// Le plafond est tenu ICI seulement : le serveur sert toujours toutes les adresses connues d'une note déjà en attente.
+const DEST_CONNUES_MAX = 10;
+function adressesConnues() {
+  const c = {};
+  (LISTES.contactNotes || []).concat(LISTES.contacts || []).forEach(u => String((u && u.email) || '').split(/[,;\s]+/).forEach(e => { if (e) c[e.toLowerCase()] = true; }));
+  return c;
+}
+const refusAdresseLibre = window.LOUE_refuserAdresseLibre;
+window.LOUE_refuserAdresseLibre = function (val, deja, contacts) {
+  const connues = adressesConnues();
+  if (connues[String(val || '').trim().toLowerCase()] && (deja || []).filter(a => connues[String(a).toLowerCase()]).length >= DEST_CONNUES_MAX) {
+    LOUE.message(DEST_CONNUES_MAX + ' destinataires de la liste au maximum par note : « ' + val + ' » n’est pas ajouté.', 7000);
+    return true;
+  }
+  return refusAdresseLibre ? refusAdresseLibre(val, deja, contacts) : false;
+};
+// Le conducteur du chantier est-il déjà dans les destinataires ? (le serveur n'envoie qu'un mail par adresse)
+function conducteurDejaDestinataire() {
+  const nom = document.getElementById('meta-chantier').value.trim().toLowerCase();
+  const c = (LISTES.chantiers || []).find(x => String(x.nom).trim().toLowerCase() === nom);
+  const conducteur = c ? String(c.conducteur || '').trim().toLowerCase() : '';
+  const contact = conducteur ? (LISTES.contacts || []).find(u => String(u.nom).trim().toLowerCase() === conducteur) : null;
+  const mails = contact ? String(contact.email || '').split(/[,;\s]+/).filter(Boolean).map(e => e.toLowerCase()) : [];
+  return mails.length > 0 && DEST.liste().some(d => mails.indexOf(d.toLowerCase()) > -1);
+}
+function majCompteur() {
+  const n = DEST.liste().length;
+  document.getElementById('dest-compteur').textContent = !n ? '1 mail partira : la copie au conducteur du chantier.'
+    : conducteurDejaDestinataire() ? (n > 1 ? n + ' mails partiront' : '1 mail partira') + ' (le conducteur du chantier est déjà dans la liste).'
+    : (n + 1) + ' mails partiront (' + n + ' destinataire' + (n > 1 ? 's' : '') + ' + le conducteur du chantier).';
+}
+document.addEventListener('change', majCompteur);
+['input', 'change'].forEach(e => document.getElementById('meta-chantier').addEventListener(e, majCompteur));
+majCompteur();
+
+// ── Photos : compressées dès qu'on les ajoute (200 à 400 Ko chacune) ──
+// Le serveur refuse une photo de plus de 1,5 Mo : la page ne garde jamais une image plus lourde que POIDS_MAX_PHOTO.
+const POIDS_MAX_PHOTO = 1400 * 1024;
+async function ajouterPhotos(fichiers) {
+  for (const f of Array.from(fichiers || [])) {
+    if (photos.length >= LOUE.PHOTOS_MAX) { LOUE.message(LOUE.PHOTOS_MAX + ' photos au maximum par note'); break; }
+    try {
+      let blob = await LOUE.compresserPhoto(f);
+      if (blob.size > POIDS_MAX_PHOTO) blob = await LOUE.compresserPhoto(f, 1200);   // photo très détaillée : un peu plus petite
+      if (blob.size > POIDS_MAX_PHOTO) throw new Error('Photo trop lourde pour être envoyée (1,5 Mo au plus). Reprenez-la d’un peu plus loin.');
+      photos.push({ id: LOUE.nouvelId('photo'), blob, url: URL.createObjectURL(blob), label: '', annotee: false, anciens: false, origine: null, traits: null });
+    } catch (err) { LOUE.message(err.message, 8000); }
+  }
+  afficherPhotos(); prevenir();
+}
+function retirerPhoto(i) {
+  if (!photos[i]) return;
+  if (photos[i].annotee && !confirm('Retirer la photo ' + (i + 1) + ' ? Ses annotations seront perdues.')) return;
+  URL.revokeObjectURL(photos[i].url); photos.splice(i, 1); afficherPhotos(); prevenir();
+}
+function afficherPhotos() {
+  const liste = document.getElementById('photos-list');
+  // loading="lazy" : les photos hors de l'écran ne sont pas décodées (dix photos de 1 600 px ne tiennent pas toutes en mémoire)
+  liste.innerHTML = photos.map((p, i) =>
+    '<div class="photo-item"><div class="photo-item-head"><span class="photo-item-num">Photo ' + (i + 1) + (p.aVerifier ? ' ⚠ à vérifier' : p.annotee ? ' (annotée)' : '') + '</span>'
+    + '<button class="btn btn-secondary btn-petit" type="button" onclick="ouvrirAnnotation(' + i + ')">✏️ Annoter</button>'
+    + '<button class="btn btn-secondary btn-petit" type="button" onclick="retirerPhoto(' + i + ')">Retirer</button></div>'
+    + '<input class="photo-legende" data-i="' + i + '" placeholder="Légende ou commentaire (facultatif)…" data-brouillon="non" aria-label="Légende de la photo ' + (i + 1) + '" value="' + LOUE.esc(p.label) + '">'
+    + '<img src="' + p.url + '" loading="lazy" decoding="async" alt="Photo ' + (i + 1) + ' — touchez pour annoter" onclick="ouvrirAnnotation(' + i + ')"></div>').join('');
+  liste.querySelectorAll('.photo-legende').forEach(el => el.addEventListener('input', () => { photos[+el.dataset.i].label = el.value; }));
+}
+// Remplace l'image affichée et envoyée d'une photo (l'ancienne adresse est rendue au navigateur)
+function changerImage(p, blob) {
+  URL.revokeObjectURL(p.url);
+  p.blob = blob; p.url = URL.createObjectURL(blob); p.dataB64 = null;
+}
+
+// ── Annotation d'une photo (lot 8a : une annotation validée peut être ROUVERTE) ──
+// Le dessin se fait sur la photo en PLEINE résolution. La page garde, pour chaque photo annotée :
+//   - « origine » : la photo d'avant l'annotation, jamais modifiée ;
+//   - « traits »  : la liste des traits, un par un (format compact ci-dessous) ;
+//   - « blob »    : l'image finale, REFAITE DEPUIS L'ORIGINE à chaque « Valider » (jamais de recompression en chaîne).
+// La gomme repeint la photo d'origine le long de son passage : elle efface les traits, pas la photo.
+// Un trait : { o: 's' stylo | 'f' flèche | 'r' rectangle | 'g' gomme, c: couleur, e: épaisseur, t: taille de la tête
+// de flèche, p: [x0, y0, x1, y1, …] } — en pixels ENTIERS de la photo ; un tracé au stylo est élagué (points inutiles retirés).
+const OUTILS_TRAIT = { stylo: 's', fleche: 'f', rect: 'r', gomme: 'g' };
+const TRAITS_MAX_CAR = 30000;    // par photo (20 traits pèsent 1 400 caractères). Au-delà, l'annotation est gardée « à plat » : le brouillon reste léger
+const ANNOT = { i: null, img: null, adresse: '', formes: [], depart: '[]', courante: null, doigt: null, occupe: false, outil: 'stylo', couleur: '#E53E3E', taille: 3 };
+const toile = document.getElementById('annot-canvas');
+
+function traitsValables(t) {
+  return Array.isArray(t) && t.length > 0 && t.every(f => f && typeof f.o === 'string' && 'sfrg'.indexOf(f.o) > -1 && f.o.length === 1
+    && typeof f.e === 'number' && isFinite(f.e) && Array.isArray(f.p) && f.p.length >= 2 && f.p.length % 2 === 0
+    && f.p.every(n => typeof n === 'number' && isFinite(n)) && (f.c === undefined || /^#[0-9A-Fa-f]{6}$/.test(f.c)));
+}
+// Élagage d'un tracé (méthode de Douglas-Peucker, sans récursion) : on ne garde que les points qui s'écartent
+// de plus de « tolerance » pixels de la ligne tracée entre leurs voisins gardés
+function elaguer(p, tolerance) {
+  const n = p.length / 2;
+  if (n < 3) return p;
+  const garde = new Uint8Array(n); garde[0] = garde[n - 1] = 1;
+  const pile = [[0, n - 1]];
+  while (pile.length) {
+    const [a, b] = pile.pop();
+    const ax = p[2 * a], ay = p[2 * a + 1], dx = p[2 * b] - ax, dy = p[2 * b + 1] - ay, long = Math.hypot(dx, dy);
+    let max = 0, k = -1;
+    for (let j = a + 1; j < b; j++) {
+      const px = p[2 * j] - ax, py = p[2 * j + 1] - ay;
+      const d = long ? Math.abs(px * dy - py * dx) / long : Math.hypot(px, py);
+      if (d > max) { max = d; k = j; }
+    }
+    if (k > -1 && max > tolerance) { garde[k] = 1; pile.push([a, k], [k, b]); }
+  }
+  const s = [];
+  for (let j = 0; j < n; j++) if (garde[j]) s.push(p[2 * j], p[2 * j + 1]);
+  return s;
+}
+// Dessine un trait sur une toile ; fond : la photo d'origine (pour la gomme)
+function tracer(ctx, f, fond) {
+  const p = f.p, ax = p[0], ay = p[1], bx = p[p.length - 2], by = p[p.length - 1];
+  ctx.save();
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.lineWidth = f.e;
+  // Gomme : on repeint avec la photo d'origine (aucun trait blanc sur la photo)
+  ctx.strokeStyle = f.o === 'g' ? ctx.createPattern(fond, 'no-repeat') : (f.c || '#E53E3E');
+  ctx.beginPath();
+  if (f.o === 'r') {
+    ctx.rect(ax, ay, bx - ax, by - ay);
+  } else if (f.o === 'f') {
+    const angle = Math.atan2(by - ay, bx - ax), tete = f.t || f.e * 3;
+    ctx.moveTo(ax, ay); ctx.lineTo(bx, by);
+    ctx.lineTo(bx - tete * Math.cos(angle - Math.PI / 6), by - tete * Math.sin(angle - Math.PI / 6));
+    ctx.moveTo(bx, by);
+    ctx.lineTo(bx - tete * Math.cos(angle + Math.PI / 6), by - tete * Math.sin(angle + Math.PI / 6));
+  } else {
+    ctx.moveTo(ax, ay);
+    if (p.length === 2) ctx.lineTo(ax + 0.1, ay);
+    for (let k = 2; k < p.length; k += 2) ctx.lineTo(p[k], p[k + 1]);
+  }
+  ctx.stroke();
+  ctx.restore();
+}
+// Photo (Blob) → image décodée ; l'adresse temporaire est rendue dès que l'image est lue
+function lireImage(blob) {
+  return new Promise((ok, ko) => {
+    const adresse = URL.createObjectURL(blob), img = new Image();
+    img.onload = () => ok({ img, adresse });
+    img.onerror = () => { URL.revokeObjectURL(adresse); ko(new Error('illisible')); };
+    img.src = adresse;
+  });
+}
+// Toile → JPEG sous la limite du serveur (qualité baissée si besoin) ; null si le téléphone n'y arrive pas
+function toileEnJpeg(c) {
+  const qualites = [0.85, 0.7, 0.5];
+  return new Promise(ok => {
+    const essai = k => {
+      try {
+        c.toBlob(b => { if (b && b.size > POIDS_MAX_PHOTO && k + 1 < qualites.length) essai(k + 1); else ok(b && b.size <= POIDS_MAX_PHOTO ? b : null); }, 'image/jpeg', qualites[k]);
+      } catch (e) { ok(null); }
+    };
+    essai(0);
+  });
+}
+
+function ouvrirAnnotation(i) {
+  const p = photos[i];
+  if (!p || ANNOT.img || ANNOT.occupe) return;
+  const modifiable = !!(p.origine && p.traits);
+  ANNOT.occupe = true;
+  lireImage(modifiable ? p.origine : p.blob).then(r => {
+    const formes = modifiable ? JSON.parse(JSON.stringify(p.traits)) : [];
+    Object.assign(ANNOT, { i, img: r.img, adresse: r.adresse, formes, depart: JSON.stringify(formes), courante: null, occupe: false });
+    toile.width = r.img.naturalWidth; toile.height = r.img.naturalHeight;
+    document.getElementById('annot').hidden = false;
+    document.body.style.overflow = 'hidden';
+    ajusterAnnotation(); dessinerAnnotation();
+    requestAnimationFrame(ajusterAnnotation);   // barre d'outils sur plusieurs lignes : la zone peut encore changer
+    // Photo annotée avant la mise à jour (ou annotation trop chargée) : ses traits sont fondus dans l'image
+    if ((p.annotee && !modifiable) || p.anciens) LOUE.message('Les anciens traits de cette photo ne s’effacent plus.', 7000);
+  }).catch(() => { ANNOT.occupe = false; LOUE.message('Photo illisible : impossible de l’annoter', 6000); });
+}
+function ajusterAnnotation() {
+  if (!ANNOT.img) return;
+  const zone = toile.parentElement;
+  toile.style.width = toile.style.height = '1px';   // la photo ne doit pas agrandir la zone avant la mesure
+  const r = Math.min(zone.clientWidth / toile.width, zone.clientHeight / toile.height);
+  toile.style.width = Math.max(1, Math.floor(toile.width * r)) + 'px';
+  toile.style.height = Math.max(1, Math.floor(toile.height * r)) + 'px';
+}
+window.addEventListener('resize', () => { if (!document.getElementById('annot').hidden) ajusterAnnotation(); });
+function echelle() { const r = toile.getBoundingClientRect(); return r.width ? toile.width / r.width : 1; }
+// Position du doigt, en pixels entiers de la photo (gardée dans l'image)
+function position(ev) {
+  const r = toile.getBoundingClientRect();
+  const borne = (v, max) => Math.max(0, Math.min(max, Math.round(v)));
+  return [borne((ev.clientX - r.left) * toile.width / r.width, toile.width), borne((ev.clientY - r.top) * toile.height / r.height, toile.height)];
+}
+let dessinPrevu = false;
+function dessinerAnnotation() {
+  dessinPrevu = false;
+  if (!ANNOT.img) return;
+  const ctx = toile.getContext('2d');
+  ctx.drawImage(ANNOT.img, 0, 0, toile.width, toile.height);
+  ANNOT.formes.forEach(f => tracer(ctx, f, ANNOT.img));
+  if (ANNOT.courante) tracer(ctx, ANNOT.courante, ANNOT.img);
+}
+function redessiner() { if (!dessinPrevu) { dessinPrevu = true; requestAnimationFrame(dessinerAnnotation); } }
+toile.addEventListener('pointerdown', ev => {
+  // Un seul trait à la fois : un second doigt (ou la paume) posé pendant un tracé est ignoré
+  if (!ANNOT.img || ANNOT.occupe || ANNOT.courante) return;
+  ANNOT.doigt = ev.pointerId;
+  ev.preventDefault();
+  try { toile.setPointerCapture(ev.pointerId); } catch (e) {}
+  const e = echelle(), o = OUTILS_TRAIT[ANNOT.outil] || 's';
+  const epaisseur = Math.max(1, Math.round(ANNOT.taille * e * (o === 'g' ? 4 : 1)));
+  ANNOT.courante = { o, e: epaisseur, p: position(ev) };
+  if (o !== 'g') ANNOT.courante.c = ANNOT.couleur;
+  if (o === 'f') ANNOT.courante.t = Math.round(Math.max(18 * e, epaisseur * 3));
+  redessiner();
+});
+toile.addEventListener('pointermove', ev => {
+  const f = ANNOT.courante;
+  if (!f || ev.pointerId !== ANNOT.doigt) return;
+  ev.preventDefault();
+  const q = position(ev);
+  if (f.o === 's' || f.o === 'g') {
+    if (q[0] !== f.p[f.p.length - 2] || q[1] !== f.p[f.p.length - 1]) f.p.push(q[0], q[1]);   // le même pixel deux fois : inutile
+  } else { f.p[2] = q[0]; f.p[3] = q[1]; }
+  redessiner();
+});
+function finTrait(ev) {
+  const f = ANNOT.courante;
+  if (!f || (ev && ev.pointerId !== undefined && ev.pointerId !== ANNOT.doigt)) return;
+  ANNOT.courante = null; ANNOT.doigt = null;
+  // m2 — flèche ou rectangle touché sans glisser (moins de 4 points d'écran) : rien à garder, la photo ne devient pas « annotée »
+  if ((f.o === 'f' || f.o === 'r') && (f.p.length < 4 || Math.hypot(f.p[2] - f.p[0], f.p[3] - f.p[1]) < Math.max(4, echelle() * 4))) { redessiner(); return; }
+  // Tracé allégé avant d'être gardé : un écart de moins d'un pixel d'écran ne se voit pas
+  if (f.o === 's' || f.o === 'g') f.p = elaguer(f.p, Math.max(1, echelle() * 0.75));
+  ANNOT.formes.push(f); redessiner();
+}
+toile.addEventListener('pointerup', finTrait);
+toile.addEventListener('pointercancel', finTrait);
+function annulerTrait() { if (ANNOT.occupe) return; ANNOT.formes.pop(); redessiner(); }
+document.querySelectorAll('.annot-outil[data-outil]').forEach(b => b.addEventListener('click', () => {
+  ANNOT.outil = b.dataset.outil;
+  document.querySelectorAll('.annot-outil[data-outil]').forEach(x => x.classList.toggle('active', x === b));
+}));
+document.querySelectorAll('.annot-couleur').forEach(b => b.addEventListener('click', () => {
+  ANNOT.couleur = b.dataset.couleur;
+  document.querySelectorAll('.annot-couleur').forEach(x => x.classList.toggle('active', x === b));
+  if (ANNOT.outil === 'gomme') document.querySelector('.annot-outil[data-outil="stylo"]').click();
+}));
+document.getElementById('annot-taille').addEventListener('input', ev => { ANNOT.taille = +ev.target.value; });
+function fermerAnnotation(garder) {
+  if (ANNOT.occupe) return;
+  const i = ANNOT.i, p = photos[i];
+  const fermer = () => {
+    document.getElementById('annot').hidden = true;
+    document.body.style.overflow = '';
+    if (ANNOT.adresse) URL.revokeObjectURL(ANNOT.adresse);
+    Object.assign(ANNOT, { i: null, img: null, adresse: '', formes: [], depart: '[]', courante: null, doigt: null, occupe: false });
+    toile.width = toile.height = 1;   // la grande toile rend sa mémoire tout de suite
+  };
+  finTrait();
+  // « à vérifier » : l'image finale n'a pas pu être refaite après un brouillon restauré → « Valider » la refait toujours
+  const change = JSON.stringify(ANNOT.formes) !== ANNOT.depart || !!(p && p.aVerifier);
+  if (!garder) {
+    if (change && !confirm('Abandonner les changements faits sur cette photo ?')) return;
+    fermer(); return;
+  }
+  if (!change || !p) { fermer(); return; }   // rien de neuf : l'image n'est pas refaite (aucune recompression)
+  const modifiable = !!(p.origine && p.traits);
+  if (!ANNOT.formes.length) {
+    // Tous les traits retirés : la photo redevient la photo d'origine, telle quelle
+    if (modifiable) { changerImage(p, p.origine); Object.assign(p, { origine: null, traits: null, annotee: !!p.anciens, aVerifier: false }); }
+    fermer(); afficherPhotos(); prevenir(); return;
+  }
+  ANNOT.occupe = true;
+  dessinerAnnotation();   // la photo d'origine, puis tous les traits
+  toileEnJpeg(toile).then(blob => {
+    ANNOT.occupe = false;
+    // Échec : rien n'est changé (la photo, son origine et ses traits d'avant restent), l'annotation reste ouverte
+    if (!blob) { LOUE.message('Annotation impossible (mémoire du téléphone ?). Réessayez, ou touchez « Annuler » : la photo d’avant est gardée.', 8000); return; }
+    const traits = ANNOT.formes, leger = JSON.stringify(traits).length <= TRAITS_MAX_CAR;
+    const origine = modifiable ? p.origine : p.blob;
+    changerImage(p, blob);
+    // « anciens » : la photo portait déjà des traits fondus dans l'image (annotée avant le lot 8) : ceux-là ne s'effacent pas
+    Object.assign(p, { aVerifier: false, anciens: !!p.anciens || (!modifiable && !!p.annotee), annotee: true, origine: leger ? origine : null, traits: leger ? traits : null });
+    if (!leger) LOUE.message('Annotation enregistrée. Il y a trop de traits sur cette photo pour les garder un par un : ils ne pourront plus être modifiés.', 9000);
+    fermer();
+    afficherPhotos(); prevenir();
+  });
+}
+// Image finale refaite depuis l'origine et les traits, hors de l'écran (brouillon dont l'image finale n'est plus la bonne)
+function refaireImage(origine, traits) {
+  return lireImage(origine).then(r => {
+    const c = document.createElement('canvas');
+    c.width = r.img.naturalWidth; c.height = r.img.naturalHeight;
+    const ctx = c.getContext('2d');
+    ctx.drawImage(r.img, 0, 0);
+    traits.forEach(f => tracer(ctx, f, r.img));
+    return toileEnJpeg(c).then(blob => { URL.revokeObjectURL(r.adresse); c.width = c.height = 1; return blob; });
+  });
+}
+
+// ── Brouillon automatique : champs + destinataires + photos (annotées ou non), leurs légendes et leurs traits ──
+// Reprend l'ancien brouillon de la page (« brouillon_note » : texte seul).
+// Le format contient celui d'avant le lot 8 : une photo sans trait est gardée exactement comme avant ; une photo annotée
+// garde EN PLUS son origine et ses traits. Un brouillon d'avant le lot 8 se restaure donc tel quel, et une page d'avant
+// le lot 8 relit un brouillon d'aujourd'hui (l'image finale est à sa place habituelle).
+LOUE.preRemplirChantier('meta-chantier');   // lot 2 : chantier choisi à l'accueil (avant la photo de la page vierge)
+let refections = Promise.resolve();   // images finales en cours de réfection après un brouillon restauré (une à la fois)
+function photoDuBrouillon(x) {
+  const p = { id: x.id || LOUE.nouvelId('photo'), blob: x.blob, url: URL.createObjectURL(x.blob), label: x.label || '', annotee: !!x.annotee, anciens: !!x.anciens, origine: null, traits: null };
+  if (!traitsValables(x.traits)) return p;   // photo sans trait, ou annotée avant le lot 8 (traits fondus dans l'image)
+  const origine = x.origine && x.origine.blob instanceof Blob ? x.origine.blob : null;
+  let aRefaire = false;
+  if (origine) { p.origine = origine; p.traits = x.traits; aRefaire = !!x.poids && x.blob.size !== x.poids; }
+  // Copie de secours du brouillon (sans les photos) plus récente que la copie complète : l'image retrouvée est encore
+  // la photo d'origine, les traits sont à redessiner dessus
+  else if (x.poidsOrigine && x.blob.size === x.poidsOrigine && x.poids !== x.poidsOrigine) { p.origine = x.blob; p.traits = x.traits; aRefaire = true; }
+  if (aRefaire) {
+    p.aVerifier = true;   // tant que l'image finale n'est pas refaite, la photo affichée n'a pas (tous) ses traits
+    refections = refections.then(() => refaireImage(p.origine, p.traits)).catch(() => null).then(blob => {
+      if (photos.indexOf(p) < 0) return;
+      if (blob) { changerImage(p, blob); p.annotee = true; p.aVerifier = false; }
+      else LOUE.message('⚠ Une photo annotée n’a pas pu être refaite avec ses traits (mémoire du téléphone ?). Touchez cette photo puis « Valider » avant d’envoyer.', 0);
+      afficherPhotos(); prevenir();
+    });
+  }
+  return p;
+}
+// PAGE DE REPLI : cette page ne connaît pas les points. Ceux d'un brouillon écrit par la page 10.2 (nouveaux points, textes
+// complétés) sont versés en tête de « Notes et commentaires » : rien n'est perdu. Leurs photos sont déjà dans la liste des photos.
+function verserPoints(pts) {
+  if (!pts || typeof pts !== 'object') return;
+  const lignes = [];
+  const texteDe = v => String((v && v.t) || '').trim();
+  (Array.isArray(pts.nouveaux) ? pts.nouveaux : []).forEach(n => { if (texteDe(n)) lignes.push('- ' + texteDe(n) + (n.regle ? ' (réglé pendant la réunion)' : '')); });
+  const g = pts.gestes && typeof pts.gestes === 'object' ? pts.gestes : {};
+  Object.keys(g).forEach(id => { if (texteDe(g[id])) lignes.push('- ' + texteDe(g[id]) + (g[id].g === 'clos' ? ' (point clos)' : '')); });
+  const sansTexte = Object.keys(g).filter(id => !texteDe(g[id])).length;
+  if (sansTexte) lignes.push('(' + sansTexte + ' point(s) repris étaient clos ou rouverts dans ce brouillon : à refaire dans une prochaine note)');
+  if (!lignes.length) return;
+  const champ = document.getElementById('meta-commentaires'), bloc = 'POINTS DU BROUILLON\n' + lignes.join('\n');
+  if (champ.value.indexOf(bloc) < 0) champ.value = bloc + (champ.value.trim() ? '\n\n' + champ.value : '');
+  champ.dispatchEvent(new Event('input', { bubbles: true }));
+  LOUE.message('Les points de ce brouillon sont recopiés dans « Notes et commentaires ».', 8000);
+}
+const BROUILLON = LOUE.brouillon({
+  champChantier: 'meta-chantier',
+  cle: 'note',
+  anciennesCles: ['brouillon_note'],
+  capturer: () => ({
+    destinataires: DEST.liste(),
+    photos: photos.map(p => {
+      const o = { id: p.id, blob: p.blob, label: p.label, annotee: !!p.annotee };
+      // « origine » a son propre identifiant : la brique du brouillon sait ainsi la retrouver dans sa copie complète
+      // « à vérifier » : poids noté à −1, pour que l'image soit refaite à la prochaine restauration
+      if (p.origine && p.traits) Object.assign(o, { origine: { id: p.id + '-o', blob: p.origine }, traits: p.traits, poids: p.aVerifier ? -1 : p.blob.size, poidsOrigine: p.origine.size });
+      if (p.anciens) o.anciens = true;
+      return o;
+    }),
+  }),
+  restaurer: x => {
+    DEST.remettre(x.destinataires);
+    photos.forEach(p => URL.revokeObjectURL(p.url));
+    photos = (x.photos || []).filter(p => p && p.blob instanceof Blob).map(photoDuBrouillon);
+    afficherPhotos(); majCompteur();
+    verserPoints(x.points);
+  },
+});
+
+// ── Données de la fiche (mêmes noms de champs qu'avant la refonte) ──
+function donneesFiche(pourApercu) {
+  const v = id => document.getElementById(id).value.trim();
+  return {
+    chantier: v('meta-chantier'), auteur: v('meta-auteur'), date: v('meta-date'), objet: v('meta-objet'),
+    commentaires: document.getElementById('meta-commentaires').value,
+    destinataires: DEST.liste(),   // le serveur ajoute lui-même le conducteur du chantier (ou Franck)
+    // Aperçu : photos lues sur place ; envoi : références aux photos envoyées une par une
+    photosBase64: photos.map(p => pourApercu ? { data: p.dataB64 || '', mimeType: 'image/jpeg', label: p.label } : { photoRef: p.id, label: p.label }),
+  };
+}
+
+// ── Aperçu, impression, enregistrement en PDF (le même modèle que le PDF du mail) ──
+async function ouvrirApercu() {
+  for (const p of photos) if (!p.dataB64) p.dataB64 = (await LOUE.blobEnDataUrl(p.blob)).split(',')[1];
+  document.getElementById('apercu-cadre').srcdoc = modele_note(donneesFiche(true), LOUE.esc);
+  document.getElementById('apercu').classList.add('open');
+}
+function fermerApercu() { document.getElementById('apercu').classList.remove('open'); }
+function imprimer(enPdf) {
+  const cadre = document.getElementById('apercu-cadre');
+  if (enPdf) LOUE.message('Choisissez l’imprimante « Enregistrer au format PDF »', 6000);
+  cadre.contentWindow.focus();
+  cadre.contentWindow.print();
+}
+
+// Après l'envoi : on garde le rédacteur et le chantier ; on vide les destinataires, l'objet, les notes et les photos
+function viderFiche() {
+  ['meta-objet', 'meta-commentaires'].forEach(id => { document.getElementById(id).value = ''; });
+  DEST.vider(); majCompteur();
+  photos.forEach(p => URL.revokeObjectURL(p.url)); photos = []; afficherPhotos();
+  dateDuJour();
+  window.scrollTo(0, 0);
+}
+
+// ── Envoi : la note est rangée dans le téléphone, puis part (tout de suite ou au retour du réseau) ──
+let envoiEnCours = false;
+const TEXTE_BOUTON = 'Envoyer la note';
+async function envoyer() {
+  if (envoiEnCours) return;
+  if (!DEST.verifierAvantEnvoi()) return;   // adresse tapée mais pas encore validée
+  const erreurs = [];
+  const champ = id => document.getElementById(id);
+  ['meta-chantier', 'meta-auteur'].forEach(id => champ(id).classList.remove('error'));
+  const nomChantier = champ('meta-chantier').value.trim();
+  const listeChantiers = (LISTES.chantiers || []).map(c => String(c.nom).toLowerCase());
+  if (!nomChantier) { champ('meta-chantier').classList.add('error'); erreurs.push('chantier manquant'); }
+  // Liste chargée : le chantier doit en faire partie (une faute de frappe créerait un nouveau dossier dans Drive)
+  else if (listeChantiers.length && listeChantiers.indexOf(nomChantier.toLowerCase()) < 0) {
+    // Liste ancienne gardée dans le téléphone : un chantier récent peut manquer → on demande confirmation
+    if (!(listesDuTelephone && confirm(LOUE.questionHorsListe(nomChantier)))) {
+      champ('meta-chantier').classList.add('error'); erreurs.push('choisissez le chantier dans la liste');
+    }
+  }
+  if (!champ('meta-auteur').value.trim()) { champ('meta-auteur').classList.add('error'); erreurs.push('« Rédigé par » manquant'); }
+  await refections;   // brouillon restauré : les images annotées finissent d’être refaites avant de partir
+  photos.forEach((p, i) => { if (p.aVerifier) erreurs.push('photo ' + (i + 1) + ' : ses traits ne sont pas dans l’image (touchez la photo puis « Valider », ou retirez-la)'); });
+  const bandeau = document.getElementById('valBanner');
+  if (erreurs.length) {
+    bandeau.textContent = 'À compléter : ' + erreurs.join(', ') + '.';
+    bandeau.classList.add('show'); bandeau.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    return;
+  }
+  bandeau.classList.remove('show');
+  envoiEnCours = true;
+  const bouton = document.getElementById('btn-envoyer');
+  bouton.disabled = true; bouton.textContent = 'Rangement dans le téléphone…';
+  let enFile = false, lesPhotos = [];
+  try {
+    lesPhotos = photos.map(p => ({ id: p.id, blob: p.blob }));
+    await LOUE.mettreEnFile('note', donneesFiche(false), lesPhotos, 'Note de réunion');
+    enFile = true;
+    await BROUILLON.effacer();   // la note est à l'abri dans la file d'envoi
+    LOUE.message(navigator.onLine === false
+      ? 'Pas de réseau : la note est gardée dans le téléphone. Elle partira toute seule au retour du réseau.'
+      : 'Note rangée dans le téléphone. Envoi en cours…', 9000);
+    viderFiche();
+    LOUE.viderFile();   // on reste sur la page : quitter maintenant couperait l'envoi en cours (il reprendrait plus tard)
+    BROUILLON.reprendre();
+  } catch (err) {
+    if (!enFile) {
+      // Plan de secours : le téléphone refuse de garder la note (navigation privée, mémoire pleine) → envoi direct
+      bouton.textContent = 'Envoi direct… ne quittez pas la page';
+      try {
+        const laDate = donneesFiche(false).date;
+        const rep = await LOUE.envoyerDirect('note', donneesFiche(false), lesPhotos);
+        await BROUILLON.effacer();
+        LOUE.message(LOUE.messageNoteEnvoyee(rep, laDate).texte, 9000);
+        viderFiche(); BROUILLON.reprendre();
+      } catch (err2) {
+        LOUE.message(err2.stockageBloque ? '⚠ La note n’est pas partie : ' + err2.message + '.' : err2.aConfirmer ? LOUE.MSG_DIRECT_A_CONFIRMER : err2.connexion ? LOUE.MSG_DIRECT_CONNEXION : '⚠ La note n’est pas partie : ' + err2.message + '. Gardez la page ouverte et réessayez quand il y aura du réseau.', err2.stockageBloque ? 0 : 12000);
+      }
+    }
+  }
+  bouton.disabled = false; bouton.textContent = TEXTE_BOUTON;
+  envoiEnCours = false;
+}
+</script>
+</body>
+</html>

@@ -54,7 +54,8 @@ const envoyer = (g, qui, donnees, id) => poster(g, Object.assign({ action: 'fich
 const CR = g => (g.feuilles['Comptes rendus'] ? g.feuilles['Comptes rendus'].lignes.slice(1).filter(l => l[0]) : []);
 const E = g => (g.feuilles['Envois'] ? g.feuilles['Envois'].lignes.slice(1) : []);
 const C = { fiche: 0, chantier: 1, numChantier: 2, date: 3, objet: 4, auteur: 5, compte: 6, pdf: 7, recu: 8, remarque: 9 };
-const TITRES = ['Numéro de fiche', 'Chantier', 'N° du chantier', 'Date de la réunion', 'Objet', 'Rédigé par', 'Compte qui a envoyé', 'Nom du PDF', 'Reçu le', 'Remarque de l’appli'];
+const TITRES = ['Numéro de fiche', 'Chantier', 'N° du chantier', 'Date de la réunion', 'Objet', 'Rédigé par', 'Compte qui a envoyé', 'Nom du PDF', 'Reçu le', 'Remarque de l’appli',
+  'Points ouverts après cette note', 'Points clos par cette note', 'Données de l’appli (ne pas modifier)', 'Données de l’appli (suite)'];
 const dernierPdf = g => { const m = g.mails[g.mails.length - 1]; return m ? String(m.opts.attachments[0].contenu) : ''; };
 const fichiersRanges = g => Object.values(g.elements).filter(e => e.type === 'fichier' && /^COMPTE RENDU /.test(e.nom) && !e.corbeille).map(e => e.nom).sort();
 const numeroChantier = (g, nom, n) => { const l = g.feuilles['Chantiers'].lignes.find(x => x[0] === nom); l[4] = n; };
@@ -353,9 +354,9 @@ test('installation : un onglet du même nom avec d’autres titres et des donné
   assert.ok(/❌/.test(t) && /existe déjà avec d’autres titres/.test(t), t);
   assert.deepStrictEqual(g.feuilles['Comptes rendus'].lignes, [['Ancien', 'Titres'], ['donnée', 'gardée']]);
 });
-test('livraison : le serveur à coller contient le lot 8, en version v11.0, sans numéro de compte rendu ni présents, sans les outils d’essai', () => {
+test('livraison : le serveur à coller contient le lot 8, en version v11.1, sans numéro de compte rendu ni présents, sans les outils d’essai', () => {
   const code = fs.readFileSync(path.join(__dirname, '..', 'A-COLLER-DANS-APPS-SCRIPT', 'Code.gs'), 'utf8');
-  ["const VERSION_API = 'v11.0'", 'function crEnregistrer_(', 'SpreadsheetApp.flush();', 'function installerLot8Test(', 'function installerLot8Production(', 'ComptesRendus.gs'].forEach(t => assert.ok(code.indexOf(t) > -1, t));
+  ["const VERSION_API = 'v11.1'", 'function crEnregistrer_(', 'SpreadsheetApp.flush();', 'function installerLot8Test(', 'function installerLot8Production(', 'ComptesRendus.gs'].forEach(t => assert.ok(code.indexOf(t) > -1, t));
   ['numeroCR', 'crReserver_', 'crPresents_', 'Compte rendu n°', 'CR n°'].forEach(t => assert.ok(code.indexOf(t) < 0, 'reste : ' + t));
   assert.ok(code.indexOf('function outilTest_(') < 0);
   assert.ok(code.indexOf(String.fromCharCode(0x2028)) < 0 && code.indexOf(String.fromCharCode(0x2029)) < 0, 'aucun séparateur de ligne brut dans le fichier à coller');

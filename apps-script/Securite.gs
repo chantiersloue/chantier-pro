@@ -321,6 +321,7 @@ function alerte_(texte, sorte) {
       erreur : "[Loué App] Fiche non traitée — voir l'onglet Envois",
       notes  : '[Loué App] Listes « Notes » bloquées — titres d’un onglet changés',
       comptesrendus: '[Loué App] Notes de réunion non notées — titres de l’onglet « Comptes rendus » changés',
+      pointscr: '[Loué App] Comptes rendus — points d’un chantier à regarder',
       photos : "[Loué App] Trop de photos aujourd'hui",
       dossiers : '[Loué App] dossiers.json illisible',
       rangement: '[Loué App] Document non rangé dans Drive',

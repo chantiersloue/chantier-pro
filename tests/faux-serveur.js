@@ -40,7 +40,7 @@ google.creerElement('dossier', 'Loué Menuiserie - Chantiers', null, { id: 'RACI
 google.creerElement('dossier', 'Planning', null, { id: 'PLANNING' });
 // Un planning d'essai (lu par l'accueil) ; /etat dit quels fichiers du faux Drive sont partagés par lien
 google.creerElement('fichier', 'Planning S46.pdf', google.elements.PLANNING);
-// Lot 8 : LOUE_CODE_GS=<fichier> charge un AUTRE serveur à la place d'apps-script/ (le Code.gs d'avant le lot 8b, pour
+// Lot 8 : LOUE_CODE_GS=<fichier> charge un AUTRE serveur à la place d'apps-script/ (le Code.gs d'avant le lot 8, pour
 // vérifier que la nouvelle page marche avec l'ancien serveur)
 const ctx = chargerScript(google, process.env.LOUE_CODE_GS || undefined);
 let mode = 'normal';

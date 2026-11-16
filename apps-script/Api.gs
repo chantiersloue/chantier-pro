@@ -178,7 +178,8 @@ function repondre_(objet) {
 function traiterFiche_(brut, contexte) {
   const nom = brut && Object.prototype.hasOwnProperty.call(TRAITEMENTS, brut.type) ? TRAITEMENTS[brut.type] : '';
   if (!nom) throw new Error('Type de fiche inconnu');
-  globalThis[nom](preparerDonnees_(brut), brut, contexte);
+  // Lot 8c : ce que rend le traitement (pour une note de réunion : la liste des points du chantier) repart dans la réponse
+  return globalThis[nom](preparerDonnees_(brut), brut, contexte);
 }
 
 // Lot 2 : chaque action (sauf ping, connexion, motDePasse) passe par identifier_ : jeton valable, ou transition ouverte
@@ -199,7 +200,7 @@ function routerV5_(corps) {
     if (corps.action === 'connexion')  return connexion_(corps);
     if (corps.action === 'motDePasse') return motDePasse_(corps);
     if (['photo', 'fiche', 'moi', 'listes', 'dossiers', 'signalements', 'signalementStatut',
-      'notes', 'notesNouvelles', 'notesVues', 'carnet', 'carnetTuiles'].indexOf(corps.action) < 0) return { ok: false, code: 'ACTION_INCONNUE', message: 'Action inconnue' };
+      'notes', 'notesNouvelles', 'notesVues', 'carnet', 'carnetTuiles', 'compteRendu'].indexOf(corps.action) < 0) return { ok: false, code: 'ACTION_INCONNUE', message: 'Action inconnue' };
     let qui = identifier_(corps);
     const envoi = corps.action === 'photo' || corps.action === 'fiche';
     // Lot 3 : une note de chantier (ou un geste sur une note) demande TOUJOURS un compte en règle : ni « compte désactivé »,
@@ -236,6 +237,8 @@ function routerV5_(corps) {
     // Lot 4 : carnet de chantier (droits vérifiés dans Carnet.gs)
     if (corps.action === 'carnet')       return carnetLister_(qui.compte, corps);
     if (corps.action === 'carnetTuiles') return carnetTuiles_(qui.compte, corps);
+    // Lot 8c : points ouverts du chantier affiché dans la note de réunion (droits vérifiés dans ComptesRendus.gs)
+    if (corps.action === 'compteRendu')  return crLire_(qui.compte, corps);
   } catch (err) {
     console.error('routerV5_:', err.message);
     return { ok: false, code: 'ERREUR', message: 'Erreur du serveur : ' + err.message };
@@ -404,9 +407,10 @@ function recevoirFiche_(corps, compte) {
 
   // 3. PDF, classement, mails
   RAPPORT_ = {};
+  let resultat = null;
   try {
     // Ce que le serveur sait de la fiche : son numéro, et le compte vérifié par le jeton (vide si sans compte)
-    traiterFiche_(brut, { id: corps.id, auteurId: compte && compte.id ? compte.id : '',
+    resultat = traiterFiche_(brut, { id: corps.id, auteurId: compte && compte.id ? compte.id : '',
       auteurNom: compte ? (compte.nom || compte.etiquette || compte.id) : 'sans compte', compte: compte || null });
   } catch (err) {
     // Lot 3 (notes) : « occupé » → le téléphone réessaie ; « refus » → définitif. Ni l'un ni l'autre ne prévient Franck
@@ -442,11 +446,16 @@ function recevoirFiche_(corps, compte) {
   if (estNote) return { ok: true, code: 'ENREGISTRE', message: 'Enregistré', data: { id: corps.id } };
   if (dossierPhotos) { try { dossierPhotos.setTrashed(true); } catch (e) {} }   // les photos sont dans le PDF
 
-  return {
+  const reponse = {
     ok: true, code: 'ENREGISTRE',
     message: 'Fiche enregistrée. ' + detail.charAt(0).toUpperCase() + detail.slice(1) + '.',
     data: { id: corps.id, envoyes: n('envoyé'), reportes: n('reporté'), refuses: rapport['refusé'] || [] },
   };
+  // Lot 8c — note de réunion : la nouvelle liste des points du chantier, pour que le téléphone la garde (hors réseau)
+  if (resultat && resultat.points) reponse.data.points = resultat.points;
+  if (resultat && resultat.remarqueCR) reponse.data.remarqueCR = resultat.remarqueCR;
+  if (resultat && resultat.pointsNonSuivis) reponse.data.pointsNonSuivis = resultat.pointsNonSuivis;   // « onglet » ou « chantier »
+  return reponse;
 }
 
 // Ligne d'un numéro dans l'onglet Envois (recherche rapide), ou 0
