@@ -314,12 +314,18 @@ def deposer(racine, dossier, chantier, pdf, code, indice, intitule, limite=LIMIT
     debut = horloge()
     code, indice, intitule, dpi = controler_document(code, indice, intitule)
     carnet = dossier_carnet(racine, dossier)
-    chantier = str(chantier or dossier).strip()
+    # Le nom du chantier DANS L'APPLI n'est écrit dans le carnet que s'il est donné et sûr. Le nom du dossier vu par
+    # Windows n'en est pas un : Drive pour ordinateur y remplace des caractères (« / » par exemple), et le serveur
+    # refuserait alors tout le carnet (« appartient à un autre chantier », constaté le 16/11/2026). Sans nom, le serveur
+    # se fie à l'emplacement : le carnet est dans le dossier que l'appli elle-même a rattaché au chantier.
+    chantier = str(chantier or "").strip()
+    if chantier == str(dossier).strip():
+        chantier = ""
     ident = "%s-%s" % (code, indice)
     nom_dossier = "%s %s %s" % (code, indice, intitule)
 
     def controler_liste():
-        liste = lire_carnet(carnet, chantier)
+        liste = lire_carnet(carnet, chantier or None)
         for d in (liste or {}).get("documents", []):
             if isinstance(d, dict) and d.get("id") == ident and d.get("retire") is not True:
                 raise Refus("Le document %s est déjà au carnet de ce chantier. Rien n'est écrasé : prends l'indice suivant "
@@ -376,9 +382,9 @@ def deposer(racine, dossier, chantier, pdf, code, indice, intitule, limite=LIMIT
     # Toutes les pages sont faites : la liste est écrite en dernier (relue juste avant, au cas où elle aurait changé).
     pages = [etat["pages"][str(n)] for n in range(1, nombre + 1)]
     poids = sum(poids_page(p) for p in pages)
-    liste = controler_liste() or {"version": 1, "chantier": chantier, "documents": []}
+    liste = controler_liste() or {"version": 1, "documents": []}
     liste.setdefault("version", 1)
-    if not liste.get("chantier"):
+    if chantier and not liste.get("chantier"):
         liste["chantier"] = chantier
     liste["documents"].append({"id": ident, "code": code, "indice": indice, "intitule": intitule, "dossier": nom_dossier,
                                "date": datetime.date.today().isoformat(),
@@ -521,7 +527,7 @@ def lire_arguments(argv=None):
     a.add_argument("-h", "--help", action="help", help="affiche cette aide")
     a.add_argument("--racine", help="dossier racine du Drive de l'appli sur ce PC (à défaut : clé « racine » de _prive/depot.json)")
     a.add_argument("--dossier", required=True, help="nom du dossier du chantier, sous la racine")
-    a.add_argument("--chantier", help="nom du chantier dans l'appli (par défaut : le nom du dossier)")
+    a.add_argument("--chantier", help="nom exact du chantier dans l'appli (facultatif : sans lui, le carnet ne porte pas de nom et le serveur se fie au dossier)")
     a.add_argument("--pdf", help="chemin du PDF à déposer")
     a.add_argument("--code", help="code du document : %s" % ", ".join(sorted(DPI_PAR_CODE)))
     a.add_argument("--indice", help="indice du document : 1 à 3 lettres ou chiffres (A, B…)")

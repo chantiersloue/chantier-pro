@@ -131,7 +131,8 @@ class DepotComplet(Base):
     def test_forme_de_carnet_json(self):
         liste = lire(os.path.join(self.carnet(self.reference), "carnet.json"))
         self.assertEqual(liste["version"], 1)
-        self.assertEqual(liste["chantier"], CHANTIER)
+        # sans nom de chantier donné, le carnet n'en porte pas : le nom du DOSSIER n'est jamais pris pour le nom dans l'appli
+        self.assertNotIn("chantier", liste)
         self.assertEqual(len(liste["documents"]), 1)
         d = liste["documents"][0]
         self.assertEqual((d["id"], d["code"], d["indice"], d["intitule"], d["dossier"]),
@@ -340,7 +341,12 @@ class LesRefus(Base):
 
     def test_carnet_d_un_autre_chantier(self):
         racine = self.copie()
-        self.refus(racine, "celui du chantier", lambda: self.deposer_petit(racine, chantier="AUTRE CHANTIER"))
+        # un carnet qui porte un nom (donné au premier dépôt) refuse un dépôt fait au nom d'un autre chantier
+        self.deposer_petit(racine, chantier="Chantier Essai Un", code="002")
+        self.refus(racine, "celui du chantier", lambda: self.deposer_petit(racine, chantier="AUTRE CHANTIER", code="103"))
+        # … et accepte un dépôt sans nom (le nom du dossier vu par Windows n'est pas un nom de chantier)
+        self.deposer_petit(racine, code="103")
+        self.assertEqual(lire(os.path.join(self.carnet(racine), "carnet.json"))["chantier"], "Chantier Essai Un")
 
     def test_doublon_de_liste(self):
         racine = self.copie()
