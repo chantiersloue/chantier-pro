@@ -9,7 +9,8 @@
 //   - rattachement au chantier : par son N° (onglet Chantiers, colonne E) quand il est rempli, sinon par son nom
 //     (minuscules, espaces retirés). Un chantier renommé garde donc sa série s'il a un N° ;
 //   - chantier absent de l'onglet Chantiers : la note est envoyée et notée, SANS numéro ;
-//   - onglet aux titres changés : rien n'est lu ni écrit, la note attend dans le téléphone, Franck est prévenu.
+//   - onglet aux titres changés ou illisible : rien n'y est lu ni écrit, la note part SANS numéro (PDF et mails normaux),
+//     Franck est prévenu une fois par jour. Un onglet de suivi ne bloque jamais l'envoi d'une note.
 // Les points et leur reprise (colonnes M à O) arrivent avec le lot 8c.
 // Plan : docs/lot8-plan.md. Décisions : D8-… (DECISIONS.md).
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
@@ -56,17 +57,19 @@ function crFormats_(sh) {
   const lignes = Math.max(1, sh.getMaxRows() - 1);
   CR_COLONNES_TEXTE.forEach(c => sh.getRange(2, c, lignes, 1).setNumberFormat('@'));
 }
-// Titres changés à la main : rien n'est lu ni écrit ; la note attend dans le téléphone (« serveur occupé » : il réessaie)
-// et Franck reçoit un mail, une fois par jour
+// Titres changés à la main : rien n'est lu ni écrit, et la fonction rend null (la note partira sans numéro).
+// Franck reçoit un mail, une fois par jour, qui nomme la fonction d'installation de CET environnement.
 function crFeuille_() {
   const existait = !!SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_CR);
   const sh = feuille_(SHEET_CR, CR_ENTETES);
   if (!existait) crFormats_(sh);
   if (crTitresBons_(sh)) return sh;
-  alerte_('Les notes de réunion sont bloquées : la ligne de titres de l’onglet « ' + SHEET_CR + ' » n’est plus celle attendue ('
-    + CR_ENTETES.join(' | ') + '). Remettez ces titres, ou renommez l’onglet puis lancez installerLot8Production. '
-    + 'Rien n’est perdu : les téléphones gardent les notes et réessaient.', 'comptesrendus');
-  throw crOccupe_('L’onglet des comptes rendus n’est pas à jour sur le serveur (titres changés, ou installation du lot 8 à faire).');
+  let fonction = 'installerLot8Production';
+  try { if (environnementReel_().env === 'TEST') fonction = 'installerLot8Test'; } catch (e) {}
+  alerte_('Les notes de réunion partent SANS numéro de compte rendu : la ligne de titres de l’onglet « ' + SHEET_CR + ' » n’est plus celle attendue ('
+    + CR_ENTETES.join(' | ') + '). Remettez ces titres, ou renommez l’onglet puis lancez ' + fonction + '. '
+    + 'Les notes sont envoyées normalement (PDF et mails) ; seuls le numéro et la ligne de l’onglet manquent.', 'comptesrendus');
+  return null;
 }
 // Ligne d'une note d'après son numéro de fiche (colonne A), ou 0. Jamais par position : Franck peut trier l'onglet.
 function crChercher_(sh, idFiche) {
@@ -90,12 +93,15 @@ function crNumeroDeLaFiche_(idFiche) {
 
 // ── Réserver le numéro (à appeler AVANT de fabriquer le PDF) ──
 // idFiche : numéro de fiche créé par le téléphone ; brut : données de la note ; qui : texte « compte qui a envoyé ».
-// Rend { numero (0 : pas de numéro), horsListe, dejaLa }. Lève « occupé » si le verrou ou l'onglet ne sont pas disponibles.
+// Rend { numero (0 : pas de numéro), horsListe, sansOnglet, dejaLa }. Lève « occupé » si le verrou n'est pas disponible
+// (passager : le téléphone réessaie). Onglet illisible : pas d'erreur, la note part sans numéro.
 function crReserver_(idFiche, brut, qui) {
   const verrou = LockService.getScriptLock();
   if (!verrou.tryLock(15000)) throw crOccupe_();
   try {
-    const sh = crFeuille_();
+    let sh = null;
+    try { sh = crFeuille_(); } catch (e) { console.error('crReserver_ :', e.message); }
+    if (!sh) return { numero: 0, horsListe: false, sansOnglet: true, dejaLa: false };
     // Note renvoyée par le téléphone : elle retrouve son numéro, aucune ligne n'est ajoutée
     const deja = crChercher_(sh, idFiche);
     if (deja) {
@@ -142,6 +148,9 @@ function crReserver_(idFiche, brut, qui) {
     ligne[COL_CR.remarque - 1] = remarque;
     // La ligne entière en une écriture (colonnes de texte en « texte brut » avant d'écrire)
     noteAjouterLigne_(sh, ligne, CR_COLONNES_TEXTE);
+    // Écriture poussée dans le Sheet AVANT de rendre le verrou : la note suivante du même chantier doit lire cette ligne
+    // (sans cela, Google peut la garder en attente jusqu'à la fin de la fabrication du PDF)
+    SpreadsheetApp.flush();
     return { numero: numero, horsListe: !nomConnu, dejaLa: false };
   } finally { verrou.releaseLock(); }
 }

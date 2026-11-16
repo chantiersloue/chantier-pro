@@ -461,7 +461,7 @@ function recevoirFiche_(corps, compte) {
   if (resultat && resultat.numeroCR) {
     reponse.data.numeroCR = resultat.numeroCR;
     reponse.message = 'Compte rendu n° ' + resultat.numeroCR + ' enregistré. ' + detail.charAt(0).toUpperCase() + detail.slice(1) + '.';
-  } else if (resultat && resultat.sansNumeroCR) reponse.data.sansNumeroCR = true;
+  } else if (resultat && resultat.sansNumeroCR) reponse.data.sansNumeroCR = resultat.sansNumeroCR;   // « chantier » ou « onglet »
   return reponse;
 }
 

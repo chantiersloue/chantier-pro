@@ -10,8 +10,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Note Réunion">
 <meta name="theme-color" content="#1A2B4A">
-<link rel="stylesheet" href="commun/style.css?v=1c5b0e93a5">
-<link rel="stylesheet" href="commun/fiche.css?v=1c5b0e93a5">
+<link rel="stylesheet" href="commun/style.css?v=af3425c5b0">
+<link rel="stylesheet" href="commun/fiche.css?v=af3425c5b0">
 <style>
 .photo-item-head .photo-item-num{flex:1;}
 .photo-legende{display:block;width:100%;min-height:48px;padding:0 12px;border:none;border-bottom:1px solid var(--border);background:#fff;font-size:16px;font-family:inherit;color:var(--text);outline:none;}
@@ -85,6 +85,7 @@ body.loue-test .annot{top:40px;}
           <datalist id="liste-chantiers"></datalist>
           <div class="listes-info" id="listes-info"></div>
           <div class="listes-info" id="cr-info" role="status">Le numéro du compte rendu est donné à l’envoi.</div>
+          <div class="listes-info" id="cr-dernier" role="status"></div>
         </div>
         <div class="meta-field meta-full">
           <label class="meta-label" for="meta-objet">Objet / titre de la réunion</label>
@@ -173,16 +174,16 @@ body.loue-test .annot{top:40px;}
   </div>
 </div>
 
-<script src="commun/config.js?v=1c5b0e93a5"></script>
-<script src="commun/api.js?v=1c5b0e93a5"></script>
-<script src="commun/ui.js?v=1c5b0e93a5"></script>
-<script src="commun/photos.js?v=1c5b0e93a5"></script>
-<script src="commun/brouillon.js?v=1c5b0e93a5"></script>
-<script src="commun/hors-ligne.js?v=1c5b0e93a5"></script>
-<script src="commun/adresses.js?v=1c5b0e93a5"></script>
-<script src="commun/destinataires.js?v=1c5b0e93a5"></script>
-<script src="modeles/mise-en-page.js?v=1c5b0e93a5"></script>
-<script src="modeles/note.js?v=1c5b0e93a5"></script>
+<script src="commun/config.js?v=af3425c5b0"></script>
+<script src="commun/api.js?v=af3425c5b0"></script>
+<script src="commun/ui.js?v=af3425c5b0"></script>
+<script src="commun/photos.js?v=af3425c5b0"></script>
+<script src="commun/brouillon.js?v=af3425c5b0"></script>
+<script src="commun/hors-ligne.js?v=af3425c5b0"></script>
+<script src="commun/adresses.js?v=af3425c5b0"></script>
+<script src="commun/destinataires.js?v=af3425c5b0"></script>
+<script src="modeles/mise-en-page.js?v=af3425c5b0"></script>
+<script src="modeles/note.js?v=af3425c5b0"></script>
 <script>
 'use strict';
 // ── État de la fiche ──
@@ -234,13 +235,23 @@ window.LOUE_refuserAdresseLibre = function (val, deja, contacts) {
   }
   return refusAdresseLibre ? refusAdresseLibre(val, deja, contacts) : false;
 };
+// Le conducteur du chantier est-il déjà dans les destinataires ? (le serveur n'envoie qu'un mail par adresse)
+function conducteurDejaDestinataire() {
+  const nom = document.getElementById('meta-chantier').value.trim().toLowerCase();
+  const c = (LISTES.chantiers || []).find(x => String(x.nom).trim().toLowerCase() === nom);
+  const conducteur = c ? String(c.conducteur || '').trim().toLowerCase() : '';
+  const contact = conducteur ? (LISTES.contacts || []).find(u => String(u.nom).trim().toLowerCase() === conducteur) : null;
+  const mails = contact ? String(contact.email || '').split(/[,;\s]+/).filter(Boolean).map(e => e.toLowerCase()) : [];
+  return mails.length > 0 && DEST.liste().some(d => mails.indexOf(d.toLowerCase()) > -1);
+}
 function majCompteur() {
   const n = DEST.liste().length;
-  document.getElementById('dest-compteur').textContent = n
-    ? (n + 1) + ' mails partiront (' + n + ' destinataire' + (n > 1 ? 's' : '') + ' + le conducteur du chantier).'
-    : '1 mail partira : la copie au conducteur du chantier.';
+  document.getElementById('dest-compteur').textContent = !n ? '1 mail partira : la copie au conducteur du chantier.'
+    : conducteurDejaDestinataire() ? (n > 1 ? n + ' mails partiront' : '1 mail partira') + ' (le conducteur du chantier est déjà dans la liste).'
+    : (n + 1) + ' mails partiront (' + n + ' destinataire' + (n > 1 ? 's' : '') + ' + le conducteur du chantier).';
 }
 document.addEventListener('change', majCompteur);
+['input', 'change'].forEach(e => document.getElementById('meta-chantier').addEventListener(e, majCompteur));
 majCompteur();
 
 // ── Numéro du compte rendu (lot 8b) : donné par le serveur à la réception ; la page ne lit rien, elle n'annonce donc aucun numéro ──
@@ -249,11 +260,17 @@ function chantierHorsListe() {
   const noms = (LISTES.chantiers || []).map(c => String(c.nom).trim().toLowerCase());
   return !!nom && noms.length > 0 && noms.indexOf(nom) < 0;
 }
+// Liste ancienne (gardée dans le téléphone) ou limitée à « mes chantiers » : la page ne peut pas savoir si le bureau connaît le chantier
+function numeroIncertain() { return chantierHorsListe() && listesDuTelephone; }
 function majInfoNumero() {
-  document.getElementById('cr-info').textContent = chantierHorsListe()
-    ? 'Chantier hors liste : cette note n’aura pas de numéro.' : 'Le numéro du compte rendu est donné à l’envoi.';
+  document.getElementById('cr-info').textContent = numeroIncertain() ? 'Le numéro du compte rendu est donné à l’envoi, si le bureau connaît ce chantier.'
+    : chantierHorsListe() ? 'Chantier hors liste : cette note n’aura pas de numéro.' : 'Le numéro du compte rendu est donné à l’envoi.';
 }
 ['input', 'change'].forEach(e => document.getElementById('meta-chantier').addEventListener(e, majInfoNumero));
+// Le numéro de la dernière note envoyée reste affiché (le message vert, lui, disparaît au bout de quelques secondes)
+function majDernierNumero() { document.getElementById('cr-dernier').textContent = LOUE.texteDernierCompteRendu(); }
+document.addEventListener('loue-compte-rendu', majDernierNumero);
+majDernierNumero();
 
 // ── Présents (lot 8b) : noms saisis à la main, facultatifs ──
 let presents = [];
@@ -302,7 +319,7 @@ function afficherPhotos() {
   const liste = document.getElementById('photos-list');
   // loading="lazy" : les photos hors de l'écran ne sont pas décodées (dix photos de 1 600 px ne tiennent pas toutes en mémoire)
   liste.innerHTML = photos.map((p, i) =>
-    '<div class="photo-item"><div class="photo-item-head"><span class="photo-item-num">Photo ' + (i + 1) + (p.annotee ? ' (annotée)' : '') + '</span>'
+    '<div class="photo-item"><div class="photo-item-head"><span class="photo-item-num">Photo ' + (i + 1) + (p.aVerifier ? ' ⚠ à vérifier' : p.annotee ? ' (annotée)' : '') + '</span>'
     + '<button class="btn btn-secondary btn-petit" type="button" onclick="ouvrirAnnotation(' + i + ')">✏️ Annoter</button>'
     + '<button class="btn btn-secondary btn-petit" type="button" onclick="retirerPhoto(' + i + ')">Retirer</button></div>'
     + '<input class="photo-legende" data-i="' + i + '" placeholder="Légende ou commentaire (facultatif)…" data-brouillon="non" aria-label="Légende de la photo ' + (i + 1) + '" value="' + LOUE.esc(p.label) + '">'
@@ -324,8 +341,8 @@ function changerImage(p, blob) {
 // Un trait : { o: 's' stylo | 'f' flèche | 'r' rectangle | 'g' gomme, c: couleur, e: épaisseur, t: taille de la tête
 // de flèche, p: [x0, y0, x1, y1, …] } — en pixels ENTIERS de la photo ; un tracé au stylo est élagué (points inutiles retirés).
 const OUTILS_TRAIT = { stylo: 's', fleche: 'f', rect: 'r', gomme: 'g' };
-const TRAITS_MAX_CAR = 120000;   // au-delà (des centaines de traits), l'annotation est gardée « à plat » : le brouillon reste léger
-const ANNOT = { i: null, img: null, adresse: '', formes: [], depart: '[]', courante: null, occupe: false, outil: 'stylo', couleur: '#E53E3E', taille: 3 };
+const TRAITS_MAX_CAR = 30000;    // par photo (20 traits pèsent 1 400 caractères). Au-delà, l'annotation est gardée « à plat » : le brouillon reste léger
+const ANNOT = { i: null, img: null, adresse: '', formes: [], depart: '[]', courante: null, doigt: null, occupe: false, outil: 'stylo', couleur: '#E53E3E', taille: 3 };
 const toile = document.getElementById('annot-canvas');
 
 function traitsValables(t) {
@@ -445,7 +462,9 @@ function dessinerAnnotation() {
 }
 function redessiner() { if (!dessinPrevu) { dessinPrevu = true; requestAnimationFrame(dessinerAnnotation); } }
 toile.addEventListener('pointerdown', ev => {
-  if (!ANNOT.img || ANNOT.occupe) return;
+  // Un seul trait à la fois : un second doigt (ou la paume) posé pendant un tracé est ignoré
+  if (!ANNOT.img || ANNOT.occupe || ANNOT.courante) return;
+  ANNOT.doigt = ev.pointerId;
   ev.preventDefault();
   try { toile.setPointerCapture(ev.pointerId); } catch (e) {}
   const e = echelle(), o = OUTILS_TRAIT[ANNOT.outil] || 's';
@@ -457,7 +476,7 @@ toile.addEventListener('pointerdown', ev => {
 });
 toile.addEventListener('pointermove', ev => {
   const f = ANNOT.courante;
-  if (!f) return;
+  if (!f || ev.pointerId !== ANNOT.doigt) return;
   ev.preventDefault();
   const q = position(ev);
   if (f.o === 's' || f.o === 'g') {
@@ -465,10 +484,12 @@ toile.addEventListener('pointermove', ev => {
   } else { f.p[2] = q[0]; f.p[3] = q[1]; }
   redessiner();
 });
-function finTrait() {
+function finTrait(ev) {
   const f = ANNOT.courante;
-  if (!f) return;
-  ANNOT.courante = null;
+  if (!f || (ev && ev.pointerId !== undefined && ev.pointerId !== ANNOT.doigt)) return;
+  ANNOT.courante = null; ANNOT.doigt = null;
+  // m2 — flèche ou rectangle touché sans glisser (moins de 4 points d'écran) : rien à garder, la photo ne devient pas « annotée »
+  if ((f.o === 'f' || f.o === 'r') && (f.p.length < 4 || Math.hypot(f.p[2] - f.p[0], f.p[3] - f.p[1]) < Math.max(4, echelle() * 4))) { redessiner(); return; }
   // Tracé allégé avant d'être gardé : un écart de moins d'un pixel d'écran ne se voit pas
   if (f.o === 's' || f.o === 'g') f.p = elaguer(f.p, Math.max(1, echelle() * 0.75));
   ANNOT.formes.push(f); redessiner();
@@ -493,11 +514,12 @@ function fermerAnnotation(garder) {
     document.getElementById('annot').hidden = true;
     document.body.style.overflow = '';
     if (ANNOT.adresse) URL.revokeObjectURL(ANNOT.adresse);
-    Object.assign(ANNOT, { i: null, img: null, adresse: '', formes: [], depart: '[]', courante: null, occupe: false });
+    Object.assign(ANNOT, { i: null, img: null, adresse: '', formes: [], depart: '[]', courante: null, doigt: null, occupe: false });
     toile.width = toile.height = 1;   // la grande toile rend sa mémoire tout de suite
   };
   finTrait();
-  const change = JSON.stringify(ANNOT.formes) !== ANNOT.depart;
+  // « à vérifier » : l'image finale n'a pas pu être refaite après un brouillon restauré → « Valider » la refait toujours
+  const change = JSON.stringify(ANNOT.formes) !== ANNOT.depart || !!(p && p.aVerifier);
   if (!garder) {
     if (change && !confirm('Abandonner les changements faits sur cette photo ?')) return;
     fermer(); return;
@@ -506,7 +528,7 @@ function fermerAnnotation(garder) {
   const modifiable = !!(p.origine && p.traits);
   if (!ANNOT.formes.length) {
     // Tous les traits retirés : la photo redevient la photo d'origine, telle quelle
-    if (modifiable) { changerImage(p, p.origine); Object.assign(p, { origine: null, traits: null, annotee: !!p.anciens }); }
+    if (modifiable) { changerImage(p, p.origine); Object.assign(p, { origine: null, traits: null, annotee: !!p.anciens, aVerifier: false }); }
     fermer(); afficherPhotos(); prevenir(); return;
   }
   ANNOT.occupe = true;
@@ -519,8 +541,8 @@ function fermerAnnotation(garder) {
     const origine = modifiable ? p.origine : p.blob;
     changerImage(p, blob);
     // « anciens » : la photo portait déjà des traits fondus dans l'image (annotée avant le lot 8) : ceux-là ne s'effacent pas
-    Object.assign(p, { anciens: !!p.anciens || (!modifiable && !!p.annotee), annotee: true, origine: leger ? origine : null, traits: leger ? traits : null });
-    if (!leger) LOUE.message('Annotation enregistrée. Il y a beaucoup de traits : ils ne pourront plus être modifiés.', 7000);
+    Object.assign(p, { aVerifier: false, anciens: !!p.anciens || (!modifiable && !!p.annotee), annotee: true, origine: leger ? origine : null, traits: leger ? traits : null });
+    if (!leger) LOUE.message('Annotation enregistrée. Il y a trop de traits sur cette photo pour les garder un par un : ils ne pourront plus être modifiés.', 9000);
     fermer();
     afficherPhotos(); prevenir();
   });
@@ -554,10 +576,13 @@ function photoDuBrouillon(x) {
   // la photo d'origine, les traits sont à redessiner dessus
   else if (x.poidsOrigine && x.blob.size === x.poidsOrigine && x.poids !== x.poidsOrigine) { p.origine = x.blob; p.traits = x.traits; aRefaire = true; }
   if (aRefaire) {
-    refections = refections.then(() => refaireImage(p.origine, p.traits)).then(blob => {
-      if (!blob || photos.indexOf(p) < 0) return;
-      changerImage(p, blob); p.annotee = true; afficherPhotos(); prevenir();
-    }).catch(() => {});
+    p.aVerifier = true;   // tant que l'image finale n'est pas refaite, la photo affichée n'a pas (tous) ses traits
+    refections = refections.then(() => refaireImage(p.origine, p.traits)).catch(() => null).then(blob => {
+      if (photos.indexOf(p) < 0) return;
+      if (blob) { changerImage(p, blob); p.annotee = true; p.aVerifier = false; }
+      else LOUE.message('⚠ Une photo annotée n’a pas pu être refaite avec ses traits (mémoire du téléphone ?). Touchez cette photo puis « Valider » avant d’envoyer.', 0);
+      afficherPhotos(); prevenir();
+    });
   }
   return p;
 }
@@ -570,7 +595,8 @@ const BROUILLON = LOUE.brouillon({
     photos: photos.map(p => {
       const o = { id: p.id, blob: p.blob, label: p.label, annotee: !!p.annotee };
       // « origine » a son propre identifiant : la brique du brouillon sait ainsi la retrouver dans sa copie complète
-      if (p.origine && p.traits) Object.assign(o, { origine: { id: p.id + '-o', blob: p.origine }, traits: p.traits, poids: p.blob.size, poidsOrigine: p.origine.size });
+      // « à vérifier » : poids noté à −1, pour que l'image soit refaite à la prochaine restauration
+      if (p.origine && p.traits) Object.assign(o, { origine: { id: p.id + '-o', blob: p.origine }, traits: p.traits, poids: p.aVerifier ? -1 : p.blob.size, poidsOrigine: p.origine.size });
       if (p.anciens) o.anciens = true;
       return o;
     }),
@@ -599,7 +625,7 @@ function donneesFiche(pourApercu) {
   };
   // Lot 8b — présents, et numéro (donné par le serveur : l'aperçu ne peut que l'annoncer)
   d.presents = presents.slice();
-  if (pourApercu) { d.numeroCR = chantierHorsListe() ? '' : '— donné à l’envoi'; return d; }
+  if (pourApercu) { d.numeroCR = chantierHorsListe() && !numeroIncertain() ? '' : '— donné à l’envoi'; return d; }
   // Envoi : « remarques » est le texte saisi (lu par le nouveau serveur). « commentaires » en garde une copie lisible, présents
   // en tête, pour un serveur pas encore mis à jour : rien ne manque dans son PDF, et le nouveau serveur n'imprime rien deux fois.
   d.remarques = texte;
@@ -609,6 +635,7 @@ function donneesFiche(pourApercu) {
 
 // ── Aperçu, impression, enregistrement en PDF (le même modèle que le PDF du mail) ──
 async function ouvrirApercu() {
+  ajouterPresent();   // nom tapé sans toucher « + Ajouter » : l'aperçu montre ce qui partira
   for (const p of photos) if (!p.dataB64) p.dataB64 = (await LOUE.blobEnDataUrl(p.blob)).split(',')[1];
   document.getElementById('apercu-cadre').srcdoc = modele_note(donneesFiche(true), LOUE.esc);
   document.getElementById('apercu').classList.add('open');
@@ -652,6 +679,8 @@ async function envoyer() {
     }
   }
   if (!champ('meta-auteur').value.trim()) { champ('meta-auteur').classList.add('error'); erreurs.push('« Rédigé par » manquant'); }
+  await refections;   // brouillon restauré : les images annotées finissent d’être refaites avant de partir
+  photos.forEach((p, i) => { if (p.aVerifier) erreurs.push('photo ' + (i + 1) + ' : ses traits ne sont pas dans l’image (touchez la photo puis « Valider », ou retirez-la)'); });
   const bandeau = document.getElementById('valBanner');
   if (erreurs.length) {
     bandeau.textContent = 'À compléter : ' + erreurs.join(', ') + '.';
@@ -664,7 +693,6 @@ async function envoyer() {
   bouton.disabled = true; bouton.textContent = 'Rangement dans le téléphone…';
   let enFile = false, lesPhotos = [];
   try {
-    await refections;   // brouillon restauré : les images annotées finissent d’être refaites avant de partir
     lesPhotos = photos.map(p => ({ id: p.id, blob: p.blob }));
     await LOUE.mettreEnFile('note', donneesFiche(false), lesPhotos, 'Note de réunion');
     enFile = true;
@@ -682,6 +710,7 @@ async function envoyer() {
       try {
         const rep = await LOUE.envoyerDirect('note', donneesFiche(false), lesPhotos);
         await BROUILLON.effacer();
+        LOUE.noterCompteRendu(rep, donneesFiche(false).chantier);
         LOUE.message(LOUE.messageNoteEnvoyee(rep).texte, 9000);
         viderFiche(); BROUILLON.reprendre();
       } catch (err2) {

@@ -48,7 +48,7 @@ Tuile **Note de réunion**. Tu remplis, tu touches **Envoyer la note** : le bure
 - **Présents** : tape un nom, touche **« + Ajouter »**. Recommence pour chaque personne. La croix retire un nom. Tu peux ne rien mettre.
 - **Destinataires** : le conducteur du chantier reçoit toujours une copie. Ajoute les autres si besoin. Sous la liste, l'appli te dit combien de mails vont partir. Pas plus de 10 adresses de la liste par note.
 - **Notes et commentaires** : tape ton texte, ou **dicte-le** avec le micro du clavier.
-- **Le numéro du compte rendu** (« Compte rendu n° 7 ») : c'est le bureau qui le donne, **au moment où la note arrive**. Tu le lis dans le message vert à la fin de l'envoi, et dans le PDF.
+- **Le numéro du compte rendu** (« Compte rendu n° 7 ») : c'est le bureau qui le donne, **au moment où la note arrive**. Tu le lis dans le message vert à la fin de l'envoi, puis il reste écrit sous le nom du chantier (« Dernière note envoyée : Compte rendu n° 7 »). Il est aussi dans le PDF.
   - **Sans réseau** : la note attend dans le téléphone. Son numéro est donné quand elle part. Ne refais pas la note.
   - Chantier tapé à la main, absent de la liste : la note part **sans numéro**. L'appli te prévient sous le nom du chantier.
 - **Photos** : « 📷 Prendre une photo » ou « 🖼 Galerie ». Tu peux écrire une légende sous chaque photo.
@@ -57,8 +57,10 @@ Tuile **Note de réunion**. Tu remplis, tu touches **Envoyer la note** : le bure
   - 🧽 **gomme** : elle efface tes traits, **pas la photo**.
   - ↶ : annule le dernier trait.
   - **Valider** garde le dessin. **Annuler** ne change rien.
+  - Un doigt à la fois : si la paume ou un autre doigt touche l'écran pendant un trait, l'appli n'en tient pas compte.
   - **Tu peux y revenir** : touche de nouveau la photo, tes traits sont là, tu les modifies ou tu les effaces. Jusqu'à l'envoi.
   - Photo annotée avant la mise à jour de l'appli : ses anciens traits ne s'effacent plus (l'appli te le dit). Les nouveaux, si.
+  - **« ⚠ à vérifier »** à côté d'une photo (rare, après un brouillon restauré) : touche la photo puis **Valider**. L'appli ne laisse pas partir la note avant.
 - **Aperçu** (en haut) : le PDF tel qu'il partira. Le numéro n'y est pas encore : « donné à l'envoi ».
 
 ## Signaler une casse, un manquant, une chose à recommander

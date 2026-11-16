@@ -131,7 +131,7 @@ test('deux notes en même temps (la seconde arrive pendant l’envoi des mails d
   assert.deepStrictEqual([premiere.data.numeroCR, seconde.data.numeroCR], [1, 2]);
   assert.deepStrictEqual(CR(g).map(l => [l[C.numero], l[C.objet]]), [[1, 'Première'], [2, 'Arrivée pendant la première']]);
 });
-test('serveur occupé (verrou pris par un autre envoi) : la note est refusée « occupé », rien n’est écrit, le téléphone réessaiera', () => {
+test('serveur occupé dès la réception (verrou de recevoirFiche_) : la note est refusée « occupé », rien n’est écrit, le téléphone réessaiera', () => {
   const g = environnement({ google: { verrouOccupe: true }, sansInstallation: true });
   const r = envoyer(g, 'seb');
   assert.deepStrictEqual([r.ok, r.code], [false, 'SERVEUR_OCCUPE'], JSON.stringify(r));
@@ -169,7 +169,7 @@ test('nom du chantier tapé avec une autre casse ou des espaces en trop : même 
 test('chantier HORS LISTE : note envoyée et notée, sans numéro ; la réponse le dit ; rien dans le PDF ni dans l’objet', () => {
   const g = environnement();
   const r = envoyer(g, 'seb', nouvelle({ chantier: 'CHANTIER INCONNU' }));
-  assert.deepStrictEqual([r.ok, r.code, r.data.numeroCR, r.data.sansNumeroCR], [true, 'ENREGISTRE', undefined, true], JSON.stringify(r));
+  assert.deepStrictEqual([r.ok, r.code, r.data.numeroCR, r.data.sansNumeroCR], [true, 'ENREGISTRE', undefined, 'chantier'], JSON.stringify(r));
   assert.deepStrictEqual(CR(g).map(l => [l[C.chantier], l[C.numero], l[C.remarque]]), [['CHANTIER INCONNU', '', 'chantier hors liste : pas de numéro']]);
   assert.ok(dernierPdf(g).indexOf('Compte rendu n°') < 0);
   assert.ok(g.mails.every(m => m.sujet.indexOf('CR n°') < 0), g.mails.map(m => m.sujet).join(' | '));
@@ -183,25 +183,34 @@ test('numéro dans l’ordre d’arrivée : une note datée d’avant la précé
 });
 
 console.log('Lot 8b — onglet « Comptes rendus » vérifié avant écriture');
-test('titres de l’onglet changés à la main : arrêt propre (ni PDF, ni mail de la note, ni ligne), Franck prévenu ; titres remis : la MÊME note passe', () => {
-  const g = environnement(), id = idFiche();
+test('titres de l’onglet changés à la main : la note part quand même, SANS numéro (PDF et mails normaux), Franck prévenu une fois par jour ; titres remis : la série reprend', () => {
+  const g = environnement();
   envoyer(g, 'seb');
   const mails = g.mails.length, fichiers = fichiersRanges(g).length;
   g.feuilles['Comptes rendus'].lignes[0][3] = 'Numéro';
-  const r = envoyer(g, 'seb', nouvelle({ objet: 'Note à ne pas perdre' }), id);
-  assert.deepStrictEqual([r.ok, r.code], [false, 'SERVEUR_OCCUPE'], JSON.stringify(r));
+  const r = envoyer(g, 'seb', nouvelle({ objet: 'Note à ne pas bloquer' }));
+  assert.deepStrictEqual([r.ok, r.code, r.data.numeroCR, r.data.sansNumeroCR, r.data.envoyes], [true, 'ENREGISTRE', undefined, 'onglet', 1], JSON.stringify(r));
   assert.strictEqual(CR(g).length, 1, 'aucune ligne écrite dans un onglet aux titres changés');
-  assert.strictEqual(fichiersRanges(g).length, fichiers, 'aucun PDF rangé');
+  assert.strictEqual(fichiersRanges(g).length, fichiers + 1, 'le PDF est rangé');
   const nouveaux = g.mails.slice(mails);
-  assert.deepStrictEqual(nouveaux.map(m => [m.to, m.sujet]), [[FRANCK, '[Loué App] Notes de réunion bloquées — titres de l’onglet « Comptes rendus » changés']], JSON.stringify(nouveaux.map(m => m.sujet)));
-  assert.ok(E(g).some(x => x[0] === id && String(x[4]) === 'erreur'), 'onglet Envois : « erreur » (le téléphone réessaie)');
-  // Un second essai le même jour : toujours refusé proprement, sans second mail d'alerte
-  assert.strictEqual(envoyer(g, 'seb', nouvelle({ objet: 'Note à ne pas perdre' }), id).code, 'SERVEUR_OCCUPE');
-  assert.strictEqual(g.mails.length, mails + 1);
+  assert.deepStrictEqual(nouveaux.map(m => [m.to, m.sujet]), [
+    [FRANCK, '[Loué App] Notes de réunion sans numéro — titres de l’onglet « Comptes rendus » changés'],
+    [SEB, '[Loué App] Note de réunion — CHANTIER TEST 1 — Note à ne pas bloquer']], JSON.stringify(nouveaux.map(m => m.sujet)));
+  assert.ok(/lancez installerLot8Production\./.test(nouveaux[0].texte) && /envoyées normalement/.test(nouveaux[0].texte), nouveaux[0].texte);
+  assert.ok(dernierPdf(g).indexOf('Compte rendu n°') < 0 && dernierPdf(g).indexOf('Présents (2)') > -1, 'PDF sans numéro, complet');
+  assert.ok(E(g).every(x => String(x[4]) === 'traité'), 'onglet Envois : « traité »');
+  // Une autre note le même jour : elle part aussi, sans second mail d'alerte
+  assert.strictEqual(envoyer(g, 'seb').data.sansNumeroCR, 'onglet');
+  assert.strictEqual(g.mails.filter(m => /sans numéro/.test(m.sujet)).length, 1);
   g.feuilles['Comptes rendus'].lignes[0][3] = 'N° du compte rendu';
-  const bon = envoyer(g, 'seb', nouvelle({ objet: 'Note à ne pas perdre' }), id);
-  assert.deepStrictEqual([bon.ok, bon.code, bon.data.numeroCR], [true, 'ENREGISTRE', 2], JSON.stringify(bon));
-  assert.strictEqual(CR(g)[1][C.objet], 'Note à ne pas perdre');
+  assert.strictEqual(envoyer(g, 'seb').data.numeroCR, 2, 'titres remis : la série reprend après le dernier numéro noté');
+});
+test('sur la copie TEST, le mail d’alerte nomme installerLot8Test', () => {
+  const g = environnement({ test: true });
+  g.feuilles['Comptes rendus'].lignes[0][0] = 'Autre';
+  envoyer(g, 'seb');
+  const alerte = g.mails.find(m => /sans numéro/.test(m.sujet));
+  assert.ok(alerte && /lancez installerLot8Test\./.test(alerte.texte) && !/installerLot8Production/.test(alerte.texte), alerte && alerte.texte);
 });
 test('onglet absent (installation pas encore lancée) : créé avec ses titres à la première note', () => {
   const g = environnement({ sansInstallation: true });
@@ -307,6 +316,72 @@ test('les autres fiches ne reçoivent ni numéro ni ligne', () => {
   assert.strictEqual(CR(g).length, 0);
 });
 
+console.log('Lot 8b — verrou de la réservation, rejeu, onglet trié (après relecture)');
+// Un faux verrou qui ne refuse QUE dans crReserver_ (le verrou de la réception, lui, est accordé), et qui note l'ordre des gestes
+function verrouDeReservation(g) {
+  const etat = { refuser: false, journal: [] };
+  const dansReservation = () => /crReserver_/.test(String(new Error().stack));
+  g.contexte.LockService = { getScriptLock: () => ({
+    tryLock: () => !(etat.refuser && dansReservation()),
+    releaseLock: () => { if (dansReservation()) etat.journal.push('verrou rendu'); } }),
+    getDocumentLock: () => ({ tryLock: () => true, releaseLock: () => {} }) };
+  const vrai = g.contexte.SpreadsheetApp.flush;
+  g.contexte.SpreadsheetApp.flush = () => { etat.journal.push('écriture poussée'); return vrai(); };
+  return etat;
+}
+test('verrou de la RÉSERVATION pris par une autre note : aucun numéro donné, ni ligne, ni PDF, ni mail ; au nouvel essai, le numéro suivant, jamais un double', () => {
+  const g = environnement(), id = idFiche();
+  assert.strictEqual(envoyer(g, 'seb').data.numeroCR, 1);
+  const v = verrouDeReservation(g), mails = g.mails.length, fichiers = fichiersRanges(g).length;
+  v.refuser = true;
+  const r = envoyer(g, 'thomas27', nouvelle({ objet: 'Arrivée pendant une réservation' }), id);
+  assert.deepStrictEqual([r.ok, r.code], [false, 'SERVEUR_OCCUPE'], JSON.stringify(r));
+  assert.deepStrictEqual(numeros(g), [1], 'aucune ligne, aucun numéro');
+  assert.strictEqual(g.mails.length, mails); assert.strictEqual(fichiersRanges(g).length, fichiers);
+  v.refuser = false;
+  const bon = envoyer(g, 'thomas27', nouvelle({ objet: 'Arrivée pendant une réservation' }), id);
+  assert.deepStrictEqual([bon.code, bon.data.numeroCR], ['ENREGISTRE', 2], JSON.stringify(bon));
+  assert.deepStrictEqual(numeros(g), [1, 2]);
+});
+test('la ligne est poussée dans le Sheet (flush) AVANT que le verrou de la réservation soit rendu', () => {
+  const g = environnement(), v = verrouDeReservation(g);
+  envoyer(g, 'seb');
+  assert.deepStrictEqual(v.journal, ['écriture poussée', 'verrou rendu']);
+});
+test('rejeu, directement sur la réservation : le même numéro de fiche retrouve sa ligne et son numéro (rien n’est ajouté)', () => {
+  const g = environnement(), brut = nouvelle();
+  const a = g.ctx.crReserver_('fiche-directe-000001', brut, 'x');
+  const autre = g.ctx.crReserver_('fiche-directe-000002', brut, 'x');
+  const b = g.ctx.crReserver_('fiche-directe-000001', brut, 'x');
+  assert.deepStrictEqual([a.numero, a.dejaLa, autre.numero, b.numero, b.dejaLa], [1, false, 2, 1, true]);
+  assert.strictEqual(CR(g).length, 2);
+  assert.strictEqual(g.ctx.crNumeroDeLaFiche_('fiche-directe-000001'), 1);
+  assert.strictEqual(g.ctx.crNumeroDeLaFiche_('fiche-inconnue-000009'), 0);
+});
+test('onglet trié à l’envers et un numéro manquant : la note suivante prend le PLUS GRAND numéro + 1 (pas le nombre de lignes)', () => {
+  const g = environnement();
+  envoyer(g, 'seb'); envoyer(g, 'seb'); envoyer(g, 'seb'); envoyer(g, 'seb', nouvelle({ chantier: 'CHANTIER TEST 2' }));
+  const sh = g.feuilles['Comptes rendus'];
+  const lignes = sh.lignes.slice(1).filter(l => l[0] && !(l[C.chantier] === 'CHANTIER TEST 1' && l[C.numero] === 2)).reverse();
+  sh.lignes = [sh.lignes[0]].concat(lignes);
+  assert.deepStrictEqual(numeros(g), [1, 3, 1]);
+  assert.strictEqual(envoyer(g, 'seb').data.numeroCR, 4);
+  assert.strictEqual(envoyer(g, 'seb', nouvelle({ chantier: 'CHANTIER TEST 2' })).data.numeroCR, 2);
+});
+test('quota de mails presque atteint : le mail est reporté, la note garde son numéro (réponse, onglet, mail en attente)', () => {
+  const g = environnement({ google: { quota: 10 } });
+  const r = envoyer(g, 'thomas27');
+  assert.deepStrictEqual([r.ok, r.code, r.data.numeroCR, r.data.envoyes, r.data.reportes], [true, 'ENREGISTRE', 1, 0, 1], JSON.stringify(r));
+  assert.deepStrictEqual(numeros(g), [1]);
+  const attente = g.feuilles['Mails en attente'].lignes.slice(1);
+  assert.ok(attente.length === 1 && String(attente[0][5]).indexOf('Note de réunion — CR n° 1 — CHANTIER TEST 1') > -1, JSON.stringify(attente.map(l => l[5])));
+});
+test('deux notes SANS numéro le même jour (chantier hors liste) : même nom de fichier, la seconde devient « _V2 », rien n’est écrasé', () => {
+  const g = environnement();
+  envoyer(g, 'seb', nouvelle({ chantier: 'CHANTIER INCONNU' })); envoyer(g, 'seb', nouvelle({ chantier: 'CHANTIER INCONNU' }));
+  assert.deepStrictEqual(fichiersRanges(g), ['COMPTE RENDU CHANTIER INCONNU 2026-11-12.pdf', 'COMPTE RENDU CHANTIER INCONNU 2026-11-12_V2.pdf']);
+});
+
 console.log('Lot 8b — installation et livraison');
 test('installerLot8Production : crée l’onglet avec ses 12 titres ; relancée, ne touche à rien ; refuse sur la copie TEST', () => {
   const g = environnement({ sansInstallation: true });
@@ -329,7 +404,7 @@ test('installation : un onglet du même nom avec d’autres titres et des donné
 });
 test('livraison : le serveur à coller contient le lot 8b, en version v11.0, sans les outils d’essai', () => {
   const code = fs.readFileSync(path.join(__dirname, '..', 'A-COLLER-DANS-APPS-SCRIPT', 'Code.gs'), 'utf8');
-  ["const VERSION_API = 'v11.0'", 'function crReserver_(', 'function installerLot8Test(', 'function installerLot8Production(', 'ComptesRendus.gs'].forEach(t => assert.ok(code.indexOf(t) > -1, t));
+  ["const VERSION_API = 'v11.0'", 'function crReserver_(', 'SpreadsheetApp.flush();', 'function installerLot8Test(', 'function installerLot8Production(', 'ComptesRendus.gs'].forEach(t => assert.ok(code.indexOf(t) > -1, t));
   assert.ok(code.indexOf('function outilTest_(') < 0);
   assert.ok(code.indexOf(String.fromCharCode(0x2028)) < 0 && code.indexOf(String.fromCharCode(0x2029)) < 0, 'aucun séparateur de ligne brut dans le fichier à coller');
 });

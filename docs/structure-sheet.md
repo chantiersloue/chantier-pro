@@ -147,7 +147,7 @@ Une ligne par note de réunion reçue, écrite par l'appli. C'est là que le ser
 |L|Remarque de l'appli|« chantier hors liste : pas de numéro », « reçu après le CR n° 8 (daté du …) »|
 
 - Colonnes de texte en « texte brut » ; une formule tapée dans l'objet ou un nom reste du texte.
-- **Ne change pas la ligne de titres.** Si elle change, l'appli n'écrit plus rien dans l'onglet : les notes attendent dans les téléphones (rien n'est perdu) et Franck reçoit un mail. Remets les titres : elles partent toutes seules.
+- **Ne change pas la ligne de titres.** Si elle change, l'appli n'écrit plus rien dans l'onglet : les notes partent quand même (PDF et mails), mais **sans numéro** et sans ligne ici, et Franck reçoit un mail (un par jour au plus). Remets les titres : la numérotation reprend à la suite du dernier numéro noté.
 - Tu peux trier l'onglet : l'appli retrouve une note par son numéro de fiche, jamais par sa place.
 - Le numéro suit l'**ordre d'arrivée** au serveur, pas la date de la réunion.
 - **Série d'un chantier** : les lignes qui ont le même N° de chantier (colonne C) ; à défaut, le même nom (colonne B, sans tenir compte des majuscules ni des espaces). Un chantier renommé garde sa série s'il a un N°.

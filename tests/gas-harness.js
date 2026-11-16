@@ -203,6 +203,7 @@ function creerGoogle(options = {}) {
   };
   const contexte = {
     SpreadsheetApp: { getActiveSpreadsheet: () => ss,
+      flush: () => { etat.flush = (etat.flush || 0) + 1; },   // lot 8b : écritures poussées avant de rendre un verrou
       newDataValidation: () => { const v = { liste: null, invalide: true,
         requireValueInList: l => { v.liste = l; return v; }, requireValueInRange: () => v, requireCheckbox: () => { v.liste = [true, false]; return v; },
         setAllowInvalid: b => { v.invalide = b; return v; }, setHelpText: () => v, build: () => v }; return v; } },

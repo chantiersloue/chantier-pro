@@ -1,10 +1,10 @@
 // ═══════════════════════════════════════════════════════════════
 // LOUÉ APP — SERVEUR COMPLET, À COLLER DANS APPS SCRIPT (fichier « Code.gs », tout remplacer)
 // FICHIER GÉNÉRÉ AUTOMATIQUEMENT par « node outils/construire.js » — NE PAS MODIFIER À LA MAIN :
-// les sources sont dans le dossier apps-script/ du dépôt. Version du serveur af5236114a (pages 1c5b0e93a5)
+// les sources sont dans le dossier apps-script/ du dépôt. Version du serveur 4f5de490ec (pages af3425c5b0)
 // ═══════════════════════════════════════════════════════════════
 
-const EMPREINTE_SERVEUR = 'af5236114a';
+const EMPREINTE_SERVEUR = '4f5de490ec';
 
 // ████ Config.gs ████
 // ═══════════════════════════════════════════════════════════════
@@ -403,7 +403,7 @@ function alerte_(texte, sorte) {
       abandon: "[Loué App] Mail abandonné — voir l'onglet Mails en attente",
       erreur : "[Loué App] Fiche non traitée — voir l'onglet Envois",
       notes  : '[Loué App] Listes « Notes » bloquées — titres d’un onglet changés',
-      comptesrendus: '[Loué App] Notes de réunion bloquées — titres de l’onglet « Comptes rendus » changés',
+      comptesrendus: '[Loué App] Notes de réunion sans numéro — titres de l’onglet « Comptes rendus » changés',
       photos : "[Loué App] Trop de photos aujourd'hui",
       dossiers : '[Loué App] dossiers.json illisible',
       rangement: '[Loué App] Document non rangé dans Drive',
@@ -1660,7 +1660,7 @@ function recevoirFiche_(corps, compte) {
   if (resultat && resultat.numeroCR) {
     reponse.data.numeroCR = resultat.numeroCR;
     reponse.message = 'Compte rendu n° ' + resultat.numeroCR + ' enregistré. ' + detail.charAt(0).toUpperCase() + detail.slice(1) + '.';
-  } else if (resultat && resultat.sansNumeroCR) reponse.data.sansNumeroCR = true;
+  } else if (resultat && resultat.sansNumeroCR) reponse.data.sansNumeroCR = resultat.sansNumeroCR;   // « chantier » ou « onglet »
   return reponse;
 }
 
@@ -1738,8 +1738,8 @@ function traiterNoteReunion(data, brut, contexte) {
   const d = validerImages_(brut);
   if (!d.date) d.date = Utilities.formatDate(now, 'Europe/Paris', 'dd/MM/yyyy');
 
-  // Lot 8b : le numéro du compte rendu est réservé AVANT le PDF (il y figure). Onglet indisponible ou serveur occupé :
-  // rien n'est fabriqué ni envoyé, le téléphone garde la note et réessaie.
+  // Lot 8b : le numéro du compte rendu est réservé AVANT le PDF (il y figure). Serveur occupé (verrou) : rien n'est fabriqué
+  // ni envoyé, le téléphone garde la note et réessaie. Onglet illisible : la note part sans numéro.
   const idFiche = contexte && contexte.id ? String(contexte.id) : '';
   const qui = contexte ? (contexte.auteurId ? (contexte.auteurNom || contexte.auteurId) + ' (' + contexte.auteurId + ')' : 'sans compte') : 'sans compte';
   const cr = idFiche ? crReserver_(idFiche, Object.assign({}, brut, { date: d.date }), qui) : { numero: 0, horsListe: false, sansFiche: true };
@@ -1790,8 +1790,8 @@ function traiterNoteReunion(data, brut, contexte) {
     texte: 'Bonjour,\n\nVeuillez trouver en pièce jointe la note de réunion' + (cr.numero ? ' (compte rendu n° ' + cr.numero + ')' : '') + ' — ' + (brut.chantier || '—') + '.\n\nLoué App',
     faireBlob: () => blob,
   });
-  // Rendu au téléphone par recevoirFiche_ : le numéro, ou « sans numéro » (chantier hors liste)
-  return { numeroCR: cr.numero || 0, sansNumeroCR: !cr.numero && !!cr.horsListe };
+  // Rendu au téléphone par recevoirFiche_ : le numéro, ou pourquoi il n'y en a pas (« chantier » hors liste, « onglet » illisible)
+  return { numeroCR: cr.numero || 0, sansNumeroCR: cr.numero ? '' : (cr.horsListe ? 'chantier' : cr.sansOnglet ? 'onglet' : '') };
 }
 
 
@@ -3188,7 +3188,8 @@ function installerLot3Production() { return installerLot3_('PRODUCTION'); }
 //   - rattachement au chantier : par son N° (onglet Chantiers, colonne E) quand il est rempli, sinon par son nom
 //     (minuscules, espaces retirés). Un chantier renommé garde donc sa série s'il a un N° ;
 //   - chantier absent de l'onglet Chantiers : la note est envoyée et notée, SANS numéro ;
-//   - onglet aux titres changés : rien n'est lu ni écrit, la note attend dans le téléphone, Franck est prévenu.
+//   - onglet aux titres changés ou illisible : rien n'y est lu ni écrit, la note part SANS numéro (PDF et mails normaux),
+//     Franck est prévenu une fois par jour. Un onglet de suivi ne bloque jamais l'envoi d'une note.
 // Les points et leur reprise (colonnes M à O) arrivent avec le lot 8c.
 // Plan : docs/lot8-plan.md. Décisions : D8-… (DECISIONS.md).
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
@@ -3235,17 +3236,19 @@ function crFormats_(sh) {
   const lignes = Math.max(1, sh.getMaxRows() - 1);
   CR_COLONNES_TEXTE.forEach(c => sh.getRange(2, c, lignes, 1).setNumberFormat('@'));
 }
-// Titres changés à la main : rien n'est lu ni écrit ; la note attend dans le téléphone (« serveur occupé » : il réessaie)
-// et Franck reçoit un mail, une fois par jour
+// Titres changés à la main : rien n'est lu ni écrit, et la fonction rend null (la note partira sans numéro).
+// Franck reçoit un mail, une fois par jour, qui nomme la fonction d'installation de CET environnement.
 function crFeuille_() {
   const existait = !!SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_CR);
   const sh = feuille_(SHEET_CR, CR_ENTETES);
   if (!existait) crFormats_(sh);
   if (crTitresBons_(sh)) return sh;
-  alerte_('Les notes de réunion sont bloquées : la ligne de titres de l’onglet « ' + SHEET_CR + ' » n’est plus celle attendue ('
-    + CR_ENTETES.join(' | ') + '). Remettez ces titres, ou renommez l’onglet puis lancez installerLot8Production. '
-    + 'Rien n’est perdu : les téléphones gardent les notes et réessaient.', 'comptesrendus');
-  throw crOccupe_('L’onglet des comptes rendus n’est pas à jour sur le serveur (titres changés, ou installation du lot 8 à faire).');
+  let fonction = 'installerLot8Production';
+  try { if (environnementReel_().env === 'TEST') fonction = 'installerLot8Test'; } catch (e) {}
+  alerte_('Les notes de réunion partent SANS numéro de compte rendu : la ligne de titres de l’onglet « ' + SHEET_CR + ' » n’est plus celle attendue ('
+    + CR_ENTETES.join(' | ') + '). Remettez ces titres, ou renommez l’onglet puis lancez ' + fonction + '. '
+    + 'Les notes sont envoyées normalement (PDF et mails) ; seuls le numéro et la ligne de l’onglet manquent.', 'comptesrendus');
+  return null;
 }
 // Ligne d'une note d'après son numéro de fiche (colonne A), ou 0. Jamais par position : Franck peut trier l'onglet.
 function crChercher_(sh, idFiche) {
@@ -3269,12 +3272,15 @@ function crNumeroDeLaFiche_(idFiche) {
 
 // ── Réserver le numéro (à appeler AVANT de fabriquer le PDF) ──
 // idFiche : numéro de fiche créé par le téléphone ; brut : données de la note ; qui : texte « compte qui a envoyé ».
-// Rend { numero (0 : pas de numéro), horsListe, dejaLa }. Lève « occupé » si le verrou ou l'onglet ne sont pas disponibles.
+// Rend { numero (0 : pas de numéro), horsListe, sansOnglet, dejaLa }. Lève « occupé » si le verrou n'est pas disponible
+// (passager : le téléphone réessaie). Onglet illisible : pas d'erreur, la note part sans numéro.
 function crReserver_(idFiche, brut, qui) {
   const verrou = LockService.getScriptLock();
   if (!verrou.tryLock(15000)) throw crOccupe_();
   try {
-    const sh = crFeuille_();
+    let sh = null;
+    try { sh = crFeuille_(); } catch (e) { console.error('crReserver_ :', e.message); }
+    if (!sh) return { numero: 0, horsListe: false, sansOnglet: true, dejaLa: false };
     // Note renvoyée par le téléphone : elle retrouve son numéro, aucune ligne n'est ajoutée
     const deja = crChercher_(sh, idFiche);
     if (deja) {
@@ -3321,6 +3327,9 @@ function crReserver_(idFiche, brut, qui) {
     ligne[COL_CR.remarque - 1] = remarque;
     // La ligne entière en une écriture (colonnes de texte en « texte brut » avant d'écrire)
     noteAjouterLigne_(sh, ligne, CR_COLONNES_TEXTE);
+    // Écriture poussée dans le Sheet AVANT de rendre le verrou : la note suivante du même chantier doit lire cette ligne
+    // (sans cela, Google peut la garder en attente jusqu'à la fin de la fabrication du PDF)
+    SpreadsheetApp.flush();
     return { numero: numero, horsListe: !nomConnu, dejaLa: false };
   } finally { verrou.releaseLock(); }
 }

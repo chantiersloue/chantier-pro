@@ -81,6 +81,11 @@ function outilTest_(corps) {
       case 'carnetRetirerFauxDepot': return ok('Faux document de mesure retiré', outilTestSousVerrou_(outilTestCarnetRetirer_));
       case 'installerLot3': { const r = installer_('Lot 3', 'TEST', etapesLot3_()); if (!r.ok) throw new Error('installation du lot 3 non terminée : ' + r.texte); return ok(r.texte); }
       case 'installerLot7': { const r = installer_('Lot 7', 'TEST', etapesLot7_()); if (!r.ok) throw new Error('installation du lot 7 non terminée : ' + r.texte); return ok(r.texte); }
+      // Lot 8b : numéro de fiche, N° du chantier, N° du compte rendu, date, reçu le, remarque — ni nom, ni objet, ni présents
+      case 'lireComptesRendus': return ok('Dernières lignes de l’onglet Comptes rendus', { lignes: outilTestDernieresLignes_(SHEET_CR, corps.n,
+        [COL_CR.fiche, COL_CR.numChantier, COL_CR.numero, COL_CR.date, COL_CR.recu, COL_CR.remarque])
+        .map((l, i) => { if (i > 0 && !/^fiche-auto-/.test(String(l[0]))) l[0] = '(note réelle)'; return l; }) });
+      case 'purgerComptesRendusEssai': return ok('Lignes des essais automatiques retirées', outilTestSousVerrou_(outilTestPurgerComptesRendus_));
       case 'installerLot8': { const r = installer_('Lot 8', 'TEST', etapesLot8_()); if (!r.ok) throw new Error('installation du lot 8 non terminée : ' + r.texte); return ok(r.texte); }
       case 'poserDeclencheurs':    return ok(outilTestPoserDeclencheurs_());
       case 'retirerDeclencheurs':  return ok(outilTestRetirerDeclencheurs_());
@@ -220,6 +225,17 @@ function outilTestRangerNotes_() {
 }
 // Sans suppression dans l'appli, les éléments écrits par les essais automatiques resteraient dans la copie TEST :
 // leurs lignes (numéro « fiche-auto-… ») sont retirées des onglets Notes et Notes historique, et aucune autre.
+// Lot 8b : retire de l'onglet « Comptes rendus » les lignes écrites par les essais automatiques (numéros « fiche-auto-… »), et elles seules
+function outilTestPurgerComptesRendus_() {
+  const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_CR);
+  let retirees = 0;
+  if (sh && sh.getLastRow() > 1) {
+    const numeros = sh.getRange(2, COL_CR.fiche, sh.getLastRow() - 1, 1).getValues();
+    for (let i = numeros.length - 1; i >= 0; i--) if (/^fiche-auto-/.test(String(numeros[i][0]))) { sh.deleteRow(i + 2); retirees++; }
+  }
+  SpreadsheetApp.flush();
+  return { lignesRetirees: retirees };
+}
 function outilTestPurgerNotes_() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   let retirees = 0;

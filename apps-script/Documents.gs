@@ -59,8 +59,8 @@ function traiterNoteReunion(data, brut, contexte) {
   const d = validerImages_(brut);
   if (!d.date) d.date = Utilities.formatDate(now, 'Europe/Paris', 'dd/MM/yyyy');
 
-  // Lot 8b : le numéro du compte rendu est réservé AVANT le PDF (il y figure). Onglet indisponible ou serveur occupé :
-  // rien n'est fabriqué ni envoyé, le téléphone garde la note et réessaie.
+  // Lot 8b : le numéro du compte rendu est réservé AVANT le PDF (il y figure). Serveur occupé (verrou) : rien n'est fabriqué
+  // ni envoyé, le téléphone garde la note et réessaie. Onglet illisible : la note part sans numéro.
   const idFiche = contexte && contexte.id ? String(contexte.id) : '';
   const qui = contexte ? (contexte.auteurId ? (contexte.auteurNom || contexte.auteurId) + ' (' + contexte.auteurId + ')' : 'sans compte') : 'sans compte';
   const cr = idFiche ? crReserver_(idFiche, Object.assign({}, brut, { date: d.date }), qui) : { numero: 0, horsListe: false, sansFiche: true };
@@ -111,8 +111,8 @@ function traiterNoteReunion(data, brut, contexte) {
     texte: 'Bonjour,\n\nVeuillez trouver en pièce jointe la note de réunion' + (cr.numero ? ' (compte rendu n° ' + cr.numero + ')' : '') + ' — ' + (brut.chantier || '—') + '.\n\nLoué App',
     faireBlob: () => blob,
   });
-  // Rendu au téléphone par recevoirFiche_ : le numéro, ou « sans numéro » (chantier hors liste)
-  return { numeroCR: cr.numero || 0, sansNumeroCR: !cr.numero && !!cr.horsListe };
+  // Rendu au téléphone par recevoirFiche_ : le numéro, ou pourquoi il n'y en a pas (« chantier » hors liste, « onglet » illisible)
+  return { numeroCR: cr.numero || 0, sansNumeroCR: cr.numero ? '' : (cr.horsListe ? 'chantier' : cr.sansOnglet ? 'onglet' : '') };
 }
 
 

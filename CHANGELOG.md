@@ -8,7 +8,10 @@ Chaque lot : **quoi**, **pourquoi**, **comment déployer**. Procédures détaill
 - **Numéro « Compte rendu n° x », par chantier**, donné par le **serveur à la réception** de la note, sous verrou. Il est dans le PDF, dans le nom du fichier rangé dans Drive (`COMPTE RENDU <chantier> CR 7 <date>.pdf`), dans l'objet du mail (« Note de réunion — CR n° 7 — … ») et dans le message de fin d'envoi (« ✓ Compte rendu n° 7 envoyé — 3 mails envoyés »).
 - Une note renvoyée par le téléphone (réponse perdue, PDF raté au premier essai) **retrouve son numéro** ; la réponse « déjà reçue » le porte aussi.
 - Rattachement au chantier par son **N° (onglet *Chantiers*, colonne E)** quand il est rempli, sinon par son nom : un chantier renommé garde sa série s'il a un N°. Chantier absent de la liste : la note part **sans numéro**, et la page le dit avant l'envoi.
-- Nouvel onglet ***Comptes rendus*** (une ligne par note, 12 colonnes), créé par `installerLot8Test` / `installerLot8Production` et **vérifié avant chaque écriture** : si sa ligne de titres a été changée, rien n'est écrit, la note attend dans le téléphone et Franck reçoit un mail.
+- Nouvel onglet ***Comptes rendus*** (une ligne par note, 12 colonnes), créé par `installerLot8Test` / `installerLot8Production` et **vérifié avant chaque écriture** : si sa ligne de titres a été changée, rien n'y est écrit, **la note part quand même, sans numéro** (PDF et mails normaux), et Franck reçoit un mail (un par jour au plus).
+- La ligne est poussée dans le Sheet (`SpreadsheetApp.flush()`) **avant** que le verrou soit rendu : la note suivante lit toujours le dernier numéro.
+- Le dernier numéro reçu reste affiché sous le chantier et dans la liste de l'indicateur d'envoi (24 h), pas seulement dans le message vert.
+- Porte de service : gestes `lireComptesRendus` et `purgerComptesRendusEssai` ; `tests/reel-lot8.js` (essais réels sur TEST : deux envois au même instant, rejeu), **écrit mais pas encore lancé**.
 - **Présents** : liste de noms facultative, saisie à la main, dans la page, l'aperçu, le PDF et l'onglet.
 - **Destinataires** : la page annonce le nombre de mails qui partiront et refuse une 11e adresse de la liste. Le serveur, lui, n'est pas changé : il sert toujours toutes les adresses connues (une note déjà en attente dans un téléphone garde tous ses destinataires).
 - **Hors réseau** : la page dit que le numéro sera donné au retour du réseau. Sous le chantier : « Le numéro du compte rendu est donné à l'envoi. »
@@ -20,7 +23,7 @@ Chaque lot : **quoi**, **pourquoi**, **comment déployer**. Procédures détaill
 
 **Tests existants mis à jour** (ce que le lot change, rien d'autre) : la version du serveur citée par `tests/lot0.test.js`, `tests/lot1-api.test.js` et `tests/lot3-notes.test.js` ; l'objet du mail et le nom du fichier d'une note numérotée dans `tests/lot1-api.test.js`.
 
-**Pas vérifié** : le vrai verrou de Google (deux envois au même instant), la hauteur réelle du PDF fabriqué par Google, les vrais mails. Ces essais demandent la copie TEST.
+**Pas vérifié** : le vrai verrou de Google (deux envois au même instant : `tests/reel-lot8.js`, à lancer sur la copie TEST après un envoi ; **pas de production avant**), la hauteur réelle du PDF fabriqué par Google, les vrais mails.
 
 **Comment déployer** : `docs/lot8-procedure.md` (serveur puis pages ; l'ordre compte peu, chaque moitié marche avec l'ancienne version de l'autre).
 
@@ -37,7 +40,9 @@ Chaque lot : **quoi**, **pourquoi**, **comment déployer**. Procédures détaill
 
 **Pourquoi** : sur un chantier, on se trompe de trait, ou on veut compléter une photo dix minutes plus tard. Jusqu'ici il fallait reprendre la photo (exigence 12 du plan, `docs/lot8-plan.md`).
 
-**Compatibilité vérifiée** : un brouillon de l'ancienne page se restaure tel quel ; l'ancienne page relit un brouillon de la nouvelle (l'image finale est à sa place habituelle) ; ce que la page envoie au serveur n'a pas changé.
+**Compatibilité vérifiée par `tests/lot8-page.test.js`** : un brouillon de l'ancienne page se restaure tel quel ; l'ancienne page (9.0) relit un brouillon de la nouvelle : texte et photo annotée reviennent, l'image finale étant à sa place habituelle (essai fait avec un brouillon de la page 10.1). **Non vérifié par un test** : que ce que la page 10.0 envoie au serveur est resté identique octet pour octet (le serveur d'avant accepte ses notes : c'est ce qui est testé).
+
+**Après relecture** : un seul trait à la fois (second doigt ou paume ignorés) ; flèche ou rectangle touché sans glisser : rien n'est gardé ; plafond des traits à 30 000 caractères par photo ; une image qui n'a pas pu être refaite après un brouillon restauré est marquée « ⚠ à vérifier » et retient l'envoi.
 
 **Comment déployer** : `docs/lot8-procedure.md` (pages seules : rien à faire dans Apps Script).
 
