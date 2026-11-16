@@ -1,8 +1,8 @@
 @echo off
 chcp 65001 >nul
 setlocal EnableDelayedExpansion
-rem Programme du PC (lot 4c) : dépôt au carnet depuis les bordereaux, recopie des fiches de l'appli
-rem vers les dossiers de chantier du PC. Les réglages sont lus dans _prive\depot.json.
+rem Programme du PC (lot 4c) : recopie des fiches de l'appli vers les dossiers de chantier du PC, et dépôt
+rem automatique au carnet (dossier « À METTRE AU CARNET » et bordereaux). Aucune question o/n. Les réglages sont lus dans _prive\depot.json.
 cd /d "%~dp0.."
 set /a VIDES=0
 
@@ -10,11 +10,11 @@ set /a VIDES=0
 echo.
 echo  CHANTIERPRO - PROGRAMME DU PC
 echo  -----------------------------
-rem Une ligne d'alerte seulement si la recopie automatique n'a pas tourné depuis plus de 3 heures
+rem Une ligne d'alerte seulement si le passage automatique n'a pas tourné depuis plus de 3 heures
 python outils\appli_pc.py --etat 2>nul
-echo   1. Tout traiter : le carnet, puis la recopie des fiches de l'appli
+echo   1. Tout traiter maintenant : les fiches de l'appli, puis le dépôt au carnet (sans question)
 echo   2. Voir seulement (rien n'est écrit)
-echo   3. Lire ce qui demande mon attention (« A VOIR »)
+echo   3. Lire ce qui demande mon attention, et ce qui a été déposé au carnet (« A VOIR »)
 echo   4. Associer les chantiers (quand le numéro du dossier ne suffit pas)
 echo   5. Retirer un document du carnet
 echo   6. Quitter
