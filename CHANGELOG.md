@@ -22,7 +22,7 @@ Chaque lot : **quoi**, **pourquoi**, **comment déployer**. Procédures détaill
 
 **Tests** : `python -m unittest tests/test_appli_pc.py` (54 tests, faux dossiers temporaires, aucune tâche planifiée créée) ; `python -m unittest tests/test_depot_carnet.py` (26, inchangés). **Pas testé par moi** : le vrai Drive, les vrais dossiers de chantier, la copie TEST, la création réelle de la tâche planifiée et son lancement sans fenêtre, le double-clic sur les `.bat` au-delà du menu, et les lignes du contrat avec le vrai skill (essais obligatoires de la procédure).
 
-## Lot 4b — Carnet de chantier : hors réseau complet, et retrait de la tuile « Plans » — appli 9.0, serveur **v9.1** — **construit, pas encore en production** (ira avec le 4a)
+## Lot 4b — Carnet de chantier : hors réseau complet, et retrait de la tuile « Plans » — appli 9.0, serveur **v9.1** — **en production depuis le 16/11/2026** (déploiement « Lot 4 — production »)
 
 **Quoi**
 - **« ⬇ Tout télécharger »** sous chaque document (poids restant annoncé) et pour tout le chantier : avancement, arrêt, reprise où on en était. Une seule demande à la fois au serveur.
@@ -44,7 +44,7 @@ Chaque lot : **quoi**, **pourquoi**, **comment déployer**. Procédures détaill
 
 **Comment déployer** : `docs/lot4b-procedure.md`. Le serveur reste en v9.0 mais son code change avec le retrait de la tuile « Plans » : le `Code.gs` à coller est celui de `A-COLLER-DANS-APPS-SCRIPT/` de cette livraison.
 
-## Lot 4a — Carnet de chantier : déposer et lire — serveur v9.0, appli 9.0 — **construit, pas encore en production**
+## Lot 4a — Carnet de chantier : déposer et lire — serveur v9.1, appli 9.0 — **en production depuis le 16/11/2026** (déploiement « Lot 4 — production »)
 
 **Quoi**
 - Page **« Carnet »** (`carnet.html`), ouverte depuis un chantier : la liste des plans et documents validés (intitulé, indice, pages, poids, « nouveau »), et une visionneuse plein écran : un doigt déplace, deux doigts ou deux tapes grossissent, bouton de rotation, pages, « Signaler ici » (ouvre le signalement avec le chantier et le repère déjà remplis).
