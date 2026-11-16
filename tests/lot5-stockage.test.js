@@ -407,7 +407,7 @@ test('tout est réuni : proposé, avec le poids, le nombre de fichiers et le rap
   const l = ligneP(g, 'FINI');
   assert.deepStrictEqual([l[P.possible], l[P.etat], l[P.fichiers], l[P.corbeille], l[P.annuler]], ['oui', 'Proposé', 6, false, false], l[P.pourquoi]);
   assert.ok(/^Possible : 6 fichier\(s\) partiraient à la corbeille\./.test(l[P.pourquoi]) && !/élément/.test(l[P.pourquoi]), l[P.pourquoi]);
-  assert.ok(/MEGA a fini de synchroniser le dossier du chantier/.test(l[P.pourquoi]) && /moins de 48 heures/.test(l[P.pourquoi]) && /la place n’est rendue que 30 jours plus tard/.test(l[P.pourquoi]), l[P.pourquoi]);
+  assert.ok(/MEGA a fini de sauvegarder le dossier du chantier/.test(l[P.pourquoi]) && /moins de 48 heures/.test(l[P.pourquoi]) && /la place n’est rendue que 30 jours plus tard/.test(l[P.pourquoi]), l[P.pourquoi]);
   assert.ok(/2 fichier\(s\) hors des dossiers de l’appli \(relevé compris\)/.test(l[P.pourquoi]), l[P.pourquoi]);
   assert.strictEqual(l[P.cle], 'termine|fini|' + x.d.id + '|1');
   assert.ok(/chantier terminé : purge possible/.test(ligneS(g, 'chantier:' + x.d.id)[K.purge]));

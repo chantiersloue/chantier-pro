@@ -50,7 +50,7 @@ const PRG_COLONNES_DATE = [COL_P.faitLe, COL_P.libere, COL_P.jusquau, COL_P.maj]
 const PRG_DETAIL_ENTETES = ['Clé de la ligne', 'Type', 'Identifiant', 'Chemin', 'Taille (octets)', 'Fichiers', 'Noté le', 'État', 'Mis à jour le'];
 const COL_D = { cle: 1, type: 2, id: 3, chemin: 4, taille: 5, fichiers: 6, note: 7, etat: 8, maj: 9 };
 const PRG_RECOPIE = 'vérifie que la recopie automatique tourne sur le PC (fichier « ' + PRG_FICHIER_A_VOIR + ' »)';
-const PRG_AVANT_DE_COCHER = 'Avant de cocher : vérifie sur le PC que MEGA a fini de synchroniser le dossier du chantier. Le relevé devra avoir moins de '
+const PRG_AVANT_DE_COCHER = 'Avant de cocher : vérifie sur le PC que MEGA a fini de sauvegarder le dossier du chantier. Le relevé devra avoir moins de '
   + PRG_RELEVE_PURGE_HEURES + ' heures au moment du traitement. Après la mise à la corbeille, la place n’est rendue que ' + PRG_CORBEILLE_JOURS + ' jours plus tard.';
 
 // ── Onglets (titres contrôlés avant toute lecture et toute écriture) ──
@@ -845,7 +845,7 @@ function prgMailPurge_(sh, shD, cle) {
     'Jusqu’au ' + libere + ', c’est aussi possible à la main dans la corbeille de Drive.', '',
     mails ? 'Ce sont des mails de fiches de chantier : les PDF de ces fiches sont rangés dans le Drive et recopiés dans le dossier du chantier sur le PC '
         + '(pour chaque mail, le PDF a été retrouvé dans le dossier Drive du chantier avant la mise à la corbeille). ' + PRG_MAILS_JAMAIS_VISES
-      : 'Si MEGA n’avait pas fini de synchroniser le dossier du chantier sur le PC, annule, laisse MEGA finir, puis recommence.'].join('\n'));
+      : 'Si MEGA n’avait pas fini de sauvegarder le dossier du chantier sur le PC, annule, laisse MEGA finir, puis recommence.'].join('\n'));
   const parti = stkMail_('[Loué App] Mise à la corbeille — ' + chantier + ' — ' + quoi, texte);
   if (v) { const cellules = {}; cellules[COL_P.etat] = parti ? PRG_ETAT.fait : PRG_ETAT.mail; prgEcrire_(sh, cle, cellules); }
 }
