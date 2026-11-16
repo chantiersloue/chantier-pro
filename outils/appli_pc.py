@@ -73,6 +73,8 @@ VERROU_BATTEMENT = 600                         # secondes : pendant un long trav
 ABSENTE_VISIBLE = 7 * 24 * 3600                # secondes : une fiche déplacée ou supprimée par Franck reste signalée sept jours
 A_VOIR_FRAIS = 24 * 3600                       # secondes : « A VOIR » inchangé n'est réécrit qu'une fois par jour
 AUTO_EN_RETARD = 3 * 3600                      # secondes : au-delà, le menu prévient que la recopie automatique ne tourne plus
+PROVENANCE_PAQUET = 25                         # la liste de provenance est écrite toutes les 25 copies, et à la fin
+DATE_TOLERANCE = 2                             # secondes : deux dates de fichier plus proches que cela sont « la même »
 PAS_FAIT = "PASSAGE NON FAIT"                  # début des lignes « A VOIR » qui disent qu'un passage n'a pas pu se faire
 LISTE_MAX = 15                                 # lignes montrées à l'écran pour une liste ; le reste va au journal
 # Raccourcis de Google Drive pour ordinateur : de tout petits fichiers qui ne contiennent pas le document.
@@ -415,6 +417,18 @@ def lire_ecartes(chemin):
     return [e for e in liste if isinstance(e, dict)]
 
 
+def noter_ecartes(chemin_ecartes, entrees, maintenant=None):
+    """Ajoute des documents à la liste « ne plus proposer » (_prive/carnet-ecartes.json) : [{"chemin", "taille"}]."""
+    if not entrees:
+        return
+    ecartes = lire_ecartes(chemin_ecartes)
+    for entree in entrees:
+        ecartes = [e for e in ecartes if cle(e.get("chemin", "")) != cle(entree["chemin"])]
+        ecartes.append({"chemin": entree["chemin"], "taille": entree["taille"], "ecarte_le": heure_de_paris(maintenant)})
+    os.makedirs(os.path.dirname(chemin_ecartes), exist_ok=True)
+    ecrire_json(chemin_ecartes, {"version": 1, "ecartes": ecartes})
+
+
 def est_ecarte(ecartes, relatif, taille):
     return any(cle(e.get("chemin", "")) == cle(relatif) and e.get("taille") == taille for e in ecartes)
 
@@ -440,12 +454,13 @@ def table_des_codes(reglages, numero):
 
 def candidats_carnet(reglages, ecartes=(), compter_pages=nombre_de_pages):
     """Parcourt les bordereaux des chantiers suivis. N'écrit rien.
+    "a_ecarter" : les documents signalés une fois pour toutes, que l'appelant peut noter avec noter_ecartes.
     Rend {"candidats": [...], "signales": [{"numero", "motif", "texte"}], "hors_carnet": n, "ecartes": n}."""
     racine, chantiers_pc, chantiers = reglages["racine"], dossier_des_chantiers(reglages), reglages["chantiers"]
     connus = reglages.get("hors_carnet")       # facultatif : des numéros actuels qui ne vont pas au carnet, à ne pas signaler
     hors = {str(c).strip().upper() for c in connus} if isinstance(connus, list) else set()
     vus = dossiers_pc(chantiers_pc)
-    rendu = {"candidats": [], "signales": [], "hors_carnet": 0, "ecartes": 0, "retires": 0}
+    rendu = {"candidats": [], "signales": [], "hors_carnet": 0, "ecartes": 0, "retires": 0, "a_ecarter": []}
 
     def signaler(numero, motif, texte):
         rendu["signales"].append({"numero": numero, "motif": motif, "texte": texte})
@@ -520,12 +535,16 @@ def candidats_carnet(reglages, ecartes=(), compter_pages=nombre_de_pages):
                     if ident in retires:
                         # Retiré du carnet par Franck : il n'est plus reproposé (son indice reste pris)
                         source = retires[ident].get("source")
-                        if isinstance(source, dict) and (cle(source.get("nom", "")) != cle(fichier) or source.get("poids") != etat.st_size):
-                            signaler(numero, "change", "Chantier n° %s, %s : ce document (%s) a été retiré du carnet, et le fichier a changé depuis. "
-                                     "Rien n'est jamais écrasé au carnet : pour publier le nouveau, renvoie-le sous l'indice suivant (nouveau bordereau)."
-                                     % (numero, ou, ident))
-                        else:
+                        relatif = "/".join(nfc(m) for m in (nom_pc, d08, bordereau, fichier))
+                        if not isinstance(source, dict) or (cle(source.get("nom", "")) == cle(fichier) and source.get("poids") == etat.st_size) \
+                                or est_ecarte(ecartes, relatif, etat.st_size):
                             rendu["retires"] += 1
+                        else:
+                            # Le fichier a changé depuis : dit UNE fois, puis mémorisé (tant que le fichier ne change pas encore)
+                            signaler(numero, "change", "Chantier n° %s, %s : ce document (%s) a été retiré du carnet, et le fichier a changé depuis. "
+                                     "Rien n'est jamais écrasé au carnet : pour publier le nouveau, renvoie-le sous l'indice suivant (nouveau bordereau). "
+                                     "Ce message ne sera pas répété." % (numero, ou, ident))
+                            rendu["a_ecarter"].append({"chemin": relatif, "taille": etat.st_size})
                         continue
                     propre = dc.nettoyer_intitule(intitule)
                     if not propre:
@@ -591,6 +610,7 @@ def traiter_carnet(reglages, candidats, chemin_ecartes, demander=input, dire=pri
             if ferme:
                 break
             r = reponse(demander, "  Déposer au carnet ? o = oui / n = non, ne plus le proposer / Entrée = plus tard : ")
+            battre()                       # après chaque question : le verrou reste le nôtre
             if r is None:
                 ferme = True
                 break
@@ -600,11 +620,7 @@ def traiter_carnet(reglages, candidats, chemin_ecartes, demander=input, dire=pri
                 break
             dire("  Réponse non comprise : tape o, n, ou seulement Entrée.")
         if choix == "n":
-            ecartes = lire_ecartes(chemin_ecartes)
-            ecartes = [e for e in ecartes if cle(e.get("chemin", "")) != cle(c["relatif"])]
-            ecartes.append({"chemin": c["relatif"], "taille": c["poids"], "ecarte_le": heure_de_paris(maintenant)})
-            os.makedirs(os.path.dirname(chemin_ecartes), exist_ok=True)
-            ecrire_json(chemin_ecartes, {"version": 1, "ecartes": ecartes})
+            noter_ecartes(chemin_ecartes, [{"chemin": c["relatif"], "taille": c["poids"]}], maintenant)
             bilan["ecartes"].append(c)
             dire("  Écarté : il ne sera plus proposé (sauf s'il est refait).")
             continue
@@ -616,7 +632,7 @@ def traiter_carnet(reglages, candidats, chemin_ecartes, demander=input, dire=pri
             r = None
             for _ in range(1000):          # sans limite de temps ; relancé tant que le dépôt n'est pas terminé
                 r = deposer(reglages["racine"], c["dossier_drive"], c["chantier"], c["chemin"], c["code"], c["indice"], c["intitule"],
-                            limite=float("inf"), dire=lambda ligne: dire("    " + ligne))
+                            limite=float("inf"), dire=lambda ligne: (dire("    " + ligne), battre()))      # après chaque page déposée
                 if r["termine"]:
                     break
             if not r or not r["termine"]:
@@ -752,6 +768,13 @@ def lire_provenance(chemin, chantier, numero):
     return liste
 
 
+def meme_date(a, b):
+    try:
+        return abs(float(a) - float(b)) <= DATE_TOLERANCE
+    except (TypeError, ValueError):
+        return False
+
+
 def plan_rapatriement(reglages, numero, sous=None, maintenant=None):
     """Ce que la recopie des fiches du chantier ferait. N'écrit rien.
     Rend {"numero", "chantier", "dossier_drive", "drive", "dossier_pc", "pc", "a_copier", "deja", "absentes", "signales", "provenance"}."""
@@ -807,23 +830,33 @@ def plan_rapatriement(reglages, numero, sous=None, maintenant=None):
                 signaler("trop-long", chemin, "%d caractères" % max(len(os.path.abspath(source)), len(os.path.abspath(cible))))
                 continue
             try:
-                taille = os.path.getsize(source)
+                etat = os.stat(source)
             except OSError as e:
                 signaler("illisible", chemin, str(e))
                 continue
-            entree = {"chemin": nfc(chemin), "taille": taille, "source": source, "cible": cible, "inscrit": cle(chemin) in inscrits}
+            taille = etat.st_size
+            note = inscrits.get(cle(chemin))
+            # « Connue » : la liste de provenance a ce chemin AVEC cette taille. Même chemin, autre taille : c'est une fiche NOUVELLE
+            # qui a pris le nom d'une ancienne (l'ancienne avait été supprimée du Drive).
+            connue = note is not None and note.get("taille") == taille
+            entree = {"chemin": nfc(chemin), "taille": taille, "date": int(etat.st_mtime), "source": source, "cible": cible, "inscrit": connue}
             if os.path.isdir(cible):
                 signaler("taille-differente", chemin, "dans le dossier du PC, ce nom est celui d'un dossier")
             elif os.path.lexists(cible):
-                presente = os.path.getsize(cible)
-                if presente == taille:
-                    plan["deja"].append(entree)
-                else:
-                    signaler("taille-differente", chemin, "Drive : %d octets ; PC : %d octets" % (taille, presente))
-            elif entree["inscrit"]:
+                sur_pc = os.stat(cible)
+                if sur_pc.st_size != taille:
+                    signaler("taille-differente", chemin, "Drive : %d octets ; PC : %d octets" % (taille, sur_pc.st_size))
+                    continue
+                entree["date_pc"] = int(sur_pc.st_mtime)
+                # Même taille ne suffit pas pour l'affirmer au relevé : la date du fichier du Drive doit être celle qui a été notée
+                # à la copie (ou, pour une ancienne entrée sans date, celle du fichier du PC). Au moindre doute : comparaison du contenu.
+                if connue and not meme_date(etat.st_mtime, note["date"] if "date" in note else sur_pc.st_mtime):
+                    entree["inscrit"] = False
+                plan["deja"].append(entree)
+            elif connue:
                 # Déjà copiée une fois, et plus à sa place : Franck l'a déplacée, renommée ou supprimée. Son choix est respecté.
-                plan["absentes"].append(inscrits[cle(chemin)])
-                if signalement_recent(inscrits[cle(chemin)], instant):
+                plan["absentes"].append(note)
+                if signalement_recent(note, instant):
                     signaler("absente", chemin)
             else:
                 plan["a_copier"].append(entree)
@@ -901,46 +934,87 @@ def rapatrier(reglages, numero, sous=None, dire=print, maintenant=None, simuler=
         return plan
     provenance = plan["provenance"]
     instant = heure_de_paris(maintenant)
-    for a in plan["a_copier"]:
-        try:
-            copier_fichier(a["source"], a["cible"])
-            a["inscrit"] = True
-            plan["copies"].append(a)
-            provenance["fichiers"].append({"chemin": a["chemin"], "taille": a["taille"], "copie_le": instant})
-            plan["ajoutes"] += 1
-            dire("    copié : %s — %s (%s)" % (plan["dossier_pc"], a["chemin"], mo(a["taille"])))
-        except OSError as e:
-            plan["erreurs"].append({"chemin": a["chemin"], "detail": str(e)})
-            dire("    ! pas copié : %s — %s (%s)" % (plan["dossier_pc"], a["chemin"], e))
-        battre()
-    # Un fichier « déjà présent » (même nom, même taille) que la liste ne connaît pas : il n'y entre, et n'entre au relevé,
-    # qu'après comparaison du CONTENU des deux fichiers. Fait une seule fois : le résultat est noté dans la liste.
-    for a in plan["deja"]:
-        if a["inscrit"]:
-            continue
-        try:
-            memes = empreinte(a["source"]) == empreinte(a["cible"])
-        except OSError as e:
-            plan["erreurs"].append({"chemin": a["chemin"], "detail": "comparaison impossible : %s" % e})
-            continue
-        if memes:
-            a["inscrit"] = True
-            provenance["fichiers"].append({"chemin": a["chemin"], "taille": a["taille"], "copie_le": instant, "verifie": "contenu"})
-            plan["ajoutes"] += 1
+    chemin_provenance = os.path.join(plan["pc"], PROVENANCE)
+    en_attente = [0]                 # changements de la liste pas encore écrits sur le disque
+
+    def inscrire(a, verifie=False):
+        """Note la fiche dans la liste : l'entrée de ce chemin est mise à jour si elle existe (jamais deux fois le même chemin)."""
+        nouvelle = {"chemin": a["chemin"], "taille": a["taille"], "copie_le": instant, "date": a["date"]}
+        if verifie:
+            nouvelle["verifie"] = "contenu"
+        for entree in provenance["fichiers"]:
+            if isinstance(entree, dict) and cle(entree.get("chemin", "")) == cle(a["chemin"]):
+                if entree.get("taille") == a["taille"] and "copie_le" in entree:
+                    nouvelle["copie_le"] = entree["copie_le"]          # même fiche : sa date de copie d'origine est gardée
+                    if "verifie" in entree:
+                        nouvelle["verifie"] = entree["verifie"]
+                entree.clear()
+                entree.update(nouvelle)
+                break
         else:
-            plan["signales"].append({"motif": "autre-contenu", "chemin": a["chemin"], "detail": ""})
-        battre()
-    a_noter = plan["ajoutes"]
-    for entree in plan["absentes"]:
-        if "absente_signalee_le" not in entree:
-            entree["absente_signalee_le"] = instant
-            a_noter += 1
-    # (a) dans le dossier du PC : la provenance, cumulée ; les entrées déjà là sont gardées, jamais deux fois le même chemin.
-    if a_noter:
-        try:
-            ecrire_json(os.path.join(plan["pc"], PROVENANCE), provenance)
-        except OSError as e:
-            plan["ecritures"].append("la liste « %s » n'a pas pu être écrite (%s)" % (PROVENANCE, e))
+            provenance["fichiers"].append(nouvelle)
+            plan["ajoutes"] += 1
+        a["inscrit"] = True
+        en_attente[0] += 1
+
+    def sauver(force=False):
+        """Écrit la liste toutes les 25 nouveautés, et à la fin : un arrêt en route ne fait pas refaire tout le travail."""
+        if en_attente[0] and (force or en_attente[0] >= PROVENANCE_PAQUET):
+            try:
+                ecrire_json(chemin_provenance, provenance)
+                en_attente[0] = 0
+            except OSError as e:
+                if force:
+                    plan["ecritures"].append("la liste « %s » n'a pas pu être écrite (%s)" % (PROVENANCE, e))
+
+    try:
+        for a in plan["a_copier"]:
+            try:
+                copier_fichier(a["source"], a["cible"])
+                plan["copies"].append(a)
+                inscrire(a)
+                dire("    copié : %s — %s (%s)" % (plan["dossier_pc"], a["chemin"], mo(a["taille"])))
+            except OSError as e:
+                plan["erreurs"].append({"chemin": a["chemin"], "detail": str(e)})
+                dire("    ! pas copié : %s — %s (%s)" % (plan["dossier_pc"], a["chemin"], e))
+            battre()
+            sauver()
+        # Un fichier « déjà présent » (même nom, même taille) que la liste ne connaît pas, ou dont la date fait douter : il n'entre
+        # dans la liste, et au relevé, qu'après comparaison du CONTENU des deux fichiers. Le résultat est noté : les fichiers
+        # identiques ne sont comparés qu'une fois ; les fichiers différents ne sont recomparés que si l'un des deux change.
+        differents = provenance.get("differents") if isinstance(provenance.get("differents"), list) else []
+        for a in plan["deja"]:
+            if a["inscrit"]:
+                continue
+            connu = [d for d in differents if isinstance(d, dict) and cle(d.get("chemin", "")) == cle(a["chemin"])]
+            if connu and connu[0].get("taille") == a["taille"] and meme_date(connu[0].get("date_drive"), a["date"]) \
+                    and meme_date(connu[0].get("date_pc"), a["date_pc"]):
+                plan["signales"].append({"motif": "autre-contenu", "chemin": a["chemin"], "detail": ""})
+                continue                     # déjà comparés, et aucun des deux n'a changé : pas de nouvelle lecture
+            try:
+                memes = empreinte(a["source"]) == empreinte(a["cible"])
+            except OSError as e:
+                plan["erreurs"].append({"chemin": a["chemin"], "detail": "comparaison impossible : %s" % e})
+                continue
+            differents = [d for d in differents if d not in connu]
+            if memes:
+                inscrire(a, verifie=True)
+            else:
+                differents.append({"chemin": a["chemin"], "taille": a["taille"], "date_drive": a["date"], "date_pc": a["date_pc"], "vu_le": instant})
+                plan["signales"].append({"motif": "autre-contenu", "chemin": a["chemin"], "detail": ""})
+            if connu or not memes:
+                en_attente[0] += 1
+            if differents or "differents" in provenance:
+                provenance["differents"] = differents
+            battre()
+            sauver()
+        for entree in plan["absentes"]:
+            if "absente_signalee_le" not in entree:
+                entree["absente_signalee_le"] = instant
+                en_attente[0] += 1
+    finally:
+        # (a) dans le dossier du PC : la provenance, cumulée ; écrite même si le travail est interrompu
+        sauver(force=True)
     # (b) dans le Drive : le relevé de présence. Seulement les fiches du Drive qui sont à leur place sur le PC, avec la même
     # taille, et connues de la liste de provenance (copiées par le programme, ou contenu vérifié).
     fichiers = sorted(({"chemin": a["chemin"], "taille": a["taille"]} for a in plan["copies"] + plan["deja"] if a["inscrit"]),
@@ -1357,8 +1431,8 @@ def etat_auto(prive, horloge=time.time):
         age = horloge() - float(dernier["instant"])
         quand = str(dernier["date"])
     except (OSError, ValueError, KeyError, TypeError):
-        return ("La recopie automatique des fiches n'a encore jamais tourné sur ce PC. Pour la mettre en place : "
-                "double-clic sur outils\\installer-tache.bat.", True)
+        return ("La recopie automatique des fiches n'a encore jamais tourné sur ce PC. Elle se met en place à l'étape 5 de la "
+                "procédure (docs/lot4c-procedure.md), APRÈS les essais : double-clic sur outils\\installer-tache.bat.", True)
     if age > AUTO_EN_RETARD:
         return ("ATTENTION : la recopie automatique des fiches n'a pas tourné depuis le %s (plus de 3 heures). PC éteint depuis ? "
                 "Sinon : relance outils\\installer-tache.bat (à refaire après une mise à jour de Python ou un déplacement du dépôt), "
@@ -1500,6 +1574,17 @@ def lancer_commande(arguments):
     return fait.returncode, (fait.stdout + fait.stderr).decode("oem" if os.name == "nt" else "utf-8", "replace").strip()
 
 
+def identifiant_utilisateur(lanceur=lancer_commande):
+    """L'identifiant de la session Windows ouverte (son « SID », de la forme S-1-5-21-…), lu par « whoami /user ».
+    Il désigne le compte sans ambiguïté, même pour un compte Microsoft. None si la lecture échoue."""
+    try:
+        code, texte = lanceur(["whoami", "/user", "/fo", "csv", "/nh"])
+    except OSError:
+        return None
+    trouve = re.search(r"S-1-\d+(?:-\d+)+", texte or "")
+    return trouve.group(0) if code == 0 and trouve else None
+
+
 def installer_tache(dire=print, lanceur=lancer_commande, pythonw=None, script=None, options=(), utilisateur=None, maintenant=None):
     """Crée (ou refait) la tâche planifiée, sans droits d'administrateur. Rend 0, ou 1 si Windows l'a refusée."""
     import tempfile
@@ -1508,6 +1593,8 @@ def installer_tache(dire=print, lanceur=lancer_commande, pythonw=None, script=No
     if not os.path.isfile(pythonw):
         raise Refus("« pythonw.exe » est introuvable à côté de Python : la tâche ne peut pas être créée. Montre ce message.")
     if not utilisateur:
+        utilisateur = identifiant_utilisateur(lanceur)
+    if not utilisateur:                      # repli : le nom de la session
         domaine, nom = os.environ.get("USERDOMAIN", ""), os.environ.get("USERNAME", "")
         if not nom:
             raise Refus("Le nom de ta session Windows est introuvable : la tâche ne peut pas être créée. Montre ce message.")
@@ -1617,6 +1704,7 @@ def tout_traiter(reglages, prive, demander, dire, carnet=True, rapatriement=True
         vu = candidats_carnet(effectif, ecartes)
         for s in vu["signales"]:
             dire("  ! " + s["texte"])
+        noter_ecartes(chemin_ecartes, vu["a_ecarter"])      # dits une fois, puis plus répétés
         if not vu["candidats"]:
             dire("Aucun document à proposer au carnet.")
         bilan = traiter_carnet(effectif, vu["candidats"], chemin_ecartes, demander, dire)
@@ -1731,6 +1819,7 @@ def lancer(o, demander=input, dire=print, lanceur=lancer_commande):
 
         def poser(question):
             r = reponse(demander, question)
+            battre()                       # après chaque question : le verrou reste le nôtre
             journal.noter("%s%s" % (question, "(saisie fermée)" if r is None else r))
             return r
 

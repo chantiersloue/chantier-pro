@@ -20,7 +20,7 @@ Chaque lot : **quoi**, **pourquoi**, **comment déployer**. Procédures détaill
 
 **Comment déployer** : rien à envoyer sur le serveur ni sur GitHub Pages. Marche à suivre de Franck (réglages, lignes à coller dans le skill, essais, installation de la tâche, limites, retour arrière) : `docs/lot4c-procedure.md`.
 
-**Tests** : `python -m unittest tests/test_appli_pc.py` (63 tests, faux dossiers temporaires, aucune tâche planifiée créée) ; `python -m unittest tests/test_depot_carnet.py` (27). Corrigé le 16/11/2026 après une relecture indépendante (`docs/lot4c-plan.md`, chapitre 11). **Pas testé par moi** : le vrai Drive, les vrais dossiers de chantier, la copie TEST, **la création réelle de la tâche planifiée** (sa description n'est vérifiée que dans sa forme) et son lancement sans fenêtre, le double-clic sur les `.bat` au-delà du menu, et les lignes du contrat avec le vrai skill (essais obligatoires de la procédure).
+**Tests** : `python -m unittest tests/test_appli_pc.py` (69 tests, faux dossiers temporaires, aucune tâche planifiée créée) ; `python -m unittest tests/test_depot_carnet.py` (27). Corrigé le 16/11/2026 après deux relectures indépendantes (`docs/lot4c-plan.md`, chapitre 11). **Pas testé par moi** : le vrai Drive, les vrais dossiers de chantier, la copie TEST, **la création réelle de la tâche planifiée** (sa description n'est vérifiée que dans sa forme) et son lancement sans fenêtre, le double-clic sur les `.bat` au-delà du menu, et les lignes du contrat avec le vrai skill (essais obligatoires de la procédure).
 
 ## Lot 4b — Carnet de chantier : hors réseau complet, et retrait de la tuile « Plans » — appli 9.0, serveur **v9.1** — **construit, pas encore en production** (ira avec le 4a)
 

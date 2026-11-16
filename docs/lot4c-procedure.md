@@ -18,6 +18,8 @@ Petit lexique : le **Planificateur de tâches** est l'outil de Windows qui lance
 
 ## La mise en place, une seule fois
 
+**L'ordre est décidé (toi, le 16/11/2026)** : d'abord coller les lignes dans `gestion-documentaire` et vérifier l'état documentaire sur **un** chantier (étapes 3 et 4) ; **ensuite seulement** installer la tâche automatique (étape 5).
+
 | # | Étape | Durée |
 |---|---|---|
 | 1 | Créer le fichier de réglages `_prive\depot.json` | 5 min |
@@ -27,7 +29,7 @@ Petit lexique : le **Planificateur de tâches** est l'outil de Windows qui lance
 | 5 | Double-clic sur `outils\installer-tache.bat` | 5 min |
 | 6 | Les anciens numéros de documents, pour le carnet (avec moi) | 10 min |
 
-Le programme ajoute **un** fichier à la racine de chaque dossier de chantier, `CHANTIERPRO - fiches rapatriees.json` (la liste des fiches venues de l'appli, que ton skill lit), et **un** fichier à côté de tes dossiers de chantier, `CHANTIERPRO - A VOIR.txt`. Ces noms sont gardés pour l'instant ; si tu en veux d'autres, dis-le-moi avant l'étape 4.
+Le programme ajoute **un** fichier à la racine de chaque dossier de chantier, `CHANTIERPRO - fiches rapatriees.json` (la liste des fiches venues de l'appli, que ton skill lit), et **un** fichier à côté de tes dossiers de chantier, `CHANTIERPRO - A VOIR.txt`. **Décidé par toi le 16/11/2026 : ces deux noms sont gardés.**
 
 ### Étape 1 — Créer `_prive\depot.json` (5 min)
 
@@ -59,7 +61,7 @@ Double-clique sur `outils\appli-pc.bat`, tape `2` puis Entrée. À la question �
 - **« À voir »** : par exemple un dossier de l'appli qui n'a pas de numéro en tête de son nom, ou un numéro qui n'a pas de dossier sur le PC.
 - sous « RECOPIE DES FICHES », pour chaque chantier, le nombre de fichiers « à copier ».
 
-Si tu lis « REFUS », le message dit quel chemin est faux. (La première ligne du menu, « La recopie automatique n'a encore jamais tourné », est normale à ce stade.)
+Si tu lis « REFUS », le message dit quel chemin est faux. (La première ligne du menu, « La recopie automatique n'a encore jamais tourné… Elle se met en place à l'étape 5 de la procédure, APRÈS les essais », est normale à ce stade : ne lance pas `installer-tache.bat` maintenant.)
 
 **Un dossier de l'appli n'a pas de numéro en tête de son nom ?** Deux solutions : le renommer dans Drive (`NNN - NOM`), ou le relier à la main : choix `4` du menu (« Associer les chantiers »). Le programme affiche les dossiers du Drive encore libres ; tu tapes le numéro de la ligne, puis le nom du chantier dans l'appli. C'est noté dans `_prive\depot.json`. Attention : cette correspondance ne peut pas contredire un numéro. Si le dossier du Drive commence par `403` et que tu le relies au chantier 404, le programme ne copie rien pour lui et te le dit.
 
@@ -88,7 +90,7 @@ Si l'essai C ou D échoue : n'installe pas la tâche (étape 5). Un seul dossier
 
 ### Étape 5 — Installer la recopie automatique (5 min)
 
-**Ce que je n'ai pas pu essayer** : la création de cette tâche. Le programme la décrit à Windows dans un petit fichier (une seule tâche, deux déclenchements : toutes les heures, et à l'ouverture de **ta** session ; sans droits d'administrateur ; elle tourne aussi sur batterie). Cette description est vérifiée par des tests, mais Windows ne l'a encore jamais reçue. Si Windows la refuse, la fenêtre te le dit et rien n'est cassé : montre-moi le message.
+**Ce que je n'ai pas pu essayer** : la création de cette tâche. Le programme la décrit à Windows dans un petit fichier (une seule tâche, deux déclenchements : toutes les heures, et à l'ouverture de **ta** session, désignée par son identifiant Windows ; sans droits d'administrateur ; elle tourne aussi sur batterie). Cette description est vérifiée par des tests, mais Windows ne l'a encore jamais reçue. Si Windows la refuse, la fenêtre te le dit et rien n'est cassé : montre-moi le message.
 
 1. Double-clique sur **`outils\installer-tache.bat`**. Aucun droit d'administrateur n'est demandé.
 2. La fenêtre dit « Tâche créée : « ChantierPro - recopie des fiches » ».
@@ -134,9 +136,10 @@ Un numéro converti vers un numéro qui n'est pas au carnet (ici `041` → `102`
 - **La tâche ne tourne que si le PC est allumé et ta session ouverte.** PC éteint ou session fermée : les fiches attendent dans le Drive, et arrivent au premier passage suivant.
 - **Google Drive pour ordinateur doit être démarré.** S'il ne l'est pas, rien n'est copié et « A VOIR » le dit, sans effacer les autres points ; le passage suivant réessaie. À l'ouverture de session, il peut arriver que la tâche parte avant que Drive soit prêt : c'est le même cas, rattrapé une heure après.
 - **Une fiche arrive dans le dossier du PC au plus tard une heure après son arrivée dans le Drive** (pas à la seconde).
+- **Une fiche nouvelle qui porte le nom d'une ancienne** (l'ancienne ayant été supprimée du Drive) est reconnue à sa taille : elle est copiée si la place est libre dans le dossier du PC ; sinon « A VOIR » le dit, tant que cela dure.
 - **Une fiche supprimée ou déplacée par toi dans le dossier du PC ne revient pas.** « A VOIR » te le signale pendant sept jours (« fiche de l'appli absente du dossier du PC : déplacée ou supprimée ? »). Si c'était une erreur, recopie-la toi-même depuis le Drive.
 - **Un chantier tout neuf**, sans aucune fiche ni carnet dans le Drive, n'est reconnu qu'à sa première fiche. Pour y déposer un plan avant : choix `4` du menu.
-- Un passage est arrêté par Windows au bout d'**une heure** (une première recopie de milliers de photos peut donc se faire en plusieurs passages ; rien n'est abîmé, la suite reprend à l'heure suivante).
+- Un passage est arrêté par Windows au bout d'**une heure** (une première recopie de milliers de photos peut donc se faire en plusieurs passages ; rien n'est abîmé, et ce qui est déjà copié est noté toutes les 25 copies : la suite reprend là où elle en était).
 - **MEGA** synchronise ensuite le dossier comme d'habitude : le programme ne s'en occupe pas. Avant une purge du Drive (lot 5), il faudra vérifier que MEGA a fini de synchroniser ; et le relevé `releve-pc.json` devra avoir moins de 48 heures (la tâche le refait chaque jour).
 - Un fichier du Drive « en ligne seulement » se télécharge pendant la copie ; si cela échoue, il est signalé et repris au passage suivant.
 
@@ -144,7 +147,7 @@ Un numéro converti vers un numéro qui n'est pas au carnet (ici `041` → `102`
 
 - **Rien à faire pour les fiches.** Jette un œil à `CHANTIERPRO - A VOIR.txt` de temps en temps (ou `appli-pc`, choix `3`).
 - **Après l'envoi d'un bordereau** qui contient un plan pour les poseurs : double-clic sur `appli-pc`, choix `1`, Entrée à « Numéro d'un seul chantier ». (Ton skill te le rappellera.) **o** = oui ; **n** = non, ne plus me proposer ce document (il le sera de nouveau si le fichier est refait) ; **Entrée** = plus tard. Pour un bordereau préparé mais pas encore envoyé : Entrée.
-- **Un plan refait après son dépôt au carnet** : rien n'est jamais écrasé au carnet. Le plan refait part sous l'**indice suivant**, dans un nouveau bordereau. Cas à connaître : un bordereau que tu as déposé au carnet puis corrigé **avant** de l'envoyer devra lui aussi prendre l'indice suivant — dépose donc au carnet après l'envoi.
+- **Un plan refait après son dépôt au carnet** : rien n'est jamais écrasé au carnet. Le plan refait part sous l'**indice suivant**, dans un nouveau bordereau (décidé par toi le 16/11/2026). Cas à connaître : un bordereau que tu as déposé au carnet puis corrigé **avant** de l'envoyer devra lui aussi prendre l'indice suivant — dépose donc au carnet après l'envoi.
 - **Retirer un document du carnet** : choix `5`. Il n'est plus montré aux poseurs ; aucun fichier n'est supprimé ; il ne t'est plus proposé. Son indice reste pris.
 - `outils\deposer.bat` (lot 4a) reste là, pour mettre au carnet un document qui n'est pas dans un bordereau.
 
@@ -182,7 +185,7 @@ Dans le menu de `appli-pc`, une ligne **« ATTENTION : la recopie automatique de
 
 ## Ce que je n'ai pas pu vérifier
 
-- Le programme n'a tourné que sur de faux dossiers (63 tests automatiques : `python -m unittest tests/test_appli_pc.py`). Ni le vrai Drive, ni tes vrais dossiers de chantier, ni la copie TEST.
+- Le programme n'a tourné que sur de faux dossiers (69 tests automatiques : `python -m unittest tests/test_appli_pc.py`). Ni le vrai Drive, ni tes vrais dossiers de chantier, ni la copie TEST.
 - **La création réelle de la tâche planifiée n'a été essayée par personne.** `installer-tache.bat` et `retirer-tache.bat` n'ont jamais été lancés. Les tests vérifient seulement que la description donnée à Windows est bien formée et porte les bonnes valeurs. À voir à l'étape 5 : que Windows l'accepte sans droits d'administrateur, avec son déclenchement à l'ouverture de ta session.
 - Le lancement sans fenêtre (`pythonw.exe`) par le Planificateur de tâches.
 - Le double-clic sur `appli-pc.bat` dans une vraie fenêtre Windows au-delà de son menu (accents, saisie).

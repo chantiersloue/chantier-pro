@@ -191,7 +191,7 @@ Les dossiers de chantier de ton PC, que MEGA sauvegarde, sont l'archive maître.
 
    Les clés `carnet` et `plans` ne sont **pas** rapatriées : ce sont des copies de documents déjà dans le dossier du chantier.
 3. **Copier dans le dossier du chantier sur le PC, au même chemin**, toute **nouvelle** fiche — une fiche qui n'y est pas, et qui n'a encore jamais été copiée :
-   - **une fiche déjà copiée une fois n'est jamais recopiée** : si tu l'as déplacée, renommée ou supprimée dans le dossier du PC, ton choix est respecté (c'est seulement signalé, sept jours) ;
+   - **une fiche déjà copiée une fois n'est jamais recopiée** : si tu l'as déplacée, renommée ou supprimée dans le dossier du PC, ton choix est respecté (c'est seulement signalé, sept jours). « La même fiche » veut dire : même chemin **et même taille** que ce qui a été noté à la copie. Un fichier du Drive qui porte le nom d'une ancienne fiche mais n'a pas sa taille est une fiche **nouvelle** : elle est copiée si la place est libre ; si un fichier d'une autre taille occupe la place, rien n'est touché et c'est signalé tant que cela dure ;
    - **copier, jamais déplacer** : rien n'est supprimé ni modifié dans Drive (la purge de Drive est le travail de l'appli, au lot 5, et tu la valides toi-même) ;
    - **jamais écraser** : un fichier de même nom et de même taille déjà dans le dossier du chantier est « déjà présent » — s'il n'a jamais été copié par le programme, son **contenu** est comparé une fois à celui du Drive avant d'être tenu pour la même fiche ; taille ou contenu différent : signalé, et rien n'est touché ;
    - **jamais renommer** ;
@@ -207,7 +207,7 @@ Les dossiers de chantier de ton PC, que MEGA sauvegarde, sont l'archive maître.
 
 - **Où** : à la **racine du dossier du chantier sur le PC** (avec « A VOIR », c'est le seul ajout à tes dossiers). Les skills la voient, puisqu'ils travaillent dans ce dossier.
 - **À quoi elle sert** : c'est la **seule** source qui dit « ce fichier vient de l'appli ». Les skills s'en servent pour ne pas prendre ces fichiers pour leurs propres documents.
-- **Écrite par** : le programme du PC, et lui seul. **Cumulative** : une entrée n'est jamais retirée, même si le fichier a été déplacé ensuite ; jamais deux fois le même chemin. C'est aussi sa mémoire : **un chemin qui y figure n'est plus jamais recopié**.
+- **Écrite par** : le programme du PC, et lui seul, **toutes les 25 copies et à la fin** (un arrêt en route ne fait pas refaire le travail). **Cumulative** : une entrée n'est jamais retirée, même si le fichier a été déplacé ensuite ; jamais deux fois le même chemin (l'entrée est mise à jour quand une fiche nouvelle reprend le nom d'une ancienne). C'est aussi sa mémoire : **une fiche qui y figure, avec la même taille, n'est plus jamais recopiée**.
 
 ```json
 {
@@ -220,7 +220,7 @@ Les dossiers de chantier de ton PC, que MEGA sauvegarde, sont l'archive maître.
 }
 ```
 
-- `chemin` : relatif au dossier du chantier, avec des `/`. `taille` : en octets (l'unité de poids d'un fichier). `copie_le` : heure de Paris. Deux mentions facultatives, que les skills ignorent : `"verifie": "contenu"` (fichier trouvé déjà là, reconnu identique à la fiche du Drive par comparaison du contenu) et `"absente_signalee_le"` (date à laquelle le programme a vu que tu avais déplacé ou supprimé cette fiche).
+- `chemin` : relatif au dossier du chantier, avec des `/`. `taille` : en octets (l'unité de poids d'un fichier). `copie_le` : heure de Paris. Des mentions que les skills ignorent : `"date"` (date de modification de la fiche dans le Drive au moment de la copie, en secondes), `"verifie": "contenu"` (fichier trouvé déjà là, reconnu identique à la fiche du Drive par comparaison du contenu), `"absente_signalee_le"` (date à laquelle le programme a vu que tu avais déplacé ou supprimé cette fiche) ; et, à côté de `fichiers`, une liste `"differents"` (les fichiers de même nom et de même taille dont le contenu n'est PAS celui du Drive : ce ne sont pas des fiches de l'appli, **les skills ne lisent que `fichiers`**).
 - Un fichier trouvé « déjà présent » dans le dossier du chantier (même nom, même taille qu'une fiche du Drive, dans un sous-dossier de fiches) et absent de la liste n'y est ajouté **qu'après comparaison de son contenu** avec la fiche du Drive (empreinte SHA-256, une seule fois). Contenu différent : il est signalé, pas ajouté.
 
 ### Trois règles du skill à protéger (sinon il abîmerait ces fichiers)
@@ -236,7 +236,7 @@ Le bloc C du chapitre 8 contient les lignes à ajouter aux paragraphes concerné
 **À quoi il sert** : au lot 5, avant de proposer la purge d'un chantier, l'appli vérifiera que chaque fichier de Drive a bien été copié. Elle n'a pas accès aux dossiers de ton PC : elle lira ce relevé et comparera **le nom et la taille**.
 
 - **Où** : à la racine du dossier Drive du chantier. **Écrit par** : le programme du PC, d'après ce qu'il a réellement trouvé sur le disque ; refait en entier quand son contenu change, et **au moins une fois par jour** par la tâche planifiée. C'est le seul fichier que le programme écrit dans le Drive hors du carnet. (Le programme remplace aussi, dans tes dossiers, ses deux propres fichiers : la liste de provenance et « A VOIR ». Jamais un fichier à toi.) **Les skills ne le voient pas et ne l'écrivent pas.**
-- **Contenu** : les **fiches du Drive** qui sont à leur place dans le **dossier du chantier sur ton PC**, avec la même taille, et que la liste de provenance connaît (copiées par le programme, ou contenu vérifié). Rien d'autre : ni tes propres documents des mêmes sous-dossiers (comptes rendus de la maîtrise d'œuvre, photos), ni une fiche que tu as déplacée, ni un fichier d'une autre taille ou d'un autre contenu.
+- **Contenu** : les **fiches du Drive** qui sont à leur place dans le **dossier du chantier sur ton PC**, avec la même taille, que la liste de provenance connaît (copiées par le programme, ou contenu vérifié), **et dont la date dans le Drive est celle notée à la copie** — au moindre doute, le contenu est comparé avant d'affirmer quoi que ce soit. Rien d'autre : ni tes propres documents des mêmes sous-dossiers (comptes rendus de la maîtrise d'œuvre, photos), ni une fiche que tu as déplacée, ni un fichier d'une autre taille ou d'un autre contenu.
 
 ```json
 {
@@ -510,11 +510,13 @@ Si une case de *Chantiers* a changé sans toi : retire le bloc A, remets à la m
 | Comment le programme trouve-t-il le dossier du chantier ? | **Par le numéro en tête du nom des dossiers** ; rien n'est deviné (aucun dossier ou plusieurs : rien n'est copié, c'est signalé). Une correspondance écrite à la main reste possible pour les cas que le numéro ne règle pas |
 | Comment Franck est-il prévenu ? | Par le fichier `CHANTIERPRO - A VOIR.txt`, à côté de ses dossiers de chantier, réécrit quand sa liste change ; et par le menu de `appli-pc`, qui prévient si la recopie n'a pas tourné depuis plus de 3 heures |
 | Quand le relevé `releve-pc.json` est-il trop vieux pour une purge ? | **Au-delà de 48 heures** (au lieu de 30 jours) : la tâche le refait au moins une fois par jour |
-| Les noms des deux fichiers ajoutés aux dossiers de Franck | `CHANTIERPRO - fiches rapatriees.json` et `CHANTIERPRO - A VOIR.txt` sont **gardés pour l'instant** ; Franck tranchera |
+| Les noms des deux fichiers ajoutés aux dossiers de Franck | **Décidé (Franck, 16/11/2026)** : `CHANTIERPRO - fiches rapatriees.json` et `CHANTIERPRO - A VOIR.txt` sont gardés |
+| Un document refait après son dépôt au carnet, sous le même indice ? | **Décidé (Franck, 16/11/2026)** : il part sous l'**indice suivant** ; rien n'est écrasé au carnet |
+| Dans quel ordre mettre en place ? | **Décidé (Franck, 16/11/2026)** : d'abord coller les lignes dans `gestion-documentaire` et vérifier l'état documentaire sur un chantier ; **ensuite seulement** installer la tâche automatique |
 | Comment les skills reconnaissent-ils une fiche de l'appli ? | Par la **liste de provenance dans le dossier du chantier** (`CHANTIERPRO - fiches rapatriees.json`). Le relevé `releve-pc.json` (appelé « mega-index.json » jusqu'à la version 4), lui, reste dans Drive et ne sert qu'à la purge (lot 5) |
 | MEGA est-il un outil du contrat ? | **Non** (décision de Franck) : MEGA synchronise les dossiers de chantier du PC (sauvegarde, accès à distance). L'appli et les skills ne connaissent que ces dossiers |
 
-**Reste à trancher par toi** : les noms `CHANTIERPRO - fiches rapatriees.json` (le seul fichier ajouté à la racine de chaque dossier de chantier) et `CHANTIERPRO - A VOIR.txt`, gardés pour l'instant. Si tu veux d'autres noms, dis-le **avant d'installer la recopie automatique** : il est écrit à un seul endroit du programme, et dans les blocs du chapitre 8.
+**Plus rien à trancher** dans ce chapitre : les trois dernières lignes du tableau sont des décisions de Franck du 16/11/2026.
 
 ---
 
@@ -541,6 +543,7 @@ Si une case de *Chantiers* a changé sans toi : retire le bloc A, remets à la m
 - **Vocabulaire** : « dossier du chantier sur le PC » remplace « MEGA » partout où l'on parlait des dossiers ; MEGA n'est que leur sauvegarde. Le relevé s'appelle `releve-pc.json` (il s'appelait « mega-index.json »).
 - **Deux fichiers distincts** : la provenance (dans le dossier du chantier, lisible par les skills) et le relevé de présence (dans Drive, pour la purge). La version 4 faisait reconnaître les fiches par le relevé, que les skills n'auraient pas pu lire.
 - **Les doublons `nom (1).pdf` (quand `nom.pdf` existe à côté) et les raccourcis Google sont signalés, plus copiés.**
+- **Après la seconde relecture (16/11/2026)** : une fiche nouvelle qui reprend le nom d'une ancienne est bien copiée ; la liste de provenance est écrite toutes les 25 copies ; la date de la fiche est notée et comparée avant d'affirmer au relevé ; un « même taille, autre contenu » n'est recomparé que si l'un des deux fichiers change ; l'utilisateur de la tâche est désigné par son identifiant Windows.
 - **Après la relecture indépendante (16/11/2026)** : une fiche déjà copiée n'est jamais recopiée ; un dossier du Drive n'est suivi que s'il est un dossier de chantier de l'appli ; la correspondance ne peut pas contredire un numéro ; un fichier « déjà présent » n'est tenu pour une copie qu'après comparaison du contenu ; le relevé ne liste que les fiches du Drive ; une seule tâche planifiée, limitée à ta session ; « A VOIR » réécrit seulement quand il change ; verrou repris au bout de deux heures ; option « un seul chantier » pour le premier essai.
 - **La règle 1 devient facultative**, et ne lit plus que l'onglet *Chantiers*.
 - **Les textes à coller ne concernent plus qu'un seul skill** (`gestion-documentaire`), au lieu de neuf.

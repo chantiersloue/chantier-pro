@@ -209,7 +209,7 @@ def nom_simple(nom):
 def dossier_carnet(racine, dossier):
     """Le chemin du dossier CARNET du chantier (qui n'existe peut-être pas encore). Refuse si la racine ou le chantier manquent."""
     if not racine or not os.path.isdir(racine):
-        raise Refus("La racine du Drive de l'appli est introuvable. Vérifiez --racine (ou _prive/depot.json), et que Google Drive pour ordinateur est démarré.")
+        raise Refus("La racine du Drive de l'appli est introuvable. Vérifie --racine (ou _prive/depot.json), et que Google Drive pour ordinateur est démarré.")
     fichier = os.path.join(racine, DOSSIERS_FICHIER)
     if not os.path.isfile(fichier):
         raise Refus("Ce dossier ne contient pas « %s » : ce n'est pas la racine du Drive de l'appli." % DOSSIERS_FICHIER)
@@ -229,7 +229,7 @@ def dossier_carnet(racine, dossier):
     chantier = os.path.join(racine, dossier)
     if not os.path.isdir(chantier):
         raise Refus("Le dossier du chantier « %s » n'existe pas sous la racine. Ce programme ne crée jamais le dossier d'un chantier : "
-                    "c'est l'appli qui le crée. Vérifiez le nom, lettre pour lettre." % dossier)
+                    "c'est l'appli qui le crée. Vérifie le nom, lettre pour lettre." % dossier)
     return os.path.join(chantier, *morceaux)
 
 
@@ -247,19 +247,19 @@ def lire_carnet(carnet, chantier=None):
     en_trop = [n for n in noms if n.lower() != CARNET_FICHIER]
     if en_trop:
         raise Refus("Le dossier du carnet contient plusieurs listes (%s). Google Drive pour ordinateur a fabriqué un doublon : "
-                    "ouvrez le dossier, gardez la bonne liste sous le nom « %s », mettez l'autre de côté, puis relancez."
+                    "ouvre le dossier, garde la bonne liste sous le nom « %s », mets l'autre de côté, puis relance."
                     % (", ".join("« %s »" % n for n in noms), CARNET_FICHIER))
     if not noms:
         return None
     try:
         liste = lire_json(os.path.join(carnet, noms[0]))
     except (OSError, ValueError) as e:
-        raise Refus("La liste « %s » du carnet est illisible (%s). Rien n'est modifié : attendez la fin de la synchronisation de Drive, "
-                    "ou restaurez une version précédente du fichier." % (CARNET_FICHIER, e))
+        raise Refus("La liste « %s » du carnet est illisible (%s). Rien n'est modifié : attends la fin de la synchronisation de Drive, "
+                    "ou restaure une version précédente du fichier." % (CARNET_FICHIER, e))
     if not isinstance(liste, dict) or not isinstance(liste.get("documents"), list):
         raise Refus("La liste « %s » du carnet n'a pas la forme attendue (pas de liste « documents »). Rien n'est modifié." % CARNET_FICHIER)
     if chantier is not None and liste.get("chantier") and str(liste["chantier"]).strip() != chantier:
-        raise Refus("Ce carnet est celui du chantier « %s », pas de « %s ». Vérifiez --dossier et --chantier."
+        raise Refus("Ce carnet est celui du chantier « %s », pas de « %s ». Vérifie --dossier et --chantier."
                     % (liste["chantier"], chantier))
     return liste
 
@@ -291,16 +291,16 @@ def lire_etat(dossier_doc, ident, source, dpi, pages):
     nom = os.path.basename(dossier_doc)
     chemin = os.path.join(dossier_doc, ETAT_FICHIER)
     if not os.path.isfile(chemin):
-        raise Refus("Le dossier « %s » existe déjà dans le carnet et ne vient pas d'un dépôt en cours. Rien n'est écrasé : prenez un autre indice." % nom)
+        raise Refus("Le dossier « %s » existe déjà dans le carnet et ne vient pas d'un dépôt en cours. Rien n'est écrasé : prends un autre indice." % nom)
     try:
         etat = lire_json(chemin)
         memes = (etat["id"] == ident and etat["source"] == source and etat["dpi"] == dpi and etat["nombre"] == pages
                  and isinstance(etat["pages"], dict))
     except (OSError, ValueError, KeyError, TypeError):
-        raise Refus("Le fichier « %s » du dossier « %s » est illisible : la reprise est impossible. Rien n'est écrasé : prenez un autre indice." % (ETAT_FICHIER, nom))
+        raise Refus("Le fichier « %s » du dossier « %s » est illisible : la reprise est impossible. Rien n'est écrasé : prends un autre indice." % (ETAT_FICHIER, nom))
     if not memes:
         raise Refus("Le dossier « %s » contient déjà un dépôt fait avec un autre PDF (« %s », %d octets). "
-                    "Rien n'est écrasé : pour un PDF modifié, prenez l'indice suivant."
+                    "Rien n'est écrasé : pour un PDF modifié, prends l'indice suivant."
                     % (nom, etat["source"].get("nom", "?") if isinstance(etat["source"], dict) else "?",
                        etat["source"].get("poids", 0) if isinstance(etat["source"], dict) else 0))
     etat["termine"] = False
@@ -322,7 +322,7 @@ def deposer(racine, dossier, chantier, pdf, code, indice, intitule, limite=LIMIT
         liste = lire_carnet(carnet, chantier)
         for d in (liste or {}).get("documents", []):
             if isinstance(d, dict) and d.get("id") == ident and d.get("retire") is not True:
-                raise Refus("Le document %s est déjà au carnet de ce chantier. Rien n'est écrasé : prenez l'indice suivant "
+                raise Refus("Le document %s est déjà au carnet de ce chantier. Rien n'est écrasé : prends l'indice suivant "
                             "(retirer l'ancien ne libère pas son indice pour un PDF modifié)." % ident)
         return liste
 
@@ -454,7 +454,7 @@ def verifier(racine, dossier):
     for n in sous_dossiers:
         if n.lower() not in connus:
             en_cours = os.path.isfile(os.path.join(carnet, n, ETAT_FICHIER))
-            problemes.append("Le dossier « %s » n'est dans aucun document de la liste%s." % (n, " (dépôt commencé et pas fini : relancez-le)" if en_cours else ""))
+            problemes.append("Le dossier « %s » n'est dans aucun document de la liste%s." % (n, " (dépôt commencé et pas fini : relance-le)" if en_cours else ""))
     rendu["bon"] = not problemes
     return rendu
 
@@ -540,8 +540,8 @@ def main(argv=None):
     try:
         racine = o.racine or racine_notee()
         if not racine:
-            raise Refus("La racine du Drive de l'appli n'est pas donnée : ajoutez --racine \"<dossier>\", "
-                        "ou créez le fichier _prive/depot.json contenant {\"racine\": \"<dossier>\"}.")
+            raise Refus("La racine du Drive de l'appli n'est pas donnée : ajoute --racine \"<dossier>\", "
+                        "ou crée le fichier _prive/depot.json contenant {\"racine\": \"<dossier>\"}.")
         if o.verifier:
             r = verifier(racine, o.dossier)
             for p in r["problemes"]:
@@ -560,7 +560,7 @@ def main(argv=None):
         debut = time.time()
         r = deposer(racine, o.dossier, o.chantier, o.pdf, o.code, o.indice, o.intitule, limite=o.limite)
         if not r["termine"]:
-            print("Arrêt à la limite de temps : %d page(s) faite(s), il en reste %d. RELANCEZ LA MÊME COMMANDE : le travail reprend où il en est."
+            print("Arrêt à la limite de temps : %d page(s) faite(s), il en reste %d. RELANCE LA MÊME COMMANDE : le travail reprend où il en est."
                   % (r["faites"], r["restent"]))
             return 3
         print("Déposé : %s, %d page(s), %.1f Mo d'images, en %.0f s, dans « %s ». Le document apparaît dans l'appli quand "
@@ -568,7 +568,7 @@ def main(argv=None):
         return 0
     except OSError as e:
         # disque plein, Drive pour ordinateur arrêté, chemin trop long, fichier verrouillé… : rien n'est annoncé dans la liste
-        print("ARRÊT : le dossier n'a pas pu être lu ou écrit (%s). Vérifiez que Google Drive pour ordinateur tourne, puis relancez la même commande (si elle répond « déjà au carnet », le document y est : contrôlez avec --verifier)." % e, file=sys.stderr)
+        print("ARRÊT : le dossier n'a pas pu être lu ou écrit (%s). Vérifie que Google Drive pour ordinateur tourne, puis relance la même commande (si elle répond « déjà au carnet », le document y est : contrôle avec --verifier)." % e, file=sys.stderr)
         return 2
     except Refus as e:
         print("REFUS : %s" % e, file=sys.stderr)

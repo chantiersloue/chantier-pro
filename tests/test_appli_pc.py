@@ -349,7 +349,7 @@ class Depot(Monde):
         chemin = self.bordereau(1, "901-10-105-A-RESERVATIONS.pdf")
         candidats = ap.candidats_carnet(self.reglages)["candidats"]
         ap.traiter_carnet(self.reglages, candidats, self.ecartes, saisies("o"), self.dire)
-        self.assertEqual(ap.candidats_carnet(self.reglages), {"candidats": [], "signales": [], "hors_carnet": 0, "ecartes": 0, "retires": 0})
+        self.assertEqual(ap.candidats_carnet(self.reglages), {"candidats": [], "signales": [], "hors_carnet": 0, "ecartes": 0, "retires": 0, "a_ecarter": []})
         shutil.copy(COMMUN["autre"], chemin)
         vu = ap.candidats_carnet(self.reglages)
         self.assertEqual((vu["candidats"], self.motifs(vu)), ([], ["change"]))
@@ -362,7 +362,18 @@ class Depot(Monde):
         self.assertEqual(set(photo(self.racine)), set(avant), "retirer ne supprime aucun fichier")
         vu = ap.candidats_carnet(self.reglages)
         self.assertEqual((vu["candidats"], self.motifs(vu), vu["retires"]), ([], ["change"], 0))
-        self.assertRegex(vu["signales"][0]["texte"], "retiré du carnet.*indice suivant")
+        self.assertRegex(vu["signales"][0]["texte"], "retiré du carnet.*indice suivant.*ne sera pas répété")
+        # … dit UNE fois : le programme le mémorise (liste des écartés, avec la taille), et n'en parle plus au lancement suivant
+        self.assertEqual(vu["a_ecarter"], [{"chemin": "/".join([PC_1, D08, "BORDEREAU 1", "901-10-105-A-RESERVATIONS.pdf"]),
+                                           "taille": os.path.getsize(COMMUN["autre"])}])
+        code, sortie, _ = self.lancer("--carnet")
+        self.assertIn("retiré du carnet", sortie)
+        self.assertEqual(lire(self.ecartes)["ecartes"][0]["taille"], os.path.getsize(COMMUN["autre"]))
+        code, sortie, _ = self.lancer("--carnet")
+        self.assertNotIn("retiré du carnet", sortie)
+        vu = ap.candidats_carnet(self.reglages, ap.lire_ecartes(self.ecartes))
+        self.assertEqual((vu["candidats"], vu["signales"], vu["retires"], vu["a_ecarter"]), ([], [], 1, []))
+        os.remove(self.ecartes)
         # Le fichier d'origine remis à sa place : retiré, et identique à ce qui avait été déposé → ni proposé, ni signalé
         shutil.copy(COMMUN["pdf"], chemin)
         vu = ap.candidats_carnet(self.reglages)
@@ -398,6 +409,25 @@ class Depot(Monde):
         self.assertEqual([(c["id"], m) for c, m in bilan["refuses"]], [("105-A", "refus simulé")])
         self.assertEqual([c["id"] for c in bilan["deposes"]], ["106-A"])
         self.assertTrue(bilan["verifications"]["901"]["bon"])
+
+    def test_le_verrou_est_rafraichi_apres_chaque_question_et_chaque_page(self):
+        self.bordereau(1, "901-10-105-A-RESERVATIONS.pdf")
+        self.bordereau(1, "901-10-106-A-REPERAGE.pdf")
+        moments = []
+        vraie = self.dire
+
+        def dire(ligne=""):
+            moments.append("dit")
+            vraie(ligne)
+
+        with mock.patch.object(ap, "battre", lambda: moments.append("battement")):
+            ap.traiter_carnet(self.reglages, ap.candidats_carnet(self.reglages)["candidats"], self.ecartes, saisies("o", ""), dire)
+        self.assertEqual(moments.count("battement"), 2 + 3, "deux questions ; pour le dépôt : la ligne d'en-tête et les deux pages")
+        # Et par la ligne de commande : chaque question posée rafraîchit le verrou
+        battements = []
+        with mock.patch.object(ap, "battre", lambda: battements.append(1)):
+            self.lancer(demander=saisies("", ""))
+        self.assertGreaterEqual(len(battements), 2)
 
     def test_saisie_fermee_rien_n_est_depose(self):
         self.bordereau(1, "901-10-105-A-RESERVATIONS.pdf")
@@ -523,13 +553,15 @@ class Rapatriement(Monde):
 
         # (a) La liste de provenance, dans le dossier du chantier sur le PC
         provenance = self.provenance()
-        self.assertEqual(sorted(provenance), ["chantier", "fichiers", "numero", "version"])
+        self.assertEqual(sorted(provenance), ["chantier", "differents", "fichiers", "numero", "version"])
+        self.assertEqual([(d["chemin"], d["taille"]) for d in provenance["differents"]], [(COTES + "/MEME TAILLE.pdf", 9)])
         self.assertEqual((provenance["version"], provenance["chantier"], provenance["numero"]), (1, "Chantier Essai Un", "901"))
         self.assertEqual(sorted(e["chemin"] for e in provenance["fichiers"]), sorted(list(copies) + [COTES + "/DEJA LA.pdf"]))
         for e in provenance["fichiers"]:
             # « déjà présent » : inscrit seulement après comparaison du contenu, et c'est noté
             deja = e["chemin"] == COTES + "/DEJA LA.pdf"
-            self.assertEqual(sorted(e), ["chemin", "copie_le", "taille", "verifie"] if deja else ["chemin", "copie_le", "taille"])
+            self.assertEqual(sorted(e), ["chemin", "copie_le", "date", "taille", "verifie"] if deja else ["chemin", "copie_le", "date", "taille"])
+            self.assertEqual(e["date"], int(os.path.getmtime(os.path.join(self.racine, DRIVE_1, e["chemin"]))), "la date de la fiche du Drive est notée")
             self.assertEqual(e.get("verifie"), "contenu" if deja else None)
             self.assertEqual(e["taille"], os.path.getsize(os.path.join(self.pc, PC_1, e["chemin"])))
             self.assertEqual(e["copie_le"], "2026-11-13T08:30:00+01:00")
@@ -598,6 +630,121 @@ class Rapatriement(Monde):
         self.assertEqual(liste["fichiers"][0], {"chemin": COTES + "/PARTI.pdf", "taille": 5, "copie_le": "x"})
         self.assertEqual((liste["note"], [e["chemin"] for e in liste["fichiers"]][1:]), ("gardée", [COTES + "/NOUVEAU.pdf"]))
         self.assertRegex(liste["fichiers"][1]["copie_le"], r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+0[12]:00$")
+
+    def test_fiche_nouvelle_sous_le_nom_d_une_ancienne(self):
+        source = self.fiche(COTES + "/QUITUS.pdf", "premier quitus")
+        self.rapatrier()
+        sur_pc = os.path.join(self.pc, PC_1, COTES, "QUITUS.pdf")
+        # Franck range la fiche ailleurs ; dans le Drive, l'ancienne est supprimée et une AUTRE fiche prend son nom (autre taille)
+        os.makedirs(os.path.join(self.pc, PC_1, "06 - COURRIER"))
+        shutil.move(sur_pc, os.path.join(self.pc, PC_1, "06 - COURRIER", "QUITUS.pdf"))
+        ecrire(source, "un second quitus, plus long que le premier")
+        plus_tard = self.instant + datetime.timedelta(days=1)
+        plan = self.rapatrier(maintenant=plus_tard)
+        self.assertEqual(([a["chemin"] for a in plan["copies"]], plan["signales"], plan["absentes"]), ([COTES + "/QUITUS.pdf"], [], []),
+                         "autre taille que celle notée : c'est une fiche NOUVELLE, la place est libre, elle est copiée")
+        with open(sur_pc, encoding="utf-8") as f:
+            self.assertEqual(f.read(), "un second quitus, plus long que le premier")
+        entrees = self.provenance()["fichiers"]
+        self.assertEqual(len(entrees), 1, "jamais deux fois le même chemin : l'entrée est mise à jour")
+        self.assertEqual((entrees[0]["taille"], entrees[0]["copie_le"]), (os.path.getsize(source), ap.heure_de_paris(plus_tard)))
+        self.assertNotIn("absente_signalee_le", entrees[0])
+        self.assertEqual(self.index()["fichiers"], [{"chemin": COTES + "/QUITUS.pdf", "taille": os.path.getsize(source)}])
+        # Si la place est occupée par un fichier d'une autre taille : rien n'est touché, et c'est signalé SANS limite de durée
+        ecrire(source, "une troisième fiche, encore plus longue que la deuxième")
+        for jours in (2, 30, 400):
+            plan = self.rapatrier(maintenant=self.instant + datetime.timedelta(days=jours))
+            self.assertEqual(([x["motif"] for x in plan["signales"]], plan["copies"]), (["taille-differente"], []), jours)
+        with open(sur_pc, encoding="utf-8") as f:
+            self.assertEqual(f.read(), "un second quitus, plus long que le premier", "jamais écrasé")
+        self.assertEqual(self.index()["fichiers"], [], "pas au relevé : la fiche du Drive n'est pas sur le PC")
+        # La même fiche (même taille) supprimée par Franck, elle, n'est toujours pas recopiée
+        os.remove(sur_pc)
+        ecrire(source, "un second quitus, plus long que le premier")
+        plan = self.rapatrier(maintenant=self.instant + datetime.timedelta(days=401))
+        self.assertEqual(([x["motif"] for x in plan["signales"]], plan["copies"]), (["absente"], []))
+
+    def test_la_liste_de_provenance_est_ecrite_en_cours_de_route(self):
+        for n in range(60):
+            self.fiche(COTES + "/FICHE %02d.pdf" % n, "fiche %d" % n)
+        vraie_ecriture, ecritures = ap.ecrire_json, []
+
+        def compter(chemin, objet, lisible=True):
+            if os.path.basename(chemin) == ap.PROVENANCE:
+                ecritures.append(len(objet["fichiers"]))
+            vraie_ecriture(chemin, objet, lisible)
+
+        vraie_copie, copies = ap.copier_blocs, []
+
+        def coupure(lecture, ecriture):
+            copies.append(lecture.name)
+            if len(copies) == 56:
+                raise RuntimeError("arrêt par Windows au bout d'une heure")
+            vraie_copie(lecture, ecriture)
+
+        with mock.patch.object(ap, "ecrire_json", compter), mock.patch.object(ap, "copier_blocs", coupure), self.assertRaises(RuntimeError):
+            self.rapatrier()
+        self.assertEqual(ecritures, [25, 50, 55], "toutes les 25 copies, et ce qui reste au moment de l'arrêt")
+        self.assertEqual(len(self.provenance()["fichiers"]), 55)
+        # À la relance : les 55 fichiers déjà notés ne sont pas relus (aucune comparaison de contenu), les 5 derniers sont copiés
+        lectures = []
+        with mock.patch.object(ap, "empreinte", lambda chemin: lectures.append(chemin) or "x"):
+            plan = self.rapatrier()
+        self.assertEqual((len(plan["copies"]), len(plan["deja"]), lectures), (5, 55, []))
+        self.assertEqual(len(self.index()["fichiers"]), 60)
+
+    def test_meme_taille_la_date_doit_etre_la_meme_sinon_le_contenu_est_compare(self):
+        source = self.fiche(COTES + "/A.pdf", "AAAAA")
+        os.utime(source, (1760000000, 1760000000))
+        self.rapatrier()
+        self.assertEqual(self.provenance()["fichiers"][0]["date"], 1760000000)
+        lectures, vraie = [], ap.empreinte
+
+        def empreinte(chemin):
+            lectures.append(chemin)
+            return vraie(chemin)
+
+        with mock.patch.object(ap, "empreinte", empreinte):
+            # Rien n'a changé : affirmé au relevé sans relire les fichiers
+            self.rapatrier()
+            self.assertEqual((lectures, len(self.index()["fichiers"])), ([], 1))
+            # Le fichier du Drive est remplacé par un autre de même nom ET de même taille (sa date change) : on ne l'affirme plus
+            ecrire(source, "BBBBB")
+            os.utime(source, (1770000000, 1770000000))
+            plan = self.rapatrier()
+            self.assertEqual(len(lectures), 2, "le contenu est comparé")
+            self.assertEqual([x["motif"] for x in plan["signales"]], ["autre-contenu"])
+            self.assertEqual(self.index()["fichiers"], [], "pas au relevé : ce n'est pas la même fiche")
+            # Le résultat est mémorisé (taille et date des deux côtés) : pas de nouvelle lecture tant qu'aucun des deux ne change
+            del lectures[:]
+            for _ in range(3):
+                plan = self.rapatrier()
+            self.assertEqual((lectures, [x["motif"] for x in plan["signales"]]), ([], ["autre-contenu"]))
+            note = self.provenance()["differents"]
+            self.assertEqual([(d["chemin"], d["taille"], d["date_drive"]) for d in note], [(COTES + "/A.pdf", 5, 1770000000)])
+            # L'un des deux change (Franck remplace le fichier du PC par le bon) : recomparé, reconnu, inscrit ; le doute est levé
+            sur_pc = ecrire(os.path.join(self.pc, PC_1, COTES, "A.pdf"), "BBBBB")
+            os.utime(sur_pc, (1780000000, 1780000000))
+            plan = self.rapatrier()
+            self.assertEqual((len(lectures), plan["signales"]), (2, []))
+            self.assertEqual(self.provenance()["differents"], [])
+            self.assertEqual((self.provenance()["fichiers"][0]["date"], self.provenance()["fichiers"][0]["verifie"]), (1770000000, "contenu"))
+            self.assertEqual(len(self.index()["fichiers"]), 1)
+            # Même contenu, mais la date du fichier du Drive a bougé (Drive l'a resynchronisé) : une comparaison, puis plus rien
+            del lectures[:]
+            os.utime(source, (1790000000, 1790000000))
+            self.rapatrier()
+            self.rapatrier()
+            self.assertEqual((len(lectures), len(self.index()["fichiers"]), self.provenance()["fichiers"][0]["date"]), (2, 1, 1790000000))
+        # Une ancienne entrée sans date (liste écrite avant cette version) : la date du fichier du PC sert de repère
+        liste = self.provenance()
+        del liste["fichiers"][0]["date"]
+        ecrire(os.path.join(self.pc, PC_1, ap.PROVENANCE), json.dumps(liste))
+        os.utime(sur_pc, (1790000000, 1790000000))
+        with mock.patch.object(ap, "empreinte", empreinte):
+            del lectures[:]
+            self.rapatrier()
+        self.assertEqual((lectures, len(self.index()["fichiers"])), ([], 1))
 
     def test_un_fichier_apparu_entre_temps_n_est_jamais_ecrase(self):
         if os.name != "nt":
@@ -702,7 +849,7 @@ class Rapatriement(Monde):
         dossier = os.path.join(self.pc, PC_1, COTES)
         self.assertEqual(os.listdir(dossier), ["A.pdf"], "ni fichier tronqué sous son nom final, ni reste de copie")
         self.assertEqual(photo(self.racine), drive, "le Drive n'a pas bougé")
-        self.assertFalse(os.path.exists(os.path.join(self.pc, PC_1, ap.PROVENANCE)))
+        self.assertEqual([e["chemin"] for e in self.provenance()["fichiers"]], [COTES + "/A.pdf"], "ce qui a été copié avant l'arrêt est noté")
         # Arrêt brutal (le programme est tué) : il peut rester une copie inachevée sous son nom temporaire
         ecrire(os.path.join(dossier, "B.pdf" + ap.PARTIEL), "b" * 1200)
         plan = self.rapatrier()
@@ -993,6 +1140,28 @@ class LigneDeCommande(Monde):
         self.assertTrue(os.path.isfile(os.path.join(self.pc, PC_1, COTES, "C.pdf")))
         self.assertFalse([n for n in photo(self.pc) if n.endswith("D.pdf")])
         self.assertEqual(sorted(os.listdir(self.prive)), ["appli-pc", "depot.json"])
+
+    def test_releve_impossible_a_ecrire_code_de_sortie_1(self):
+        self.fiche(COTES + "/A.pdf", "a")
+        vraie = ap.ecrire_json
+
+        def panne(chemin, objet, lisible=True):
+            if os.path.basename(chemin) == ap.INDEX:
+                raise PermissionError("Drive pour ordinateur refuse l'écriture")
+            vraie(chemin, objet, lisible)
+
+        with mock.patch.object(ap, "ecrire_json", panne):
+            code, sortie, _ = self.lancer("--rapatrier", "--oui-rapatrier")
+            self.assertEqual(code, 1, "une écriture manquée est un défaut")
+            self.assertIn("1 fichier(s) copié(s)", sortie)
+            self.assertIn("1 en erreur", sortie)
+            self.assertIn("1 défaut(s)", sortie)
+            self.fiche(COTES + "/B.pdf", "b")
+            self.assertEqual(self.lancer("--rapatrier", "--auto")[0], 1, "en passage automatique aussi")
+        with open(os.path.join(self.prive, "appli-pc", "auto.txt"), encoding="utf-8") as f:
+            self.assertIn("1 fichier(s) copié(s), 1 en erreur", f.read())
+        self.assertEqual(self.lancer("--rapatrier", "--auto")[0], 0, "le relevé s'écrit : tout est rentré dans l'ordre")
+        self.assertEqual(len(lire(os.path.join(self.racine, DRIVE_1, ap.INDEX))["fichiers"]), 2)
 
     def test_associer_et_retirer_par_la_ligne_de_commande(self):
         code, sortie, _ = self.lancer("--associer", demander=saisies("", "1", ""))
@@ -1325,7 +1494,7 @@ class Automatique(Monde):
         self.assertEqual(code, 0)
         self.assertIn("n'existe pas encore", sortie)
         self.assertIn("n'a encore jamais tourné", sortie)
-        self.assertIn("jamais tourné", self.lancer("--etat")[1])
+        self.assertRegex(self.lancer("--etat")[1], "jamais tourné.*étape 5 de la procédure.*APRÈS les essais")
         ap.ecrire_a_voir(self.pc, ["un point à regarder"])
         code, sortie, _ = self.lancer("--a-voir")
         self.assertIn("- un point à regarder", sortie)
@@ -1355,18 +1524,23 @@ class TachePlanifiee(Monde):
     SCRIPT = "C:\\Dépôt d'essai <1>\\chantier-pro\\outils\\appli_pc.py"
     ESPACE = "{http://schemas.microsoft.com/windows/2004/02/mit/task}"
     DEPART = datetime.datetime(2026, 11, 14, 8, 37, 12)
+    SID = "S-1-5-21-1111111111-2222222222-3333333333-1001"
+    WHOAMI = (0, '"pc-essai\\franck","%s"' % SID)
 
     def faux_lanceur(self, codes=()):
         codes = list(codes)
 
         def lanceur(arguments):
+            if arguments[0] == "whoami":                  # la lecture de l'identifiant de la session
+                lanceur.lectures.append(arguments)
+                return self.WHOAMI
             lanceur.commandes.append(arguments)
             if "/xml" in arguments:
                 with open(arguments[arguments.index("/xml") + 1], "rb") as f:
                     lanceur.xml.append(f.read())
             return (codes.pop(0) if codes else 0), "message de Windows"
 
-        lanceur.commandes, lanceur.xml = [], []
+        lanceur.commandes, lanceur.xml, lanceur.lectures = [], [], []
         return lanceur
 
     def valeur(self, racine, chemin):
@@ -1424,6 +1598,25 @@ class TachePlanifiee(Monde):
         for attendu in ("toutes les heures", "ouverture de ta session", "Planificateur de tâches", ap.A_VOIR, "mise à jour de Python"):
             self.assertIn(attendu, self.texte())
 
+    def test_identifiant_de_la_session(self):
+        self.assertEqual(ap.identifiant_utilisateur(lambda arguments: self.WHOAMI), self.SID)
+        self.assertEqual(ap.identifiant_utilisateur(lambda arguments: (0, "PC\\franck S-1-5-21-9-8-7-1002\r\n")), "S-1-5-21-9-8-7-1002")
+        for reponse in ((1, "accès refusé"), (0, "rien d'utile"), (0, "")):
+            self.assertIsNone(ap.identifiant_utilisateur(lambda arguments: reponse))
+
+        def absent(arguments):
+            raise FileNotFoundError("whoami")
+
+        self.assertIsNone(ap.identifiant_utilisateur(absent))
+        # Lecture impossible : repli sur le nom de la session, la tâche est quand même décrite
+        pythonw = ecrire(os.path.join(self.temp, "pythonw.exe"))
+        lanceur = self.faux_lanceur()
+        self.WHOAMI = (1, "")
+        with mock.patch.dict(ap.os.environ, {"USERDOMAIN": "PC-ESSAI", "USERNAME": "franck"}):
+            self.assertEqual(ap.installer_tache(self.dire, lanceur, pythonw=pythonw, script=self.SCRIPT), 0)
+        racine = ET.fromstring(lanceur.xml[0].decode("utf-16").split("?>", 1)[1])
+        self.assertEqual(self.valeur(racine, "Triggers/LogonTrigger/UserId"), "PC-ESSAI\\franck")
+
     def test_tache_refusee_par_windows(self):
         pythonw = ecrire(os.path.join(self.temp, "pythonw.exe"))
         lanceur = self.faux_lanceur([1])
@@ -1463,7 +1656,9 @@ class TachePlanifiee(Monde):
         self.assertRegex(arguments, r'^"[^"]+appli_pc\.py" --rapatrier --auto --reglages ')
         self.assertIn(self.reglages_fichier, arguments, "la tâche lancera le programme avec les mêmes réglages")
         self.assertEqual(self.valeur(racine, "Actions/Exec/WorkingDirectory"), DEPOT)
-        self.assertTrue(self.valeur(racine, "Triggers/LogonTrigger/UserId"))
+        self.assertEqual(lanceur.lectures, [["whoami", "/user", "/fo", "csv", "/nh"]])
+        self.assertEqual(self.valeur(racine, "Triggers/LogonTrigger/UserId"), self.SID, "l'utilisateur est désigné par son identifiant")
+        self.assertEqual(self.valeur(racine, "Principals/Principal/UserId"), self.SID)
         lanceur = self.faux_lanceur()
         code, sortie, _ = self.lancer("--retirer-tache", lanceur=lanceur)
         self.assertEqual((code, len(lanceur.commandes)), (0, 2))

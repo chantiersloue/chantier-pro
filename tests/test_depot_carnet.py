@@ -491,7 +491,7 @@ class LigneDeCommande(Base):
         depot = base + ("--pdf", self.petit, "--code", "105", "--indice", "A", "--intitule", "PETIT PLAN")
         code, sortie, _ = self.lancer(*depot, "--limite", "-1")
         self.assertEqual(code, 3)
-        self.assertIn("RELANCEZ LA MÊME COMMANDE", sortie)
+        self.assertIn("RELANCE LA MÊME COMMANDE", sortie)
         self.assertIn("il en reste 2", sortie)
         code, sortie, _ = self.lancer(*depot)
         self.assertEqual(code, 0)
