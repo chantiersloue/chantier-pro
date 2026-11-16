@@ -84,7 +84,6 @@
     f.innerHTML = '<div class="loue-file-tete"><b>Fiches pas encore envoyées</b><button type="button" data-fermer>Fermer</button></div>' +
       (lignes ? '<ul>' + lignes + '</ul><button type="button" class="loue-btn" data-envoyer>Envoyer maintenant</button>'
               : '<p>Tout est envoyé.</p>') +
-      (LOUE.texteDernierCompteRendu() ? '<p data-dernier-cr><b>' + LOUE.esc(LOUE.texteDernierCompteRendu()) + '</b></p>' : '') +
       '<p class="loue-file-aide">Les fiches restent dans le téléphone tant que le bureau ne les a pas reçues. Elles partent toutes seules dès que le réseau revient.</p>';
     f.addEventListener('click', function (ev) {
       var c = ev.target;
@@ -154,39 +153,20 @@
     });
   };
 
-  // Lot 8b — note de réunion : message de fin d'envoi, avec le numéro du compte rendu donné par le serveur.
-  // rep : la réponse du serveur. Un serveur pas encore mis à jour ne rend pas de numéro : le message le dit.
-  LOUE.messageNoteEnvoyee = function (rep) {
+  // Lot 8 — note de réunion : message de fin d'envoi. Le compte rendu se désigne par sa date de réunion.
+  // rep : la réponse du serveur ; date : la date de réunion de la note (« 06/11/2026 »).
+  LOUE.messageNoteEnvoyee = function (rep, date) {
     var d = (rep && rep.data) || {}, deja = !!rep && rep.code === 'DEJA_RECU';
     var sansMail = d.envoyes === 0 && !d.reportes && !deja;
     var reportes = d.reportes ? d.reportes + (d.reportes > 1 ? ' mails reportés' : ' mail reporté') + ' à plus tard (quota du jour)' : '';
     var mails = typeof d.envoyes !== 'number' ? '' : d.envoyes === 0 && reportes ? reportes
       : d.envoyes + (d.envoyes > 1 ? ' mails envoyés' : ' mail envoyé') + (reportes ? ', ' + reportes : '');
-    var quoi = d.numeroCR ? 'Compte rendu n° ' + d.numeroCR : 'Note';
+    var quoi = 'Compte rendu' + (date ? ' du ' + date : '');
     var texte;
-    if (sansMail) texte = '⚠ ' + quoi + (d.numeroCR ? ' enregistré' : ' enregistrée') + ', mais aucun mail n’est parti';
-    else if (deja) texte = '✓ ' + quoi + (d.numeroCR ? ' déjà reçu' : ' déjà reçue') + ' par le bureau';
-    else texte = '✓ ' + quoi + (d.numeroCR ? ' envoyé' : ' envoyée') + (mails ? ' — ' + mails : '');
-    if (!d.numeroCR) texte += d.sansNumeroCR === 'onglet' ? '. Envoyée sans numéro : le bureau est prévenu.'
-      : d.sansNumeroCR ? '. Pas de numéro : chantier hors liste.' : '. Numéro non reçu : s’il y en a un, il est dans le PDF.';
+    if (sansMail) texte = '⚠ ' + quoi + ' enregistré, mais aucun mail n’est parti';
+    else if (deja) texte = '✓ ' + quoi + ' déjà reçu par le bureau';
+    else texte = '✓ ' + quoi + ' envoyé' + (mails ? ' — ' + mails : '');
     return { texte: texte, duree: sansMail ? 10000 : 8000 };
-  };
-
-  // Le numéro de la dernière note envoyée est gardé 24 h dans le téléphone : il reste lisible après le message vert
-  // (sous le chantier dans la note de réunion, et dans la liste ouverte par l'indicateur d'envoi)
-  var CLE_CR = 'loue_dernier_cr_' + ((window.LOUE_CONFIG || {}).env || 'prod');
-  LOUE.noterCompteRendu = function (rep, chantier) {
-    var d = (rep && rep.data) || {};
-    if (!d.numeroCR) return;
-    try { localStorage.setItem(CLE_CR, JSON.stringify({ numero: d.numeroCR, chantier: String(chantier || '').slice(0, 150), t: Date.now() })); } catch (e) {}
-    document.dispatchEvent(new Event('loue-compte-rendu'));
-  };
-  LOUE.texteDernierCompteRendu = function () {
-    var v = null;
-    try { v = JSON.parse(localStorage.getItem(CLE_CR) || 'null'); } catch (e) {}
-    if (!v || !v.numero || Date.now() - v.t > 24 * 3600 * 1000) return '';
-    var d = new Date(v.t);
-    return 'Dernière note envoyée : Compte rendu n° ' + v.numero + (v.chantier ? ' — ' + v.chantier : '') + ', à ' + ('0' + d.getHours()).slice(-2) + 'h' + ('0' + d.getMinutes()).slice(-2) + '.';
   };
 
   if (LOUE.surEvenement) {
@@ -196,7 +176,7 @@
       var estNote = !!ev.element && /^note-/.test(ev.element.type || '');
       if (ev.type === 'envoyee' && estNote) { LOUE.message(ev.element.type === 'note-chantier' ? '✓ Ajouté à la liste' : '✓ ' + ev.element.libelle, 2500); return; }
       if (ev.type === 'erreur' && estNote) { LOUE.message('⚠ Pas enregistré dans la liste du chantier : ' + ev.element.message + ' (détail : indicateur en haut de l’écran)', 8000); return; }
-      if (ev.type === 'envoyee' && ev.element && ev.element.type === 'note') { LOUE.noterCompteRendu(ev.reponse, (ev.element.donnees || {}).chantier); var m = LOUE.messageNoteEnvoyee(ev.reponse); LOUE.message(m.texte, m.duree); return; }
+      if (ev.type === 'envoyee' && ev.element && ev.element.type === 'note') { var m = LOUE.messageNoteEnvoyee(ev.reponse, (ev.element.donnees || {}).date); LOUE.message(m.texte, m.duree); return; }
       if (ev.type === 'envoyee') {
         var d = (ev.reponse && ev.reponse.data) || {};
         var sansMail = d.envoyes === 0 && !d.reportes && ev.reponse.code !== 'DEJA_RECU';

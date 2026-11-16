@@ -359,17 +359,15 @@ test('fiche enregistrée : PDF complet, mail aux destinataires + conducteur du c
   ['NOTE DE RÉUNION', '09/11/2026', 'CHANTIER TEST 1', 'Franck PAVAGEAU', 'Réunion de chantier n° 12', 'Pose des châssis R+1\nlundi prochain']
     .forEach(t => assert.ok(html.indexOf(t) > -1, t));
   assert.deepStrictEqual(g.mails.map(m => m.to).sort(), [FRANCK, SEB].sort(), 'conducteur du chantier ajouté par le serveur');
-  // Lot 8b : le numéro du compte rendu (donné par le serveur) est dans l'objet du mail et dans le nom du fichier rangé
-  assert.ok(g.mails.every(m => /Note de réunion — CR n° 1 — CHANTIER TEST 1 — Réunion de chantier n° 12/.test(m.sujet)), g.mails.map(m => m.sujet).join(' | '));
+  assert.ok(g.mails.every(m => /Note de réunion — CHANTIER TEST 1 — Réunion de chantier n° 12/.test(m.sujet)));
   const dossier = dossierNotes(g);
   assert.ok(dossier && dossier.enfants.length === 1, 'PDF rangé dans 05 - CHANTIER/COMPTE RENDU (lot 1.5)');
-  assert.strictEqual(dossier.enfants[0].nom, 'COMPTE RENDU CHANTIER TEST 1 CR 1 2026-11-09.pdf');
+  assert.strictEqual(dossier.enfants[0].nom, 'COMPTE RENDU CHANTIER TEST 1 2026-11-09.pdf');
   assert.ok(!g.racine.enfants.find(e => e.nom === 'CHANTIER TEST 1').enfants.some(e => e.nom === 'Note/Réunion/Réunion'), 'plus d’ancien dossier');
-  // Deuxième note le même jour : elle porte le numéro suivant, les deux fichiers existent.
-  // (Deux documents de MÊME nom, « _V2 » : toujours vérifié par tests/lot1-dossiers.test.js, sur classerDocument_.)
+  // Deuxième note le même jour : rien n'est écrasé
   poster(g, { action: 'fiche', id: 'fiche-0901-abcd', donnees: note() });
   assert.deepStrictEqual(dossierNotes(g).enfants.map(e => e.nom).sort(),
-    ['COMPTE RENDU CHANTIER TEST 1 CR 1 2026-11-09.pdf', 'COMPTE RENDU CHANTIER TEST 1 CR 2 2026-11-09.pdf']);
+    ['COMPTE RENDU CHANTIER TEST 1 2026-11-09.pdf', 'COMPTE RENDU CHANTIER TEST 1 2026-11-09_V2.pdf']);
 });
 
 test('chantier tapé à la main (hors Sheet) : copie à Franck ; date absente : date du jour', () => {

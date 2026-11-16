@@ -291,14 +291,14 @@ test('porte, lot 8 : installation de l’onglet « Comptes rendus » sur la copi
   const g = serveurLot2();
   const i = geste(g, 'installerLot8');
   assert.ok(i.ok && /Lot 8 — installation — environnement : TEST/.test(i.message) && /installation terminée/.test(i.message), i.message);
-  assert.ok(g.feuilles['Comptes rendus'] && g.feuilles['Comptes rendus'].lignes[0].length === 12, 'onglet créé avec ses 12 titres');
+  assert.ok(g.feuilles['Comptes rendus'] && g.feuilles['Comptes rendus'].lignes[0].length === 10, 'onglet créé avec ses 10 titres');
   assert.ok(geste(g, 'installerLot8').ok, 'relançable');
   // lecture sans nom ni objet, et nettoyage des seules lignes des essais automatiques
   const sh = g.feuilles['Comptes rendus'];
-  sh.lignes.push(['fiche-vraie-000001', 'VRAI CHANTIER', '403', 1, '12/11/2026', 'Objet réel', 'Personne Réelle', 'x', 'Présent Réel', 'x.pdf', new Date(), '']);
-  sh.lignes.push(['fiche-auto-abc-a', 'CHANTIER TEST AUTO', '', 1, '12/11/2026', 'Essai', 'Essai', 'x', '', 'y.pdf', new Date(), '']);
+  sh.lignes.push(['fiche-vraie-000001', 'VRAI CHANTIER', '403', '12/11/2026', 'Objet réel', 'Personne Réelle', 'x', 'x.pdf', new Date(), '']);
+  sh.lignes.push(['fiche-auto-abc-a', 'CHANTIER TEST AUTO', '', '12/11/2026', 'Essai', 'Essai', 'x', 'y.pdf', new Date(), '']);
   const lu = geste(g, 'lireComptesRendus', { n: 5 });
-  assert.ok(lu.ok && !/VRAI CHANTIER|Objet réel|Personne Réelle|Présent Réel|fiche-vraie/.test(JSON.stringify(lu)) && /fiche-auto-abc-a/.test(JSON.stringify(lu)), JSON.stringify(lu));
+  assert.ok(lu.ok && !/VRAI CHANTIER|Objet réel|Personne Réelle|fiche-vraie/.test(JSON.stringify(lu)) && /fiche-auto-abc-a/.test(JSON.stringify(lu)), JSON.stringify(lu));
   const p = geste(g, 'purgerComptesRendusEssai');
   assert.ok(p.ok && p.data.lignesRetirees === 1, JSON.stringify(p));
   assert.deepStrictEqual(sh.lignes.slice(1).filter(l => l[0]).map(l => l[0]), ['fiche-vraie-000001']);

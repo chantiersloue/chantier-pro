@@ -48,14 +48,6 @@ module.exports = function (cas, x) {
     commentaires: 'Points vus :\n- planning des portes\n- livraison des huisseries', photosBase64: photos }, extra || {});
   cas('note — 1 photo', 'modele_note', note([PAYSAGE()]), page1(DEBOUT_A4));
   cas('note — texte de 2 pages + 2 photos', 'modele_note', note([PAYSAGE(), PAYSAGE()], { commentaires: Array(80).fill('Point de suivi du chantier, à reprendre la semaine prochaine.').join('\n') }), Object.assign({ pagesContenu: 2 }, DEBOUT_A4));
-  // Lot 8b : numéro du compte rendu et présents saisis à la main (noms fictifs)
-  const presentsEssai = n => Array.from({ length: n }, (_, i) => 'Présent Essai ' + String(i + 1).padStart(2, '0'));
-  cas('note — numéro du compte rendu + 1 photo', 'modele_note', note([PAYSAGE()], { numeroCR: '7' }), page1(DEBOUT_A4));
-  cas('note — numéro + 4 présents + 1 photo', 'modele_note', note([PAYSAGE()], { numeroCR: '12', presents: presentsEssai(4) }), page1(DEBOUT_A4));
-  cas('note — 30 présents (plusieurs lignes) + 1 photo en hauteur', 'modele_note', note([PORTRAIT()], { numeroCR: '3', presents: presentsEssai(30) }), page1(DEBOUT_A4));
-  cas('note — aperçu (numéro donné à l’envoi) + objet sur deux lignes + présents + 1 photo', 'modele_note', note([PAYSAGE()], { numeroCR: '— donné à l’envoi',
-    objet: 'Réunion de chantier n° 4 : menuiseries extérieures du bâtiment A, portes palières et organigramme des clés', presents: presentsEssai(6) }), page1(DEBOUT_A4));
-  cas('note — présents seuls, sans texte ni numéro + 1 photo', 'modele_note', note([PAYSAGE()], { commentaires: '', presents: presentsEssai(3) }), page1(DEBOUT_A4));
 
   // ── Réception support (A4 debout) : une page par point ──
   const rec = points => ({ chantier: 'CHANTIER TEST 1', lotLabel: 'Menuiserie intérieure', date: '10/11/2026', signataire: 'Poseur Essai', signature: '', observations: '', points });
