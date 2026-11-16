@@ -40,7 +40,9 @@ google.creerElement('dossier', 'Loué Menuiserie - Chantiers', null, { id: 'RACI
 google.creerElement('dossier', 'Planning', null, { id: 'PLANNING' });
 // Un planning d'essai (lu par l'accueil) ; /etat dit quels fichiers du faux Drive sont partagés par lien
 google.creerElement('fichier', 'Planning S46.pdf', google.elements.PLANNING);
-const ctx = chargerScript(google);
+// Lot 8 : LOUE_CODE_GS=<fichier> charge un AUTRE serveur à la place d'apps-script/ (le Code.gs d'avant le lot 8b, pour
+// vérifier que la nouvelle page marche avec l'ancien serveur)
+const ctx = chargerScript(google, process.env.LOUE_CODE_GS || undefined);
 let mode = 'normal';
 // Lot 4 : recopie d'un dossier du PC dans le faux Drive (dossiers et fichiers, octets compris)
 const fs = require('fs'), path = require('path');
@@ -68,6 +70,7 @@ const U = google.feuilles['Utilisateurs'];
 ctx.traiterComptes();
 ctx.installerLot3Production();   // lot 3 : onglets des notes de chantier
 console.log(ctx.installerLot7Production().split(String.fromCharCode(10)).filter(l => /installation terminée|❌|Refusé/.test(l)).join(' ') || 'Lot 7 : installation non confirmée');   // lot 7 : onglet Signalements
+if (typeof ctx.installerLot8Production === 'function') ctx.installerLot8Production();   // lot 8b : onglet « Comptes rendus » (absent d'un ancien serveur)
 U.lignes.slice(1).filter(l => l[0]).forEach(l => {
   if (l[0] === 'nouveau1') { console.log('Compte « nouveau1 » : mot de passe provisoire ' + l[5]); return; }
   const r = ctx.motDePasse_({ identifiant: l[0], ancien: l[5], nouveau: 'Essai-2026' });
@@ -126,6 +129,12 @@ http.createServer((req, res) => {
       envois: (google.feuilles['Envois'] || { lignes: [] }).lignes, quota: google.etat.quota,
       signalements: (google.feuilles['Signalements'] || { lignes: [] }).lignes,   // lot 7
       notes: (google.feuilles['Notes'] || { lignes: [] }).lignes,                 // lot 3
+      comptesRendus: (google.feuilles['Comptes rendus'] || { lignes: [] }).lignes,   // lot 8b
+      // lot 8b : le texte des 5 derniers PDF envoyés (sans les images), pour vérifier ce qui est imprimé
+      pdfs: google.mails.filter(m => m.opts && m.opts.attachments && m.opts.attachments[0]).slice(-5)
+        .map(m => ({ sujet: m.sujet, texte: String(m.opts.attachments[0].contenu).replace(/base64,[A-Za-z0-9+\/=]+/g, 'base64,…').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').slice(0, 3000),
+          images: (String(m.opts.attachments[0].contenu).match(/<img /g) || []).length })),
+      version: ctx.doGet({ parameter: {} }).contenu,
       partagesParLien: Object.values(google.elements).filter(e => e.acces !== 'PRIVATE').map(e => e.nom),
       sansCompte: (google.feuilles['Sans compte'] || { lignes: [] }).lignes, utilisateurs: U.lignes.map(l => [l[0], l[2], l[5], l[9]]) }));
   }

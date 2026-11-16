@@ -708,6 +708,19 @@ function modele_note(d, esc) {
   var ETIQ = 'font-size:7.5px;font-weight:700;text-transform:uppercase;color:#6A6460;margin-bottom:2px';
 
 
+  // Lot 8b — numéro du compte rendu : donné par le serveur à la réception (« 7 ») ; dans l'aperçu de la page, le texte
+  // « — donné à l'envoi » ; vide pour un chantier hors liste. Présents : noms saisis à la main, facultatifs.
+  var numero = d.numeroCR === undefined || d.numeroCR === null ? '' : String(d.numeroCR);
+  var listePresents = (Object.prototype.toString.call(d.presents) === '[object Array]' ? d.presents : [])
+    .map(function (n) { return String(n === undefined || n === null ? '' : n).replace(/\s+/g, ' ').replace(/^ | $/g, ''); })
+    .filter(function (n) { return n; });
+  var textePresents = listePresents.join(', ');
+  var presents = textePresents
+    ? '<div style="padding:8px 12px;border:1.5px solid #D8D4CE;border-radius:5px;margin-bottom:10px">'
+      + '<div style="font-size:8px;font-weight:700;text-transform:uppercase;color:#6A6460;margin-bottom:4px;letter-spacing:.5px">Présents (' + listePresents.length + ')</div>'
+      + '<div style="font-size:11px;line-height:1.7;' + TEXTE + '">' + esc(textePresents) + '</div></div>'
+    : '';
+
   var commentaires = d.commentaires
     ? '<div style="padding:10px 12px;background:#F0F5F4;border:1.5px solid #0D7A6B;border-radius:5px;margin-bottom:10px">'
       + '<div style="font-size:8px;font-weight:700;text-transform:uppercase;color:#0D7A6B;margin-bottom:6px;letter-spacing:.5px">Notes &amp; commentaires</div>'
@@ -718,7 +731,11 @@ function modele_note(d, esc) {
   // restante ; les autres en pleine page (deux par page si elles y gardent leur taille). Hauteur mesurée dans Chrome :
   // en-tête 36 mm (chantier long : 4,5 par ligne en plus, rédacteur : 3,2 ; objet long : 4,2) ; notes 12,5 + 4,94 par ligne.
   var estime = 36 + Math.max(4.5 * (mep_lignes(d.chantier || '—', 35, 12) - 1) + 3.2 * (mep_lignes(d.auteur || '—', 39, 11) - 1),
-    4.2 * (d.objet ? mep_lignes(d.objet, 100, 11) - 1 : 0))
+    4.2 * ((d.objet ? mep_lignes(d.objet, 100, 11) - 1 : 0) + (numero ? 1 : 0)))
+    // Présents : 15,8 mm mesurés dans Chrome pour une ligne (11 + 4,94). Numéro : compté comme une ligne de plus dans
+    // la colonne du milieu ; mesuré, il ne coûte rien tant que l'objet tient sur une ligne : estimation volontairement
+    // prudente (photo de la page 1 un peu plus petite, jamais de débordement), le moteur PDF de Google n'étant pas mesuré.
+    + (textePresents ? 11 + 4.94 * mep_lignes(textePresents, 168, 11) : 0)
     + (d.commentaires ? 12.5 + 4.94 * mep_lignes(d.commentaires, 168, 11) : 0);
   var zone = mep_zone(d, 210, 297, 15);
   var photosHtml = mep_photos(d.photosBase64, { largeur: zone.largeur, hauteur: zone.hauteur, reste: mep_reste(zone, estime), estime: estime, esc: esc,
@@ -739,8 +756,10 @@ function modele_note(d, esc) {
     + '<div style="font-weight:800;font-size:15px;color:#1A2B4A">Loué Menuiserie</div>'
     + '<div style="font-size:9px;color:#6A6460;margin-bottom:8px">Menuiserie · Charpente · Agencement</div>'
     + '<div style="font-weight:800;font-size:14px;color:#0D7A6B">NOTE DE RÉUNION</div>'
+    + (numero ? '<div style="margin-top:3px;font-size:11px;font-weight:700;color:#1A2B4A">Compte rendu n° ' + esc(numero) + '</div>' : '')
     + (d.objet ? '<div style="margin-top:5px;font-size:11px;font-weight:600;color:#141210;' + TEXTE + '">' + esc(d.objet) + '</div>' : '')
     + '</td></tr></table>'
+    + presents
     + commentaires
     + photosHtml
     + '</body></html>';

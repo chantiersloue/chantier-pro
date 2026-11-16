@@ -2,6 +2,28 @@
 
 Chaque lot : **quoi**, **pourquoi**, **comment déployer**. Procédures détaillées dans `docs/lotN-procedure.md`.
 
+## Lot 8b — Note de réunion : numéro du compte rendu et présents — serveur **v11.0**, appli **10.1** — **construit, testé contre le faux serveur seulement**
+
+**Quoi**
+- **Numéro « Compte rendu n° x », par chantier**, donné par le **serveur à la réception** de la note, sous verrou. Il est dans le PDF, dans le nom du fichier rangé dans Drive (`COMPTE RENDU <chantier> CR 7 <date>.pdf`), dans l'objet du mail (« Note de réunion — CR n° 7 — … ») et dans le message de fin d'envoi (« ✓ Compte rendu n° 7 envoyé — 3 mails envoyés »).
+- Une note renvoyée par le téléphone (réponse perdue, PDF raté au premier essai) **retrouve son numéro** ; la réponse « déjà reçue » le porte aussi.
+- Rattachement au chantier par son **N° (onglet *Chantiers*, colonne E)** quand il est rempli, sinon par son nom : un chantier renommé garde sa série s'il a un N°. Chantier absent de la liste : la note part **sans numéro**, et la page le dit avant l'envoi.
+- Nouvel onglet ***Comptes rendus*** (une ligne par note, 12 colonnes), créé par `installerLot8Test` / `installerLot8Production` et **vérifié avant chaque écriture** : si sa ligne de titres a été changée, rien n'est écrit, la note attend dans le téléphone et Franck reçoit un mail.
+- **Présents** : liste de noms facultative, saisie à la main, dans la page, l'aperçu, le PDF et l'onglet.
+- **Destinataires** : la page annonce le nombre de mails qui partiront et refuse une 11e adresse de la liste. Le serveur, lui, n'est pas changé : il sert toujours toutes les adresses connues (une note déjà en attente dans un téléphone garde tous ses destinataires).
+- **Hors réseau** : la page dit que le numéro sera donné au retour du réseau. Sous le chantier : « Le numéro du compte rendu est donné à l'envoi. »
+- Fichiers : `apps-script/ComptesRendus.gs` (nouveau), `Api.gs`, `Documents.gs`, `Securite.gs` (objet du mail d'alerte), `Config.gs` ; `modeles/note.js` ; `note-reunion.html` ; `commun/ui.js` (message de fin d'envoi) ; `apps-script-test/OutilsTest.gs` (geste `installerLot8` de la porte) ; `tests/faux-serveur.js`. `commun/brouillon.js`, `commun/api.js` et `modeles/mise-en-page.js` ne sont pas modifiés.
+
+**Pourquoi** : suivre les comptes rendus d'un chantier d'une réunion à l'autre (exigence 12, `docs/lot8-plan.md`). Le numéro est donné par le serveur parce que deux téléphones sans réseau calculeraient le même.
+
+**Compatibilité vérifiée par des tests** : un brouillon de l'ancienne page se restaure tel quel ; une note de l'ancien format déjà en attente dans un téléphone est acceptée et numérotée ; la nouvelle page marche avec l'ancien serveur (présents en tête du texte du PDF, message « Numéro non reçu ») ; la page 10.0 relit un brouillon de la page 10.1 (présents versés dans les notes) ; les notes d'une page d'avant le lot 1 (sans numéro de fiche) partent comme avant, sans numéro.
+
+**Tests existants mis à jour** (ce que le lot change, rien d'autre) : la version du serveur citée par `tests/lot0.test.js`, `tests/lot1-api.test.js` et `tests/lot3-notes.test.js` ; l'objet du mail et le nom du fichier d'une note numérotée dans `tests/lot1-api.test.js`.
+
+**Pas vérifié** : le vrai verrou de Google (deux envois au même instant), la hauteur réelle du PDF fabriqué par Google, les vrais mails. Ces essais demandent la copie TEST.
+
+**Comment déployer** : `docs/lot8-procedure.md` (serveur puis pages ; l'ordre compte peu, chaque moitié marche avec l'ancienne version de l'autre).
+
 ## Lot 8a — Note de réunion : annotation des photos qu'on peut rouvrir — appli 10.0, serveur inchangé — **construit, testé contre le faux serveur seulement**
 
 **Quoi**

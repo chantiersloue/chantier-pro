@@ -81,6 +81,7 @@ function outilTest_(corps) {
       case 'carnetRetirerFauxDepot': return ok('Faux document de mesure retiré', outilTestSousVerrou_(outilTestCarnetRetirer_));
       case 'installerLot3': { const r = installer_('Lot 3', 'TEST', etapesLot3_()); if (!r.ok) throw new Error('installation du lot 3 non terminée : ' + r.texte); return ok(r.texte); }
       case 'installerLot7': { const r = installer_('Lot 7', 'TEST', etapesLot7_()); if (!r.ok) throw new Error('installation du lot 7 non terminée : ' + r.texte); return ok(r.texte); }
+      case 'installerLot8': { const r = installer_('Lot 8', 'TEST', etapesLot8_()); if (!r.ok) throw new Error('installation du lot 8 non terminée : ' + r.texte); return ok(r.texte); }
       case 'poserDeclencheurs':    return ok(outilTestPoserDeclencheurs_());
       case 'retirerDeclencheurs':  return ok(outilTestRetirerDeclencheurs_());
       case 'traiterComptes': { const r = traiterComptes(); if (r !== 'ok') throw new Error('traiterComptes n’a pas tourné : ' + r); return ok('traiterComptes : fait'); }

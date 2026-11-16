@@ -153,6 +153,22 @@
     });
   };
 
+  // Lot 8b — note de réunion : message de fin d'envoi, avec le numéro du compte rendu donné par le serveur.
+  // rep : la réponse du serveur. Un serveur pas encore mis à jour ne rend pas de numéro : le message le dit.
+  LOUE.messageNoteEnvoyee = function (rep) {
+    var d = (rep && rep.data) || {}, deja = !!rep && rep.code === 'DEJA_RECU';
+    var sansMail = d.envoyes === 0 && !d.reportes && !deja;
+    var mails = typeof d.envoyes === 'number' ? d.envoyes + (d.envoyes > 1 ? ' mails envoyés' : ' mail envoyé')
+      + (d.reportes ? ', ' + d.reportes + (d.reportes > 1 ? ' reportés' : ' reporté') + ' à plus tard' : '') : '';
+    var quoi = d.numeroCR ? 'Compte rendu n° ' + d.numeroCR : 'Note';
+    var texte;
+    if (sansMail) texte = '⚠ ' + quoi + (d.numeroCR ? ' enregistré' : ' enregistrée') + ', mais aucun mail n’est parti';
+    else if (deja) texte = '✓ ' + quoi + (d.numeroCR ? ' déjà reçu' : ' déjà reçue') + ' par le bureau';
+    else texte = '✓ ' + quoi + (d.numeroCR ? ' envoyé' : ' envoyée') + (mails ? ' — ' + mails : '');
+    if (!d.numeroCR) texte += d.sansNumeroCR ? '. Pas de numéro : chantier hors liste.' : '. Numéro non reçu : s’il y en a un, il est dans le PDF.';
+    return { texte: texte, duree: sansMail ? 10000 : 8000 };
+  };
+
   if (LOUE.surEvenement) {
     LOUE.surEvenement(function (ev) {
       if (ev.type === 'file') majIndicateur(ev.liste);
@@ -160,6 +176,7 @@
       var estNote = !!ev.element && /^note-/.test(ev.element.type || '');
       if (ev.type === 'envoyee' && estNote) { LOUE.message(ev.element.type === 'note-chantier' ? '✓ Ajouté à la liste' : '✓ ' + ev.element.libelle, 2500); return; }
       if (ev.type === 'erreur' && estNote) { LOUE.message('⚠ Pas enregistré dans la liste du chantier : ' + ev.element.message + ' (détail : indicateur en haut de l’écran)', 8000); return; }
+      if (ev.type === 'envoyee' && ev.element && ev.element.type === 'note') { var m = LOUE.messageNoteEnvoyee(ev.reponse); LOUE.message(m.texte, m.duree); return; }
       if (ev.type === 'envoyee') {
         var d = (ev.reponse && ev.reponse.data) || {};
         var sansMail = d.envoyes === 0 && !d.reportes && ev.reponse.code !== 'DEJA_RECU';

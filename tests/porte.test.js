@@ -287,6 +287,13 @@ test('porte : une ligne tapée à la main qui ressemble à un compte d’essai n
   h.proprietes.OUTIL_TEST_FIN_AVANT = '1794933622155'; h.proprietes.FIN_TRANSITION = '1';
   assert.ok(geste(h, 'retablirTransition').ok && h.proprietes.FIN_TRANSITION === '1794933622155');
 });
+test('porte, lot 8 : installation de l’onglet « Comptes rendus » sur la copie TEST, relançable', () => {
+  const g = serveurLot2();
+  const i = geste(g, 'installerLot8');
+  assert.ok(i.ok && /Lot 8 — installation — environnement : TEST/.test(i.message) && /installation terminée/.test(i.message), i.message);
+  assert.ok(g.feuilles['Comptes rendus'] && g.feuilles['Comptes rendus'].lignes[0].length === 12, 'onglet créé avec ses 12 titres');
+  assert.ok(geste(g, 'installerLot8').ok, 'relançable');
+});
 test('porte, lot 7 : installation, lecture des signalements sans texte saisi, destinataires d’un essai sans aucune adresse', () => {
   const g = serveurLot2();
   g.feuilles['Contacts'].lignes.push(['Vrai Chef', 'Chef atelier', 'vrai.chef@loue.test', 'N', 'N', 'N', 'O', 'N']);
@@ -374,7 +381,7 @@ test('porte complète hors de TEST : tous les gestes sont refusés, rien n’est
   const avant = JSON.stringify([U(g), g.proprietes, g.declencheurs]);
   ['etat', 'preparerComptes', 'session', 'fermerSessions', 'cocher', 'poserDeclencheurs', 'retirerDeclencheurs', 'traiterComptes', 'finirTransition', 'prolongerTransition',
     'lireEnvois', 'lireBilan', 'lireChantiers', 'lireCompte', 'controlerLot2', 'essaiDeclencheur', 'retablirTransition', 'preparerChantier',
-    'installerLot7', 'lireSignalements', 'destinatairesEssai', 'installerLot3', 'accesChantier', 'rangerAnciennesNotes', 'purgerNotesEssai', 'dossierChantierEssai', 'titresNotes', 'carnetFauxDepot', 'carnetRetirerFauxDepot'].forEach(nom =>
+    'installerLot7', 'installerLot8', 'lireSignalements', 'destinatairesEssai', 'installerLot3', 'accesChantier', 'rangerAnciennesNotes', 'purgerNotesEssai', 'dossierChantierEssai', 'titresNotes', 'carnetFauxDepot', 'carnetRetirerFauxDepot'].forEach(nom =>
     assert.deepStrictEqual(geste(g, nom, { id: 'auto-admin', case: 'actif', valeur: true }), { ok: false, code: 'REFUSE', message: 'Refusé' }, nom));
   assert.strictEqual(JSON.stringify([U(g), g.proprietes, g.declencheurs]), avant);
 });

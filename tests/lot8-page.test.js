@@ -4,6 +4,9 @@
 // Lance lui-même le site (http://127.0.0.1:8793) et le faux serveur (8794) : jamais la copie TEST, jamais la production.
 //  8a : annotation qu'on peut rouvrir (tracer, gommer un trait sans toucher la photo, valider, rouvrir, modifier, poids),
 //       brouillon (ancien brouillon restauré, photo annotée gardée avec ses traits, pas de faux « brouillon retrouvé »).
+//  8b : présents, compteur et plafond des destinataires, aperçu, envoi hors réseau puis numéro affiché au retour du réseau,
+//       réponse perdue, ancienne fiche en attente, NOUVELLE page avec l'ANCIEN serveur, retour arrière de la page.
+//       L'ancien serveur et l'ancienne page sont relus dans l'historique Git du dépôt (rien n'est téléchargé).
 'use strict';
 const fs = require('fs');
 const os = require('os');
@@ -250,6 +253,165 @@ function scenarioAnnotation() {
 }`;
 }
 
+// ── 8b : présents, destinataires, numéro du compte rendu ──
+function scenarioNote() {
+  return DEBUT + `
+  const texte = id => page.evaluate(i => document.getElementById(i).textContent, id);
+  const attendreBouton = async () => { for (let i = 0; i < 60; i++) { await page.waitForTimeout(500); if (!/Rangement|Envoi direct/.test(await page.textContent('#btn-envoyer'))) return; } };
+  const attendreMessage = async motif => { for (let i = 0; i < 40; i++) { const m = await message(); if (motif.test(m)) return m; await page.waitForTimeout(500); } return await message(); };
+  await ouvrirNote();
+  r.info = await texte('cr-info'); r.compteur0 = await texte('dest-compteur');
+
+  // 1. Présents : bouton, touche Entrée, retrait d'une étiquette
+  await page.fill('#presents-input', 'Alice ESSAI'); await page.click('#presents-ajouter');
+  await page.fill('#presents-input', 'Bruno ESSAI'); await page.press('#presents-input', 'Enter');
+  await page.fill('#presents-input', '  Chloé   ESSAI '); await page.click('#presents-ajouter');
+  await page.fill('#presents-input', 'alice essai'); await page.click('#presents-ajouter');
+  r.boutonsPresents = await page.evaluate(() => Array.from(document.querySelectorAll('#presents-ajouter, #presents-chips button, #dest-ajouter')).map(b => b.getBoundingClientRect()).every(b => b.width >= 48 && b.height >= 48));
+  await page.evaluate(() => document.querySelectorAll('#presents-chips button')[1].click());
+  r.presents = await page.evaluate(() => presents.join('|'));
+  r.largeurPresents = await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth);
+
+  // 2. Destinataires : compteur, puis plafond de 10 adresses de la liste
+  await page.fill('#dest-input', 'archi@ext.test'); await page.click('#dest-ajouter');
+  r.compteur1 = await texte('dest-compteur');
+  await page.evaluate(() => { LISTES.contactNotes = (LISTES.contactNotes || []).concat(Array.from({ length: 12 }, (_, i) => ({ nom: 'Contact ' + i, email: 'contact' + i + '@ext.test' }))); });
+  for (let i = 0; i < 11; i++) { await page.fill('#dest-input', 'contact' + i + '@ext.test'); await page.click('#dest-ajouter'); }
+  r.plafond = { n: await page.evaluate(() => DEST.liste().length), message: await message(), compteur: await texte('dest-compteur') };
+  await page.evaluate(() => { DEST.remettre(['archi@ext.test']); document.dispatchEvent(new Event('change')); });
+
+  // 3. Chantier hors liste : la page le dit ; puis retour au chantier de la liste
+  await page.fill('#meta-chantier', 'CHANTIER INCONNU'); r.infoHorsListe = await texte('cr-info');
+  await page.fill('#meta-chantier', 'CHANTIER TEST 1'); r.infoRevenue = await texte('cr-info');
+
+  // 4. Note complète, avec une photo annotée et un nom tapé sans « + Ajouter »
+  await page.fill('#meta-auteur', 'Rédacteur Essai'); await page.fill('#meta-objet', 'Réunion 8b'); await page.fill('#meta-commentaires', 'Texte de la réunion');
+  await page.setInputFiles('#photo-galerie', PHOTO); await page.waitForTimeout(2500);
+  await ouvrir(); await trait(ligne(0.2, 0.5, 0.8, 0.5)); await valider();
+  await page.fill('#presents-input', 'Denis ESSAI');
+  await page.evaluate(() => ouvrirApercu()); await page.waitForTimeout(1500);
+  r.apercu = await page.evaluate(() => document.getElementById('apercu-cadre').srcdoc.replace(/base64,[^"]+/g, '').replace(/<[^>]+>/g, ' ').replace(/\\s+/g, ' '));
+  await page.evaluate(() => fermerApercu());
+
+  // 5. HORS RÉSEAU : la page se rouvre, le brouillon revient avec ses présents ; l'envoi range la note et dit quand viendra le numéro
+  await page.evaluate(() => BROUILLON.sauverMaintenant()); await page.waitForTimeout(1000);
+  await ctx.setOffline(true);
+  await ouvrirNote();
+  r.bandeau = await bandeau();
+  await restaurer();
+  r.restaure = { presents: await page.evaluate(() => presents.join('|')), enCours: await page.inputValue('#presents-input'), compteur: await texte('dest-compteur'),
+    photo: await etatPhoto(), texte: await page.inputValue('#meta-commentaires') };
+  await page.evaluate(() => envoyer()); await attendreBouton();
+  r.horsReseau = { message: await message(), file: await file(), presentsVides: await page.evaluate(() => presents.length === 0 && !document.getElementById('presents-input').value) };
+
+  // 6. Retour du réseau : la note part, le numéro s'affiche
+  await ctx.setOffline(false);
+  await page.evaluate(() => { LOUE.viderFile(true); });
+  r.partie = await attendreFileVide();
+  r.retour = await attendreMessage(/Compte rendu|Note envoy/);
+
+  // 7. Une deuxième note du même chantier, en ligne : numéro suivant
+  await page.fill('#meta-objet', 'Deuxième réunion'); await page.fill('#meta-commentaires', 'Sans présent');
+  await page.evaluate(() => envoyer()); await attendreFileVide();
+  r.deuxieme = await attendreMessage(/Compte rendu n° 2|Note envoy/);
+
+  // 8. Fiche de l'ANCIEN format déjà en attente dans le téléphone : acceptée et numérotée par le nouveau serveur
+  await page.evaluate(() => LOUE.mettreEnFile('note', { chantier: 'CHANTIER TEST 1', auteur: 'Ancien Rédacteur', date: '10/11/2026', objet: 'Ancienne fiche',
+    commentaires: 'Texte de l’ancienne fiche', destinataires: [], photosBase64: [] }, [], 'Note de réunion').then(() => { LOUE.viderFile(true); }));
+  r.anciennePartie = await attendreFileVide();
+  r.ancienneFiche = await attendreMessage(/Compte rendu n° 3|Note envoy/);
+
+  // 9. Réponse perdue : la note est traitée, la réponse n'arrive pas ; au nouvel essai, « déjà reçu » AVEC le numéro
+  await reglage('perdue');
+  await page.fill('#meta-objet', 'Réponse perdue');
+  await page.evaluate(() => envoyer()); await page.waitForTimeout(9000);
+  r.perdueEnFile = await file();
+  await reglage('normal');
+  await page.evaluate(() => { LOUE.viderFile(true); });
+  r.perduePartie = await attendreFileVide(80);
+  r.perdue = await attendreMessage(/Compte rendu n° 4|Note/);
+
+  // 10. Après tout cela : aucun brouillon proposé
+  await page.waitForTimeout(4500);
+  await ouvrirNote();
+  r.bandeauApres = await bandeau();
+  const e = await etatServeur();
+  r.version = e.version;
+  r.comptesRendus = e.comptesRendus.slice(1).map(l => [l[3], l[5], l[8]].join(' / '));
+  r.pdfPremier = (e.pdfs.find(p => /CR n° 1 /.test(p.sujet)) || {});
+  r.sujets = e.mails.map(m => m.sujet).filter((s, i, a) => a.indexOf(s) === i);
+
+  // 11. ANCIEN brouillon « mis de côté » (page d'avant le lot 8) : proposé et restauré
+  await toutVider();
+  await page.evaluate(async () => {
+    const e = { cle: 'brouillon_note', t: Date.now() - 3600000, champs: { 'meta-chantier': { v: 'CHANTIER TEST 1' }, 'meta-objet': { v: 'Mis de côté' }, 'meta-commentaires': { v: 'Texte mis de côté' } },
+      extra: { destinataires: [], photos: [] } };
+    localStorage.setItem('loue_brouillon_' + LOUE_CONFIG.env + '_note_mis_de_cote', JSON.stringify([e]));
+    await LOUE.stockage.ecrire('brouillons', { cle: 'brouillon_note_mis_de_cote', liste: [e] });
+  });
+  await ouvrirNote();
+  r.deCoteBandeau = await bandeau();
+  await restaurer();
+  r.deCote = { objet: await page.inputValue('#meta-objet'), texte: await page.inputValue('#meta-commentaires') };
+  await toutVider();
+  return JSON.stringify(r);
+}`;
+}
+
+// ── 8b : la NOUVELLE page avec l'ANCIEN serveur (déploiement en retard, ou retour arrière du serveur) ──
+function scenarioAncienServeur() {
+  return DEBUT + `
+  await ouvrirNote();
+  await page.fill('#meta-auteur', 'Rédacteur Essai'); await page.fill('#meta-objet', 'Avec l’ancien serveur'); await page.fill('#meta-commentaires', 'Texte pour l’ancien serveur');
+  await page.fill('#presents-input', 'Alice ESSAI'); await page.click('#presents-ajouter');
+  await page.fill('#presents-input', 'Bruno ESSAI'); await page.click('#presents-ajouter');
+  await page.setInputFiles('#photo-galerie', PHOTO); await page.waitForTimeout(2500);
+  await ouvrir(); await trait(ligne(0.2, 0.5, 0.8, 0.5)); await valider();
+  await page.evaluate(() => envoyer());
+  r.partie = await attendreFileVide();
+  for (let i = 0; i < 20; i++) { r.message = await message(); if (/Note envoy|Compte rendu/.test(r.message)) break; await page.waitForTimeout(500); }
+  r.photosEnAttente = await page.evaluate(() => LOUE.stockage.tout('photos').then(l => l.length));
+  const e = await etatServeur();
+  r.version = e.version; r.onglet = e.comptesRendus.length;
+  r.envois = e.envois.slice(1).map(l => [l[2], l[4]].join(':'));
+  r.pdf = e.pdfs[e.pdfs.length - 1] || {};
+  await page.waitForTimeout(4500); await ouvrirNote();
+  r.bandeauApres = await bandeau();
+  return JSON.stringify(r);
+}`;
+}
+
+// ── 8b : retour arrière de la PAGE. Un brouillon écrit par la page 10.1 est rouvert par la page 10.0 (lot 8a) ──
+function scenarioRepli(pageRepli) {
+  return DEBUT + `
+  await ouvrirNote();
+  await page.fill('#meta-objet', 'Avant le retour arrière'); await page.fill('#meta-commentaires', 'Texte déjà tapé');
+  await page.fill('#presents-input', 'Alice ESSAI'); await page.click('#presents-ajouter');
+  await page.fill('#presents-input', 'Bruno ESSAI'); await page.click('#presents-ajouter');
+  await page.setInputFiles('#photo-galerie', PHOTO); await page.waitForTimeout(2500);
+  await ouvrir(); await trait(ligne(0.2, 0.5, 0.8, 0.5)); await valider();
+  await page.evaluate(() => BROUILLON.sauverMaintenant()); await page.waitForTimeout(1000);
+  await page.goto(BASE + ${JSON.stringify(pageRepli)} + '?' + q + '&chantier=CHANTIER%20TEST%201'); await page.waitForTimeout(2500);
+  r.pageAncienne = await page.evaluate(() => !document.getElementById('presents-input') && typeof traitsValables === 'function');
+  r.bandeau = await bandeau();
+  await restaurer();
+  r.repli = { objet: await page.inputValue('#meta-objet'), texte: await page.inputValue('#meta-commentaires'), photo: await etatPhoto() };
+  await toutVider();
+  return JSON.stringify(r);
+}`;
+}
+
+// Un fichier tel qu'il était dans un commit précédent : le plus récent qui satisfait « convient » (null s'il n'y en a pas)
+function ancienFichier(chemin, convient) {
+  const log = spawnSync('git', ['log', '--format=%H', '--', chemin], { cwd: racine, encoding: 'utf8' });
+  for (const h of String(log.stdout || '').split(/\r?\n/).filter(Boolean)) {
+    const v = spawnSync('git', ['show', h + ':' + chemin], { cwd: racine, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
+    if (v.status === 0 && convient(v.stdout)) return v.stdout;
+  }
+  return null;
+}
+const pause = ms => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+
 function lancer(nom, texte) {
   const f = path.join(dossier, 'scenario-' + nom + '.js');
   fs.writeFileSync(f, texte);
@@ -317,9 +479,82 @@ function partieAnnotation() {
   return a;
 }
 
+function partieNote() {
+  console.log('Lot 8b — présents, destinataires et numéro du compte rendu (vrai Chrome, 375 px, nouveau serveur)');
+  // Un faux serveur NEUF : les numéros repartent de 1 (la partie 8a a déjà envoyé des notes sur le précédent)
+  faux.kill(); pause(1500);
+  faux = spawn('node', [path.join(__dirname, 'faux-serveur.js'), '8794'], { stdio: 'ignore' });
+  pause(3000);
+  const b = lancer('note', scenarioNote());
+  verifier('page ouverte : « Le numéro du compte rendu est donné à l’envoi. » et « 1 mail partira : la copie au conducteur du chantier. »',
+    b.info === 'Le numéro du compte rendu est donné à l’envoi.' && b.compteur0 === '1 mail partira : la copie au conducteur du chantier.', j([b.info, b.compteur0]));
+  verifier('présents : ajout par le bouton et par la touche Entrée, espaces nettoyés, pas de doublon, retrait d’une étiquette ; boutons de 48 px, pas de défilement horizontal',
+    b.presents === 'Alice ESSAI|Chloé ESSAI' && b.boutonsPresents === true && b.largeurPresents === true, j([b.presents, b.boutonsPresents, b.largeurPresents]));
+  verifier('destinataires : compteur « 2 mails partiront (1 destinataire + le conducteur du chantier). »', b.compteur1 === '2 mails partiront (1 destinataire + le conducteur du chantier).', j(b.compteur1));
+  verifier('… la 11e adresse de la liste est refusée avec un message (10 gardées)', b.plafond.n === 10 && /10 destinataires de la liste au maximum/.test(b.plafond.message)
+    && /^11 mails partiront \(10 destinataires/.test(b.plafond.compteur), j(b.plafond));
+  verifier('chantier tapé hors liste : « Chantier hors liste : cette note n’aura pas de numéro. », et le texte normal revient avec un chantier de la liste',
+    b.infoHorsListe === 'Chantier hors liste : cette note n’aura pas de numéro.' && b.infoRevenue === b.info, j([b.infoHorsListe, b.infoRevenue]));
+  verifier('aperçu : « Compte rendu n° — donné à l’envoi », bloc des présents, texte',
+    /Compte rendu n° — donné à l’envoi/.test(b.apercu) && /Présents \(2\)/.test(b.apercu) && /Alice ESSAI, Chloé ESSAI/.test(b.apercu) && /Texte de la réunion/.test(b.apercu), b.apercu);
+  verifier('hors réseau, page rouverte : le brouillon revient avec ses présents, le nom en cours de frappe, la photo annotée et ses traits',
+    /Brouillon retrouvé/.test(b.bandeau) && b.restaure.presents === 'Alice ESSAI|Chloé ESSAI' && b.restaure.enCours === 'Denis ESSAI' && b.restaure.photo && b.restaure.photo.traits === 1
+    && b.restaure.texte === 'Texte de la réunion' && /^2 mails partiront/.test(b.restaure.compteur), j([b.bandeau, b.restaure]));
+  verifier('envoi hors réseau : note gardée dans le téléphone, la page dit que le numéro sera donné au retour du réseau, formulaire vidé',
+    b.horsReseau.file === 1 && /Pas de réseau : la note est gardée dans le téléphone/.test(b.horsReseau.message) && /numéro de compte rendu sera donné à ce moment-là/.test(b.horsReseau.message)
+    && b.horsReseau.presentsVides === true, j(b.horsReseau));
+  verifier('retour du réseau : la note part et le message affiche « ✓ Compte rendu n° 1 envoyé — 2 mails envoyés »', b.partie === true && b.retour === '✓ Compte rendu n° 1 envoyé — 2 mails envoyés', j(b.retour));
+  verifier('… le PDF reçu porte le numéro, les présents (dont le nom tapé sans « + Ajouter »), le texte UNE fois et la photo',
+    /Compte rendu n° 1 /.test(b.pdfPremier.texte || '') && /Présents \(3\)/.test(b.pdfPremier.texte) && /Alice ESSAI, Chloé ESSAI, Denis ESSAI/.test(b.pdfPremier.texte)
+    && (b.pdfPremier.texte.split('Texte de la réunion').length - 1) === 1 && b.pdfPremier.texte.indexOf('Présents :') < 0 && b.pdfPremier.images === 1, j(b.pdfPremier));
+  verifier('deuxième note du même chantier : « ✓ Compte rendu n° 2 envoyé — 1 mail envoyé »', b.deuxieme === '✓ Compte rendu n° 2 envoyé — 1 mail envoyé', j(b.deuxieme));
+  verifier('fiche de l’ANCIEN format déjà en attente dans le téléphone : acceptée par le nouveau serveur, numérotée (n° 3)', b.anciennePartie === true && /^✓ Compte rendu n° 3 envoyé/.test(b.ancienneFiche), j(b.ancienneFiche));
+  verifier('réponse perdue : la note reste en attente, puis « ✓ Compte rendu n° 4 déjà reçu par le bureau » (une seule ligne, pas de second envoi)',
+    b.perdueEnFile === 1 && b.perduePartie === true && b.perdue === '✓ Compte rendu n° 4 déjà reçu par le bureau', j([b.perdueEnFile, b.perdue]));
+  verifier('onglet « Comptes rendus » du serveur (v11.0) : quatre lignes, numéros 1 à 4, présents de la première',
+    /v11\.0/.test(b.version) && j(b.comptesRendus) === j(['1 / Réunion 8b / Alice ESSAI ; Chloé ESSAI ; Denis ESSAI', '2 / Deuxième réunion / ', '3 / Ancienne fiche / ', '4 / Réponse perdue / ']), j([b.version, b.comptesRendus]));
+  verifier('après les envois : aucun « Brouillon retrouvé »', b.bandeauApres === '', j(b.bandeauApres));
+  verifier('ANCIEN brouillon « mis de côté » (page d’avant le lot 8) : proposé et restauré', /Brouillon mis de côté/.test(b.deCoteBandeau) && b.deCote.objet === 'Mis de côté' && b.deCote.texte === 'Texte mis de côté', j([b.deCoteBandeau, b.deCote]));
+}
+
+function partieAncienServeur() {
+  console.log('Lot 8b — la NOUVELLE page avec l’ANCIEN serveur (celui d’avant le lot 8b, relu dans l’historique Git)');
+  const code = ancienFichier('A-COLLER-DANS-APPS-SCRIPT/Code.gs', c => c.indexOf('function crReserver_(') < 0 && c.indexOf('function traiterNoteReunion(') > -1);
+  if (!code) { verifier('ancien serveur retrouvé dans l’historique Git', false, 'aucun Code.gs d’avant le lot 8b dans l’historique : essai impossible'); return; }
+  const fichier = path.join(dossier, 'Code-ancien.gs');
+  fs.writeFileSync(fichier, code);
+  faux.kill(); pause(1500);
+  faux = spawn('node', [path.join(__dirname, 'faux-serveur.js'), '8794'], { stdio: 'ignore', env: Object.assign({}, process.env, { LOUE_CODE_GS: fichier }) });
+  pause(3000);
+  const c = lancer('ancien-serveur', scenarioAncienServeur());
+  verifier('c’est bien l’ancien serveur qui répond (pas de v11.0, pas d’onglet « Comptes rendus »)', /Loué App API v/.test(c.version) && !/v11\./.test(c.version) && c.onglet === 0, j([c.version, c.onglet]));
+  verifier('la note part, rien ne reste dans le téléphone (ni fiche, ni photo), message « ✓ Note envoyée — 1 mail envoyé. Numéro non reçu : … »',
+    c.partie === true && c.photosEnAttente === 0 && c.envois.join() === 'note:traité' && c.message === '✓ Note envoyée — 1 mail envoyé. Numéro non reçu : s’il y en a un, il est dans le PDF.', j([c.message, c.envois, c.photosEnAttente]));
+  verifier('rien n’est perdu dans le PDF de l’ancien serveur : présents (en tête du texte), texte saisi, photo annotée',
+    /Présents : Alice ESSAI, Bruno ESSAI/.test(c.pdf.texte || '') && /Texte pour l’ancien serveur/.test(c.pdf.texte) && c.pdf.images === 1, j(c.pdf));
+  verifier('… et aucun « Brouillon retrouvé » ensuite', c.bandeauApres === '', j(c.bandeauApres));
+}
+
+function partieRepli() {
+  console.log('Lot 8b — retour arrière de la page : un brouillon de la page 10.1 rouvert par la page 10.0 (relue dans l’historique Git)');
+  const page10 = ancienFichier('note-reunion.html', c => c.indexOf('presents-input') < 0 && c.indexOf('function traitsValables(') > -1);
+  if (!page10) { verifier('page 10.0 retrouvée dans l’historique Git', false, 'aucune page du lot 8a dans l’historique : essai impossible'); return; }
+  const nom = 'note-reunion-repli-essai.html';
+  fs.writeFileSync(path.join(racine, nom), page10);
+  try {
+    const d = lancer('repli', scenarioRepli(nom));
+    verifier('la page 10.0 propose le brouillon de la page 10.1', d.pageAncienne === true && /Brouillon retrouvé/.test(d.bandeau), j([d.pageAncienne, d.bandeau]));
+    verifier('… rien n’est perdu : les présents sont versés en tête des notes, le texte et la photo annotée (avec ses traits) reviennent',
+      d.repli.objet === 'Avant le retour arrière' && d.repli.texte === 'Présents : Alice ESSAI, Bruno ESSAI\n\nTexte déjà tapé' && d.repli.photo && d.repli.photo.traits === 1 && d.repli.photo.annotee === true, j(d.repli));
+  } finally { fs.rmSync(path.join(racine, nom), { force: true }); }
+}
+
 setTimeout(() => {
   try {
     partieAnnotation();
+    partieNote();
+    partieRepli();
+    partieAncienServeur();
   } catch (e) { echecs++; console.log('  ✗ ' + e.message); }
   spawnSync('playwright-cli', ['-s=loue-l8', 'close'], { shell: true });
   site.kill(); faux.kill();

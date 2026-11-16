@@ -50,27 +50,49 @@ function infoPdf_(blob) {
 // ═══════════════════════════════════════════════════════════════
 // NOTE DE RÉUNION
 // ═══════════════════════════════════════════════════════════════
-function traiterNoteReunion(data, brut) {
+// contexte (lot 8b) : { id (numéro de fiche créé par le téléphone), auteurId, auteurNom }. Absent pour une page d'avant le
+// lot 1 (aucun numéro de fiche : la note part comme avant, sans numéro de compte rendu, car on ne saurait pas la reconnaître
+// si elle était renvoyée).
+function traiterNoteReunion(data, brut, contexte) {
   const now = new Date();
   // Lot 1 : PDF fabriqué par le modèle unique (modeles/note.js, copié dans Modeles.gs), le même que l'aperçu de la page
   const d = validerImages_(brut);
   if (!d.date) d.date = Utilities.formatDate(now, 'Europe/Paris', 'dd/MM/yyyy');
-  const nomPDF = nomFichier_(`Note_${brut.chantier||'—'}_${String(d.date).replace(/\//g,'-')}.pdf`);
+
+  // Lot 8b : le numéro du compte rendu est réservé AVANT le PDF (il y figure). Onglet indisponible ou serveur occupé :
+  // rien n'est fabriqué ni envoyé, le téléphone garde la note et réessaie.
+  const idFiche = contexte && contexte.id ? String(contexte.id) : '';
+  const qui = contexte ? (contexte.auteurId ? (contexte.auteurNom || contexte.auteurId) + ' (' + contexte.auteurId + ')' : 'sans compte') : 'sans compte';
+  const cr = idFiche ? crReserver_(idFiche, Object.assign({}, brut, { date: d.date }), qui) : { numero: 0, horsListe: false, sansFiche: true };
+  // Ce que le modèle imprime vient du SERVEUR : jamais le numéro que le téléphone aurait pu écrire dans ses données
+  d.numeroCR = cr.numero ? String(cr.numero) : '';
+  d.presents = crPresents_(brut.presents);
+  // Nouvelle page : « remarques » est le texte saisi, « commentaires » en est une copie lisible par un ancien serveur
+  // (présents en tête). Ancienne page, ancienne fiche en attente : « commentaires » est le texte saisi.
+  if (typeof brut.remarques === 'string') d.commentaires = brut.remarques;
+  delete d.remarques;
+
+  const prefixe = cr.numero ? 'CR' + cr.numero + '_' : '';
+  const nomPDF = nomFichier_(`Note_${prefixe}${brut.chantier||'—'}_${String(d.date).replace(/\//g,'-')}.pdf`);
   const blob   = pdfDuModele_(modele_note, d, nomPDF);   // fabriqué une seule fois (contrôlé : R1)
 
   // Classement Drive (lot 1.5 : dossier « note » de dossiers.json, 05 - CHANTIER/COMPTE RENDU par défaut)
-  const fichier = classerDocument_('note', blob, brut.chantier, d.date);
+  const fichier = classerDocument_('note', blob, brut.chantier, d.date, cr.numero ? 'CR ' + cr.numero : '');
+  if (idFiche && fichier) crNoterPdf_(idFiche, fichier.getName());
 
   // Mail : textes échappés (data), le PDF en pièce jointe
   const chantier = data.chantier || '—', auteur = data.auteur || '—';
   const ligneObjet = data.objet ? '<tr><td style="color:#6A6460;padding:3px 14px 3px 0">Objet</td><td>' + data.objet + '</td></tr>' : '';
-  const sujet = `[Loué App] Note de réunion — ${brut.chantier||'—'}${brut.objet?' — '+brut.objet:''}`;
+  // Lot 8b : le numéro dans l'objet et dans le mail (pour une adresse tapée à la main, l'objet reste celui imposé par le lot 0)
+  const ligneNumero = cr.numero ? '<tr><td style="color:#6A6460;padding:3px 14px 3px 0">Compte rendu</td><td><strong>n° ' + cr.numero + '</strong></td></tr>' : '';
+  const sujet = `[Loué App] Note de réunion — ${cr.numero ? 'CR n° ' + cr.numero + ' — ' : ''}${brut.chantier||'—'}${brut.objet?' — '+brut.objet:''}`;
   const corps = `<div style="font-family:Arial,sans-serif;font-size:13px">
     <p>Bonjour,</p>
     <p>Veuillez trouver <strong>en pièce jointe</strong> la note de réunion.</p>
     <table style="font-size:12px;border-collapse:collapse;margin:12px 0">
       <tr><td style="color:#6A6460;padding:3px 14px 3px 0">Chantier</td><td><strong>${chantier}</strong></td></tr>
       <tr><td style="color:#6A6460;padding:3px 14px 3px 0">Date</td><td>${esc_(d.date)}</td></tr>
+      ${ligneNumero}
       ${ligneObjet}
       <tr><td style="color:#6A6460;padding:3px 14px 3px 0">Rédigé par</td><td>${auteur}</td></tr>
     </table>
@@ -79,13 +101,18 @@ function traiterNoteReunion(data, brut) {
 
   // Destinataires choisis dans la page + copie au conducteur du chantier calculée par le serveur (sinon Franck) :
   // toujours au moins un destinataire, même chantier tapé à la main (comme le quitus, D1-13) — contrôlés par distribuer_
+  // Lot 8b : le moteur des mails n'est PAS changé (un mail par adresse connue, toutes servies : lot 0). Le plafond de
+  // 10 adresses connues par note est tenu par la page (« + Ajouter » refusé) : une note déjà en attente dans un téléphone
+  // garde donc tous ses destinataires.
   const adresses = (Array.isArray(brut.destinataires) ? brut.destinataires : []).concat([emailConducteurChantier_(brut.chantier) || emailAdmin_()]);
   distribuer_({
     fiche: 'note', chantier: brut.chantier, adresses: adresses,
     sujet: sujet, html: corps, fichier: fichier, nomPDF: nomPDF,
-    texte: 'Bonjour,\n\nVeuillez trouver en pièce jointe la note de réunion — ' + (brut.chantier || '—') + '.\n\nLoué App',
+    texte: 'Bonjour,\n\nVeuillez trouver en pièce jointe la note de réunion' + (cr.numero ? ' (compte rendu n° ' + cr.numero + ')' : '') + ' — ' + (brut.chantier || '—') + '.\n\nLoué App',
     faireBlob: () => blob,
   });
+  // Rendu au téléphone par recevoirFiche_ : le numéro, ou « sans numéro » (chantier hors liste)
+  return { numeroCR: cr.numero || 0, sansNumeroCR: !cr.numero && !!cr.horsListe };
 }
 
 

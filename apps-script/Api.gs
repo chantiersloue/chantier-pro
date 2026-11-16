@@ -178,7 +178,8 @@ function repondre_(objet) {
 function traiterFiche_(brut, contexte) {
   const nom = brut && Object.prototype.hasOwnProperty.call(TRAITEMENTS, brut.type) ? TRAITEMENTS[brut.type] : '';
   if (!nom) throw new Error('Type de fiche inconnu');
-  globalThis[nom](preparerDonnees_(brut), brut, contexte);
+  // Lot 8b : ce que rend le traitement (pour une note de réunion : le numéro du compte rendu) repart dans la réponse
+  return globalThis[nom](preparerDonnees_(brut), brut, contexte);
 }
 
 // Lot 2 : chaque action (sauf ping, connexion, motDePasse) passe par identifier_ : jeton valable, ou transition ouverte
@@ -372,7 +373,15 @@ function recevoirFiche_(corps, compte) {
     if (trouve) {
       const statut = String(sh.getRange(trouve, 5).getValue());
       const recu = sh.getRange(trouve, 2).getValue();
-      if (statut.indexOf('traité') === 0) return { ok: true, code: 'DEJA_RECU', message: 'Fiche déjà reçue', data: { id: corps.id } };   // « traité » ou « traité (incomplet) »
+      if (statut.indexOf('traité') === 0) {   // « traité » ou « traité (incomplet) »
+        const deja = { ok: true, code: 'DEJA_RECU', message: 'Fiche déjà reçue', data: { id: corps.id } };
+        // Lot 8b : après une réponse perdue, le téléphone apprend quand même le numéro de son compte rendu
+        if (donnees.type === 'note') {
+          const n = crNumeroDeLaFiche_(corps.id);
+          if (n) { deja.data.numeroCR = n; deja.message = 'Compte rendu n° ' + n + ' déjà reçu'; }
+        }
+        return deja;
+      }
       if (statut === 'en cours' && recu instanceof Date && Date.now() - recu.getTime() < 7 * 60 * 1000) {
         return { ok: false, code: 'EN_COURS', message: 'Fiche en cours de traitement, nouvel essai automatique' };
       }
@@ -404,9 +413,10 @@ function recevoirFiche_(corps, compte) {
 
   // 3. PDF, classement, mails
   RAPPORT_ = {};
+  let resultat = null;
   try {
     // Ce que le serveur sait de la fiche : son numéro, et le compte vérifié par le jeton (vide si sans compte)
-    traiterFiche_(brut, { id: corps.id, auteurId: compte && compte.id ? compte.id : '',
+    resultat = traiterFiche_(brut, { id: corps.id, auteurId: compte && compte.id ? compte.id : '',
       auteurNom: compte ? (compte.nom || compte.etiquette || compte.id) : 'sans compte', compte: compte || null });
   } catch (err) {
     // Lot 3 (notes) : « occupé » → le téléphone réessaie ; « refus » → définitif. Ni l'un ni l'autre ne prévient Franck
@@ -442,11 +452,17 @@ function recevoirFiche_(corps, compte) {
   if (estNote) return { ok: true, code: 'ENREGISTRE', message: 'Enregistré', data: { id: corps.id } };
   if (dossierPhotos) { try { dossierPhotos.setTrashed(true); } catch (e) {} }   // les photos sont dans le PDF
 
-  return {
+  const reponse = {
     ok: true, code: 'ENREGISTRE',
     message: 'Fiche enregistrée. ' + detail.charAt(0).toUpperCase() + detail.slice(1) + '.',
     data: { id: corps.id, envoyes: n('envoyé'), reportes: n('reporté'), refuses: rapport['refusé'] || [] },
   };
+  // Lot 8b : numéro du compte rendu d'une note de réunion (ou « sans numéro » : chantier hors liste)
+  if (resultat && resultat.numeroCR) {
+    reponse.data.numeroCR = resultat.numeroCR;
+    reponse.message = 'Compte rendu n° ' + resultat.numeroCR + ' enregistré. ' + detail.charAt(0).toUpperCase() + detail.slice(1) + '.';
+  } else if (resultat && resultat.sansNumeroCR) reponse.data.sansNumeroCR = true;
+  return reponse;
 }
 
 // Ligne d'un numéro dans l'onglet Envois (recherche rapide), ou 0

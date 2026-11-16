@@ -40,6 +40,27 @@ Remplis la fiche, signe, touche **Envoyer**.
 
 **Rare : « le téléphone n'a pas pu garder la fiche »** (navigation privée, mémoire pleine) : l'appli l'envoie directement, **page ouverte**. Si elle demande de se connecter, une petite fenêtre de connexion s'ouvre **dans la page** : connecte-toi là, sans quitter la fiche, et elle part.
 
+## La note de réunion
+
+Tuile **Note de réunion**. Tu remplis, tu touches **Envoyer la note** : le bureau reçoit un PDF.
+
+- **Chantier et « Rédigé par »** : obligatoires. Le reste est facultatif.
+- **Présents** : tape un nom, touche **« + Ajouter »**. Recommence pour chaque personne. La croix retire un nom. Tu peux ne rien mettre.
+- **Destinataires** : le conducteur du chantier reçoit toujours une copie. Ajoute les autres si besoin. Sous la liste, l'appli te dit combien de mails vont partir. Pas plus de 10 adresses de la liste par note.
+- **Notes et commentaires** : tape ton texte, ou **dicte-le** avec le micro du clavier.
+- **Le numéro du compte rendu** (« Compte rendu n° 7 ») : c'est le bureau qui le donne, **au moment où la note arrive**. Tu le lis dans le message vert à la fin de l'envoi, et dans le PDF.
+  - **Sans réseau** : la note attend dans le téléphone. Son numéro est donné quand elle part. Ne refais pas la note.
+  - Chantier tapé à la main, absent de la liste : la note part **sans numéro**. L'appli te prévient sous le nom du chantier.
+- **Photos** : « 📷 Prendre une photo » ou « 🖼 Galerie ». Tu peux écrire une légende sous chaque photo.
+- **Dessiner sur une photo** : touche la photo (ou « ✏️ Annoter »).
+  - ✏️ stylo, ↗ flèche, ▭ rectangle, six couleurs, taille du trait.
+  - 🧽 **gomme** : elle efface tes traits, **pas la photo**.
+  - ↶ : annule le dernier trait.
+  - **Valider** garde le dessin. **Annuler** ne change rien.
+  - **Tu peux y revenir** : touche de nouveau la photo, tes traits sont là, tu les modifies ou tu les effaces. Jusqu'à l'envoi.
+  - Photo annotée avant la mise à jour de l'appli : ses anciens traits ne s'effacent plus (l'appli te le dit). Les nouveaux, si.
+- **Aperçu** (en haut) : le PDF tel qu'il partira. Le numéro n'y est pas encore : « donné à l'envoi ».
+
 ## Signaler une casse, un manquant, une chose à recommander
 
 Dans un chantier, touche **Signaler**.
