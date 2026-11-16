@@ -1,4 +1,4 @@
-# Lot 4c — Le programme du PC : carnet depuis les bordereaux, recopie automatique des fiches de l'appli — procédure
+# Lot 4c — Le programme du PC : recopie automatique des fiches de l'appli, dépôt automatique au carnet — procédure
 
 > Plan : `docs/lot4c-plan.md` (version 2, chapitres 10 et 11), avec deux décisions de Franck du 14/11/2026 : **la recopie des fiches est automatique**, et **MEGA n'est que la sauvegarde** des dossiers de chantier du PC. Contrat avec les skills : `docs/contrat-skills.md` (version 5).
 > **Statut : construit et testé sur de faux dossiers ; jamais lancé sur de vraies données ; aucune tâche planifiée n'a été créée, par personne.** Rien n'est à déployer sur le serveur ni sur GitHub Pages : ce lot ne touche ni au serveur, ni aux pages de l'appli.
@@ -10,7 +10,10 @@ Tes skills travaillent dans les **dossiers de chantier de ton PC** (que MEGA syn
 1. **Les nouvelles fiches de l'appli arrivent toutes seules dans le bon dossier de chantier du PC.** Windows lance le programme toutes les heures et à l'ouverture de ta session, sans fenêtre et sans question. Les prises de cotes, quitus, notes, signalements, photos… sont recopiés au même endroit que dans l'appli (`05 - CHANTIER/PRISE DE COTES`, etc.). **Copie seulement : rien n'est jamais supprimé, déplacé, renommé ni écrasé.**
 2. **Une fiche n'est copiée qu'une fois.** Si tu la déplaces, la renommes ou la supprimes dans le dossier du PC, elle ne revient pas : ton choix est respecté.
 3. **Ce qui demande ton attention est écrit dans un fichier texte**, `CHANTIERPRO - A VOIR.txt`, dans le dossier qui contient tes dossiers de chantier. Il dit « Rien à signaler » quand tout va bien.
-4. **Le carnet des poseurs** : un double-clic sur `outils\appli-pc.bat` te montre les PDF de tes bordereaux qui peuvent aller au carnet, et les y met si tu réponds « o ».
+4. **Le carnet des poseurs se remplit tout seul** (ta décision du 16/11/2026), au même passage, sans aucune question :
+   - tout PDF d'un **bordereau** (`08 - DOCUMENTS ENVOYES AVEC BORDEREAU/BORDEREAU n`) qui est un document du carnet y part, sans délai — **seulement pour un chantier dont tu as déclaré la numérotation** (étape 5) ; un chantier non déclaré ne dépose **rien** depuis ses bordereaux ;
+   - tout PDF que tu glisses dans un dossier **`À METTRE AU CARNET`**, à la racine d'un dossier de chantier, y part aussi.
+   Ce qui a été déposé, et ce qui n'a pas pu l'être, est écrit dans `CHANTIERPRO - A VOIR.txt`.
 
 Le bon dossier de chantier est trouvé **par le numéro du chantier**, en tête du nom des dossiers (`403 - …`, `403-…`, `403 …`). Le programme ne devine jamais : s'il n'y a aucun dossier pour ce numéro, ou plusieurs, il ne copie rien pour ce chantier et l'écrit dans « A VOIR ». Un dossier du Drive qui n'est pas un dossier de chantier de l'appli (par exemple « 2024 - archives ») est laissé de côté.
 
@@ -18,16 +21,17 @@ Petit lexique : le **Planificateur de tâches** est l'outil de Windows qui lance
 
 ## La mise en place, une seule fois
 
-**L'ordre est décidé (toi, le 16/11/2026)** : d'abord coller les lignes dans `gestion-documentaire` et vérifier l'état documentaire sur **un** chantier (étapes 3 et 4) ; **ensuite seulement** installer la tâche automatique (étape 5).
+**L'ordre est décidé (toi, le 16/11/2026)** : d'abord coller les lignes dans `gestion-documentaire` et vérifier l'état documentaire sur **un** chantier, avec les **fiches seules** (étapes 3 et 4) ; puis déclarer la numérotation de ce chantier et y essayer le carnet (étape 5) ; **ensuite seulement** installer la tâche automatique (étape 6). Les autres chantiers se déclarent un par un, quand tu veux.
 
 | # | Étape | Durée |
 |---|---|---|
 | 1 | Créer le fichier de réglages `_prive\depot.json` | 5 min |
 | 2 | Regarder ce que le programme ferait (« Voir seulement ») | 5 min |
 | 3 | Valider et coller les lignes dans `gestion-documentaire` (avec Claude, projet LOUE TRAVAIL) | 20 à 30 min |
-| 4 | Un premier passage à la main **sur un seul chantier**, puis les deux essais avec ton skill | 20 min |
-| 5 | Double-clic sur `outils\installer-tache.bat` | 5 min |
-| 6 | Les anciens numéros de documents, pour le carnet (avec moi) | 10 min |
+| 4 | Un premier passage à la main, **fiches seules, sur un seul chantier**, puis les deux essais avec ton skill | 20 min |
+| 5 | Déclarer la numérotation des bordereaux du chantier d'essai, « Voir seulement », puis le carnet sur ce chantier | 15 min |
+| 6 | Double-clic sur `outils\installer-tache.bat` | 5 min |
+| 7 | Créer le dossier `À METTRE AU CARNET` dans un chantier, quand tu en as besoin | 1 min |
 
 Le programme ajoute **un** fichier à la racine de chaque dossier de chantier, `CHANTIERPRO - fiches rapatriees.json` (la liste des fiches venues de l'appli, que ton skill lit), et **un** fichier à côté de tes dossiers de chantier, `CHANTIERPRO - A VOIR.txt`. **Décidé par toi le 16/11/2026 : ces deux noms sont gardés.**
 
@@ -41,8 +45,7 @@ Le dossier `_prive` n'est jamais envoyé sur GitHub : c'est le bon endroit pour 
    ```json
    {
      "racine": "D:/EXEMPLE/Mon Drive/DOSSIER DE L'APPLI",
-     "chantiers_pc": "D:/EXEMPLE/CHANTIERS",
-     "anciens_codes": {}
+     "chantiers_pc": "D:/EXEMPLE/CHANTIERS"
    }
    ```
 
@@ -59,9 +62,10 @@ Double-clique sur `outils\appli-pc.bat`, tape `2` puis Entrée. À la question �
 
 - **« Chantiers reconnus »** : chaque chantier, avec son dossier du Drive et son dossier du PC. Vérifie que chaque ligne relie bien les deux bons dossiers.
 - **« À voir »** : par exemple un dossier de l'appli qui n'a pas de numéro en tête de son nom, ou un numéro qui n'a pas de dossier sur le PC.
-- sous « RECOPIE DES FICHES », pour chaque chantier, le nombre de fichiers « à copier ».
+- sous « RECOPIE DES FICHES », pour chaque chantier, le nombre de fichiers « à copier » ;
+- sous « CARNET : ce qui partirait tout seul », **chaque document qui serait déposé au carnet**, avec le chantier, le bordereau d'où il vient et le nom qu'il aura. Lis cette liste avec soin : après l'étape 6, plus personne ne confirme. En dessous, la liste des PDF des bordereaux qui ne partent pas (devis, dossiers techniques : c'est normal).
 
-Si tu lis « REFUS », le message dit quel chemin est faux. (La première ligne du menu, « La recopie automatique n'a encore jamais tourné… Elle se met en place à l'étape 5 de la procédure, APRÈS les essais », est normale à ce stade : ne lance pas `installer-tache.bat` maintenant.)
+Si tu lis « REFUS », le message dit quel chemin est faux. (La première ligne du menu, « Le passage automatique… n'a encore jamais tourné… Il se met en place à l'étape 6 de la procédure, APRÈS les essais », est normale à ce stade : ne lance pas `installer-tache.bat` maintenant.)
 
 **Un dossier de l'appli n'a pas de numéro en tête de son nom ?** Deux solutions : le renommer dans Drive (`NNN - NOM`), ou le relier à la main : choix `4` du menu (« Associer les chantiers »). Le programme affiche les dossiers du Drive encore libres ; tu tapes le numéro de la ligne, puis le nom du chantier dans l'appli. C'est noté dans `_prive\depot.json`. Attention : cette correspondance ne peut pas contredire un numéro. Si le dossier du Drive commence par `403` et que tu le relies au chantier 404, le programme ne copie rien pour lui et te le dit.
 
@@ -82,17 +86,33 @@ Arrête-toi au premier essai qui ne donne pas le résultat attendu, et montre-mo
 | # | Essai | Comment | Attendu |
 |---|---|---|---|
 | A | **Sur la copie TEST et un faux dossier de chantiers** (avec moi, facultatif mais conseillé) | Je te donne un `depot.json` d'essai : la racine est le dossier `CHANTIERPRO-TEST`, « chantiers_pc » est un dossier vide créé pour l'essai. `appli-pc`, choix `1` | Les fiches du Drive TEST sont copiées dans le faux dossier ; dans le Drive TEST, seuls `releve-pc.json` (et le carnet, si tu as déposé un plan) ont changé |
-| B | **Première recopie réelle, sur un seul chantier** | Remets ton vrai `depot.json`. Choisis un chantier en cours qui a des fiches dans l'appli. `appli-pc`, choix `1` ; à « Numéro d'un seul chantier », tape **son numéro**. Réponds Entrée aux documents du carnet (plus tard), puis `o` à « Recopier maintenant les nouvelles fiches de 1 chantier(s) » | L'écran dit « UN SEUL CHANTIER : le n° NNN ». Le bilan donne le nombre de fichiers copiés et les points « à voir » de ce chantier. Dans son dossier : les fiches sont à leur place, et `CHANTIERPRO - fiches rapatriees.json` est à la racine. **Aucun autre dossier de chantier n'a été touché**, et « A VOIR » n'est pas écrit. Attends que MEGA ait fini de synchroniser |
+| B | **Premier passage réel : les fiches seules, sur un seul chantier** | Remets ton vrai `depot.json`. Choisis un chantier en cours qui a des fiches dans l'appli. `appli-pc`, choix `1` ; à « Numéro d'un seul chantier », tape **son numéro**. Aucune question n'est posée. **Rien ne part au carnet** : tu n'as pas encore déclaré la numérotation de ses bordereaux, et il n'a pas de dossier `À METTRE AU CARNET`. (La même chose en ligne de commande : `python outils\appli_pc.py --rapatrier --chantier NNN`.) | L'écran dit « UN SEUL CHANTIER : le n° NNN », puis « Carnet : 0 document(s) déposé(s) » et une ligne « N document(s) de bordereau en attente — numérotation à déclarer » : c'est normal. Le bilan donne le nombre de fichiers copiés. Dans son dossier : les fiches sont à leur place, et `CHANTIERPRO - fiches rapatriees.json` est à la racine. **Aucun autre dossier de chantier n'a été touché**, et « A VOIR » n'est pas écrit. Attends que MEGA ait fini de synchroniser |
 | C | **État documentaire** (essai obligatoire) | Conversation LOUE TRAVAIL : « fais-moi l'état documentaire du NNN » (le chantier de l'essai B) | **Aucune fiche de l'appli** en « plusieurs versions actives », « même document à plusieurs endroits » ou « hors de son dossier ». Aucune n'a été déplacée ni renommée |
 | D | **Veille des comptes rendus** (essai obligatoire) | Même chantier (il faut au moins une note de réunion de l'appli dans `05 - CHANTIER/COMPTE RENDU`) : demande la veille des CR | Aucune note de l'appli n'est comptée comme un compte rendu ; les CR de la maîtrise d'œuvre sont lus comme avant |
 
-Si l'essai C ou D échoue : n'installe pas la tâche (étape 5). Un seul dossier de chantier a reçu des fichiers, et ils sont tous listés dans son `CHANTIERPRO - fiches rapatriees.json` (voir « Retour arrière »).
+Si l'essai C ou D échoue : ne va pas plus loin (ni étape 5, ni étape 6). Un seul dossier de chantier a reçu des fichiers, et ils sont tous listés dans son `CHANTIERPRO - fiches rapatriees.json` (voir « Retour arrière »).
 
-### Étape 5 — Installer la recopie automatique (5 min)
+### Étape 5 — Déclarer la numérotation du chantier d'essai, puis le carnet sur ce chantier (15 min)
+
+**Pourquoi déclarer.** Tes bordereaux d'avant la numérotation par métier portent d'anciens numéros, et certains de ces numéros existent toujours aujourd'hui **avec un autre sens**. Si le programme les lisait comme des numéros d'aujourd'hui, il pourrait publier aux poseurs un mauvais document — un devis avec ses prix, par exemple — sous le nom d'un plan. Donc : **tant que tu n'as pas déclaré la numérotation d'un chantier, rien ne part au carnet depuis ses bordereaux.** « A VOIR » te rappelle seulement, en une ligne par chantier : « N document(s) de bordereau en attente — numérotation à déclarer ».
+
+1. **Déclarer** : `appli-pc`, choix `6`, puis le numéro du chantier de l'essai B. Le programme affiche les PDF de ses bordereaux, rangés par numéro de document, avec leur intitulé. Regarde-les, puis réponds :
+   - `o` : ces bordereaux sont numérotés comme aujourd'hui (001 = PPSPS, 105 et 106 = réservations…) ;
+   - `n` : ancienne numérotation. Le programme te demande alors, **pour chaque ancien numéro**, le numéro actuel du document s'il doit aller au carnet (Entrée seule = ne jamais le déposer). **Seuls les numéros de cette table partiront** ; tous les autres, jamais ;
+   - `r` : ne rien déposer depuis les bordereaux de ce chantier (un chantier terminé, par exemple) ; la ligne de rappel disparaît ;
+   - Entrée seule : abandonner, rien n'est écrit.
+
+   Un chantier qui a les deux numérotations (anciens bordereaux, puis nouveaux) se déclare « ancienne », avec dans sa table les anciens numéros **et** les nouveaux (par exemple `105` → `105`). C'est noté dans `_prive\depot.json`, clé `bordereaux` ; tu peux refaire le choix `6` à tout moment, ta réponse remplace la précédente.
+2. **Voir seulement** : `appli-pc`, choix `2`, avec le numéro du chantier. Sous « CARNET : ce qui partirait tout seul », lis **chaque document** : chantier, bordereau d'où il vient, nom qu'il aura. En dessous : le nombre de documents et de pages, et le poids estimé des images ; puis la liste des PDF de bordereau qui ne partent pas (devis, dossiers techniques : c'est normal — si un plan pour les poseurs est dans cette liste, refais le choix `6`).
+3. **Le carnet sur ce chantier** : `appli-pc`, choix `1`, avec le même numéro. Les lignes « DÉPOSÉ AU CARNET » défilent ; quelques minutes après, ouvre l'appli : les plans sont dans le carnet du chantier. Un document en trop ? choix `5` (« Retirer un document du carnet »).
+
+**Les autres chantiers** : tu les déclares **un par un, quand tu veux** (choix `6`), avant ou après l'installation de la tâche. Un chantier non déclaré ne dépose rien depuis ses bordereaux ; ses fiches, elles, sont recopiées normalement. Le dossier `À METTRE AU CARNET` (étape 7) marche toujours, sans déclaration, parce que c'est un geste volontaire de ta part — avec les numéros **d'aujourd'hui** seulement.
+
+### Étape 6 — Installer le passage automatique : fiches et carnet (5 min)
 
 **Ce que je n'ai pas pu essayer** : la création de cette tâche. Le programme la décrit à Windows dans un petit fichier (une seule tâche, deux déclenchements : toutes les heures, et à l'ouverture de **ta** session, désignée par son identifiant Windows ; sans droits d'administrateur ; elle tourne aussi sur batterie). Cette description est vérifiée par des tests, mais Windows ne l'a encore jamais reçue. Si Windows la refuse, la fenêtre te le dit et rien n'est cassé : montre-moi le message.
 
-1. Double-clique sur **`outils\installer-tache.bat`**. Aucun droit d'administrateur n'est demandé.
+1. Double-clique sur **`outils\installer-tache.bat`**. Aucun droit d'administrateur n'est demandé. À partir de là, pour les chantiers **déclarés**, les plans des bordereaux partent au carnet tout seuls : fais d'abord le choix `2` (« Voir seulement », Entrée = tous les chantiers) et lis la liste et les totaux.
 2. La fenêtre dit « Tâche créée : « ChantierPro - recopie des fiches » ».
 3. **Vérifier** : menu Démarrer, tape « Planificateur de tâches », ouvre-le, clique à gauche sur « Bibliothèque du Planificateur de tâches ». La ligne « ChantierPro - recopie des fiches » y est, avec l'heure de sa « Prochaine exécution ». Pour l'essayer tout de suite : clic droit sur la ligne, « Exécuter ». Aucune fenêtre ne s'ouvre, c'est normal. Une minute après : `appli-pc`, choix `3`. La première ligne dit « Dernier passage automatique réussi : le … » avec l'heure de maintenant, puis le contenu de « A VOIR ».
 
@@ -102,30 +122,23 @@ Si l'essai C ou D échoue : n'installe pas la tâche (étape 5). Un seul dossier
 
 Si tu l'oublies, la recopie s'arrête sans bruit : c'est pour cela que le menu de `appli-pc` affiche une ligne « ATTENTION » quand le dernier passage réussi date de plus de 3 heures.
 
-### Étape 6 — Les anciens numéros de documents, pour le carnet (10 min, avec moi)
+### Étape 7 — Le dossier `À METTRE AU CARNET` (1 min, quand tu en as besoin)
 
-Cette étape ne concerne que le carnet. Depuis ta décision de numérotation par métier, le PPSPS porte le n° 001, les réservations 105 et 106, etc. Les bordereaux plus anciens portent d'autres numéros. Le programme a besoin d'une table « ancien numéro → numéro actuel » pour les reconnaître.
+Pour mettre au carnet un document qui n'est pas dans un bordereau :
 
-- **Table générale** (`anciens_codes`) : seulement pour un ancien numéro qui n'existe **pas** dans la numérotation actuelle (par exemple un numéro suivi d'une lettre).
-- **Table d'un chantier** : pour un chantier commencé avec l'ancienne numérotation, la table se met **dans la ligne de ce chantier**. Elle l'emporte sur la table générale. C'est indispensable, parce que certains anciens numéros existent toujours aujourd'hui avec un autre sens.
+1. Dans le dossier du chantier sur ton PC (à sa racine, à côté de `05 - CHANTIER`), crée un dossier nommé exactement **`À METTRE AU CARNET`** (majuscules ou minuscules, peu importe). Le programme ne le crée jamais lui-même.
+2. Glisses-y le PDF, nommé d'une de ces deux façons (exemples inventés, pour un chantier 900) :
+   - forme courte : `105-A-PLANS DE RESERVATIONS.pdf` — numéro de document, indice, intitulé ; le chantier est celui du dossier ;
+   - forme complète, celle des bordereaux : `900-10-105-A-PLANS DE RESERVATIONS.pdf` — le numéro du chantier doit être celui du dossier.
+3. C'est tout. Au passage suivant (une heure au plus, ou tout de suite avec `appli-pc`, choix `1`), le document est au carnet, et la ligne est dans « A VOIR ». **Le PDF reste dans le dossier** : le programme ne supprime et ne déplace rien ; tu peux le laisser ou le ranger toi-même.
 
-Exemple de forme (les numéros `041`, `042A`, `044` sont **inventés** : on mettra les tiens ensemble, d'après ta note de numérotation) :
-
-```json
-"chantiers": {
-  "900": { "chantier": "EXEMPLE", "dossier_drive": "900 - EXEMPLE",
-           "anciens_codes": { "042A": "105", "044": "103", "041": "102" } }
-},
-"anciens_codes": { "042A": "105" }
-```
-
-Un numéro converti vers un numéro qui n'est pas au carnet (ici `041` → `102`) est simplement laissé de côté, sans message. Tu peux aussi ajouter `"hors_carnet": ["101", "102"]` (une liste de numéros actuels qui ne vont pas au carnet) pour que le programme ne les signale plus comme « non reconnus ».
-
-**Vérifier** : `appli-pc`, choix `2`. Sous « CARNET », il ne doit rester en « numéro de document non reconnu » que de vrais inconnus, et chaque document proposé est bien un plan pour les poseurs, sous le bon numéro.
+Les numéros de documents acceptés, ceux **d'aujourd'hui** : 001, 002, 103 à 109, 151, 152, 205, 206 (pas d'ancien numéro ici). Un autre nom, un autre numéro : rien n'est déposé, et « A VOIR » te dit pourquoi.
 
 ## Ce qui se passe ensuite, sans toi
 
-- **Toutes les heures** (et à l'ouverture de ta session), Windows lance le programme, sans fenêtre. S'il n'y a rien de nouveau, il n'écrit rien dans tes dossiers. Sinon il recopie les nouvelles fiches dans le bon dossier de chantier.
+- **Toutes les heures** (et à l'ouverture de ta session), Windows lance le programme, sans fenêtre. S'il n'y a rien de nouveau, il n'écrit rien dans tes dossiers. Sinon il recopie les nouvelles fiches dans le bon dossier de chantier, **puis dépose au carnet** les PDF des bordereaux et de `À METTRE AU CARNET` qui n'y sont pas encore.
+- **Où lire ce qui a été déposé** : dans `CHANTIERPRO - A VOIR.txt`, la section « Déposé au carnet ces sept derniers jours » (chantier, document, indice, nombre de pages, d'où il vient) ; et dans `_prive\appli-pc\auto.txt`, une ligne « DÉPOSÉ AU CARNET » par document.
+- Un PDF qui vient d'arriver attend deux minutes sans bouger avant d'être déposé (le temps qu'il finisse de s'écrire). Un gros dépôt qui ne tient pas dans le passage reprend, page par page, au passage suivant.
 - `CHANTIERPRO - A VOIR.txt` n'est réécrit que **si sa liste change**, et au moins une fois par jour. Sa date (« Mis à jour le … ») n'est donc pas l'heure du dernier passage : pour celle-là, `appli-pc`, choix `3`.
 - Il garde une ligne par passage dans `_prive\appli-pc\auto.txt` (le détail seulement quand il a copié quelque chose). Ce journal ne grossit pas sans fin : au-delà d'une certaine taille, l'ancien est mis de côté (`auto-ancien.txt`) et un nouveau commence.
 - Si un double-clic sur `appli-pc` est en cours au même moment, le passage automatique laisse sa place, l'écrit dans « A VOIR », et reviendra à l'heure suivante. **Ne laisse pas une fenêtre `appli-pc` ouverte sur une question** : tant qu'elle attend, la recopie automatique attend aussi (au bout de deux heures, elle reprend la main toute seule).
@@ -146,10 +159,12 @@ Un numéro converti vers un numéro qui n'est pas au carnet (ici `041` → `102`
 ## Au quotidien
 
 - **Rien à faire pour les fiches.** Jette un œil à `CHANTIERPRO - A VOIR.txt` de temps en temps (ou `appli-pc`, choix `3`).
-- **Après l'envoi d'un bordereau** qui contient un plan pour les poseurs : double-clic sur `appli-pc`, choix `1`, Entrée à « Numéro d'un seul chantier ». (Ton skill te le rappellera.) **o** = oui ; **n** = non, ne plus me proposer ce document (il le sera de nouveau si le fichier est refait) ; **Entrée** = plus tard. Pour un bordereau préparé mais pas encore envoyé : Entrée.
-- **Un plan refait après son dépôt au carnet** : rien n'est jamais écrasé au carnet. Le plan refait part sous l'**indice suivant**, dans un nouveau bordereau (décidé par toi le 16/11/2026). Cas à connaître : un bordereau que tu as déposé au carnet puis corrigé **avant** de l'envoyer devra lui aussi prendre l'indice suivant — dépose donc au carnet après l'envoi.
-- **Retirer un document du carnet** : choix `5`. Il n'est plus montré aux poseurs ; aucun fichier n'est supprimé ; il ne t'est plus proposé. Son indice reste pris.
-- `outils\deposer.bat` (lot 4a) reste là, pour mettre au carnet un document qui n'est pas dans un bordereau.
+- **Rien à faire non plus pour le carnet**, pour un chantier **déclaré** (étape 5) : un plan mis dans un bordereau part au carnet dans l'heure. **Attention** : il part dès qu'il est dans le dossier `BORDEREAU n`, même si tu n'as pas encore envoyé le mail. Pour aller plus vite qu'une heure : `appli-pc`, choix `1`.
+- **Un nouveau chantier** : déclare sa numérotation (choix `6`, réponse `o`) le jour de son premier bordereau.
+- **Un document hors bordereau** : glisse-le dans `À METTRE AU CARNET` (étape 7).
+- **Un plan refait après son dépôt au carnet** : rien n'est jamais écrasé au carnet. Le plan refait part sous l'**indice suivant**, dans un nouveau bordereau (décidé par toi le 16/11/2026). Cas à connaître : un bordereau préparé, parti au carnet, puis corrigé **avant** l'envoi du mail : le document corrigé devra lui aussi prendre l'indice suivant (« A VOIR » te le dit).
+- **Un document déposé par erreur** : `appli-pc`, choix `5` (« Retirer un document du carnet »). Il n'est plus montré aux poseurs ; aucun fichier n'est supprimé ; il n'est pas redéposé, même si son PDF reste dans le bordereau. Son indice reste pris.
+- `outils\deposer.bat` (lot 4a) reste là, par exemple pour un PDF de plus de 200 Mo.
 
 ## Ce que dit « A VOIR », et quoi faire
 
@@ -168,6 +183,17 @@ Un numéro converti vers un numéro qui n'est pas au carnet (ici `041` → `102`
 | « copie impossible, à réessayer au prochain passage » | Un fichier n'a pas pu être lu | Rien : le passage suivant réessaie. Si la ligne revient toujours, montre-la-moi |
 | « PASSAGE NON FAIT : la recopie des fiches n'a pas pu se faire… Google Drive pour ordinateur… » | Drive pour ordinateur n'était pas démarré | Le démarrer ; le passage suivant fera le travail |
 | « PASSAGE NON FAIT : la recopie automatique a trouvé le programme déjà occupé » | Une fenêtre `appli-pc` était ouverte | La fermer, ou répondre à sa question |
+| « nom non reconnu, pas déposé » | Un PDF de `À METTRE AU CARNET` dont le nom n'a aucune des deux formes | Le renommer (étape 7) |
+| « n'est pas un document du carnet » | Un PDF de `À METTRE AU CARNET` dont le numéro n'est pas dans la liste (dans ce dossier, les numéros sont ceux d'aujourd'hui) | Corriger le numéro dans le nom du fichier |
+| « N document(s) de bordereau en attente — numérotation à déclarer » | Tu n'as pas encore déclaré la numérotation de ce chantier : rien ne part de ses bordereaux | `appli-pc`, choix `6` (étape 5). La ligne reste tant que ce n'est pas fait |
+| « ce nom peut se lire de deux façons » | Dans `À METTRE AU CARNET`, le numéro du chantier ressemble à un numéro de document | Renommer le fichier sous la forme courte |
+| « le dépôt au carnet a échoué 3 fois… ne sera plus retenté tant que ce fichier ne change pas » | Ce PDF fait échouer le dépôt | Refaire le PDF ; sinon montre-moi la ligne. Les autres documents ne sont pas bloqués |
+| « porte le n° de chantier NNN, pas MMM » | Un PDF rangé dans le dossier d'un autre chantier | Le mettre dans le bon dossier. Rien n'est déposé en attendant |
+| « déjà au carnet sous cet indice, avec un AUTRE contenu… prends l'indice suivant » | Le PDF a été refait après son dépôt | Le renvoyer sous l'indice suivant |
+| « existe en plusieurs exemplaires de contenus DIFFÉRENTS » | Le même document, deux fichiers différents (`À METTRE AU CARNET` et un bordereau) | Garder le bon ; rien n'est déposé en attendant |
+| « fichier encore en cours d'écriture » | Le PDF bougeait encore | Rien : il part au passage suivant |
+| « ce n'est pas un PDF lisible » / « plus que 200 Mo » | Fichier abîmé, ou trop gros | Refaire le PDF ; pour un très gros fichier, `outils\deposer.bat` |
+| « Le dépôt au carnet ne peut pas se faire sur ce PC : un module de Python manque » | Après une mise à jour de Python, par exemple | Montre-moi la ligne : une commande à lancer une fois. La recopie des fiches continue |
 | « N fichier(s) dans _À CLASSER » | Des fiches d'un chantier que l'appli ne connaît pas | Les ranger dans le Drive (comme avant ce lot) |
 
 Dans le menu de `appli-pc`, une ligne **« ATTENTION : la recopie automatique des fiches n'a pas tourné depuis… »** veut dire qu'aucun passage n'a réussi depuis plus de 3 heures. Si le PC n'était pas éteint : relance `outils\installer-tache.bat`, et si la ligne revient, montre-moi `_prive\appli-pc\auto.txt`.
@@ -179,15 +205,16 @@ Dans le menu de `appli-pc`, une ligne **« ATTENTION : la recopie automatique de
 - **Arrêter la recopie automatique** : double-clic sur `outils\retirer-tache.bat`. La tâche est supprimée ; aucun fichier n'est touché. (Ou, dans le Planificateur de tâches : clic droit sur la ligne, « Désactiver » ou « Supprimer ».)
 - **Le programme ne supprime rien et n'écrase rien** : une fois la tâche retirée, il ne se passe plus rien.
 - **Dans les dossiers de chantier du PC** : les fichiers qu'il a copiés sont tous listés dans `CHANTIERPRO - fiches rapatriees.json`, à la racine de chaque dossier de chantier. Si tu veux les retirer, c'est toi qui les supprimes, d'après cette liste (les originaux sont toujours dans le Drive de l'appli). Garde cette liste tant que tu comptes relancer le programme : c'est elle qui lui évite de recopier ce que tu as supprimé. Tu peux supprimer `CHANTIERPRO - A VOIR.txt` : il sera refait.
-- **Dans le Drive** : il n'a écrit que `releve-pc.json` (à la racine du dossier de chaque chantier ; tu peux le supprimer, il sera refait) et les documents du carnet (à retirer par le choix `5`).
+- **Dans le Drive** : il n'a écrit que `releve-pc.json` (à la racine du dossier de chaque chantier ; tu peux le supprimer, il sera refait) et les documents du carnet (à retirer par le choix `5` : la liste de ce qu'il a déposé est dans « A VOIR » pendant sept jours, et dans `_prive\appli-pc\auto.txt`).
 - **Dans le skill** : remets la copie de `gestion-documentaire` et de ses scripts gardée à l'étape 3.
-- **Sur le PC** : `_prive\carnet-ecartes.json` garde la liste des documents auxquels tu as répondu « n » ; supprime-le pour qu'ils soient tous proposés de nouveau.
+- **Sur le PC** : `_prive\carnet-memoire.json` retient ce qui t'a déjà été signalé pour le carnet ; supprime-le pour que tout soit signalé de nouveau.
 
 ## Ce que je n'ai pas pu vérifier
 
-- Le programme n'a tourné que sur de faux dossiers (69 tests automatiques : `python -m unittest tests/test_appli_pc.py`). Ni le vrai Drive, ni tes vrais dossiers de chantier, ni la copie TEST.
-- **La création réelle de la tâche planifiée n'a été essayée par personne.** `installer-tache.bat` et `retirer-tache.bat` n'ont jamais été lancés. Les tests vérifient seulement que la description donnée à Windows est bien formée et porte les bonnes valeurs. À voir à l'étape 5 : que Windows l'accepte sans droits d'administrateur, avec son déclenchement à l'ouverture de ta session.
+- Le programme n'a tourné que sur de faux dossiers (78 tests automatiques : `python -m unittest tests/test_appli_pc.py`). Ni le vrai Drive, ni tes vrais dossiers de chantier, ni la copie TEST.
+- **La création réelle de la tâche planifiée n'a été essayée par personne.** `installer-tache.bat` et `retirer-tache.bat` n'ont jamais été lancés. Les tests vérifient seulement que la description donnée à Windows est bien formée et porte les bonnes valeurs. À voir à l'étape 6 : que Windows l'accepte sans droits d'administrateur, avec son déclenchement à l'ouverture de ta session.
 - Le lancement sans fenêtre (`pythonw.exe`) par le Planificateur de tâches.
+- **Le dépôt automatique sur de vrais bordereaux** : la forme réelle de tous tes noms de fichiers, tes tables d'anciens numéros, le poids réel des images (celui de « Voir seulement » est une estimation), la durée d'un dépôt de grands plans dans un passage, et le délai de deux minutes sur un dossier que MEGA ou Drive est en train de synchroniser.
 - Le double-clic sur `appli-pc.bat` dans une vraie fenêtre Windows au-delà de son menu (accents, saisie).
 - Les lignes du chapitre 8 du contrat avec le vrai skill : essais C et D.
 - La durée d'un passage sur un gros dossier de photos, et, la toute première fois, la comparaison du contenu des fichiers déjà présents des deux côtés (elle fait télécharger ces fichiers-là par Drive, une seule fois).

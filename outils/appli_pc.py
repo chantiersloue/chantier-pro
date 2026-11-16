@@ -1,22 +1,25 @@
 # -*- coding: utf-8 -*-
-"""Lot 4c — LE PROGRAMME DU PC : dépôt au carnet depuis les bordereaux, recopie des fiches de l'appli vers les dossiers de chantier du PC.
+"""Lot 4c — LE PROGRAMME DU PC : recopie des fiches de l'appli vers les dossiers de chantier du PC, et dépôt AUTOMATIQUE au carnet.
 
-    python outils/appli_pc.py                     tout : le carnet, puis la recopie des fiches (avec confirmations)
+    python outils/appli_pc.py                     tout, maintenant : la recopie des fiches, puis le dépôt au carnet (aucune question)
+    python outils/appli_pc.py --auto              la même chose sans rien afficher (c'est ce que lance la tâche planifiée de Windows)
     python outils/appli_pc.py --lister            montre ce qui serait fait, sans rien écrire
-    python outils/appli_pc.py --rapatrier --auto  la recopie des fiches, sans question ni fenêtre (tâche planifiée de Windows)
+    python outils/appli_pc.py --chantier NNN      la même chose pour un seul chantier (un premier essai)
+    python outils/appli_pc.py --rapatrier         la recopie des fiches seulement        (--carnet : le carnet seulement)
     python outils/appli_pc.py --a-voir            affiche ce qui demande l'attention (« CHANTIERPRO - A VOIR.txt »)
     python outils/appli_pc.py --associer          relie un dossier de chantier du PC à un dossier du Drive, quand le numéro ne suffit pas
-    python outils/appli_pc.py --carnet            le carnet seulement
-    python outils/appli_pc.py --rapatrier         la recopie des fiches seulement
     python outils/appli_pc.py --retirer           retire un document du carnet (aucun fichier n'est supprimé)
-    python outils/appli_pc.py --chantier NNN      la même chose pour un seul chantier (un premier essai)
     python outils/appli_pc.py --installer-tache   crée la tâche planifiée (toutes les heures, et à l'ouverture de session)
     python outils/appli_pc.py --retirer-tache     supprime la tâche planifiée
+
+Ce qui part au carnet, tout seul, sans question : les PDF du dossier « À METTRE AU CARNET » de chaque dossier de chantier du PC,
+et les PDF des bordereaux (« 08 - … / BORDEREAU n ») dont le numéro de document est dans la liste du carnet.
 
 Le programme lit ses réglages dans _prive/depot.json (jamais dans le dépôt public) :
     { "racine": "<racine du Drive de l'appli sur le PC>", "chantiers_pc": "<dossier qui contient les dossiers de chantier, sur le PC>",
       "chantiers": { "<n° du chantier>": { "chantier": "<nom dans l'appli>", "dossier_drive": "<nom du dossier dans le Drive>" } },
-      "anciens_codes": { "<ancien n° de document>": "<n° actuel>" } }
+      "bordereaux": { "<n° du chantier>": "actuelle"  ou  { "<ancien n° de document>": "<n° actuel>" }  ou  "non" } }
+« bordereaux » : le dépôt au carnet depuis les bordereaux d'un chantier n'est actif que si sa numérotation y est déclarée.
 « chantiers » est facultatif : le dossier de chantier du PC est trouvé tout seul par le numéro en tête du nom des dossiers.
 
 Ce qu'il écrit, et rien d'autre : les images du carnet et carnet.json (Drive, par outils/depot_carnet.py) ; le relevé
@@ -90,7 +93,16 @@ NOM_DE_BORDEREAU = re.compile(r"^(\d+)-(.+?)-(\d{3}[A-Za-z]?)-([A-Za-z0-9]{1,2})
 
 DEPOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 REGLAGES_DEFAUT = os.path.join(DEPOT, "_prive", "depot.json")
-ECARTES_FICHIER = "carnet-ecartes.json"
+MEMOIRE_FICHIER = "carnet-memoire.json"        # dans _prive/ : ce qui a déjà été signalé (pour ne pas le répéter), ce qui vient d'être déposé
+A_METTRE = "À METTRE AU CARNET"                # dossier que Franck crée dans un dossier de chantier : ses PDF partent au carnet
+PDF_MAX = 200 * 1024 * 1024                    # octets : au-delà, un PDF n'est pas déposé tout seul
+REPOS = 120                                    # secondes : un PDF n'est déposé que s'il n'a pas bougé depuis deux minutes (fini d'écrire)
+LIMITE_PASSAGE = 40 * 60                       # secondes : au-delà, le passage ne commence plus de dépôt (la tâche est arrêtée à 1 heure)
+ECHECS_MAX = 3                                 # après trois dépôts manqués, un PDF n'est plus retenté tant qu'il ne change pas
+OCTETS_PAR_POINT = 0.14                        # estimation du poids des images du carnet, par point d'image (plans au trait)
+DEPOT_VISIBLE = 7 * 24 * 3600                  # secondes : un dépôt, ou un signalement du carnet, reste sept jours dans « A VOIR »
+# Dans « À METTRE AU CARNET », la forme courte : <n° document>-<indice>-<INTITULÉ>.pdf (le chantier est celui du dossier)
+NOM_COURT = re.compile(r"^(\d{3}[A-Za-z]?)-([A-Za-z0-9]{1,2})-(.+)\.pdf$", re.IGNORECASE)
 VERROU_FICHIER = "appli-pc.verrou"
 JOURNAL_DOSSIER = "appli-pc"
 JOURNAL_AUTO, JOURNAL_AUTO_ANCIEN = "auto.txt", "auto-ancien.txt"     # le journal des passages automatiques, et son prédécesseur
@@ -270,9 +282,12 @@ def controler_reglages(reglages):
                and isinstance(fiche.get("chantier"), str) and fiche["chantier"].strip() and re.fullmatch(r"\d+", str(numero)))
         if not bon:
             raise Refus("Dans _prive/depot.json, le chantier « %s » est mal écrit : il faut un numéro, « chantier » et « dossier_drive »." % numero)
-    table = reglages.get("anciens_codes", {})
-    if not isinstance(table, dict) or not all(isinstance(v, str) for v in table.values()):
-        raise Refus("Dans _prive/depot.json, « anciens_codes » doit être une table « ancien numéro » : « numéro actuel ».")
+    declares = reglages.get("bordereaux", {})
+    bon = isinstance(declares, dict) and all(
+        v in ("actuelle", "non") or (isinstance(v, dict) and all(isinstance(x, str) for x in v.values())) for v in declares.values())
+    if not bon:
+        raise Refus("Dans _prive/depot.json, « bordereaux » est mal écrit : pour chaque numéro de chantier, « actuelle », « non », "
+                    "ou une table « ancien numéro » : « numéro actuel » (voir docs/lot4c-procedure.md).")
     return racine, chantiers_pc, chantiers
 
 
@@ -402,35 +417,23 @@ def associer(chemin_reglages, demander=input, dire=print):
     return faites
 
 
-# ── Le carnet : ce que les bordereaux proposent ─────────────────────────────
-def lire_ecartes(chemin):
-    """Les documents que Franck a écartés pour de bon : [{"chemin", "taille", "ecarte_le"}]."""
+# ── Le carnet : ce qui part tout seul (« À METTRE AU CARNET » et les bordereaux) ──
+def lire_memoire(chemin):
+    """La mémoire du dépôt automatique (_prive/carnet-memoire.json) :
+    "signales" : ce qui a déjà été dit à Franck (fichier, taille, date), pour ne pas le répéter tant que le fichier ne change pas ;
+    "deposes"  : ce qui vient d'être déposé au carnet (gardé sept jours, pour la section « Déposé au carnet » de « A VOIR »)."""
+    vide = {"version": 1, "signales": [], "deposes": []}
     if not os.path.isfile(chemin):
-        return []
+        return vide
     try:
         lu = dc.lire_json(chemin)
-        liste = lu["ecartes"]
-        if not isinstance(liste, list):
-            raise ValueError("pas de liste « ecartes »")
-    except (OSError, ValueError, KeyError, TypeError) as e:
-        raise Refus("Le fichier « _prive/%s » est illisible (%s). Rien n'est fait : montre ce message." % (ECARTES_FICHIER, e))
-    return [e for e in liste if isinstance(e, dict)]
-
-
-def noter_ecartes(chemin_ecartes, entrees, maintenant=None):
-    """Ajoute des documents à la liste « ne plus proposer » (_prive/carnet-ecartes.json) : [{"chemin", "taille"}]."""
-    if not entrees:
-        return
-    ecartes = lire_ecartes(chemin_ecartes)
-    for entree in entrees:
-        ecartes = [e for e in ecartes if cle(e.get("chemin", "")) != cle(entree["chemin"])]
-        ecartes.append({"chemin": entree["chemin"], "taille": entree["taille"], "ecarte_le": heure_de_paris(maintenant)})
-    os.makedirs(os.path.dirname(chemin_ecartes), exist_ok=True)
-    ecrire_json(chemin_ecartes, {"version": 1, "ecartes": ecartes})
-
-
-def est_ecarte(ecartes, relatif, taille):
-    return any(cle(e.get("chemin", "")) == cle(relatif) and e.get("taille") == taille for e in ecartes)
+        if not isinstance(lu, dict) or not isinstance(lu.get("signales"), list) or not isinstance(lu.get("deposes"), list):
+            raise ValueError("forme inattendue")
+    except (OSError, ValueError) as e:
+        raise Refus("Le fichier « _prive/%s » est illisible (%s). Rien n'est fait : montre ce message." % (MEMOIRE_FICHIER, e))
+    lu["signales"] = [x for x in lu["signales"] if isinstance(x, dict)]
+    lu["deposes"] = [x for x in lu["deposes"] if isinstance(x, dict)]
+    return lu
 
 
 def nombre_de_pages(chemin):
@@ -442,219 +445,427 @@ def nombre_de_pages(chemin):
         document.close()
 
 
-def table_des_codes(reglages, numero):
-    """Anciens numéros de documents → numéros actuels : la table générale, complétée par celle du chantier s'il en a une."""
-    table = {}
-    propre = (reglages.get("chantiers", {}).get(numero) or {}).get("anciens_codes")
-    for source in (reglages.get("anciens_codes"), propre):
-        if isinstance(source, dict):
-            table.update({str(k).strip().upper(): str(v).strip().upper() for k, v in source.items()})
-    return table
+def numerotation(reglages, numero):
+    """Ce que Franck a déclaré pour les bordereaux de ce chantier, dans _prive/depot.json (clé « bordereaux ») :
+    "actuelle" (les numéros sont ceux d'aujourd'hui), une table {ancien numéro: numéro actuel} (SEULS ses numéros sont déposés),
+    "non" (rien n'est déposé depuis ses bordereaux), ou None : pas déclaré — rien n'est déposé, et c'est signalé."""
+    declares = reglages.get("bordereaux")
+    valeur = declares.get(str(numero)) if isinstance(declares, dict) else None
+    if isinstance(valeur, dict):
+        return {str(k).strip().upper(): str(v).strip().upper() for k, v in valeur.items()}
+    return valeur if valeur in ("actuelle", "non") else None
 
 
-def candidats_carnet(reglages, ecartes=(), compter_pages=nombre_de_pages):
-    """Parcourt les bordereaux des chantiers suivis. N'écrit rien.
-    "a_ecarter" : les documents signalés une fois pour toutes, que l'appelant peut noter avec noter_ecartes.
-    Rend {"candidats": [...], "signales": [{"numero", "motif", "texte"}], "hors_carnet": n, "ecartes": n}."""
+def entete_pdf(chemin):
+    """Vrai si le fichier commence comme un PDF (« %PDF- » dans ses premiers octets)."""
+    with open(chemin, "rb") as f:
+        return b"%PDF-" in f.read(1024)
+
+
+def pdf_des_bordereaux(base):
+    """Les PDF des bordereaux d'un dossier de chantier : [(nom du bordereau, dossier, fichier)], le bordereau lui-même excepté."""
+    trouves = []
+    for d08 in sorted(n for n in os.listdir(base) if nfc(n).strip().startswith("08") and os.path.isdir(os.path.join(base, n))):
+        bordereaux = [n for n in os.listdir(os.path.join(base, d08))
+                      if DOSSIER_BORDEREAU.match(nfc(n).strip()) and os.path.isdir(os.path.join(base, d08, n))]
+        for bordereau in sorted(bordereaux, key=lambda n: int(DOSSIER_BORDEREAU.match(nfc(n).strip()).group(1))):
+            dossier = os.path.join(base, d08, bordereau)
+            trouves += [(bordereau, dossier, f) for f in sorted(os.listdir(dossier))
+                        if f.lower().endswith(".pdf") and os.path.isfile(os.path.join(dossier, f)) and not cle(f).startswith("bordereau")]
+    return trouves
+
+
+def documents_a_deposer(reglages, horloge=time.time, compter_pages=nombre_de_pages):
+    """Parcourt, pour chaque chantier suivi, le dossier « À METTRE AU CARNET » et les bordereaux. N'écrit rien, ne demande rien.
+    Rend {"candidats": [...] (ce qui peut partir au carnet),
+          "signales": [{"numero", "motif", "texte", "chemin", "taille", "date", "durable"}] (ce qui ne peut pas être déposé ;
+                       « durable » : dit tant que la cause est là — « À METTRE AU CARNET » et chantier entier),
+          "jeunes": [fichiers qui ont bougé il y a moins de deux minutes],
+          "silencieux": [textes : PDF des bordereaux qui ne vont pas au carnet — montrés seulement par « Voir seulement »],
+          "deja": n, "sans_module": bool}."""
     racine, chantiers_pc, chantiers = reglages["racine"], dossier_des_chantiers(reglages), reglages["chantiers"]
-    connus = reglages.get("hors_carnet")       # facultatif : des numéros actuels qui ne vont pas au carnet, à ne pas signaler
-    hors = {str(c).strip().upper() for c in connus} if isinstance(connus, list) else set()
     vus = dossiers_pc(chantiers_pc)
-    rendu = {"candidats": [], "signales": [], "hors_carnet": 0, "ecartes": 0, "retires": 0, "a_ecarter": []}
+    rendu = {"candidats": [], "signales": [], "jeunes": [], "silencieux": [], "deja": 0, "sans_module": False}
 
-    def signaler(numero, motif, texte):
-        rendu["signales"].append({"numero": numero, "motif": motif, "texte": texte})
+    def signaler(numero, motif, texte, d=None, durable=True):
+        rendu["signales"].append({"numero": numero, "motif": motif, "texte": texte, "chemin": d["relatif"] if d else "chantier %s" % numero,
+                                  "taille": d["poids"] if d else 0, "date": int(d["instant"]) if d else 0, "durable": durable})
 
-    for numero in sorted(chantiers, key=lambda n: (len(n), n)):
+    for numero in tri_numeros(chantiers):
         fiche = chantiers[numero]
         nom_pc, pourquoi = dossier_pc_du(chantiers_pc, numero, vus)
         if nom_pc is None:
-            signaler(numero, "chantier", "Chantier n° %s laissé de côté : %s." % (numero, pourquoi))
+            signaler(numero, "chantier", "Chantier n° %s : rien n'est déposé au carnet (%s)." % (numero, pourquoi))
             continue
         motif = refus_dossier_drive(racine, fiche["dossier_drive"], chantiers, numero, reglages.get("planning"))
         if motif:
-            signaler(numero, "chantier", "Chantier n° %s laissé de côté : %s Corrige _prive/depot.json." % (numero, motif))
+            signaler(numero, "chantier", "Chantier n° %s : rien n'est déposé au carnet. %s Corrige _prive/depot.json." % (numero, motif))
             continue
         try:
             carnet = dc.dossier_carnet(racine, fiche["dossier_drive"])
             liste = dc.lire_carnet(carnet)
         except (Refus, OSError) as e:
-            signaler(numero, "chantier", "Chantier n° %s laissé de côté : %s" % (numero, e))
+            signaler(numero, "chantier", "Chantier n° %s : rien n'est déposé au carnet. %s" % (numero, e))
             continue
-        au_carnet = {d["id"]: d for d in (liste or {}).get("documents", [])
-                     if isinstance(d, dict) and isinstance(d.get("id"), str) and d.get("retire") is not True}
-        retires = {d["id"]: d for d in (liste or {}).get("documents", [])
-                   if isinstance(d, dict) and isinstance(d.get("id"), str) and d.get("retire") is True and d["id"] not in au_carnet}
-        codes = table_des_codes(reglages, numero)
+        documents = [d for d in (liste or {}).get("documents", []) if isinstance(d, dict) and isinstance(d.get("id"), str)]
+        au_carnet = {d["id"]: d for d in documents if d.get("retire") is not True}
+        retires = {d["id"]: d for d in documents if d.get("retire") is True and d["id"] not in au_carnet}
         base = os.path.join(chantiers_pc, nom_pc)
-        retenus = {}
-        for d08 in sorted(n for n in os.listdir(base) if nfc(n).strip().startswith("08") and os.path.isdir(os.path.join(base, n))):
-            bordereaux = [n for n in os.listdir(os.path.join(base, d08))
-                          if DOSSIER_BORDEREAU.match(nfc(n).strip()) and os.path.isdir(os.path.join(base, d08, n))]
-            for bordereau in sorted(bordereaux, key=lambda n: int(DOSSIER_BORDEREAU.match(nfc(n).strip()).group(1))):
-                dossier = os.path.join(base, d08, bordereau)
-                for fichier in sorted(os.listdir(dossier)):
-                    chemin = os.path.join(dossier, fichier)
-                    if not fichier.lower().endswith(".pdf") or not os.path.isfile(chemin):
-                        continue
-                    ou = "%s, « %s »" % (bordereau, fichier)
-                    lu = NOM_DE_BORDEREAU.match(nfc(fichier))
-                    if not lu:
-                        if not cle(fichier).startswith("bordereau"):       # le bordereau lui-même n'est pas un document
-                            signaler(numero, "nom", "Chantier n° %s, %s : nom non reconnu (hors nomenclature), ignoré." % (numero, ou))
-                        continue
-                    n_chantier, _, ancien, indice, intitule = lu.groups()
-                    if n_chantier != numero:
-                        signaler(numero, "autre-chantier", "Chantier n° %s, %s : ce fichier porte le n° de chantier %s, ignoré."
-                                 % (numero, ou, n_chantier))
-                        continue
-                    ancien = ancien.upper()
-                    code = codes.get(ancien, ancien)
-                    if code not in dc.DPI_PAR_CODE:
-                        if ancien in codes or ancien in hors:
-                            rendu["hors_carnet"] += 1      # un numéro connu, qui n'est pas un document du carnet
-                        else:
-                            signaler(numero, "non-reconnu", "Chantier n° %s, %s : numéro de document « %s » non reconnu "
-                                     "(ni un document du carnet, ni dans la table des anciens numéros), pas proposé." % (numero, ou, ancien))
-                        continue
-                    indice = indice.upper()
-                    ident = "%s-%s" % (code, indice)
-                    try:
-                        etat = os.stat(chemin)
-                    except OSError as e:
-                        signaler(numero, "illisible", "Chantier n° %s, %s : fichier illisible (%s)." % (numero, ou, e))
-                        continue
-                    if ident in au_carnet:
-                        source = au_carnet[ident].get("source")
-                        if isinstance(source, dict) and (cle(source.get("nom", "")) != cle(fichier) or source.get("poids") != etat.st_size):
-                            signaler(numero, "change", "Chantier n° %s, %s : ce document (%s) A CHANGÉ DEPUIS SON DÉPÔT au carnet "
-                                     "(déposé : « %s », %s ; aujourd'hui : %s). Le carnet montre toujours l'ancien, et rien n'y est jamais écrasé : "
-                                     "pour publier le nouveau, renvoie-le sous l'indice suivant (nouveau bordereau)."
-                                     % (numero, ou, ident, source.get("nom", "?"), mo(source.get("poids") or 0), mo(etat.st_size)))
-                        continue
-                    if ident in retires:
-                        # Retiré du carnet par Franck : il n'est plus reproposé (son indice reste pris)
-                        source = retires[ident].get("source")
-                        relatif = "/".join(nfc(m) for m in (nom_pc, d08, bordereau, fichier))
-                        if not isinstance(source, dict) or (cle(source.get("nom", "")) == cle(fichier) and source.get("poids") == etat.st_size) \
-                                or est_ecarte(ecartes, relatif, etat.st_size):
-                            rendu["retires"] += 1
-                        else:
-                            # Le fichier a changé depuis : dit UNE fois, puis mémorisé (tant que le fichier ne change pas encore)
-                            signaler(numero, "change", "Chantier n° %s, %s : ce document (%s) a été retiré du carnet, et le fichier a changé depuis. "
-                                     "Rien n'est jamais écrasé au carnet : pour publier le nouveau, renvoie-le sous l'indice suivant (nouveau bordereau). "
-                                     "Ce message ne sera pas répété." % (numero, ou, ident))
-                            rendu["a_ecarter"].append({"chemin": relatif, "taille": etat.st_size})
-                        continue
-                    propre = dc.nettoyer_intitule(intitule)
-                    if not propre:
-                        signaler(numero, "nom", "Chantier n° %s, %s : intitulé vide, ignoré." % (numero, ou))
-                        continue
-                    candidat = {"chantier": fiche["chantier"], "numero": numero, "bordereau": bordereau, "fichier": fichier,
-                                "chemin": chemin, "relatif": "/".join(nfc(m) for m in (nom_pc, d08, bordereau, fichier)),
-                                "pages": None, "poids": etat.st_size, "instant": etat.st_mtime, "date": date_fr(etat.st_mtime),
-                                "dossier_drive": fiche["dossier_drive"], "dossier_carnet": os.path.basename(carnet),
-                                "code": code, "indice": indice, "intitule": propre, "id": ident,
-                                "ancien_code": ancien if ancien != code else None}
-                    autre = retenus.get(ident)
-                    if autre is not None:
-                        garde, laisse = (candidat, autre) if candidat["instant"] > autre["instant"] else (autre, candidat)
-                        signaler(numero, "plusieurs-bordereaux", "Chantier n° %s : le document %s est dans plusieurs bordereaux ; "
-                                 "le plus récent est gardé (%s, du %s), l'autre est laissé (%s, du %s)."
-                                 % (numero, ident, garde["bordereau"], garde["date"], laisse["bordereau"], laisse["date"]))
-                        candidat = garde
-                    retenus[ident] = candidat
-        for ident in sorted(retenus):
-            candidat = retenus[ident]
-            if est_ecarte(ecartes, candidat["relatif"], candidat["poids"]):
-                rendu["ecartes"] += 1
+        declare = numerotation(reglages, numero)
+
+        # 1. Tous les PDF des deux sources
+        trouves = []                       # (origine, dossier, fichier, depuis « À METTRE AU CARNET » ?)
+        a_mettre = trouver(base, A_METTRE)
+        if a_mettre and os.path.isdir(os.path.join(base, a_mettre)):
+            trouves += [(a_mettre, os.path.join(base, a_mettre), f, True) for f in sorted(os.listdir(os.path.join(base, a_mettre)))
+                        if f.lower().endswith(".pdf") and os.path.isfile(os.path.join(base, a_mettre, f))]
+        des_bordereaux = pdf_des_bordereaux(base)
+        if declare is None:
+            # Numérotation des bordereaux pas déclarée : un ancien numéro pourrait être pris pour un numéro d'aujourd'hui (et publier
+            # un mauvais document aux poseurs). RIEN n'est déposé depuis les bordereaux de ce chantier ; une seule ligne le dit.
+            if des_bordereaux:
+                signaler(numero, "a-declarer", "Chantier n° %s : %d document(s) de bordereau en attente — numérotation à déclarer "
+                         "(appli-pc, choix 6). Rien n'est déposé au carnet depuis ses bordereaux d'ici là." % (numero, len(des_bordereaux)))
+        elif declare != "non":
+            trouves += [(origine, dossier, f, False) for origine, dossier, f in des_bordereaux]
+
+        # 2. Chaque PDF : son nom, son numéro, son état
+        par_document = {}
+        for origine, dossier, fichier, voulu in trouves:
+            chemin = os.path.join(dossier, fichier)
+            ou = "« %s », « %s »" % (origine, fichier)
+            try:
+                etat = os.stat(chemin)
+            except OSError as e:
+                signaler(numero, "illisible", "Chantier n° %s, %s : fichier illisible (%s)." % (numero, ou, e), durable=voulu)
+                continue
+            d = {"chantier": fiche["chantier"], "nom_appli": fiche.get("nom_appli", fiche.get("chantier")), "numero": numero,
+                 "origine": origine, "bordereau": origine, "voulu": voulu, "fichier": fichier, "chemin": chemin,
+                 "relatif": "/".join(nfc(m) for m in os.path.relpath(chemin, chantiers_pc).split(os.sep)),
+                 "pages": None, "poids": etat.st_size, "instant": etat.st_mtime, "date": date_fr(etat.st_mtime),
+                 "dossier_drive": fiche["dossier_drive"], "dossier_carnet": os.path.basename(carnet)}
+            complet, court = NOM_DE_BORDEREAU.match(nfc(fichier)), NOM_COURT.match(nfc(fichier))
+            if voulu:
+                # « À METTRE AU CARNET » : numérotation ACTUELLE seulement. Deux lectures possibles du nom ; on ne garde que celles
+                # qui tiennent debout. Deux lectures valables qui ne disent pas la même chose : rien n'est deviné.
+                lectures = []
+                if complet and complet.group(1) == numero and complet.group(3).upper() in dc.DPI_PAR_CODE:
+                    lectures.append((complet.group(3).upper(), complet.group(4).upper(), complet.group(5)))
+                if court and court.group(1).upper() in dc.DPI_PAR_CODE:
+                    lectures.append((court.group(1).upper(), court.group(2).upper(), court.group(3)))
+                if len({(code, indice) for code, indice, _ in lectures}) > 1:
+                    signaler(numero, "ambigu", "Chantier n° %s, %s : ce nom peut se lire de deux façons (document %s). Rien n'est déposé : "
+                             "renomme-le sous la forme courte « <n° document>-<indice>-<INTITULÉ>.pdf »."
+                             % (numero, ou, " ou ".join("%s-%s" % (code, indice) for code, indice, _ in lectures)), d)
+                    continue
+                if not lectures:
+                    if complet and complet.group(1) != numero:
+                        signaler(numero, "autre-chantier", "Chantier n° %s, %s : ce fichier porte le n° de chantier %s, pas %s. Pas déposé."
+                                 % (numero, ou, complet.group(1), numero), d)
+                    elif complet or court:
+                        lu = complet.group(3) if complet and complet.group(1) == numero else court.group(1) if court else complet.group(3)
+                        signaler(numero, "hors-liste", "Chantier n° %s, %s : le numéro de document « %s » n'est pas un document du carnet "
+                                 "(dans « %s », la numérotation est celle d'aujourd'hui). Pas déposé." % (numero, ou, lu.upper(), A_METTRE), d)
+                    else:
+                        signaler(numero, "nom", "Chantier n° %s, %s : nom non reconnu, pas déposé. Formes acceptées : "
+                                 "« <n° document>-<indice>-<INTITULÉ>.pdf » ou « %s-<lot>-<n° document>-<indice>-<INTITULÉ>.pdf »." % (numero, ou, numero), d)
+                    continue
+                code, indice, intitule = lectures[0]
+                ancien = code
+            else:
+                if not complet:
+                    rendu["silencieux"].append("Chantier n° %s, %s : nom hors nomenclature." % (numero, ou))
+                    continue
+                n_chantier, _, ancien, indice, intitule = complet.groups()
+                if n_chantier != numero:
+                    signaler(numero, "autre-chantier", "Chantier n° %s, %s : ce fichier porte le n° de chantier %s, pas %s. Pas déposé."
+                             % (numero, ou, n_chantier, numero), d, durable=False)
+                    continue
+                ancien, indice = ancien.upper(), indice.upper()
+                # Table propre au chantier : SEULS ses numéros partent, convertis. Un numéro absent de la table n'est jamais déposé,
+                # même s'il existe dans la liste du carnet.
+                code = ancien if declare == "actuelle" else declare.get(ancien)
+                if code not in dc.DPI_PAR_CODE:
+                    rendu["silencieux"].append("Chantier n° %s, %s : numéro de document « %s »%s." % (
+                        numero, ou, ancien, " — pas un document du carnet" if declare == "actuelle" else " — absent de la table de ce chantier"
+                        if code is None else " → « %s », pas un document du carnet" % code))
+                    continue
+            propre = dc.nettoyer_intitule(intitule)
+            if not propre:
+                signaler(numero, "nom", "Chantier n° %s, %s : intitulé vide, pas déposé." % (numero, ou), d, durable=voulu)
+                continue
+            d.update(code=code, indice=indice, intitule=propre, id="%s-%s" % (code, indice), ancien_code=ancien if ancien != code else None)
+            for quoi, connu in (("déposé", au_carnet.get(d["id"])), ("retiré", retires.get(d["id"]))):
+                if connu is None:
+                    continue
+                source = connu.get("source")
+                if isinstance(source, dict) and source.get("poids") != etat.st_size:
+                    signaler(numero, "change", "Chantier n° %s, %s : le document %s est déjà au carnet sous cet indice, avec un AUTRE contenu%s. "
+                             "Rien n'est jamais écrasé au carnet : prends l'indice suivant."
+                             % (numero, ou, d["id"], " (il en a été retiré)" if quoi == "retiré" else ""), d, durable=voulu)
+                else:
+                    rendu["deja"] += 1
+                break
+            else:
+                if horloge() - max(etat.st_mtime, getattr(etat, "st_birthtime", etat.st_ctime)) < REPOS:
+                    rendu["jeunes"].append(d)              # encore en cours d'écriture ou de synchronisation, peut-être
+                    continue
+                if etat.st_size > PDF_MAX:
+                    signaler(numero, "trop-gros", "Chantier n° %s, %s : %s, c'est plus que %s. Pas déposé tout seul : utilise outils\\deposer.bat."
+                             % (numero, ou, mo(etat.st_size), mo(PDF_MAX)), d, durable=voulu)
+                    continue
+                try:
+                    bon = entete_pdf(chemin)
+                except OSError as e:
+                    bon = False
+                    ou += " (%s)" % e
+                if not bon:
+                    signaler(numero, "illisible", "Chantier n° %s, %s : ce n'est pas un PDF lisible. Pas déposé." % (numero, ou), d, durable=voulu)
+                    continue
+                par_document.setdefault(d["id"], []).append(d)
+
+        # 3. Un seul fichier par document : jamais deux contenus différents pour le même indice
+        for ident in sorted(par_document):
+            groupe = par_document[ident]
+            voulus = [d for d in groupe if d["voulu"]]
+            envoyes = sorted((d for d in groupe if not d["voulu"]), key=lambda d: d["instant"])[-1:]      # le bordereau le plus récent
+            choisis = voulus + envoyes
+            try:
+                contenus = {(d["poids"], empreinte(d["chemin"])) for d in choisis} if len(choisis) > 1 else {0}
+            except OSError:
+                contenus = {0, 1}
+            if len(contenus) > 1:
+                for d in choisis:
+                    signaler(numero, "conflit", "Chantier n° %s : le document %s existe en plusieurs exemplaires de contenus DIFFÉRENTS (%s). "
+                             "Rien n'est déposé : garde le bon, ou donne l'indice suivant au plus récent."
+                             % (numero, ident, " ; ".join("« %s », « %s »" % (x["origine"], x["fichier"]) for x in choisis)), d)
+                continue
+            candidat = choisis[0]
+            if rendu["sans_module"]:
                 continue
             try:
                 candidat["pages"] = compter_pages(candidat["chemin"])
             except Refus:
-                raise
+                rendu["sans_module"] = True            # pypdfium2 ou Pillow absent : aucun dépôt possible ; le reste du passage continue
+                continue
             except Exception as e:
-                signaler(numero, "illisible", "Chantier n° %s, %s, « %s » : PDF illisible (%s), pas proposé."
-                         % (numero, candidat["bordereau"], candidat["fichier"], e))
+                signaler(numero, "illisible", "Chantier n° %s, « %s », « %s » : PDF illisible (%s). Pas déposé."
+                         % (numero, candidat["origine"], candidat["fichier"], e), candidat, durable=candidat["voulu"])
                 continue
             rendu["candidats"].append(candidat)
     return rendu
 
 
 def decrire_candidat(c, rang=None, total=None):
-    """Les lignes montrées à Franck avant sa réponse."""
+    """Les lignes qui décrivent un document qui part au carnet."""
     tete = "Document %d/%d — " % (rang, total) if rang else ""
     lignes = ["%schantier n° %s « %s »" % (tete, c["numero"], c["chantier"]),
-              "  Bordereau : %s" % c["bordereau"],
+              "  Vient de  : « %s »" % c["origine"],
               "  Fichier   : %s" % c["fichier"],
               "  %d page(s), %s, fichier du %s" % (c["pages"], mo(c["poids"]), c["date"])]
     if c.get("ancien_code"):
-        lignes.append("  Ancien numéro %s : déposé sous le numéro actuel %s." % (c["ancien_code"], c["code"]))
+        lignes.append("  Ancien numéro %s : déposé sous le numéro actuel %s (table de ce chantier)." % (c["ancien_code"], c["code"]))
     lignes.append("  Ira dans le Drive de l'appli : « %s », dossier « %s », sous le nom « %s %s %s »."
                   % (c["dossier_drive"], c["dossier_carnet"], c["code"], c["indice"], c["intitule"]))
     return lignes
 
 
-def traiter_carnet(reglages, candidats, chemin_ecartes, demander=input, dire=print, deposer=None, verifier=None, maintenant=None):
-    """Demande, document par document : o (déposer), n (écarter pour de bon), Entrée (plus tard).
-    Rend {"deposes", "ecartes", "plus_tard", "refuses": [(candidat, message)], "verifications": {n°: compte rendu}}."""
+def ligne_depot(d):
+    return "%s — chantier n° %s : %s %s %s, %d page(s), depuis « %s » (fichier « %s »)" % (
+        d.get("le", "?"), d.get("numero", "?"), d.get("code", "?"), d.get("indice", "?"), d.get("intitule", ""), d.get("pages", 0),
+        d.get("origine", "?"), d.get("fichier", "?"))
+
+
+def poids_estime(chemin, code):
+    """Une estimation du poids des images du carnet pour ce PDF (d'après la surface de ses pages) ; None si on ne sait pas."""
+    try:
+        pypdfium2, _ = dc.charger_modules()
+        document = pypdfium2.PdfDocument(chemin)
+        try:
+            echelle = dc.DPI_PAR_CODE[code] / 72.0
+            return int(sum(document[n].get_size()[0] * document[n].get_size()[1] for n in range(len(document))) * echelle * echelle * OCTETS_PAR_POINT)
+        finally:
+            document.close()
+    except Exception:
+        return None
+
+
+def deposer_tout(reglages, prive, dire=print, horloge=time.time, attente=time.sleep, fin=None, memoriser=True,
+                 deposer=None, verifier=None, compter_pages=nombre_de_pages):
+    """Le dépôt automatique au carnet, pour les chantiers de « reglages » : aucune question.
+    « fin » : l'heure (horloge) après laquelle on ne commence plus de dépôt ; un dépôt en cours s'arrête proprement entre deux
+    pages et reprendra au passage suivant. « memoriser » faux (essai sur un seul chantier) : les signalements ne sont pas retenus.
+    Une erreur sur un document n'arrête jamais les autres ; la mémoire est écrite quoi qu'il arrive.
+    Rend {"deposes", "a_voir" (lignes), "recents" (dépôts des sept derniers jours), "erreurs", "reste", "signales", "sans_module"}."""
     deposer, verifier = deposer or dc.deposer, verifier or dc.verifier
-    bilan = {"deposes": [], "ecartes": [], "plus_tard": [], "refuses": [], "verifications": {}}
-    ferme = False
-    for rang, c in enumerate(candidats, 1):
-        dire("")
-        for ligne in decrire_candidat(c, rang, len(candidats)):
-            dire(ligne)
-        choix = ""
-        for _ in range(3):
-            if ferme:
+    chemin_memoire = os.path.join(prive, MEMOIRE_FICHIER)
+    memoire = lire_memoire(chemin_memoire)
+    memoire.setdefault("echecs", [])
+    avant = json.dumps(memoire, sort_keys=True)
+    vu = documents_a_deposer(reglages, horloge, compter_pages)
+    if vu["jeunes"]:
+        # Des PDF viennent d'arriver : on leur laisse deux minutes pour finir de s'écrire, puis on regarde de nouveau
+        plus_recent = max(max(d["instant"], os.stat(d["chemin"]).st_ctime) for d in vu["jeunes"])
+        attente(max(1, min(REPOS + 5, plus_recent + REPOS + 2 - horloge())))
+        vu = documents_a_deposer(reglages, horloge, compter_pages)
+        for d in vu["jeunes"]:
+            vu["signales"].append({"numero": d["numero"], "motif": "en-cours", "chemin": d["relatif"], "taille": d["poids"], "date": int(d["instant"]),
+                                   "durable": True,
+                                   "texte": "Chantier n° %s, « %s », « %s » : fichier encore en cours d'écriture ou de synchronisation. "
+                                            "Il sera déposé au prochain passage." % (d["numero"], d["origine"], d["fichier"])})
+    bilan = {"deposes": [], "a_voir": [], "recents": [], "erreurs": 0, "reste": 0, "signales": len(vu["signales"]),
+             "sans_module": vu["sans_module"], "candidats": len(vu["candidats"])}
+    if vu["sans_module"]:
+        bilan["a_voir"].append("Le dépôt au carnet ne peut pas se faire sur ce PC : un module de Python manque. À lancer une fois dans une "
+                               "fenêtre de commande :  %s  (la recopie des fiches, elle, continue)." % dc.INSTALLER)
+
+    def echecs_de(c):
+        return [e for e in memoire["echecs"] if isinstance(e, dict) and cle(e.get("chemin", "")) == cle(c["relatif"])]
+
+    touches = set()
+    try:
+        for rang, c in enumerate(vu["candidats"]):
+            if fin is not None and horloge() >= fin:
+                bilan["reste"] = len(vu["candidats"]) - rang
                 break
-            r = reponse(demander, "  Déposer au carnet ? o = oui / n = non, ne plus le proposer / Entrée = plus tard : ")
-            battre()                       # après chaque question : le verrou reste le nôtre
-            if r is None:
-                ferme = True
+            qui = "Chantier n° %s, « %s », « %s »" % (c["numero"], c["origine"], c["fichier"])
+            connus = [e for e in echecs_de(c) if e.get("taille") == c["poids"] and e.get("date") == int(c["instant"])]
+            if connus and connus[0].get("n", 0) >= ECHECS_MAX:
+                # Déjà trois dépôts manqués pour ce fichier-là : on ne recommence pas toutes les heures ; on attend qu'il change
+                bilan["a_voir"].append("%s : le dépôt au carnet a échoué %d fois (%s). Il ne sera plus retenté tant que ce fichier ne change "
+                                       "pas : refais le PDF, ou montre cette ligne." % (qui, connus[0]["n"], connus[0].get("pourquoi", "?")))
+                continue
+            dire("")
+            for ligne in decrire_candidat(c, rang + 1, len(vu["candidats"])):
+                dire(ligne)
+            touches.add(c["numero"])
+            try:
+                r = deposer(reglages["racine"], c["dossier_drive"], c["nom_appli"] or None, c["chemin"], c["code"], c["indice"], c["intitule"],
+                            limite=float("inf") if fin is None else max(1.0, fin - horloge()), horloge=horloge,
+                            dire=lambda ligne: (dire("    " + ligne), battre()))
+            except Exception as e:              # quelle que soit l'erreur : ce document est signalé, et on passe au suivant
+                pourquoi = str(e) if isinstance(e, (Refus, OSError)) else "%s : %s" % (type(e).__name__, e)
+                n = (connus[0].get("n", 0) if connus else 0) + 1
+                memoire["echecs"] = [x for x in memoire["echecs"] if x not in echecs_de(c)]
+                memoire["echecs"].append({"chemin": c["relatif"], "taille": c["poids"], "date": int(c["instant"]), "n": n, "pourquoi": pourquoi[:300]})
+                if not isinstance(e, Refus):
+                    bilan["erreurs"] += 1
+                bilan["a_voir"].append("%s : pas déposé (%s). %s" % (qui, pourquoi, "Le prochain passage réessaiera." if n < ECHECS_MAX else
+                                       "Troisième échec : il ne sera plus retenté tant que ce fichier ne change pas."))
+                dire("  PAS DÉPOSÉ : %s" % pourquoi)
+                continue
+            if not r["termine"]:
+                touches.discard(c["numero"])       # son carnet est en cours : il sera contrôlé quand le dépôt sera fini
+                bilan["reste"] = len(vu["candidats"]) - rang
+                dire("  Pas fini (%d page(s) sur %d) : la suite au prochain passage, là où il en est." % (r["faites"], r["pages"]))
                 break
-            r = r.lower()
-            if r in ("o", "oui", "n", "non", ""):
-                choix = r[:1]
-                break
-            dire("  Réponse non comprise : tape o, n, ou seulement Entrée.")
-        if choix == "n":
-            noter_ecartes(chemin_ecartes, [{"chemin": c["relatif"], "taille": c["poids"]}], maintenant)
-            bilan["ecartes"].append(c)
-            dire("  Écarté : il ne sera plus proposé (sauf s'il est refait).")
-            continue
-        if choix != "o":
-            bilan["plus_tard"].append(c)
-            dire("  Plus tard : il sera proposé de nouveau au prochain lancement.")
-            continue
-        try:
-            r = None
-            for _ in range(1000):          # sans limite de temps ; relancé tant que le dépôt n'est pas terminé
-                r = deposer(reglages["racine"], c["dossier_drive"], c["chantier"], c["chemin"], c["code"], c["indice"], c["intitule"],
-                            limite=float("inf"), dire=lambda ligne: (dire("    " + ligne), battre()))      # après chaque page déposée
-                if r["termine"]:
-                    break
-            if not r or not r["termine"]:
-                raise Refus("le dépôt n'est pas terminé : relance le programme, il reprendra où il en est.")
-            bilan["deposes"].append(c)
-            dire("  Déposé : %s, %d page(s), %s d'images." % (r["id"], r["pages"], mo(r["poids"])))
-        except (Refus, OSError) as e:
-            bilan["refuses"].append((c, str(e)))
-            dire("  PAS DÉPOSÉ : %s" % e)
-    for numero in sorted({c["numero"] for c in bilan["deposes"]} | {c["numero"] for c, _ in bilan["refuses"]}):
-        dossier = reglages["chantiers"][numero]["dossier_drive"]
-        try:
-            v = verifier(reglages["racine"], dossier)
-        except (Refus, OSError) as e:
-            v = {"bon": False, "problemes": [str(e)], "documents": 0, "retires": 0, "poids": 0}
-        bilan["verifications"][numero] = v
-        dire("")
-        dire("Contrôle du carnet du chantier n° %s : %s (%d document(s) montré(s), %s)."
-             % (numero, "tout est bon" if v["bon"] else "%d défaut(s)" % len(v["problemes"]), v["documents"], mo(v["poids"])))
-        for p in v["problemes"]:
-            dire("  ! " + p)
+            memoire["echecs"] = [x for x in memoire["echecs"] if x not in echecs_de(c)]
+            fait = {"instant": horloge(), "le": datetime.datetime.fromtimestamp(horloge()).strftime("%d/%m/%Y %H:%M"), "numero": c["numero"],
+                    "chantier": c["chantier"], "code": c["code"], "indice": c["indice"], "intitule": c["intitule"], "pages": r["pages"],
+                    "origine": c["origine"], "fichier": c["fichier"]}
+            memoire["deposes"].append(fait)
+            bilan["deposes"].append(fait)
+            dire("  DÉPOSÉ AU CARNET : %s, %d page(s), %s d'images." % (r["id"], r["pages"], mo(r["poids"])))
+        for numero in sorted(touches):
+            try:
+                defauts = verifier(reglages["racine"], reglages["chantiers"][numero]["dossier_drive"])["problemes"]
+            except Exception as e:
+                defauts = [str(e)]
+            for x in defauts:
+                bilan["erreurs"] += 1
+                bilan["a_voir"].append("Carnet du chantier n° %s, défaut trouvé au contrôle : %s" % (numero, x))
+                dire("  ! carnet du chantier n° %s : %s" % (numero, x))
+    finally:
+        # Ce qui n'a pas pu être déposé. « Durable » (« À METTRE AU CARNET », chantier entier) : dit tant que la cause est là.
+        # Le reste (bordereaux) : dit une fois — la ligne reste sept jours — puis plus répété tant que le fichier ne change pas.
+        maintenant = horloge()
+        for x in vu["signales"]:
+            if x.get("durable"):
+                bilan["a_voir"].append(x["texte"])
+                continue
+            note = [m for m in memoire["signales"] if cle(m.get("chemin", "")) == cle(x["chemin"]) and m.get("motif") == x["motif"]]
+            meme = [m for m in note if m.get("taille") == x["taille"] and m.get("date") == x["date"]]
+            if meme:
+                if maintenant - float(meme[0].get("vu", 0)) < DEPOT_VISIBLE:
+                    bilan["a_voir"].append(x["texte"])
+                continue
+            bilan["a_voir"].append(x["texte"])
+            if memoriser:
+                memoire["signales"] = [m for m in memoire["signales"] if m not in note]
+                memoire["signales"].append({"chemin": x["chemin"], "motif": x["motif"], "taille": x["taille"], "date": x["date"], "vu": maintenant})
+        memoire["deposes"] = [d for d in memoire["deposes"] if maintenant - float(d.get("instant", 0)) < DEPOT_VISIBLE]
+        memoire["signales"] = [m for m in memoire["signales"] if maintenant - float(m.get("vu", 0)) < 400 * 24 * 3600]
+        bilan["recents"] = [ligne_depot(d) for d in memoire["deposes"]]
+        if json.dumps(memoire, sort_keys=True) != avant:
+            os.makedirs(prive, exist_ok=True)
+            ecrire_json(chemin_memoire, memoire)
     return bilan
+
+
+def declarer(chemin_reglages, numero, demander=input, dire=print):
+    """Déclare la numérotation des bordereaux d'un chantier (clé « bordereaux » de _prive/depot.json) : montre ses PDF de
+    bordereau, demande si la numérotation est celle d'aujourd'hui, sinon la table ancien numéro → numéro actuel, numéro par numéro.
+    Tant qu'un chantier n'est pas déclaré, rien n'est déposé au carnet depuis ses bordereaux. Rend ce qui a été noté, ou None."""
+    reglages = lire_reglages(chemin_reglages)
+    _, chantiers_pc, _ = controler_reglages(reglages)
+    numero = str(numero or "").strip()
+    nom_pc, pourquoi = dossier_pc_du(chantiers_pc, numero)
+    if nom_pc is None:
+        raise Refus("Chantier n° %s : %s." % (numero, pourquoi))
+    par_numero, autres = {}, []
+    for bordereau, _, fichier in pdf_des_bordereaux(os.path.join(chantiers_pc, nom_pc)):
+        lu = NOM_DE_BORDEREAU.match(nfc(fichier))
+        if lu and lu.group(1) == numero:
+            par_numero.setdefault(lu.group(3).upper(), []).append("%s — %s (indice %s)" % (bordereau, lu.group(5), lu.group(4).upper()))
+        else:
+            autres.append("%s — %s" % (bordereau, fichier))
+    dire("Chantier n° %s « %s » : les PDF de ses bordereaux, par numéro de document." % (numero, nom_pc))
+    for code in sorted(par_numero):
+        dire("  n° %s%s" % (code, "   (aujourd'hui, %s est un document du carnet)" % code if code in dc.DPI_PAR_CODE else ""))
+        for ligne in par_numero[code]:
+            dire("        " + ligne)
+    for ligne in autres:
+        dire("  (nom hors nomenclature, jamais déposé) " + ligne)
+    if not par_numero:
+        dire("  Aucun PDF de bordereau au nom reconnu pour l'instant.")
+    deja = numerotation(reglages, numero)
+    if deja is not None:
+        dire("Déjà déclaré : %s. Ta réponse le remplacera." % (deja if isinstance(deja, str) else "une table (%s)" % ", ".join(
+            "%s → %s" % paire for paire in sorted(deja.items()))))
+    dire("")
+    dire("Les numéros de documents du carnet aujourd'hui : %s." % ", ".join(sorted(dc.DPI_PAR_CODE)))
+    r = reponse(demander, "Ces bordereaux sont-ils numérotés comme AUJOURD'HUI (001 = PPSPS, 105 = réservations…) ? "
+                          "o = oui / n = non, ancienne numérotation / r = ne rien déposer depuis ces bordereaux / Entrée = abandonner : ")
+    r = (r or "").lower()
+    if r in ("o", "oui"):
+        note = "actuelle"
+    elif r == "r":
+        note = "non"
+    elif r in ("n", "non"):
+        note = {}
+        dire("Pour chaque ancien numéro, tape le numéro ACTUEL du document s'il doit aller au carnet ; Entrée seule = ne jamais le déposer.")
+        for code in sorted(par_numero):
+            for _ in range(3):
+                v = reponse(demander, "  ancien n° %s (%s) → n° actuel : " % (code, par_numero[code][0]))
+                v = (v or "").strip().upper()
+                if not v or v in dc.DPI_PAR_CODE:
+                    break
+                dire("    « %s » n'est pas un numéro du carnet. Numéros possibles : %s. Ou Entrée seule." % (v, ", ".join(sorted(dc.DPI_PAR_CODE))))
+            else:
+                v = ""
+            if v:
+                note[code] = v
+        dire("Table de ce chantier : %s. Les autres numéros ne seront jamais déposés."
+             % (", ".join("%s → %s" % paire for paire in sorted(note.items())) or "vide (rien ne sera déposé depuis ses bordereaux)"))
+    else:
+        dire("Abandon : rien n'est modifié.")
+        return None
+    if not isinstance(reglages.get("bordereaux"), dict):
+        reglages["bordereaux"] = {}
+    reglages["bordereaux"][numero] = note
+    ecrire_json(chemin_reglages, reglages)          # les autres clés du fichier sont gardées telles quelles
+    dire("Noté dans _prive/depot.json. Regarde ce qui partirait avec « Voir seulement » (choix 2) avant le prochain passage.")
+    return note
 
 
 def retirer_document(reglages, demander=input, dire=print, retirer=None):
@@ -1255,8 +1466,13 @@ def chantiers_suivis(reglages, sous=None):
             continue
         fiche = dict(correspondance.get(numero) or {})
         fiche["dossier_drive"] = noms[0]
+        # « nom_appli » : le nom du chantier DANS L'APPLI, seulement s'il est sûr (écrit par Franck, ou déjà dans le carnet).
+        # Le nom du dossier n'en est pas un : il n'est jamais donné au dépôt du carnet (il ne sert qu'à l'affichage).
+        fiche["nom_appli"] = fiche.get("chantier") or nom_dans_l_appli(racine, noms[0])
+        if str(fiche["nom_appli"] or "").strip() == noms[0].strip():
+            fiche["nom_appli"] = None
         if not fiche.get("chantier"):
-            fiche["chantier"] = nom_dans_l_appli(racine, noms[0]) or noms[0]
+            fiche["chantier"] = fiche["nom_appli"] or noms[0]
         suivis[numero] = fiche
     return suivis, a_voir
 
@@ -1291,16 +1507,21 @@ def lignes_a_voir(plan, maxi=A_VOIR_MAX):
     return lignes
 
 
-def texte_a_voir(lignes, maintenant=None):
+def texte_a_voir(lignes, maintenant=None, deposes=()):
     quand = datetime.datetime.fromisoformat(heure_de_paris(maintenant)).strftime("%d/%m/%Y à %H:%M")
-    texte = ["CHANTIERPRO — À VOIR", "Mis à jour le %s (recopie des fiches de l'appli vers les dossiers de chantier du PC)." % quand, ""]
+    texte = ["CHANTIERPRO — À VOIR", "Mis à jour le %s (recopie des fiches de l'appli, dépôt au carnet des poseurs)." % quand, ""]
     if lignes:
         texte.append("%d point(s) demandent ton attention :" % len(lignes))
         texte.extend("- " + ligne for ligne in lignes)
     else:
         texte.append("Rien à signaler.")
-    texte += ["", "Ce fichier n'est réécrit que si quelque chose change, et au moins une fois par jour.",
-              "Pour savoir quand la recopie automatique a tourné pour la dernière fois : appli-pc, choix 3.",
+    texte += ["", "Déposé au carnet ces sept derniers jours (les poseurs voient ces documents) :"]
+    texte.extend("+ " + ligne for ligne in deposes)
+    if not deposes:
+        texte.append("  aucun document.")
+    texte += ["", "Un document déposé par erreur ? appli-pc, choix 5 (« Retirer un document du carnet »).",
+              "Ce fichier n'est réécrit que si quelque chose change, et au moins une fois par jour.",
+              "Pour savoir quand le passage automatique a tourné pour la dernière fois : appli-pc, choix 3.",
               "Rien n'est jamais supprimé ni écrasé par le programme."]
     return "\r\n".join(texte) + "\r\n"
 
@@ -1313,8 +1534,9 @@ def lire_a_voir(chantiers_pc):
         return None
 
 
-def points_a_voir(chantiers_pc):
-    """Ce que dit le fichier « A VOIR » déjà écrit : (ses lignes, la date de sa mise à jour) ; (None, None) s'il n'existe pas."""
+def points_a_voir(chantiers_pc, deposes=False):
+    """Ce que dit le fichier « A VOIR » déjà écrit : (ses lignes, la date de sa mise à jour) ; (None, None) s'il n'existe pas.
+    « deposes » vrai : les lignes de la section « Déposé au carnet » à la place des points."""
     texte = lire_a_voir(chantiers_pc)
     if texte is None:
         return None, None
@@ -1323,21 +1545,26 @@ def points_a_voir(chantiers_pc):
         quand = datetime.datetime.strptime("%s %s" % trouve.groups(), "%d/%m/%Y %H:%M") if trouve else None
     except ValueError:
         quand = None
-    return [ligne[2:] for ligne in texte.splitlines() if ligne.startswith("- ")], quand
+    return [ligne[2:] for ligne in texte.splitlines() if ligne.startswith("+ " if deposes else "- ")], quand
 
 
-def ecrire_a_voir(chantiers_pc, lignes, maintenant=None):
+def ecrire_a_voir(chantiers_pc, lignes, maintenant=None, deposes=None):
     """Réécrit « CHANTIERPRO - A VOIR.txt » SEULEMENT si ses lignes changent, ou s'il a plus d'un jour (pour ne pas faire
-    travailler la sauvegarde toutes les heures). Temporaire puis remplacement. Rend True s'il a été réécrit."""
+    travailler la sauvegarde toutes les heures). Temporaire puis remplacement. Rend True s'il a été réécrit.
+    « deposes » : les lignes de la section « Déposé au carnet » ; None = garder celles qui y sont déjà."""
     anciennes, quand = points_a_voir(chantiers_pc)
+    anciens_depots = points_a_voir(chantiers_pc, deposes=True)[0] or []
+    if deposes is None:
+        deposes = anciens_depots
     present = datetime.datetime.fromisoformat(heure_de_paris(maintenant)).replace(tzinfo=None)
-    if anciennes == list(lignes) and quand is not None and 0 <= (present - quand).total_seconds() < A_VOIR_FRAIS:
+    if anciennes == list(lignes) and anciens_depots == list(deposes) and quand is not None \
+            and 0 <= (present - quand).total_seconds() < A_VOIR_FRAIS:
         return False
     chemin = os.path.join(chantiers_pc, A_VOIR)
     temporaire = chemin + ".tmp"
     try:
         with open(temporaire, "w", encoding="utf-8-sig", newline="") as f:      # « -sig » : le Bloc-notes affiche bien les accents
-            f.write(texte_a_voir(lignes, maintenant))
+            f.write(texte_a_voir(lignes, maintenant, deposes))
         for essai in range(6):
             try:
                 os.replace(temporaire, chemin)
@@ -1359,7 +1586,7 @@ def ajouter_a_voir(chantiers_pc, ligne, maintenant=None):
     return ecrire_a_voir(chantiers_pc, gardees + ["%s : %s" % (PAS_FAIT, ligne)], maintenant)
 
 
-def rapatrier_tout(reglages, dire=print, maintenant=None, econome=False, resume=True, seul=None):
+def rapatrier_tout(reglages, dire=print, maintenant=None, econome=False, resume=True, seul=None, ecrire=True):
     """La recopie des fiches de tous les chantiers reconnus (ou du seul chantier « seul »), puis le fichier « A VOIR ».
     La même fonction sert au double-clic et au passage automatique.
     Rend {"chantiers", "copies", "deja", "signales", "erreurs", "refuses", "ecritures", "plans", "a_voir"}."""
@@ -1393,7 +1620,8 @@ def rapatrier_tout(reglages, dire=print, maintenant=None, econome=False, resume=
         if en_attente:
             a_voir.append("%d fichier(s) dans « %s » (racine du Drive de l'appli) : ils n'iront dans aucun dossier de chantier tant qu'ils "
                           "ne sont pas rangés dans le Drive (%s%s)." % (len(en_attente), A_CLASSER, ", ".join(en_attente[:5]), "…" if len(en_attente) > 5 else ""))
-        ecrire_a_voir(chantiers_pc, a_voir, maintenant)      # avec --chantier (un essai), « A VOIR » n'est pas touché
+        if ecrire:
+            ecrire_a_voir(chantiers_pc, a_voir, maintenant)      # avec --chantier (un essai), « A VOIR » n'est pas touché
     return bilan
 
 
@@ -1431,19 +1659,53 @@ def etat_auto(prive, horloge=time.time):
         age = horloge() - float(dernier["instant"])
         quand = str(dernier["date"])
     except (OSError, ValueError, KeyError, TypeError):
-        return ("La recopie automatique des fiches n'a encore jamais tourné sur ce PC. Elle se met en place à l'étape 5 de la "
+        return ("Le passage automatique (recopie des fiches, dépôt au carnet) n'a encore jamais tourné sur ce PC. Il se met en place à l'étape 6 de la "
                 "procédure (docs/lot4c-procedure.md), APRÈS les essais : double-clic sur outils\\installer-tache.bat.", True)
     if age > AUTO_EN_RETARD:
-        return ("ATTENTION : la recopie automatique des fiches n'a pas tourné depuis le %s (plus de 3 heures). PC éteint depuis ? "
+        return ("ATTENTION : le passage automatique (recopie des fiches, dépôt au carnet) n'a pas tourné depuis le %s (plus de 3 heures). PC éteint depuis ? "
                 "Sinon : relance outils\\installer-tache.bat (à refaire après une mise à jour de Python ou un déplacement du dépôt), "
                 "et montre _prive\\appli-pc\\auto.txt." % quand, True)
     return "Dernier passage automatique réussi : le %s." % quand, False
 
 
-def passage_auto(chemin_reglages, maintenant=None, seul=None):
-    """Un passage sans personne devant l'écran : recopie les nouvelles fiches, met « A VOIR » à jour, note une ligne au journal.
+def passage(reglages, prive, dire=print, maintenant=None, econome=False, resume=True, seul=None, fiches=True, carnet=True,
+            horloge=time.time, attente=time.sleep):
+    """UN passage complet, le même pour la tâche planifiée et pour le double-clic : la recopie des fiches, PUIS le dépôt au carnet,
+    pour tous les chantiers reconnus (ou le seul chantier « seul »), sans aucune question ; puis « A VOIR ».
+    Rend {"chantiers", "copies", "deja", "signales", "rates" (copies, chantiers, écritures, dépôts en erreur), "deposes", "reste",
+    "a_voir", "recents", "candidats"}."""
+    debut = horloge()
+    racine, chantiers_pc = reglages["racine"], dossier_des_chantiers(reglages)
+    sous = sous_dossiers(racine)
+    suivis, a_voir = un_seul(*chantiers_suivis(reglages, sous), seul)
+    bilan = {"chantiers": len(suivis), "copies": 0, "deja": 0, "signales": 0, "rates": 0, "deposes": [], "reste": 0, "candidats": 0,
+             "a_voir": a_voir, "recents": None}
+    if fiches:
+        fait = rapatrier_tout(reglages, dire=dire, maintenant=maintenant, econome=econome, resume=resume, seul=seul, ecrire=False)
+        bilan.update(copies=fait["copies"], deja=fait["deja"], signales=fait["signales"], a_voir=fait["a_voir"],
+                     rates=fait["erreurs"] + fait["refuses"] + fait["ecritures"])
+    if carnet:
+        if resume:
+            dire("")
+            dire("— CARNET : ce qui part tout seul (« %s » et les bordereaux) —" % A_METTRE)
+        depots = deposer_tout(dict(reglages, chantiers=suivis), prive, dire=dire, horloge=horloge, attente=attente,
+                              fin=debut + LIMITE_PASSAGE, memoriser=seul is None)
+        bilan.update(deposes=depots["deposes"], reste=depots["reste"], recents=depots["recents"], candidats=depots["candidats"])
+        bilan["rates"] += depots["erreurs"]
+        bilan["signales"] += depots["signales"]
+        bilan["a_voir"] = bilan["a_voir"] + depots["a_voir"]
+        if resume and not depots["candidats"]:
+            dire("Aucun document à déposer au carnet.")
+    if seul is None:
+        ecrire_a_voir(chantiers_pc, bilan["a_voir"], maintenant, bilan["recents"])      # avec --chantier (un essai) : pas touché
+    return bilan
+
+
+def passage_auto(chemin_reglages, maintenant=None, seul=None, fiches=True, carnet=True, horloge=time.time, attente=time.sleep):
+    """Un passage sans personne devant l'écran : recopie les nouvelles fiches, dépose au carnet ce qui doit l'être, met « A VOIR »
+    à jour, note une ligne au journal (et chaque dépôt au carnet).
     Codes : 0 = fait (même s'il n'y avait rien), ou un autre passage tourne déjà ; 2 = réglages ou Drive pas prêts ;
-    1 = une copie, un chantier ou une écriture en erreur."""
+    1 = une copie, un chantier, une écriture ou un dépôt en erreur."""
     chemin_reglages = os.path.abspath(chemin_reglages)
     prive = os.path.dirname(chemin_reglages)
     reglages = None
@@ -1460,21 +1722,23 @@ def passage_auto(chemin_reglages, maintenant=None, seul=None):
         reglages = lire_reglages(chemin_reglages)
         controler_reglages(reglages)
         sous_dossiers(reglages["racine"])
+        lire_memoire(os.path.join(prive, MEMOIRE_FICHIER))
     except Refus as e:
         noter_auto(prive, ["PAS FAIT : %s" % e])
-        prevenir("la recopie des fiches n'a pas pu se faire. %s Le prochain passage réessaiera." % e)
+        prevenir("la recopie des fiches et le dépôt au carnet n'ont pas pu se faire. %s Le prochain passage réessaiera." % e)
         return 2
     verrou = os.path.join(prive, VERROU_FICHIER)
     try:
         moi = prendre_verrou(verrou, dire=lambda ligne: None)
     except Refus as e:
         noter_auto(prive, ["Rien fait : un autre passage du programme est en cours."])
-        prevenir("la recopie automatique a trouvé le programme déjà occupé. %s Si une fenêtre « appli-pc » est restée ouverte sur "
+        prevenir("le passage automatique a trouvé le programme déjà occupé. %s Si une fenêtre « appli-pc » est restée ouverte sur "
                  "une question, réponds-y ou ferme-la." % e)
         return 0
     detail = []
     try:
-        bilan = rapatrier_tout(reglages, dire=detail.append, maintenant=maintenant, econome=True, resume=False, seul=seul)
+        bilan = passage(reglages, prive, dire=detail.append, maintenant=maintenant, econome=True, resume=False, seul=seul,
+                        fiches=fiches, carnet=carnet, horloge=horloge, attente=attente)
     except Refus as e:
         noter_auto(prive, ["PAS FAIT : %s" % e])
         return 2
@@ -1483,12 +1747,13 @@ def passage_auto(chemin_reglages, maintenant=None, seul=None):
         return 1
     finally:
         liberer_verrou(verrou, moi)
-    rate = bilan["erreurs"] + bilan["refuses"] + bilan["ecritures"]
-    ligne = "%d chantier(s) ; %d fichier(s) copié(s), %d en erreur ; %d point(s) à voir." % (
-        bilan["chantiers"], bilan["copies"], rate, len(bilan["a_voir"]))
-    noter_auto(prive, [ligne] + (detail if bilan["copies"] or rate else []))
+    ligne = "%d chantier(s) ; %d fichier(s) copié(s), %d document(s) déposé(s) au carnet%s, %d en erreur ; %d point(s) à voir." % (
+        bilan["chantiers"], bilan["copies"], len(bilan["deposes"]), " (%d restent pour le prochain passage)" % bilan["reste"] if bilan["reste"] else "",
+        bilan["rates"], len(bilan["a_voir"]))
+    noter_auto(prive, [ligne] + ["DÉPOSÉ AU CARNET : " + ligne_depot(d) for d in bilan["deposes"]]
+               + ([x for x in detail if x.strip() and "DÉPOSÉ AU CARNET" not in x] if bilan["copies"] or bilan["rates"] else []))
     noter_passage(prive)
-    return 1 if rate else 0
+    return 1 if bilan["rates"] else 0
 
 
 # ── La tâche planifiée de Windows : une seule tâche, deux déclencheurs, sans droits d'administrateur ──
@@ -1500,13 +1765,14 @@ def xml_tache(pythonw, script, dossier, utilisateur, depart, options=()):
     - jamais deux passages à la fois (IgnoreNew) ; un passage est arrêté au bout d'une heure ;
     - le programme est lancé SANS fenêtre (pythonw), en mode automatique."""
     from xml.sax.saxutils import escape
-    arguments = " ".join(['"%s"' % script, "--rapatrier", "--auto"] + ['"%s"' % o if " " in o else o for o in options])
+    arguments = " ".join(['"%s"' % script, "--auto"] + ['"%s"' % o if " " in o else o for o in options])
     return "\r\n".join([
         '<?xml version="1.0" encoding="UTF-16"?>',
         '<Task version="1.2" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">',
         "  <RegistrationInfo>",
         "    <Description>ChantierPro : recopie les nouvelles fiches de l'appli (Drive) dans les dossiers de chantier du PC. "
-        "Copie seulement : rien n'est supprimé ni écrasé. Pour l'arrêter : outils\\retirer-tache.bat.</Description>",
+        "Dépose au carnet des poseurs les PDF de « À METTRE AU CARNET » et des bordereaux. Rien n'est supprimé ni écrasé. "
+        "Pour l'arrêter : outils\\retirer-tache.bat.</Description>",
         "  </RegistrationInfo>",
         "  <Triggers>",
         "    <TimeTrigger>",
@@ -1617,7 +1883,8 @@ def installer_tache(dire=print, lanceur=lancer_commande, pythonw=None, script=No
         return 1
     lanceur(commande_retrait(TACHE_ANCIENNE))            # l'ancienne seconde tâche, si elle existe : sans importance sinon
     dire("Tâche créée : « %s »." % TACHE)
-    dire("Elle recopie les nouvelles fiches toutes les heures, et à l'ouverture de ta session, sans fenêtre.")
+    dire("Toutes les heures, et à l'ouverture de ta session, sans fenêtre : elle recopie les nouvelles fiches de l'appli,")
+    dire("et dépose au carnet des poseurs les PDF de « %s » et des bordereaux." % A_METTRE)
     dire("")
     dire("Pour vérifier : menu Démarrer, tape « Planificateur de tâches », ouvre-le, clique sur « Bibliothèque du Planificateur de tâches » :")
     dire("la ligne « %s » doit y être, avec l'heure de sa prochaine exécution." % TACHE)
@@ -1633,42 +1900,32 @@ def retirer_tache(dire=print, lanceur=lancer_commande):
          "Tâche « %s » : rien à retirer (elle n'existait pas, ou Windows a répondu : %s)." % (TACHE, texte or "code %s" % code))
     if lanceur(commande_retrait(TACHE_ANCIENNE))[0] == 0:
         dire("Tâche retirée : « %s »." % TACHE_ANCIENNE)
-    dire("La recopie automatique des fiches est arrêtée. Aucun fichier n'a été touché ; le double-clic sur appli-pc marche toujours.")
+    dire("Le passage automatique (recopie des fiches, dépôt au carnet) est arrêté. Aucun fichier n'a été touché ; "
+         "le double-clic sur appli-pc marche toujours.")
     return 0
 
 
 # ── Les travaux complets ────────────────────────────────────────────────────
-def lister(reglages, chemin_ecartes, dire=print, seul=None):
+def lister(reglages, dire=print, seul=None, horloge=time.time):
     """Montre tout ce qui serait fait. N'écrit rien, nulle part."""
     racine, chantiers_pc, _ = controler_reglages(reglages)
     sous = sous_dossiers(racine)
     suivis, a_voir = un_seul(*chantiers_suivis(reglages, sous), seul)
     effectif = dict(reglages, chantiers=suivis)
-    dire("VOIR SEULEMENT : rien n'est écrit, rien n'est copié.")
+    dire("VOIR SEULEMENT : rien n'est écrit, rien n'est copié, rien n'est déposé.")
     dire("")
     dire("Chantiers reconnus : %d" % len(suivis))
     vus = dossiers_pc(chantiers_pc)
     for numero in tri_numeros(suivis):
-        dire("  n° %s « %s » : Drive « %s » ; dossier du PC « %s »" % (numero, suivis[numero]["chantier"], suivis[numero]["dossier_drive"],
-                                                                 dossier_pc_du(chantiers_pc, numero, vus)[0]))
+        nom_pc = dossier_pc_du(chantiers_pc, numero, vus)[0]
+        a_mettre = trouver(os.path.join(chantiers_pc, nom_pc), A_METTRE)
+        dire("  n° %s « %s » : Drive « %s » ; dossier du PC « %s »%s" % (numero, suivis[numero]["chantier"], suivis[numero]["dossier_drive"], nom_pc,
+                                                                    " ; dossier « %s » présent" % a_mettre if a_mettre else ""))
     if a_voir:
         dire("À voir (%d) :" % len(a_voir))
         montrer_liste(dire, ["  ! " + ligne for ligne in a_voir])
     if not suivis:
         return
-    dire("")
-    dire("— CARNET —")
-    vu = candidats_carnet(effectif, lire_ecartes(chemin_ecartes))
-    for s in vu["signales"]:
-        dire("  ! " + s["texte"])
-    if not vu["candidats"]:
-        dire("Aucun document à proposer au carnet.")
-    for rang, c in enumerate(vu["candidats"], 1):
-        dire("")
-        for ligne in decrire_candidat(c, rang, len(vu["candidats"])):
-            dire(ligne)
-    if vu["ecartes"] or vu["hors_carnet"] or vu["retires"]:
-        dire("(%d document(s) écarté(s) par toi, %d retiré(s) du carnet, %d qui ne vont pas au carnet.)" % (vu["ecartes"], vu["retires"], vu["hors_carnet"]))
     dire("")
     dire("— RECOPIE DES FICHES (Drive de l'appli → dossiers de chantier du PC) —")
     for numero in tri_numeros(suivis):
@@ -1682,96 +1939,101 @@ def lister(reglages, chemin_ecartes, dire=print, seul=None):
         dire("")
         dire("%d fichier(s) dans « %s » (racine du Drive) : ils n'iront dans aucun dossier de chantier tant qu'ils ne sont pas rangés." % (len(en_attente), A_CLASSER))
         montrer_liste(dire, ["    - " + c for c in en_attente])
+    dire("")
+    dire("— CARNET : ce qui partirait tout seul (« %s » et les bordereaux) —" % A_METTRE)
+    vu = documents_a_deposer(effectif, horloge)
+    if vu["sans_module"]:
+        dire("  ! Un module de Python manque : aucun dépôt possible. À lancer une fois :  %s" % dc.INSTALLER)
+    for x in vu["signales"]:
+        dire("  ! " + x["texte"])
+    for d in vu["jeunes"]:
+        dire("  (attendra deux minutes : fichier tout juste arrivé) chantier n° %s, « %s », « %s »" % (d["numero"], d["origine"], d["fichier"]))
+    if not vu["candidats"]:
+        dire("Aucun document à déposer au carnet.")
+    for rang, c in enumerate(vu["candidats"], 1):
+        dire("")
+        for ligne in decrire_candidat(c, rang, len(vu["candidats"])):
+            dire(ligne)
+    if vu["candidats"]:
+        dire("")
+        dire("Ce qui partirait au carnet, par chantier (le poids est une estimation des images, dans le Drive de l'appli) :")
+        for numero in tri_numeros({c["numero"] for c in vu["candidats"]}):
+            les_siens = [c for c in vu["candidats"] if c["numero"] == numero]
+            poids = [poids_estime(c["chemin"], c["code"]) for c in les_siens]
+            dire("  chantier n° %s : %d document(s), %d page(s), environ %s" % (
+                numero, len(les_siens), sum(c["pages"] for c in les_siens), mo(sum(x for x in poids if x)) if all(poids) else "? (poids non estimé)"))
+    for numero in tri_numeros(suivis):
+        declare = numerotation(effectif, numero)
+        dire("  bordereaux du chantier n° %s : %s" % (numero, {"actuelle": "numérotation actuelle déclarée", "non": "déclaré « ne rien déposer »",
+                                                              None: "numérotation PAS déclarée : rien ne part de ses bordereaux (choix 6)"}.get(
+            declare if not isinstance(declare, dict) else "table", "table d'anciens numéros (%d numéro(s))" % len(declare or {}))))
+    dire("")
+    dire("(%d document(s) déjà au carnet.)" % vu["deja"])
+    if vu["silencieux"]:
+        dire("PDF des bordereaux qui ne partent PAS au carnet (%d) — normal pour un devis ou un dossier technique ; si un plan pour les poseurs "
+             "est dans cette liste, son numéro manque dans la table de son chantier (choix 6) :" % len(vu["silencieux"]))
+        montrer_liste(dire, ["    - " + texte for texte in vu["silencieux"]])
 
 
-def tout_traiter(reglages, prive, demander, dire, carnet=True, rapatriement=True, oui_rapatrier=False, seul=None):
-    """Le carnet, puis la recopie des fiches. Rend le nombre de défauts (0 = tout s'est bien passé)."""
+def tout_traiter(reglages, prive, dire, carnet=True, rapatriement=True, seul=None, horloge=time.time, attente=time.sleep):
+    """Le double-clic « tout traiter maintenant » : exactement le passage automatique, mais affiché. Aucune question.
+    Rend le nombre de défauts (0 = tout s'est bien passé)."""
     controler_reglages(reglages)
-    chemin_ecartes = os.path.join(prive, ECARTES_FICHIER)
-    ecartes = lire_ecartes(chemin_ecartes)               # tous les refus possibles AVANT la première écriture
-    sous = sous_dossiers(reglages["racine"])
-    suivis, a_voir = un_seul(*chantiers_suivis(reglages, sous), seul)
-    effectif = dict(reglages, chantiers=suivis)
-    defauts = 0
-    resume = []
     if seul is not None:
         dire("UN SEUL CHANTIER : le n° %s. Les autres ne sont pas touchés, et « %s » n'est pas réécrit." % (seul, A_VOIR))
-    if carnet:
-        dire("— CARNET : les documents des bordereaux —")
-        if not rapatriement:
-            for ligne in a_voir:
-                dire("  ! " + ligne)
-        vu = candidats_carnet(effectif, ecartes)
-        for s in vu["signales"]:
-            dire("  ! " + s["texte"])
-        noter_ecartes(chemin_ecartes, vu["a_ecarter"])      # dits une fois, puis plus répétés
-        if not vu["candidats"]:
-            dire("Aucun document à proposer au carnet.")
-        bilan = traiter_carnet(effectif, vu["candidats"], chemin_ecartes, demander, dire)
-        defauts += len(bilan["refuses"]) + sum(1 for v in bilan["verifications"].values() if not v["bon"])
-        resume.append("Carnet : %d déposé(s), %d écarté(s), %d remis à plus tard, %d pas déposé(s), %d signalement(s)."
-                      % (len(bilan["deposes"]), len(bilan["ecartes"]), len(bilan["plus_tard"]), len(bilan["refuses"]), len(vu["signales"])))
-        for c in bilan["deposes"]:
-            resume.append("  déposé : chantier n° %s, %s %s %s" % (c["numero"], c["code"], c["indice"], c["intitule"]))
-        for c, message in bilan["refuses"]:
-            resume.append("  PAS DÉPOSÉ : chantier n° %s, « %s » : %s" % (c["numero"], c["fichier"], message))
-        for numero, v in sorted(bilan["verifications"].items()):
-            if not v["bon"]:
-                resume.append("  ! carnet du chantier n° %s : %d défaut(s) trouvé(s) au contrôle." % (numero, len(v["problemes"])))
-        if bilan["deposes"]:
-            resume.append("  Les documents apparaissent dans l'appli quand Google Drive a fini de les envoyer (quelques minutes).")
     if rapatriement:
-        dire("")
         dire("— RECOPIE DES FICHES : du Drive de l'appli vers les dossiers de chantier du PC —")
-        accord = "o" if oui_rapatrier else reponse(demander, "Recopier maintenant les nouvelles fiches de %d chantier(s) ? Rien n'est supprimé ni modifié "
-                                                   "dans le Drive. o = oui / Entrée = non : " % len(suivis))
-        if not accord or accord.lower() not in ("o", "oui"):
-            resume.append("Recopie des fiches : pas faite (tu as répondu non).")
-        else:
-            fait = rapatrier_tout(reglages, dire=dire, seul=seul)
-            defauts += fait["erreurs"] + fait["refuses"] + fait["ecritures"]
-            resume.append("Recopie des fiches : %d fichier(s) copié(s) dans les dossiers de chantier du PC, %d déjà présent(s), "
-                          "%d signalé(s) sans copie, %d en erreur." % (fait["copies"], fait["deja"], fait["signales"],
-                                                                       fait["erreurs"] + fait["refuses"] + fait["ecritures"]))
-            if not fait["a_voir"]:
-                resume.append("  À voir : rien à signaler.")
-            elif seul is None:
-                resume.append("  À voir : %d point(s), écrits dans « %s » (dossier qui contient tes dossiers de chantier)." % (len(fait["a_voir"]), A_VOIR))
-            else:
-                resume.append("  À voir : %d point(s) pour ce chantier." % len(fait["a_voir"]))
-            for ligne in fait["a_voir"][:LISTE_MAX]:
-                resume.append("    ! " + ligne)
-            if fait["copies"]:
-                resume.append("  PENSE À VÉRIFIER QUE MEGA A FINI DE SYNCHRONISER : les fichiers sont sur le disque du PC, la sauvegarde suit.")
+    bilan = passage(reglages, prive, dire=dire, seul=seul, fiches=rapatriement, carnet=carnet, horloge=horloge, attente=attente)
+    resume = []
+    if rapatriement:
+        resume.append("Recopie des fiches : %d fichier(s) copié(s) dans les dossiers de chantier du PC, %d déjà présent(s)." % (bilan["copies"], bilan["deja"]))
+    if carnet:
+        resume.append("Carnet : %d document(s) déposé(s)%s." % (len(bilan["deposes"]),
+                      " ; %d restent pour le prochain passage (limite de temps)" % bilan["reste"] if bilan["reste"] else ""))
+        for d in bilan["deposes"]:
+            resume.append("  DÉPOSÉ AU CARNET : " + ligne_depot(d))
+        if bilan["deposes"]:
+            resume.append("  Les poseurs voient ces documents quand Google Drive a fini de les envoyer (quelques minutes). "
+                          "Une erreur ? choix 5 du menu (« Retirer un document du carnet »).")
+    if not bilan["a_voir"]:
+        resume.append("À voir : rien à signaler.")
+    elif seul is None:
+        resume.append("À voir : %d point(s), écrits dans « %s » (dossier qui contient tes dossiers de chantier)." % (len(bilan["a_voir"]), A_VOIR))
+    else:
+        resume.append("À voir : %d point(s) pour ce chantier." % len(bilan["a_voir"]))
+    for ligne in bilan["a_voir"][:LISTE_MAX]:
+        resume.append("  ! " + ligne)
+    if bilan["copies"]:
+        resume.append("PENSE À VÉRIFIER QUE MEGA A FINI DE SYNCHRONISER : les fichiers sont sur le disque du PC, la sauvegarde suit.")
     dire("")
     dire("═══ BILAN ═══")
     for ligne in resume:
         dire(ligne)
-    dire("Rien n'a été supprimé, déplacé ni renommé." + ("" if not defauts else " %d défaut(s) : lis les lignes marquées « ! » ou « PAS »." % defauts))
-    return defauts
+    dire("Rien n'a été supprimé, déplacé ni renommé." + ("" if not bilan["rates"] else " %d défaut(s) : lis les lignes marquées « ! » ou « PAS »." % bilan["rates"]))
+    return bilan["rates"]
 
 
 # ── Ligne de commande ───────────────────────────────────────────────────────
 def lire_arguments(argv=None):
-    a = argparse.ArgumentParser(description="Dépose au carnet les documents des bordereaux, et recopie les fiches de l'appli "
-                                            "du Drive vers les dossiers de chantier du PC (lot 4c). Sans option : tout, avec confirmations.",
+    a = argparse.ArgumentParser(description="Recopie les fiches de l'appli du Drive vers les dossiers de chantier du PC, et dépose au carnet les PDF "
+                                            "de « À METTRE AU CARNET » et des bordereaux (lot 4c). Sans option : tout, maintenant, sans question.",
                                 add_help=False,
-                                usage="python outils/appli_pc.py [--lister | --associer | --carnet | --rapatrier [--auto] | --retirer | --a-voir "
+                                usage="python outils/appli_pc.py [--auto] [--lister | --associer | --declarer NNN | --carnet | --rapatrier | --retirer | --a-voir "
                                       "| --etat | --installer-tache | --retirer-tache] [--chantier NNN]",
                                 epilog="Codes de sortie : 0 fait ; 2 refus (rien n'est écrit) ; 1 erreur ou défaut (lire le bilan).")
     a.add_argument("-h", "--help", action="help", help="affiche cette aide")
     a.add_argument("--lister", action="store_true", help="montre ce qui serait fait, sans rien écrire")
     a.add_argument("--chantier", metavar="NNN", help="ne traite que ce chantier (son numéro) : pour un premier essai")
     a.add_argument("--associer", action="store_true", help="relie un dossier de chantier du PC à un dossier du Drive, quand le numéro ne suffit pas")
-    a.add_argument("--carnet", action="store_true", help="le dépôt au carnet seulement")
+    a.add_argument("--declarer", metavar="NNN", help="déclare la numérotation des bordereaux d'un chantier (sans cela, rien ne part de ses bordereaux)")
+    a.add_argument("--carnet", action="store_true", help="le dépôt au carnet seulement (« %s » et les bordereaux), sans question" % A_METTRE)
     a.add_argument("--rapatrier", action="store_true", help="la recopie des fiches (Drive → dossiers de chantier du PC) seulement")
-    a.add_argument("--auto", action="store_true", help="avec --rapatrier : aucune question, aucun affichage (pour la tâche planifiée)")
+    a.add_argument("--auto", action="store_true", help="aucun affichage : c'est le mode de la tâche planifiée (fiches, puis carnet)")
     a.add_argument("--retirer", action="store_true", help="retire un document du carnet (aucun fichier n'est supprimé)")
     a.add_argument("--a-voir", action="store_true", help="affiche le fichier « %s », et la date du dernier passage automatique" % A_VOIR)
     a.add_argument("--etat", action="store_true", help="une ligne, seulement si la recopie automatique n'a pas tourné depuis plus de 3 heures")
     a.add_argument("--installer-tache", action="store_true", help="crée la tâche planifiée de Windows (recopie automatique, toutes les heures)")
     a.add_argument("--retirer-tache", action="store_true", help="supprime la tâche planifiée de Windows")
-    a.add_argument("--oui-rapatrier", action="store_true", help="ne pose pas la question avant la recopie des fiches")
     a.add_argument("--reglages", default=REGLAGES_DEFAUT, help="fichier de réglages (par défaut : _prive/depot.json)")
     return a.parse_args(argv)
 
@@ -1791,7 +2053,7 @@ def lancer(o, demander=input, dire=print, lanceur=lancer_commande):
             dire(phrase)
         return 0
     if o.auto:
-        return passage_auto(chemin, seul=seul)
+        return passage_auto(chemin, seul=seul, fiches=o.rapatrier or not o.carnet, carnet=o.carnet or not o.rapatrier)
     if o.retirer_tache:
         return retirer_tache(dire, lanceur)
     reglages = lire_reglages(chemin)
@@ -1802,15 +2064,19 @@ def lancer(o, demander=input, dire=print, lanceur=lancer_commande):
     if o.a_voir:
         dire(etat_auto(prive)[0])
         dire("")
-        dire(lire_a_voir(chantiers_pc) or "Le fichier « %s » n'existe pas encore : aucune recopie des fiches n'a eu lieu." % A_VOIR)
+        dire(lire_a_voir(chantiers_pc) or "Le fichier « %s » n'existe pas encore : aucun passage n'a eu lieu." % A_VOIR)
         return 0
     if o.lister:
-        lister(reglages, os.path.join(prive, ECARTES_FICHIER), dire, seul=seul)
+        lister(reglages, dire, seul=seul)
         return 0
     # Tous les refus prévisibles tombent ici, AVANT le verrou et le journal : un refus n'écrit rien.
     sous = sous_dossiers(reglages["racine"])
-    if not o.associer:
-        lire_ecartes(os.path.join(prive, ECARTES_FICHIER))
+    if o.declarer is not None and not re.fullmatch(r"\d+", str(o.declarer).strip()):
+        raise Refus("Le numéro de chantier « %s » n'est pas un nombre." % o.declarer)
+    if o.declarer is not None and dossier_pc_du(chantiers_pc, str(o.declarer).strip())[0] is None:
+        raise Refus("Chantier n° %s : %s." % (o.declarer, dossier_pc_du(chantiers_pc, str(o.declarer).strip())[1]))
+    if not (o.associer or o.declarer is not None):
+        lire_memoire(os.path.join(prive, MEMOIRE_FICHIER))
         un_seul(*chantiers_suivis(reglages, sous), seul)
     verrou = os.path.join(prive, VERROU_FICHIER)
     moi = prendre_verrou(verrou, dire)
@@ -1823,10 +2089,13 @@ def lancer(o, demander=input, dire=print, lanceur=lancer_commande):
             journal.noter("%s%s" % (question, "(saisie fermée)" if r is None else r))
             return r
 
-        journal.noter("=== Lancement : %s%s ===" % (" ".join(n for n in ("associer", "retirer", "carnet", "rapatrier") if getattr(o, n)) or "tout",
+        journal.noter("=== Lancement : %s%s ===" % (" ".join(n for n in ("associer", "declarer", "retirer", "carnet", "rapatrier") if getattr(o, n)) or "tout",
                                                    " ; chantier %s" % seul if seul else ""))
         if o.associer:
             associer(chemin, poser, journal)
+            return 0
+        if o.declarer is not None:
+            declarer(chemin, o.declarer, poser, journal)
             return 0
         if o.retirer:
             suivis, _ = un_seul(*chantiers_suivis(reglages, sous), seul)
@@ -1836,8 +2105,7 @@ def lancer(o, demander=input, dire=print, lanceur=lancer_commande):
             retirer_document(dict(reglages, chantiers=suivis), poser, journal)
             return 0
         tout = not (o.carnet or o.rapatrier)
-        defauts = tout_traiter(reglages, prive, poser, journal, carnet=tout or o.carnet, rapatriement=tout or o.rapatrier,
-                               oui_rapatrier=o.oui_rapatrier, seul=seul)
+        defauts = tout_traiter(reglages, prive, journal, carnet=tout or o.carnet, rapatriement=tout or o.rapatrier, seul=seul)
         return 1 if defauts else 0
     finally:
         liberer_verrou(verrou, moi)

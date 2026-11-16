@@ -33,12 +33,12 @@ Le programme ne devine jamais quel dossier du Drive correspond à quel dossier d
 ```json
 { "racine": "<racine du Drive de l'appli sur le PC>", "chantiers_pc": "<dossier des chantiers sur le PC>",
   "chantiers": { "<n° du chantier>": { "chantier": "<nom dans l'appli>", "dossier_drive": "<nom du dossier dans le Drive>" } },
-  "anciens_codes": { "<ancien n° de document>": "<n° actuel>" } }
+  "bordereaux": { "<n° du chantier>": "actuelle" | { "<ancien n° de document>": "<n° actuel>" } | "non" } }
 ```
 
 - Le n° du chantier est lu au début du nom du dossier du chantier sur le PC (`NNN - …`).
 - Une commande d'aide (`--associer`) liste les dossiers de chantier du PC et Drive sans correspondance et pose la question pour chacun ; elle refuse un dossier Drive technique (nom commençant par `_`, `ADMINISTRATIF`, dossier de planning) ou en double (`nom (1)`).
-- `anciens_codes` : la table de passage des anciens numéros de documents aux nouveaux (décision de numérotation du 31/10/2026), à remplir avec Franck ; un document dont le numéro n'est ni actuel ni dans cette table est montré « numéro non reconnu » et n'est pas proposé.
+- `bordereaux` (remplace la table générale `anciens_codes` de la première version, chapitre 12) : la numérotation des bordereaux, déclarée par Franck chantier par chantier ; sans déclaration, rien ne part au carnet depuis les bordereaux de ce chantier.
 
 ### 3.2 Déposer au carnet
 - Le programme parcourt, pour chaque chantier suivi, `08 - DOCUMENTS ENVOYES AVEC BORDEREAU/BORDEREAU n/*.pdf`. Il ne retient que les fichiers nommés `<n° chantier>-<lot>-<n° document>-<indice>-<INTITULÉ>.pdf` dont : le n° de chantier est celui du dossier ; le n° de document (après passage par `anciens_codes`) est dans la liste du carnet ; l'indice n'est **pas déjà au carnet** ; le fichier n'a pas été **écarté** par Franck.
@@ -116,7 +116,7 @@ Le programme écrit ensuite **deux fichiers distincts** :
 
 ## 10. Décisions de Franck du 14/11/2026 (D4-13) : recopie automatique des fiches
 
-- **Aucune manipulation au quotidien pour les fiches** : une tâche du Planificateur de tâches de Windows (déjà présent, rien à installer) lance la recopie **toutes les heures et à l'ouverture de session**. Vérifié sur le PC de Franck le 14/11/2026 : une tâche simple, à déclencheur horaire, se crée **sans droits d'administrateur**. **Pas vérifié** : la tâche réellement livrée, créée à partir d'un fichier de description (XML) qui porte deux déclencheurs — toutes les heures, et à l'ouverture de la session de Franck seulement. Elle n'a été créée par personne à ce jour : c'est l'étape 5 de `docs/lot4c-procedure.md`.
+- **Aucune manipulation au quotidien pour les fiches** : une tâche du Planificateur de tâches de Windows (déjà présent, rien à installer) lance la recopie **toutes les heures et à l'ouverture de session**. Vérifié sur le PC de Franck le 14/11/2026 : une tâche simple, à déclencheur horaire, se crée **sans droits d'administrateur**. **Pas vérifié** : la tâche réellement livrée, créée à partir d'un fichier de description (XML) qui porte deux déclencheurs — toutes les heures, et à l'ouverture de la session de Franck seulement. Elle n'a été créée par personne à ce jour : c'est l'étape 6 de `docs/lot4c-procedure.md`.
 - **Copie seulement** : jamais de suppression ni d'écrasement (règles du §3.3 inchangées).
 - **Le bon dossier est trouvé tout seul** par le numéro du chantier en tête du nom de dossier. Aucun dossier ou plusieurs pour ce numéro, dossier du Drive sans numéro reconnaissable : rien n'est deviné, rien n'est copié pour ce chantier, et c'est **signalé** dans un fichier `CHANTIERPRO - A VOIR.txt` à la racine des dossiers de chantier du PC.
 - Le relevé de présence écrit dans le Drive s'appelle `releve-pc.json`.
@@ -136,3 +136,18 @@ Le programme écrit ensuite **deux fichiers distincts** :
 - « A VOIR » n'est réécrit que si sa liste change (et une fois par jour) ; un nom fini par « (n) » n'est un doublon que si son jumeau existe ; l'indice d'un document tient en une ou deux lettres ou chiffres ; un document retiré du carnet n'est plus reproposé.
 - **Seconde relecture (16/11/2026)** : une fiche nouvelle qui reprend le nom d'une ancienne est reconnue à sa taille et copiée ; liste de provenance écrite toutes les 25 copies ; date de la fiche notée et comparée avant d'affirmer au relevé ; résultat « même taille, autre contenu » mémorisé ; verrou rafraîchi après chaque question et chaque page déposée ; utilisateur de la tâche désigné par son identifiant Windows ; un document retiré dont le fichier a changé n'est signalé qu'une fois ; `deposer.bat` et `depot_carnet.py` tutoient.
 - **Décisions de Franck du 16/11/2026** : les deux noms de fichiers (`CHANTIERPRO - fiches rapatriees.json`, `CHANTIERPRO - A VOIR.txt`) sont gardés ; un document refait sous le même indice part sous l'indice suivant ; ordre de mise en place : les lignes dans `gestion-documentaire` et l'état documentaire vérifié sur un chantier, puis la tâche automatique.
+
+## 12. Décisions de Franck du 16/11/2026 : dépôt automatique au carnet
+
+Elles **remplacent** la règle « dépôt au double-clic, avec confirmation document par document » (§3.2, §8 et chapitre 10).
+
+- **Le carnet se remplit tout seul**, par la même tâche planifiée que la recopie des fiches (toutes les heures, et à l'ouverture de session), sans aucune question.
+- **Deux sources** : (1) le dossier `À METTRE AU CARNET`, que Franck crée à la racine d'un dossier de chantier du PC et où il glisse des PDF — forme complète des bordereaux, ou forme courte `<n° document>-<indice>-<INTITULÉ>.pdf`, numérotation actuelle seulement ; (2) les PDF des bordereaux (`08 - DOCUMENTS ENVOYES AVEC BORDEREAU`) dont le numéro est dans la liste du carnet, **sans délai**.
+- **Les bordereaux ne déposent que pour un chantier déclaré** (après relecture, 16/11/2026) : `_prive/depot.json`, clé `bordereaux` — « actuelle », ou une table propre au chantier dont **seuls** les numéros partent, convertis. Raison : un bordereau à l'ancienne numérotation porte des numéros qui existent aujourd'hui avec un autre sens (un document avec des prix serait publié comme un plan). Chantier non déclaré : rien, et une ligne dans « A VOIR ». Commande `--declarer NNN` (choix 6 du menu). Les chantiers se déclarent un par un : pas de premier passage qui publie tout l'historique d'un coup. « Voir seulement » donne par chantier le nombre de documents, de pages, et le poids estimé.
+- **Une erreur sur un document n'arrête pas les autres** ; après trois échecs, un PDF n'est plus retenté tant qu'il ne change pas. Les signalements de `À METTRE AU CARNET` et ceux d'un chantier entier restent tant que la cause est là ; ceux des bordereaux se taisent après sept jours.
+- **Rien n'est supprimé ni déplacé** : le programme retient ce qui est déjà déposé (`carnet.json` fait foi) et ce qu'il a déjà signalé (`_prive/carnet-memoire.json`).
+- **Ce qui ne peut pas être déposé est signalé** dans `CHANTIERPRO - A VOIR.txt` : nom non reconnu, numéro hors liste ou d'un autre chantier, même indice avec un autre contenu (« prends l'indice suivant »), PDF illisible, contenus différents entre `À METTRE AU CARNET` et un bordereau, fichier encore en cours d'écriture.
+- **Ce qui a été déposé est écrit** dans le journal et dans une section de « A VOIR », sept jours : Franck voit ce qui a été publié aux poseurs, et peut le retirer par le menu.
+- Garde-fous : deux minutes sans que le fichier bouge ; en-tête de PDF ; 200 Mo au plus ; pas de nouveau dépôt après 40 minutes de passage, reprise page par page au suivant ; un seul passage à la fois ; module manquant ou Drive pas prêt : signalé, la recopie des fiches continue.
+- Le chantier d'un dépôt est toujours celui du dossier de chantier du PC ; le nom d'un dossier n'est jamais écrit comme nom de chantier dans `carnet.json`.
+- **Conséquences assumées** : un bordereau préparé mais pas encore envoyé part au carnet ; plus personne ne confirme un document avant sa publication. D'où l'ordre de la procédure : fiches seules sur un chantier ; déclarer sa numérotation ; « Voir seulement » ; le carnet sur ce chantier ; puis la tâche ; les autres chantiers un par un.

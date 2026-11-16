@@ -109,7 +109,11 @@ class Monde(unittest.TestCase):
         self.racine = os.path.join(self.temp, "drive")
         self.pc = os.path.join(self.temp, "chantiers")
         self.reglages_fichier = os.path.join(self.prive, "depot.json")
-        self.ecartes = os.path.join(self.prive, ap.ECARTES_FICHIER)
+        self.memoire = os.path.join(self.prive, ap.MEMOIRE_FICHIER)
+        # Les PDF des tests viennent d'être créés : le délai « deux minutes sans bouger » est mis à zéro (un test le remet)
+        repos = mock.patch.object(ap, "REPOS", 0)
+        repos.start()
+        self.addCleanup(repos.stop)
         self.lignes = []
         # Le faux Drive
         ecrire(os.path.join(self.racine, "dossiers.json"), json.dumps({"version": 1, "documents": {"cotes": COTES}}))
@@ -122,7 +126,8 @@ class Monde(unittest.TestCase):
             os.makedirs(os.path.join(self.pc, nom))
         self.reglages = {"racine": self.racine, "chantiers_pc": self.pc, "autre_cle": {"gardee": True},
                          "chantiers": {"901": {"chantier": "Chantier Essai Un", "dossier_drive": DRIVE_1}},
-                         "anciens_codes": {"042A": "105", "044": "103", "041": "102"}}
+                         "bordereaux": {"901": "actuelle", "902": "actuelle"},      # numérotation déclarée : les bordereaux déposent
+                         "anciens_codes": {"042A": "105"}}                           # une clé que le programme ne connaît plus : gardée telle quelle
         self.noter_reglages()
 
     def noter_reglages(self):
@@ -139,6 +144,16 @@ class Monde(unittest.TestCase):
         os.makedirs(os.path.dirname(chemin), exist_ok=True)
         shutil.copy(modele or COMMUN["pdf"], chemin)
         return chemin
+
+    def mettre(self, nom, modele=None, chantier=PC_1, dossier="À METTRE AU CARNET"):
+        """Glisse un PDF dans le dossier « À METTRE AU CARNET » d'un dossier de chantier du PC."""
+        chemin = os.path.join(self.pc, chantier, dossier, nom)
+        os.makedirs(os.path.dirname(chemin), exist_ok=True)
+        shutil.copy(modele or COMMUN["pdf"], chemin)
+        return chemin
+
+    def carnet_json(self, dossier=DRIVE_1):
+        return lire(os.path.join(self.racine, dossier, "CARNET", "carnet.json"))
 
     def fiche(self, relatif, contenu="fiche", dossier=DRIVE_1):
         return ecrire(os.path.join(self.racine, dossier, relatif), contenu)
@@ -221,221 +236,505 @@ class Correspondance(Monde):
         self.assertEqual(ap.dossier_pc_du(self.pc, "902")[0], None)
 
 
-class Candidats(Monde):
-    def voir(self, **plus):
-        return ap.candidats_carnet(self.reglages, plus.pop("ecartes", ap.lire_ecartes(self.ecartes)), **plus)
+class Carnet(Monde):
+    """Ce qui part au carnet tout seul : le dossier « À METTRE AU CARNET » et les bordereaux. Aucune question."""
 
-    def test_nom_conforme(self):
-        chemin = self.bordereau(2, "901-09 ET 10-105-a-PLANS DE RESERVATIONS : DETAIL.pdf".replace(" :", ""))
+    def voir(self, **plus):
+        return ap.documents_a_deposer(self.reglages, **plus)
+
+    def deposer(self, **plus):
+        return ap.deposer_tout(self.reglages, self.prive, self.dire, **plus)
+
+    def test_forme_complete_et_forme_courte(self):
+        complet = self.mettre("901-09 ET 10-105-a-PLANS DE RESERVATIONS DETAIL.pdf")
+        self.mettre("106-B-Réservations : repérage.pdf".replace(" :", ""))
+        self.bordereau(2, "901-10-104-A-REPERAGE DES PORTES.pdf")
+        self.bordereau(2, "104-C-FORME COURTE DANS UN BORDEREAU.pdf")          # la forme courte ne vaut que dans « À METTRE AU CARNET »
+        self.bordereau(2, "BORDEREAU D'ENVOI 2.pdf")
         avant = self.photos()
         vu = self.voir()
-        self.assertEqual(self.photos(), avant, "chercher les candidats n'écrit rien")
+        self.assertEqual(self.photos(), avant, "chercher les documents n'écrit rien")
         self.assertEqual(vu["signales"], [])
-        self.assertEqual(len(vu["candidats"]), 1)
-        c = vu["candidats"][0]
-        self.assertEqual((c["numero"], c["chantier"], c["bordereau"], c["dossier_drive"]), ("901", "Chantier Essai Un", "BORDEREAU 2", DRIVE_1))
-        self.assertEqual((c["code"], c["indice"], c["intitule"], c["id"]), ("105", "A", "PLANS DE RESERVATIONS DETAIL", "105-A"))
-        self.assertEqual((c["pages"], c["poids"], c["chemin"]), (2, os.path.getsize(COMMUN["pdf"]), chemin))
-        self.assertEqual(c["relatif"], "/".join([PC_1, D08, "BORDEREAU 2", os.path.basename(chemin)]))
-        self.assertRegex(c["date"], r"^\d{2}/\d{2}/\d{4} \d{2}:\d{2}$")
-        self.assertIsNone(c["ancien_code"])
+        self.assertEqual([(c["id"], c["origine"], c["intitule"]) for c in vu["candidats"]],
+                         [("104-A", "BORDEREAU 2", "REPERAGE DES PORTES"), ("105-A", "À METTRE AU CARNET", "PLANS DE RESERVATIONS DETAIL"),
+                          ("106-B", "À METTRE AU CARNET", "Réservations repérage")])
+        self.assertEqual(len(vu["silencieux"]), 1, "le bordereau lui-même n'est pas un document ; la forme courte hors de son dossier n'est pas reconnue")
+        c = vu["candidats"][1]
+        self.assertEqual((c["numero"], c["chantier"], c["dossier_drive"], c["pages"], c["poids"], c["chemin"]),
+                         ("901", "Chantier Essai Un", DRIVE_1, 2, os.path.getsize(COMMUN["pdf"]), complet))
+        self.assertEqual(c["relatif"], "/".join([PC_1, "À METTRE AU CARNET", os.path.basename(complet)]))
         texte = "\n".join(ap.decrire_candidat(c, 1, 1))
-        for attendu in ("901", "Chantier Essai Un", "BORDEREAU 2", "2 page(s)", DRIVE_1, "105 A PLANS DE RESERVATIONS DETAIL"):
+        for attendu in ("901", "Chantier Essai Un", "À METTRE AU CARNET", "2 page(s)", DRIVE_1, "105 A PLANS DE RESERVATIONS DETAIL"):
             self.assertIn(attendu, texte)
 
-    def test_dossier_08_sous_un_autre_libelle_et_dossiers_ignores(self):
-        self.bordereau(1, "901-10-104-A-REPERAGE DES PORTES.pdf", d08="08 - ENVOIS")
-        self.bordereau(1, "901-10-106-A-HORS DU 08.pdf", d08="05 - CHANTIER")
-        chemin = self.bordereau(1, "901-10-107-A-PAS UN BORDEREAU.pdf")
-        os.makedirs(os.path.join(self.pc, PC_1, D08, "BROUILLONS"))
-        shutil.move(chemin, os.path.join(self.pc, PC_1, D08, "BROUILLONS", os.path.basename(chemin)))
-        self.bordereau(1, "BORDEREAU D'ENVOI 1.pdf", d08="08 - ENVOIS")
-        self.bordereau(1, "SCAN SANS NOM.pdf", d08="08 - ENVOIS")
+    def test_dossier_absent_et_nom_du_dossier_sans_casse_ni_forme_des_accents(self):
+        self.assertEqual(self.voir(), {"candidats": [], "signales": [], "jeunes": [], "silencieux": [], "deja": 0, "sans_module": False})
+        self.assertFalse(os.path.exists(os.path.join(self.pc, PC_1, "À METTRE AU CARNET")), "le programme ne crée jamais ce dossier")
+        decompose = unicodedata.normalize("NFD", "à mettre au carnet")
+        self.mettre("105-A-PLAN.pdf", dossier=decompose)
+        self.mettre("106-A-PLAN.pdf", dossier="A METTRE AU CARNET - BROUILLONS")       # un autre dossier : ignoré
         vu = self.voir()
-        self.assertEqual([c["id"] for c in vu["candidats"]], ["104-A"])
-        self.assertEqual(self.motifs(vu), ["nom"], "le bordereau lui-même n'est pas signalé ; un PDF hors nomenclature l'est")
+        self.assertEqual([(c["id"], c["origine"]) for c in vu["candidats"]], [("105-A", decompose)])
+        self.assertEqual(vu["signales"], [])
 
-    def test_autre_chantier_numero_inconnu_ancien_numero(self):
-        self.bordereau(1, "902-10-105-A-PLAN D'UN AUTRE CHANTIER.pdf")
-        self.bordereau(1, "901-10-999-A-NUMERO INCONNU.pdf")
-        self.bordereau(1, "901-10-105B-A-LETTRE INCONNUE.pdf")
-        self.bordereau(1, "901-10-042A-A-ANCIEN NUMERO.pdf")
-        self.bordereau(1, "901-10-041-A-ANCIEN NUMERO HORS CARNET.pdf")
-        self.bordereau(1, "901-10-103-B-TABLEAU DE PORTES.pdf")
-        self.bordereau(1, "901-10-105-RDC-PLAN DU REZ DE CHAUSSEE.pdf")
+    def test_ce_qui_ne_peut_pas_etre_depose_est_signale(self):
+        self.mettre("902-10-105-A-PLAN D'UN AUTRE CHANTIER.pdf")
+        self.mettre("PLAN SANS NUMERO.pdf")
+        self.mettre("105-RDC-INDICE TROP LONG.pdf")
+        self.mettre("999-A-NUMERO HORS LISTE.pdf")
+        self.mettre("042A-A-ANCIEN NUMERO.pdf")           # « À METTRE AU CARNET » : numérotation d'aujourd'hui seulement
+        self.mettre("106-B-BON DOCUMENT.pdf")
+        self.mettre("notes.txt")
+        ecrire(os.path.join(self.pc, PC_1, "À METTRE AU CARNET", "105-C-FAUX PDF.pdf"), "ceci n'est pas un PDF")
+        self.bordereau(1, "902-10-106-A-AUTRE CHANTIER DANS UN BORDEREAU.pdf")
+        self.bordereau(1, "901-10-999-A-DEVIS.pdf")
+        self.bordereau(1, "SCAN SANS NOM.pdf")
         vu = self.voir()
-        self.assertEqual(sorted((c["id"], c["ancien_code"]) for c in vu["candidats"]), [("103-B", None), ("105-A", "042A")])
-        self.assertEqual(self.motifs(vu), ["autre-chantier", "nom", "non-reconnu", "non-reconnu"])
-        self.assertRegex([x["texte"] for x in vu["signales"] if x["motif"] == "nom"][0], "105-RDC-.*nom non reconnu", "« RDC » n'est pas un indice")
-        os.remove(os.path.join(self.pc, PC_1, D08, "BORDEREAU 1", "901-10-105-RDC-PLAN DU REZ DE CHAUSSEE.pdf"))
-        self.assertEqual(vu["hors_carnet"], 1, "041 → 102 : connu, pas au carnet, pas signalé")
-        self.assertIn("Ancien numéro 042A", "\n".join(ap.decrire_candidat([c for c in vu["candidats"] if c["ancien_code"]][0])))
-        # Une table propre au chantier l'emporte ; un numéro « hors carnet » déclaré n'est plus signalé
-        self.reglages["chantiers"]["901"]["anciens_codes"] = {"103": "999"}
-        self.reglages["hors_carnet"] = ["999"]
-        vu = self.voir()
-        self.assertEqual([c["id"] for c in vu["candidats"]], ["105-A"])
-        self.assertEqual(self.motifs(vu), ["autre-chantier", "non-reconnu"])
-        self.assertEqual(vu["hors_carnet"], 3)
+        self.assertEqual([c["id"] for c in vu["candidats"]], ["106-B"])
+        self.assertEqual(self.motifs(vu), ["autre-chantier", "autre-chantier", "hors-liste", "hors-liste", "illisible", "nom", "nom"])
+        textes = "\n".join(x["texte"] for x in vu["signales"])
+        for attendu in ("porte le n° de chantier 902, pas 901", "« PLAN SANS NUMERO.pdf » : nom non reconnu", "105-RDC-INDICE TROP LONG.pdf » : nom non reconnu",
+                        "« 999 » n'est pas un document du carnet", "« 042A » n'est pas un document du carnet", "105-C-FAUX PDF.pdf » : ce n'est pas un PDF lisible"):
+            self.assertIn(attendu, textes)
+        # Dans un bordereau, un devis ou un scan n'est pas un souci : rien dans « A VOIR » (seul « Voir seulement » les liste)
+        self.assertEqual(len(vu["silencieux"]), 2)
+        self.assertRegex("\n".join(vu["silencieux"]), "901-10-999-A-DEVIS.pdf.*\n.*SCAN SANS NOM.pdf")
+        # Un PDF trop gros n'est pas déposé tout seul
+        with mock.patch.object(ap, "PDF_MAX", 100):
+            vu = self.voir()
+        self.assertEqual((vu["candidats"], "trop-gros" in self.motifs(vu)), ([], True))
+        # Un chantier dont le dossier manque : signalé, rien deviné
+        self.reglages["chantiers"]["905"] = {"chantier": "Cinq", "dossier_drive": DRIVE_2}
+        self.assertIn("chantier", self.motifs(self.voir()))
 
-    def test_meme_document_dans_deux_bordereaux(self):
+    def test_bordereaux_d_un_chantier_non_declare_rien_n_est_depose(self):
+        # Le cas grave : un bordereau à l'ANCIENNE numérotation, dont les numéros existent aussi aujourd'hui avec un autre sens
+        del self.reglages["bordereaux"]
+        self.bordereau(1, "901-10-001-A-DEVIS ET PRIX.pdf")
+        self.bordereau(1, "901-10-002-A-PLANS DE RESERVATIONS.pdf")
+        self.bordereau(2, "901-10-105-A-RESERVATIONS.pdf")
+        self.bordereau(2, "BORDEREAU D'ENVOI 2.pdf")
+        self.mettre("106-A-REPERAGE.pdf")
+        vu = self.voir()
+        self.assertEqual([(c["id"], c["origine"]) for c in vu["candidats"]], [("106-A", "À METTRE AU CARNET")], "« À METTRE AU CARNET » reste actif")
+        self.assertEqual([(x["motif"], x["durable"]) for x in vu["signales"]], [("a-declarer", True)], "UNE ligne pour le chantier")
+        self.assertRegex(vu["signales"][0]["texte"], "Chantier n° 901 : 3 document\\(s\\) de bordereau en attente — numérotation à déclarer")
+        bilan = self.deposer()
+        self.assertEqual([d["code"] for d in bilan["deposes"]], ["106"])
+        self.assertEqual([d["id"] for d in self.carnet_json()["documents"]], ["106-A"], "aucun document de bordereau n'est parti")
+        heure = [time.time() + 30 * 86400]
+        self.assertEqual(len(self.deposer(horloge=lambda: heure[0])["a_voir"]), 1, "la ligne reste tant que ce n'est pas déclaré")
+        # « Ne rien déposer depuis ces bordereaux » : plus de dépôt, plus de ligne
+        self.reglages["bordereaux"] = {"901": "non"}
+        vu = self.voir()
+        self.assertEqual((vu["candidats"], vu["signales"]), ([], []))
+        # Sans aucun PDF de bordereau, un chantier non déclaré ne dit rien
+        del self.reglages["bordereaux"]
+        shutil.rmtree(os.path.join(self.pc, PC_1, D08))
+        self.assertEqual(self.voir()["signales"], [])
+
+    def test_table_propre_au_chantier_seuls_ses_numeros_sont_deposes(self):
+        self.reglages["bordereaux"] = {"901": {"002": "105", "005": "001", "011": "102"}}
+        self.bordereau(1, "901-10-001-A-DEVIS ET PRIX.pdf")              # 001 existe aujourd'hui (PPSPS), mais n'est pas dans la table
+        self.bordereau(1, "901-10-002-A-PLANS DE RESERVATIONS.pdf")      # ancien 002 → 105
+        self.bordereau(1, "901-09 ET 10-005-B-PPSPS.pdf")                # ancien 005 → 001
+        self.bordereau(1, "901-10-011-A-FICHE DE CHOIX.pdf")             # ancien 011 → 102, qui n'est pas un document du carnet
+        self.bordereau(1, "901-10-105-A-DEJA AU NOUVEAU NUMERO.pdf")     # 105 est au carnet aujourd'hui, mais absent de la table
+        vu = self.voir()
+        self.assertEqual([(c["id"], c["ancien_code"], c["intitule"]) for c in vu["candidats"]],
+                         [("001-B", "005", "PPSPS"), ("105-A", "002", "PLANS DE RESERVATIONS")])
+        self.assertEqual(vu["signales"], [])
+        silencieux = "\n".join(vu["silencieux"])
+        for attendu in ("001-A-DEVIS ET PRIX.pdf » : numéro de document « 001 » — absent de la table de ce chantier",
+                        "« 011 » → « 102 », pas un document du carnet", "DEJA AU NOUVEAU NUMERO.pdf » : numéro de document « 105 » — absent de la table"):
+            self.assertIn(attendu, silencieux)
+        self.assertIn("Ancien numéro 002 : déposé sous le numéro actuel 105", "\n".join(ap.decrire_candidat(vu["candidats"][1])))
+        self.deposer()
+        self.assertEqual([(d["id"], d["source"]["nom"]) for d in self.carnet_json()["documents"]],
+                         [("001-B", "901-09 ET 10-005-B-PPSPS.pdf"), ("105-A", "901-10-002-A-PLANS DE RESERVATIONS.pdf")])
+        # « À METTRE AU CARNET » ne passe jamais par la table : numérotation d'aujourd'hui
+        self.mettre("002-A-TEMPS DE TACHES.pdf")
+        self.assertEqual([c["id"] for c in self.voir()["candidats"]], ["002-A"])
+        # Une déclaration mal écrite est refusée avant tout
+        for mauvais in ("oui", ["105"], {"002": 105}):
+            with self.assertRaisesRegex(dc.Refus, "« bordereaux » est mal écrit"):
+                ap.controler_reglages(dict(self.reglages, bordereaux={"901": mauvais}))
+
+    def test_declarer_la_numerotation_d_un_chantier(self):
+        del self.reglages["bordereaux"]
+        self.noter_reglages()
+        self.bordereau(1, "901-10-002-A-PLANS DE RESERVATIONS.pdf")
+        self.bordereau(1, "901-10-001-A-DEVIS ET PRIX.pdf")
+        self.bordereau(2, "901-10-002-B-PLANS DE RESERVATIONS.pdf", COMMUN["autre"])
+        self.bordereau(2, "SCAN.pdf")
+        # Abandon : rien n'est écrit
+        avant = self.photos()
+        self.assertIsNone(ap.declarer(self.reglages_fichier, "901", saisies(""), self.dire))
+        self.assertEqual(self.photos(), avant)
+        texte = self.texte()
+        for attendu in ("n° 001   (aujourd'hui, 001 est un document du carnet)", "BORDEREAU 1 — PLANS DE RESERVATIONS (indice A)",
+                        "BORDEREAU 2 — PLANS DE RESERVATIONS (indice B)", "(nom hors nomenclature, jamais déposé) BORDEREAU 2 — SCAN.pdf"):
+            self.assertIn(attendu, texte)
+        # Ancienne numérotation : la table, numéro par numéro (une réponse fausse est redemandée ; Entrée = jamais déposé)
+        demander = saisies("n", "", "999", "105")
+        note = ap.declarer(self.reglages_fichier, "901", demander, self.dire)
+        self.assertEqual((note, demander.reste), ({"002": "105"}, []))
+        ecrit = lire(self.reglages_fichier)
+        self.assertEqual(ecrit["bordereaux"], {"901": {"002": "105"}})
+        self.assertEqual((ecrit["chantiers"], ecrit["autre_cle"], ecrit["anciens_codes"]),
+                         (self.reglages["chantiers"], {"gardee": True}, self.reglages["anciens_codes"]), "les autres clés sont gardées")
+        self.assertEqual(sorted(os.listdir(self.prive)), ["depot.json"], "pas de fichier temporaire")
+        self.assertEqual([c["id"] for c in ap.documents_a_deposer(ecrit)["candidats"]], ["105-A", "105-B"])
+        # Numérotation actuelle, puis « rien » ; par la ligne de commande
+        code, sortie, _ = self.lancer("--declarer", "901", demander=saisies("o"))
+        self.assertEqual((code, lire(self.reglages_fichier)["bordereaux"]), (0, {"901": "actuelle"}))
+        self.assertIn("Déjà déclaré : une table (002 → 105)", sortie)
+        self.assertEqual(self.lancer("--declarer", "901", demander=saisies("r"))[0], 0)
+        self.assertEqual(lire(self.reglages_fichier)["bordereaux"], {"901": "non"})
+        for numero, attendu in (("777", "aucun dossier de chantier du PC"), ("9O1", "n'est pas un nombre")):
+            code, _, erreur = self.lancer("--declarer", numero, demander=saisies("o"))
+            self.assertEqual(code, 2)
+            self.assertIn(attendu, erreur)
+
+    def test_nom_qui_se_lit_de_deux_facons(self):
+        # Un chantier dont le numéro est aussi un numéro de document du carnet
+        os.makedirs(os.path.join(self.racine, "104 - CHANTIER CENT QUATRE", "05 - CHANTIER", "PRISE DE COTES"))
+        os.makedirs(os.path.join(self.pc, "104 - OPERATION"))
+        self.reglages["chantiers"] = {"104": {"chantier": "Cent Quatre", "dossier_drive": "104 - CHANTIER CENT QUATRE"}}
+        self.mettre("104-10-105-A-PLAN.pdf", chantier="104 - OPERATION")       # complète : 105-A ; courte : 104, indice 10
+        self.mettre("106-B-PLAN.pdf", chantier="104 - OPERATION")
+        self.mettre("104-C-REPERAGE.pdf", chantier="104 - OPERATION")          # courte seulement : 104-C
+        vu = self.voir()
+        self.assertEqual([c["id"] for c in vu["candidats"]], ["104-C", "106-B"])
+        self.assertEqual(self.motifs(vu), ["ambigu"])
+        self.assertRegex(vu["signales"][0]["texte"], "peut se lire de deux façons \\(document 105-A ou 104-10\\). Rien n'est déposé")
+        # Sur un autre chantier, un nom qui commence par un numéro de document n'est pas pris pour « un autre chantier »
+        self.reglages["chantiers"] = {"901": {"chantier": "Chantier Essai Un", "dossier_drive": DRIVE_1}}
+        self.mettre("105-A-104-B REPRISE.pdf")
+        vu = self.voir()
+        self.assertEqual(([(c["id"], c["intitule"]) for c in vu["candidats"]], vu["signales"]), ([("105-A", "104-B REPRISE")], []))
+
+    def test_depot_de_bout_en_bout_sans_aucune_saisie(self):
+        self.mettre("105-A-RESERVATIONS DETAIL.pdf")
+        self.bordereau(2, "901-10-104-A-REPERAGE DES PORTES.pdf")
+        self.bordereau(2, "901-10-999-A-DEVIS.pdf")
+        self.fiche(COTES + "/PRISE DE COTES ESSAI 2026-11-12.pdf")
+        drive, pc, _ = self.photos()
+
+        def interdite(question):
+            raise AssertionError("le passage automatique ne pose aucune question : %r" % question)
+
+        code, sortie, erreur = self.lancer("--auto", demander=interdite)
+        self.assertEqual((code, sortie, erreur), (0, "", ""))
+        # Dans le Drive : le carnet du chantier, et le relevé ; rien d'autre n'a bougé
+        apres = photo(self.racine)
+        nouveaux = sorted(n for n in apres if n not in drive)
+        self.assertTrue(all(n.startswith(DRIVE_1 + "/CARNET") or n == DRIVE_1 + "/" + ap.INDEX for n in nouveaux), nouveaux)
+        self.assertEqual({n: v for n, v in apres.items() if n in drive}, drive)
+        liste = self.carnet_json()
+        self.assertEqual(liste["chantier"], "Chantier Essai Un")
+        self.assertEqual([(d["id"], d["intitule"], len(d["pages"]), d["source"]["nom"]) for d in liste["documents"]],
+                         [("104-A", "REPERAGE DES PORTES", 2, "901-10-104-A-REPERAGE DES PORTES.pdf"),
+                          ("105-A", "RESERVATIONS DETAIL", 2, "105-A-RESERVATIONS DETAIL.pdf")])
+        self.assertTrue(dc.verifier(self.racine, DRIVE_1)["bon"])
+        # Sur le PC : rien de supprimé, déplacé ni modifié ; en plus : la fiche recopiée, sa liste, et « A VOIR »
+        apres = photo(self.pc)
+        self.assertEqual({n: v for n, v in apres.items() if n in pc}, pc)
+        self.assertEqual(sorted(n for n in apres if n not in pc and apres[n] != "dossier"),
+                         sorted([ap.A_VOIR, PC_1 + "/" + ap.PROVENANCE, PC_1 + "/" + COTES + "/PRISE DE COTES ESSAI 2026-11-12.pdf"]))
+        # Franck voit ce qui a été publié aux poseurs : dans « A VOIR » et dans le journal
+        texte = ap.lire_a_voir(self.pc)
+        self.assertIn("Déposé au carnet ces sept derniers jours", texte)
+        self.assertRegex(texte, r"\+ \d{2}/\d{2}/\d{4} \d{2}:\d{2} — chantier n° 901 : 104 A REPERAGE DES PORTES, 2 page\(s\), depuis « BORDEREAU 2 »")
+        self.assertRegex(texte, r"\+ .* chantier n° 901 : 105 A RESERVATIONS DETAIL, 2 page\(s\), depuis « À METTRE AU CARNET » \(fichier « 105-A-RESERVATIONS DETAIL.pdf »\)")
+        self.assertIn("choix 5", texte)
+        self.assertNotIn("DEVIS", texte, "un devis dans un bordereau n'est pas signalé")
+        with open(os.path.join(self.prive, "appli-pc", "auto.txt"), encoding="utf-8") as f:
+            journal = f.read()
+        self.assertIn("1 fichier(s) copié(s), 2 document(s) déposé(s) au carnet, 0 en erreur", journal)
+        self.assertEqual(journal.count("DÉPOSÉ AU CARNET : "), 2)
+        self.assertEqual(len(lire(self.memoire)["deposes"]), 2)
+        # Passage suivant : rien à refaire, rien de réécrit
+        drive, pc = photo(self.racine), photo(self.pc)
+        memoire = os.stat(self.memoire).st_mtime_ns
+        self.assertEqual(self.lancer("--auto", demander=interdite)[0], 0)
+        self.assertEqual((photo(self.racine), photo(self.pc), os.stat(self.memoire).st_mtime_ns), (drive, pc, memoire))
+        self.assertEqual(self.voir()["deja"], 2)
+        self.assertEqual(sorted(os.listdir(self.prive)), ["appli-pc", ap.MEMOIRE_FICHIER, "depot.json"], "le verrou est libéré")
+
+    def test_carnet_json_sans_nom_de_chantier_quand_il_n_est_pas_sur(self):
+        # Un chantier trouvé par son numéro, sans correspondance : son nom dans l'appli n'est pas connu, le nom du DOSSIER n'en est pas un
+        os.makedirs(os.path.join(self.racine, "903 - CHANTIER TROIS", "05 - CHANTIER", "PRISE DE COTES"))
+        os.makedirs(os.path.join(self.pc, "903 - OPERATION TROIS"))
+        self.mettre("105-A-PLAN.pdf", chantier="903 - OPERATION TROIS")
+        suivis, _ = ap.chantiers_suivis(self.reglages)
+        self.assertIsNone(suivis["903"]["nom_appli"])
+        self.assertEqual(suivis["901"]["nom_appli"], "Chantier Essai Un")
+        recus = []
+        vrai = dc.deposer
+
+        def deposer(racine, dossier, chantier, *reste, **options):
+            recus.append((dossier, chantier))
+            return vrai(racine, dossier, chantier, *reste, **options)
+
+        ap.deposer_tout(dict(self.reglages, chantiers=suivis), self.prive, self.dire, deposer=deposer)
+        self.assertEqual(recus, [("903 - CHANTIER TROIS", None)], "jamais le nom du dossier comme nom de chantier")
+        self.assertFalse(self.carnet_json("903 - CHANTIER TROIS").get("chantier"))
+        # Une correspondance qui recopie le nom du dossier ne vaut pas mieux
+        self.reglages["chantiers"]["903"] = {"chantier": "903 - CHANTIER TROIS", "dossier_drive": "903 - CHANTIER TROIS"}
+        self.assertIsNone(ap.chantiers_suivis(self.reglages)[0]["903"]["nom_appli"])
+
+    def test_deja_au_carnet_meme_source_rien_autre_contenu_indice_suivant(self):
+        chemin = self.mettre("105-A-RESERVATIONS.pdf")
+        self.assertEqual(len(self.deposer()["deposes"]), 1)
+        vu = self.voir()
+        self.assertEqual((vu["candidats"], vu["signales"], vu["deja"]), ([], [], 1))
+        # Le même contenu arrive aussi par un bordereau, sous son nom complet : c'est le même document, rien à faire
+        self.bordereau(1, "901-10-105-A-RESERVATIONS.pdf")
+        vu = self.voir()
+        self.assertEqual((vu["candidats"], vu["signales"], vu["deja"]), ([], [], 2))
+        # Le fichier est refait sous le même indice : signalé, rien n'est écrasé
+        shutil.copy(COMMUN["autre"], chemin)
+        drive = photo(self.racine)
+        bilan = self.deposer()
+        self.assertEqual((bilan["deposes"], len(bilan["a_voir"])), ([], 1))
+        self.assertRegex(bilan["a_voir"][0], "le document 105-A est déjà au carnet sous cet indice, avec un AUTRE contenu.*prends l'indice suivant")
+        self.assertEqual(photo(self.racine), drive)
+        # Sous l'indice suivant, il part
+        os.rename(chemin, os.path.join(os.path.dirname(chemin), "105-B-RESERVATIONS.pdf"))
+        self.assertEqual([d["indice"] for d in self.deposer()["deposes"]], ["B"])
+        self.assertEqual([d["id"] for d in self.carnet_json()["documents"]], ["105-A", "105-B"])
+
+    def test_signalements_durables_et_signalements_des_bordereaux(self):
+        mal_nomme = self.mettre("PLAN SANS NUMERO.pdf")
+        self.bordereau(1, "902-10-105-A-AUTRE CHANTIER.pdf")
+        heure = [time.time()]
+        bilan = self.deposer(horloge=lambda: heure[0])
+        self.assertEqual(len(bilan["a_voir"]), 2)
+        note = lire(self.memoire)["signales"]
+        self.assertEqual([(m["chemin"], m["motif"]) for m in note], [(PC_1 + "/" + D08 + "/BORDEREAU 1/902-10-105-A-AUTRE CHANTIER.pdf", "autre-chantier")],
+                         "seul le signalement du bordereau a besoin d'être retenu")
+        # Les passages suivants : les mêmes lignes (« A VOIR » n'est donc pas réécrit), la mémoire n'est pas réécrite
+        date = os.stat(self.memoire).st_mtime_ns
+        for _ in range(3):
+            heure[0] += 3600
+            self.assertEqual(self.deposer(horloge=lambda: heure[0])["a_voir"], bilan["a_voir"])
+        self.assertEqual(os.stat(self.memoire).st_mtime_ns, date)
+        # Au bout de sept jours : le signalement du BORDEREAU se tait ; celui de « À METTRE AU CARNET » reste tant que la cause est là
+        heure[0] += 30 * 86400
+        restent = self.deposer(horloge=lambda: heure[0])["a_voir"]
+        self.assertEqual(len(restent), 1)
+        self.assertIn("PLAN SANS NUMERO.pdf » : nom non reconnu", restent[0])
+        # Un chantier entier qui ne peut rien déposer (sa liste du carnet est illisible) : dit sans limite de durée aussi
+        ecrire(os.path.join(self.racine, DRIVE_1, "CARNET", "carnet.json"), "{ illisible")
+        for jours in (0, 8, 300):
+            lignes = self.deposer(horloge=lambda: heure[0] + jours * 86400)["a_voir"]
+            self.assertEqual(len(lignes), 1, jours)
+            self.assertRegex(lignes[0], "Chantier n° 901 : rien n'est déposé au carnet.*illisible")
+        os.remove(os.path.join(self.racine, DRIVE_1, "CARNET", "carnet.json"))
+        # La cause disparaît : la ligne aussi
+        os.remove(mal_nomme)
+        self.assertEqual(self.deposer(horloge=lambda: heure[0])["a_voir"], [])
+        # Un essai sur un seul chantier ne retient rien
+        os.remove(self.memoire)
+        self.assertEqual(len(self.deposer(memoriser=False)["a_voir"]), 1)
+        self.assertFalse(os.path.exists(self.memoire))
+
+    def test_conflit_entre_a_mettre_au_carnet_et_un_bordereau(self):
+        self.mettre("105-A-RESERVATIONS.pdf")
+        self.bordereau(1, "901-10-105-A-RESERVATIONS.pdf", COMMUN["autre"])
+        self.mettre("106-A-REPERAGE.pdf")
+        self.bordereau(1, "901-10-106-A-REPERAGE.pdf")                      # le même contenu des deux côtés : un seul dépôt
+        avant = photo(self.pc)
+        bilan = self.deposer()
+        self.assertEqual([(d["code"], d["origine"]) for d in bilan["deposes"]], [("106", "À METTRE AU CARNET")])
+        self.assertEqual(len(bilan["a_voir"]), 2, "le conflit est dit pour chacun des deux fichiers")
+        self.assertRegex(bilan["a_voir"][0], "le document 105-A existe en plusieurs exemplaires de contenus DIFFÉRENTS.*Rien n'est déposé")
+        self.assertEqual([d["id"] for d in self.carnet_json()["documents"]], ["106-A"])
+        self.assertEqual(photo(self.pc), avant, "rien n'est supprimé ni déplacé dans les dossiers du PC")
+
+    def test_meme_document_dans_deux_bordereaux_le_plus_recent(self):
         ancien = self.bordereau(1, "901-10-105-A-RESERVATIONS.pdf")
         recent = self.bordereau(3, "901-10-105-A-RESERVATIONS.pdf", COMMUN["autre"])
         os.utime(ancien, (1700000000, 1700000000))
         os.utime(recent, (1750000000, 1750000000))
         vu = self.voir()
-        self.assertEqual([(c["bordereau"], c["pages"]) for c in vu["candidats"]], [("BORDEREAU 3", 1)])
-        self.assertEqual(self.motifs(vu), ["plusieurs-bordereaux"])
-        self.assertRegex(vu["signales"][0]["texte"], r"le plus récent est gardé \(BORDEREAU 3")
+        self.assertEqual([(c["origine"], c["pages"]) for c in vu["candidats"]], [("BORDEREAU 3", 1)])
+        self.assertEqual(vu["signales"], [])
 
-    def test_pdf_illisible_et_chantier_sans_dossier(self):
-        ecrire(os.path.join(self.pc, PC_1, D08, "BORDEREAU 1", "901-10-105-A-FAUX.pdf"), "ceci n'est pas un PDF")
-        self.reglages["chantiers"]["902"] = {"chantier": "Deux", "dossier_drive": "DOSSIER ABSENT"}
-        self.reglages["chantiers"]["903"] = {"chantier": "Trois", "dossier_drive": DRIVE_2}
-        vu = self.voir()
-        self.assertEqual(vu["candidats"], [])
-        self.assertEqual(self.motifs(vu), ["chantier", "chantier", "illisible"])
+    def test_fichier_qui_vient_d_arriver_attendu_puis_depose(self):
+        chemin = self.mettre("105-A-RESERVATIONS.pdf")
+        heure, attentes = [time.time()], []
 
-    def test_ecarte_puis_refait(self):
-        chemin = self.bordereau(1, "901-10-105-A-RESERVATIONS.pdf")
-        c = self.voir()["candidats"][0]
-        bilan = ap.traiter_carnet(self.reglages, [c], self.ecartes, saisies("n"), self.dire)
-        self.assertEqual((len(bilan["ecartes"]), bilan["deposes"], bilan["verifications"]), (1, [], {}))
-        note = lire(self.ecartes)
-        self.assertEqual((note["version"], len(note["ecartes"])), (1, 1))
-        self.assertEqual((note["ecartes"][0]["chemin"], note["ecartes"][0]["taille"]), (c["relatif"], c["poids"]))
-        self.assertFalse(os.path.isabs(note["ecartes"][0]["chemin"]))
-        vu = self.voir()
-        self.assertEqual((vu["candidats"], vu["ecartes"]), ([], 1), "écarté : plus proposé tant que la taille est la même")
-        shutil.copy(COMMUN["autre"], chemin)
-        self.assertEqual([c["id"] for c in self.voir()["candidats"]], ["105-A"], "refait sous le même nom : proposé de nouveau")
-        self.assertFalse(os.path.exists(os.path.join(self.racine, DRIVE_1, "CARNET")), "rien n'a été déposé")
+        def patienter(secondes):
+            attentes.append(secondes)
+            heure[0] += secondes
 
+        with mock.patch.object(ap, "REPOS", 120):
+            self.assertEqual([d["fichier"] for d in self.voir(horloge=lambda: heure[0])["jeunes"]], ["105-A-RESERVATIONS.pdf"])
+            bilan = self.deposer(horloge=lambda: heure[0], attente=patienter)
+            self.assertEqual((len(attentes), 100 < attentes[0] <= 125), (1, True), "on lui laisse deux minutes, une fois")
+            self.assertEqual(([d["code"] for d in bilan["deposes"]], bilan["a_voir"]), (["105"], []))
+            # Un fichier qui bouge encore après l'attente (copie en cours) : pas déposé, signalé, repris au passage suivant
+            autre = self.mettre("106-A-REPERAGE.pdf")
+            os.utime(autre, (heure[0], heure[0]))
+            bilan = self.deposer(horloge=lambda: heure[0], attente=lambda secondes: None)
+            self.assertEqual(bilan["deposes"], [])
+            self.assertRegex(bilan["a_voir"][0], "106-A-REPERAGE.pdf » : fichier encore en cours d'écriture")
+            heure[0] += 3600
+            self.assertEqual([d["code"] for d in self.deposer(horloge=lambda: heure[0], attente=patienter)["deposes"]], ["106"])
+        self.assertTrue(os.path.isfile(chemin) and os.path.isfile(autre), "les PDF restent où Franck les a mis")
 
-class Depot(Monde):
-    def test_depot_de_bout_en_bout(self):
-        self.bordereau(1, "901-10-105-A-RESERVATIONS DETAIL.pdf")
-        self.bordereau(1, "901-10-106-A-RESERVATIONS REPERAGE.pdf")
-        self.bordereau(2, "901-10-104-A-REPERAGE DES PORTES.pdf")
-        self.fiche(COTES + "/PRISE DE COTES ESSAI 2026-11-12.pdf")
-        drive, pc, _ = self.photos()
-        candidats = ap.candidats_carnet(self.reglages)["candidats"]
-        self.assertEqual([c["id"] for c in candidats], ["104-A", "105-A", "106-A"])
-        demander = saisies("x", "o", "n", "")          # « x » n'est pas compris : la question est reposée
-        bilan = ap.traiter_carnet(self.reglages, candidats, self.ecartes, demander, self.dire)
-        self.assertEqual(demander.reste, [])
-        self.assertEqual([c["id"] for c in bilan["deposes"]], ["104-A"])
-        self.assertEqual([c["id"] for c in bilan["ecartes"]], ["105-A"])
-        self.assertEqual([c["id"] for c in bilan["plus_tard"]], ["106-A"])
-        self.assertEqual(bilan["refuses"], [])
-        self.assertTrue(bilan["verifications"]["901"]["bon"], bilan["verifications"])
-        self.assertIn("page 2/2", self.texte(), "l'avancement page par page est montré")
-        # Dans le Drive : seul le dossier CARNET du chantier est apparu ; rien d'autre n'a bougé
-        apres = photo(self.racine)
-        nouveaux = sorted(n for n in apres if n not in drive)
-        self.assertTrue(nouveaux and all(n.startswith(DRIVE_1 + "/CARNET") for n in nouveaux), nouveaux)
-        self.assertEqual({n: v for n, v in apres.items() if n in drive}, drive)
-        self.assertEqual(photo(self.pc), pc, "les dossiers de chantier ne sont pas touchés par le dépôt")
-        liste = lire(os.path.join(self.racine, DRIVE_1, "CARNET", "carnet.json"))
-        self.assertEqual(liste["chantier"], "Chantier Essai Un")
-        self.assertEqual([(d["id"], d["intitule"], len(d["pages"])) for d in liste["documents"]], [("104-A", "REPERAGE DES PORTES", 2)])
-        self.assertEqual(liste["documents"][0]["source"]["nom"], "901-10-104-A-REPERAGE DES PORTES.pdf")
+    def test_limite_de_temps_puis_reprise(self):
+        self.mettre("105-A-RESERVATIONS.pdf")
+        self.mettre("106-A-REPERAGE.pdf")
+        vrai, appels = dc.deposer, []
+
+        def presse(*arguments, **options):
+            appels.append(arguments[4])
+            if len(appels) == 1:                     # la limite de temps tombe après la première page
+                instants = [0, 0]
+                options.update(limite=150, horloge=lambda: instants.pop(0) if instants else 1000)
+            return vrai(*arguments, **options)
+
+        bilan = self.deposer(deposer=presse)
+        self.assertEqual((bilan["deposes"], bilan["reste"], bilan["erreurs"], appels), ([], 2, 0, ["105"]), "arrêt propre : on ne commence pas le suivant")
+        self.assertIn("Pas fini (1 page(s) sur 2)", self.texte())
+        self.assertFalse(os.path.exists(os.path.join(self.racine, DRIVE_1, "CARNET", "carnet.json")), "rien n'est annoncé aux poseurs avant la fin")
+        # L'heure limite déjà passée : aucun dépôt n'est commencé
+        bilan = self.deposer(fin=time.time() - 1)
+        self.assertEqual((bilan["deposes"], bilan["reste"]), ([], 2))
+        # Passage suivant : le premier document reprend page par page, le second suit
+        self.lignes.clear()
+        bilan = self.deposer()
+        self.assertEqual(([d["code"] for d in bilan["deposes"]], bilan["reste"], bilan["erreurs"]), (["105", "106"], 0, 0))
+        self.assertIn("déjà faite", self.texte())
         self.assertTrue(dc.verifier(self.racine, DRIVE_1)["bon"])
-        # Au lancement suivant : le déposé et l'écarté ne sont plus proposés, le « plus tard » l'est
-        vu = ap.candidats_carnet(self.reglages, ap.lire_ecartes(self.ecartes))
-        self.assertEqual(([c["id"] for c in vu["candidats"]], vu["signales"], vu["ecartes"]), (["106-A"], [], 1))
 
-    def test_document_change_depuis_son_depot(self):
-        chemin = self.bordereau(1, "901-10-105-A-RESERVATIONS.pdf")
-        candidats = ap.candidats_carnet(self.reglages)["candidats"]
-        ap.traiter_carnet(self.reglages, candidats, self.ecartes, saisies("o"), self.dire)
-        self.assertEqual(ap.candidats_carnet(self.reglages), {"candidats": [], "signales": [], "hors_carnet": 0, "ecartes": 0, "retires": 0, "a_ecarter": []})
-        shutil.copy(COMMUN["autre"], chemin)
-        vu = ap.candidats_carnet(self.reglages)
-        self.assertEqual((vu["candidats"], self.motifs(vu)), ([], ["change"]))
-        self.assertIn("A CHANGÉ DEPUIS SON DÉPÔT", vu["signales"][0]["texte"])
-        self.assertIn("indice suivant", vu["signales"][0]["texte"])
-        # L'ancien est retiré par le menu : aucun fichier n'est supprimé, et le document n'est PAS reproposé à chaque lancement
+    def test_module_absent_signale_et_la_recopie_des_fiches_continue(self):
+        self.mettre("105-A-RESERVATIONS.pdf")
+        self.fiche(COTES + "/A.pdf", "a")
+
+        def absent(chemin):
+            raise dc.Refus("Module manquant (pypdfium2).")
+
+        with mock.patch.object(ap, "nombre_de_pages", absent):
+            vu = ap.documents_a_deposer(self.reglages, compter_pages=absent)
+            self.assertEqual((vu["candidats"], vu["sans_module"]), ([], True))
+            bilan = ap.deposer_tout(self.reglages, self.prive, self.dire, compter_pages=absent)
+            self.assertEqual((bilan["deposes"], bilan["erreurs"], bilan["sans_module"]), ([], 0, True))
+            self.assertRegex(bilan["a_voir"][0], "Le dépôt au carnet ne peut pas se faire sur ce PC : un module de Python manque.*pip install")
+        with mock.patch.object(ap.deposer_tout, "__defaults__", ap.deposer_tout.__defaults__[:-1] + (absent,)):
+            self.assertEqual(self.lancer("--auto")[0], 0)
+        self.assertTrue(os.path.isfile(os.path.join(self.pc, PC_1, COTES, "A.pdf")), "la recopie des fiches s'est faite quand même")
+        self.assertIn("un module de Python manque", ap.lire_a_voir(self.pc))
+        self.assertFalse(os.path.exists(os.path.join(self.racine, DRIVE_1, "CARNET")))
+
+    def test_une_erreur_sur_un_document_n_arrete_pas_les_autres(self):
+        self.mettre("105-A-RESERVATIONS.pdf")
+        self.mettre("106-A-REPERAGE.pdf")
+        self.mettre("107-A-HUISSERIES.pdf")
+        self.fiche(COTES + "/A.pdf", "a")
+        vrai = dc.deposer
+
+        def plante(*arguments, **options):
+            if arguments[4] == "106":
+                raise ZeroDivisionError("le rendu de la page a planté")      # ni un refus, ni une erreur de disque
+            return vrai(*arguments, **options)
+
+        with mock.patch.object(ap.dc, "deposer", plante):
+            code = self.lancer("--auto")[0]
+            self.assertEqual(code, 1)
+            # Le 1er et le 3e sont déposés ; tout est écrit : « A VOIR », la mémoire, le journal
+            self.assertEqual([d["id"] for d in self.carnet_json()["documents"]], ["105-A", "107-A"])
+            texte = ap.lire_a_voir(self.pc)
+            self.assertRegex(texte, "106-A-REPERAGE.pdf » : pas déposé \\(ZeroDivisionError : le rendu de la page a planté\\). Le prochain passage réessaiera")
+            self.assertRegex(texte, r"\+ .*105 A RESERVATIONS")
+            self.assertRegex(texte, r"\+ .*107 A HUISSERIES")
+            memoire = lire(self.memoire)
+            self.assertEqual(([d["code"] for d in memoire["deposes"]], [(e["n"], e["chemin"].split("/")[-1]) for e in memoire["echecs"]]),
+                             (["105", "107"], [(1, "106-A-REPERAGE.pdf")]))
+            self.assertTrue(os.path.isfile(os.path.join(self.pc, PC_1, COTES, "A.pdf")))
+            with open(os.path.join(self.prive, "appli-pc", "auto.txt"), encoding="utf-8") as f:
+                self.assertIn("2 document(s) déposé(s) au carnet, 1 en erreur", f.read())
+            # Après trois échecs, il n'est plus retenté à chaque heure : signalé, il attend que le fichier change
+            appels = []
+            with mock.patch.object(ap.dc, "deposer", lambda *a, **o: appels.append(a[4]) or plante(*a, **o)):
+                self.assertEqual(self.lancer("--auto")[0], 1)
+                self.assertEqual(self.lancer("--auto")[0], 1)
+                self.assertIn("Troisième échec", ap.lire_a_voir(self.pc))
+                self.assertEqual(self.lancer("--auto")[0], 0)
+                self.assertEqual(self.lancer("--auto")[0], 0)
+            self.assertEqual(appels, ["106", "106"], "deux essais de plus, puis plus aucun")
+            self.assertRegex(ap.lire_a_voir(self.pc), "106-A-REPERAGE.pdf » : le dépôt au carnet a échoué 3 fois .* ne sera plus retenté tant que ce fichier ne change")
+        # Le fichier est refait : il est retenté, et cette fois déposé
+        shutil.copy(COMMUN["autre"], os.path.join(self.pc, PC_1, "À METTRE AU CARNET", "106-A-REPERAGE.pdf"))
+        self.assertEqual(self.lancer("--auto")[0], 0)
+        self.assertEqual([d["id"] for d in self.carnet_json()["documents"]], ["105-A", "107-A", "106-A"])
+        self.assertEqual(lire(self.memoire)["echecs"], [])
+        self.assertNotIn("échoué", ap.lire_a_voir(self.pc))
+
+    def test_refus_ou_erreur_de_disque_puis_suite(self):
+        self.mettre("105-A-RESERVATIONS.pdf")
+        self.mettre("106-A-REPERAGE.pdf")
+        self.mettre("107-A-HUISSERIES.pdf")
+        vrai = dc.deposer
+
+        def capricieux(*arguments, **options):
+            if arguments[4] == "105":
+                raise dc.Refus("refus simulé")
+            if arguments[4] == "106":
+                raise PermissionError("Drive occupé")
+            return vrai(*arguments, **options)
+
+        bilan = self.deposer(deposer=capricieux)
+        self.assertEqual(([d["code"] for d in bilan["deposes"]], bilan["erreurs"]), (["107"], 1), "un refus n'est pas une erreur du programme")
+        textes = "\n".join(bilan["a_voir"])
+        self.assertIn("105-A-RESERVATIONS.pdf » : pas déposé (refus simulé). Le prochain passage réessaiera.", textes)
+        self.assertIn("106-A-REPERAGE.pdf » : pas déposé (Drive occupé). Le prochain passage réessaiera.", textes)
+        self.assertEqual([d["code"] for d in self.deposer()["deposes"]], ["105", "106"])
+        self.assertEqual(lire(self.memoire)["echecs"], [])
+
+    def test_document_retire_n_est_pas_redepose(self):
+        chemin = self.mettre("105-A-RESERVATIONS.pdf")
+        self.deposer()
         avant = photo(self.racine)
         rendu = ap.retirer_document(self.reglages, saisies("1", "1", "o"), self.dire)
         self.assertEqual(rendu["id"], "105-A")
         self.assertEqual(set(photo(self.racine)), set(avant), "retirer ne supprime aucun fichier")
-        vu = ap.candidats_carnet(self.reglages)
-        self.assertEqual((vu["candidats"], self.motifs(vu), vu["retires"]), ([], ["change"], 0))
-        self.assertRegex(vu["signales"][0]["texte"], "retiré du carnet.*indice suivant.*ne sera pas répété")
-        # … dit UNE fois : le programme le mémorise (liste des écartés, avec la taille), et n'en parle plus au lancement suivant
-        self.assertEqual(vu["a_ecarter"], [{"chemin": "/".join([PC_1, D08, "BORDEREAU 1", "901-10-105-A-RESERVATIONS.pdf"]),
-                                           "taille": os.path.getsize(COMMUN["autre"])}])
-        code, sortie, _ = self.lancer("--carnet")
-        self.assertIn("retiré du carnet", sortie)
-        self.assertEqual(lire(self.ecartes)["ecartes"][0]["taille"], os.path.getsize(COMMUN["autre"]))
-        code, sortie, _ = self.lancer("--carnet")
-        self.assertNotIn("retiré du carnet", sortie)
-        vu = ap.candidats_carnet(self.reglages, ap.lire_ecartes(self.ecartes))
-        self.assertEqual((vu["candidats"], vu["signales"], vu["retires"], vu["a_ecarter"]), ([], [], 1, []))
-        os.remove(self.ecartes)
-        # Le fichier d'origine remis à sa place : retiré, et identique à ce qui avait été déposé → ni proposé, ni signalé
-        shutil.copy(COMMUN["pdf"], chemin)
-        vu = ap.candidats_carnet(self.reglages)
-        self.assertEqual((vu["candidats"], vu["signales"], vu["retires"]), ([], [], 1))
-        # Le même document sous l'indice suivant est proposé normalement
-        self.bordereau(2, "901-10-105-B-RESERVATIONS.pdf", COMMUN["autre"])
-        self.assertEqual([c["id"] for c in ap.candidats_carnet(self.reglages)["candidats"]], ["105-B"])
-
-    def test_retirer_abandonne(self):
-        self.bordereau(1, "901-10-105-A-RESERVATIONS.pdf")
-        ap.traiter_carnet(self.reglages, ap.candidats_carnet(self.reglages)["candidats"], self.ecartes, saisies("o"), self.dire)
-        avant = photo(self.racine)
+        bilan = self.deposer()
+        self.assertEqual((bilan["deposes"], bilan["a_voir"]), ([], []), "retiré par Franck : il ne revient pas tout seul")
+        self.assertIs(self.carnet_json()["documents"][0]["retire"], True)
+        shutil.copy(COMMUN["autre"], chemin)
+        bilan = self.deposer()
+        self.assertEqual(bilan["deposes"], [])
+        self.assertRegex(bilan["a_voir"][0], r"AUTRE contenu \(il en a été retiré\).*prends l'indice suivant")
         for reponses in ((), ("",), ("7",), ("1", ""), ("1", "1", ""), ("1", "1", "n")):
             self.assertIsNone(ap.retirer_document(self.reglages, saisies(*reponses), self.dire))
-        self.assertEqual(photo(self.racine), avant)
 
-    def test_depot_refuse_puis_suite(self):
-        self.bordereau(1, "901-10-105-A-RESERVATIONS.pdf")
-        self.bordereau(1, "901-10-106-A-REPERAGE.pdf")
-        candidats = ap.candidats_carnet(self.reglages)["candidats"]
-        appels = []
-
-        def deposer(*arguments, **options):
-            appels.append(arguments[4])
-            if arguments[4] == "105":
-                raise dc.Refus("refus simulé")
-            if appels.count("106") == 1:           # une première fois « pas terminé » : le programme relance
-                return {"termine": False, "id": "106-A", "pages": 2, "faites": 1, "restent": 1, "poids": 0, "dossier": "x"}
-            return dc.deposer(*arguments, **options)
-
-        bilan = ap.traiter_carnet(self.reglages, candidats, self.ecartes, saisies("o", "o"), self.dire, deposer=deposer)
-        self.assertEqual(appels, ["105", "106", "106"])
-        self.assertEqual([(c["id"], m) for c, m in bilan["refuses"]], [("105-A", "refus simulé")])
-        self.assertEqual([c["id"] for c in bilan["deposes"]], ["106-A"])
-        self.assertTrue(bilan["verifications"]["901"]["bon"])
-
-    def test_le_verrou_est_rafraichi_apres_chaque_question_et_chaque_page(self):
-        self.bordereau(1, "901-10-105-A-RESERVATIONS.pdf")
-        self.bordereau(1, "901-10-106-A-REPERAGE.pdf")
-        moments = []
-        vraie = self.dire
-
-        def dire(ligne=""):
-            moments.append("dit")
-            vraie(ligne)
-
-        with mock.patch.object(ap, "battre", lambda: moments.append("battement")):
-            ap.traiter_carnet(self.reglages, ap.candidats_carnet(self.reglages)["candidats"], self.ecartes, saisies("o", ""), dire)
-        self.assertEqual(moments.count("battement"), 2 + 3, "deux questions ; pour le dépôt : la ligne d'en-tête et les deux pages")
-        # Et par la ligne de commande : chaque question posée rafraîchit le verrou
+    def test_le_verrou_est_rafraichi_apres_chaque_page_deposee(self):
+        self.mettre("105-A-RESERVATIONS.pdf")
         battements = []
         with mock.patch.object(ap, "battre", lambda: battements.append(1)):
-            self.lancer(demander=saisies("", ""))
-        self.assertGreaterEqual(len(battements), 2)
+            self.deposer()
+        self.assertEqual(len(battements), 3, "la ligne d'en-tête du dépôt, puis chacune des deux pages")
 
-    def test_saisie_fermee_rien_n_est_depose(self):
-        self.bordereau(1, "901-10-105-A-RESERVATIONS.pdf")
-        self.bordereau(1, "901-10-106-A-REPERAGE.pdf")
-        avant = self.photos()
-        bilan = ap.traiter_carnet(self.reglages, ap.candidats_carnet(self.reglages)["candidats"], self.ecartes, saisies(), self.dire)
-        self.assertEqual(len(bilan["plus_tard"]), 2)
-        self.assertEqual(self.photos(), avant)
+    def test_options_separees_en_automatique(self):
+        self.mettre("105-A-RESERVATIONS.pdf")
+        self.fiche(COTES + "/A.pdf", "a")
+        self.assertEqual(self.lancer("--rapatrier", "--auto")[0], 0)
+        self.assertTrue(os.path.isfile(os.path.join(self.pc, PC_1, COTES, "A.pdf")))
+        self.assertFalse(os.path.exists(os.path.join(self.racine, DRIVE_1, "CARNET")), "--rapatrier : pas de dépôt")
+        self.fiche(COTES + "/B.pdf", "b")
+        self.assertEqual(self.lancer("--carnet", "--auto")[0], 0)
+        self.assertEqual([d["id"] for d in self.carnet_json()["documents"]], ["105-A"])
+        self.assertFalse(os.path.exists(os.path.join(self.pc, PC_1, COTES, "B.pdf")), "--carnet : pas de recopie")
+        # « A VOIR » garde la section des dépôts quand un passage « fiches seulement » le réécrit
+        self.fiche(COTES + "/Lien.gdoc", "{}")
+        self.assertEqual(self.lancer("--rapatrier", "--auto")[0], 0)
+        texte = ap.lire_a_voir(self.pc)
+        self.assertIn("raccourci Google", texte)
+        self.assertRegex(texte, r"\+ .*105 A RESERVATIONS")
 
 
 class Rapatriement(Monde):
@@ -1044,14 +1343,14 @@ class LigneDeCommande(Monde):
         refuse("dossiers de chantier du PC", "--installer-tache")
         self.reglages["chantiers_pc"] = self.pc
         self.noter_reglages()
-        ecrire(self.ecartes, "pas du json")
+        ecrire(self.memoire, "pas du json")
         refuse("illisible")
-        os.remove(self.ecartes)
+        os.remove(self.memoire)
         shutil.move(os.path.join(self.racine, "dossiers.json"), os.path.join(self.temp, "dossiers.json"))
         refuse("dossiers.json")
         refuse("dossiers.json", "--rapatrier")
         ecrire(os.path.join(self.racine, "dossiers.json"), "{ illisible")
-        refuse("illisible", "--rapatrier", "--oui-rapatrier")
+        refuse("illisible", "--rapatrier")
         os.remove(self.reglages_fichier)
         refuse("n'existe pas")
         ecrire(self.reglages_fichier, "{ illisible")
@@ -1077,55 +1376,64 @@ class LigneDeCommande(Monde):
         code, sortie, erreur = self.lancer("--lister")
         self.assertEqual((code, erreur), (0, ""))
         self.assertEqual(self.photos(), avant)
-        for attendu in ("VOIR SEULEMENT", "n° 901", PC_1, DRIVE_2, "105 A RESERVATIONS", "non reconnu", "1 fichier(s) à copier",
+        for attendu in ("VOIR SEULEMENT", "n° 901", PC_1, DRIVE_2, "105 A RESERVATIONS", "numéro de document « 777 » — pas un document du carnet", "1 fichier(s) à copier",
+                        "chantier n° 901 : 1 document(s), 2 page(s), environ ", "bordereaux du chantier n° 901 : numérotation actuelle déclarée",
                         "hors des dossiers de fiches", "_À CLASSER"):
             self.assertIn(attendu, sortie)
 
-    def test_tout_traiter(self):
+    def test_tout_traiter_maintenant_sans_question(self):
         self.bordereau(1, "901-10-105-A-RESERVATIONS.pdf")
+        self.mettre("PLAN SANS NUMERO.pdf")
         self.fiche(COTES + "/A.pdf", "a")
         self.fiche(COTES + "/B.gdoc", "{}")
         self.fiche(COTES + "/X.pdf", "x", dossier=DRIVE_2)
-        demander = saisies("o", "o")
-        code, sortie, erreur = self.lancer(demander=demander)
-        self.assertEqual((code, erreur, demander.reste), (0, "", []))
+
+        def interdite(question):
+            raise AssertionError("« tout traiter » ne pose plus aucune question : %r" % question)
+
+        code, sortie, erreur = self.lancer(demander=interdite)
+        self.assertEqual((code, erreur), (0, ""))
         self.assertTrue(os.path.isfile(os.path.join(self.racine, DRIVE_1, "CARNET", "carnet.json")))
         self.assertTrue(os.path.isfile(os.path.join(self.pc, PC_1, COTES, "A.pdf")))
-        for attendu in ("BILAN", "Carnet : 1 déposé(s)", "Recopie des fiches : 1 fichier(s) copié(s) dans les dossiers de chantier du PC, 0 déjà présent(s), 1 signalé(s)",
-                        "VÉRIFIER QUE MEGA A FINI DE SYNCHRONISER", "Rien n'a été supprimé"):
+        for attendu in ("BILAN", "Recopie des fiches : 1 fichier(s) copié(s) dans les dossiers de chantier du PC, 0 déjà présent(s)",
+                        "Carnet : 1 document(s) déposé(s)", "DÉPOSÉ AU CARNET : ", "105 A RESERVATIONS, 2 page(s), depuis « BORDEREAU 1 »",
+                        "choix 5 du menu", "À voir : 4 point(s)", "VÉRIFIER QUE MEGA A FINI DE SYNCHRONISER", "Rien n'a été supprimé", "page 2/2"):
             self.assertIn(attendu, sortie)
-        self.assertEqual(sorted(os.listdir(self.prive)), ["appli-pc", "depot.json"], "le verrou est libéré")
-        journal = os.listdir(os.path.join(self.prive, "appli-pc"))
+        self.assertEqual(sorted(os.listdir(self.prive)), ["appli-pc", ap.MEMOIRE_FICHIER, "depot.json"], "le verrou est libéré")
+        journal = [n for n in os.listdir(os.path.join(self.prive, "appli-pc")) if n.startswith("journal-")]
         self.assertEqual(len(journal), 1)
         self.assertRegex(journal[0], r"^journal-\d{4}-\d{2}-\d{2}\.txt$")
         with open(os.path.join(self.prive, "appli-pc", journal[0]), encoding="utf-8") as f:
             note = f.read()
         self.assertIn("BILAN", note)
-        self.assertIn("Déposer au carnet ?", note)
+        self.assertIn("DÉPOSÉ AU CARNET", note)
         a_voir = ap.lire_a_voir(self.pc)
-        self.assertIn("raccourci Google", a_voir)
-        self.assertIn(DRIVE_2, a_voir, "un dossier du Drive sans numéro est signalé")
-        # Deuxième lancement : rien à proposer, « non » à la recopie ; rien ne change dans les dossiers du PC ni dans le Drive
+        for attendu in ("raccourci Google", DRIVE_2, "PLAN SANS NUMERO.pdf » : nom non reconnu", "+ ", "105 A RESERVATIONS"):
+            self.assertIn(attendu, a_voir)
+        # Deuxième lancement : rien à déposer, rien à copier ; rien ne change dans les dossiers du PC ni dans le Drive
         drive, pc, _ = self.photos()
-        code, sortie, _ = self.lancer(demander=saisies(""))
+        code, sortie, _ = self.lancer(demander=interdite)
         self.assertEqual(code, 0)
-        self.assertIn("Aucun document à proposer", sortie)
-        self.assertIn("pas fait", sortie)
-        self.assertEqual((photo(self.racine), photo(self.pc)), (drive, pc))
+        self.assertIn("Aucun document à déposer au carnet", sortie)
+        self.assertIn("Carnet : 0 document(s) déposé(s)", sortie)
+        sans_releve = lambda vu: {n: v for n, v in vu.items() if not n.endswith(ap.INDEX)}      # noqa: E731 (le relevé, lui, est refait)
+        self.assertEqual((sans_releve(photo(self.racine)), photo(self.pc)), (sans_releve(drive), pc))
 
-    def test_options_separees_et_code_1(self):
+    def test_options_separees(self):
         self.bordereau(1, "901-10-105-A-RESERVATIONS.pdf")
         self.fiche(COTES + "/A.pdf", "a")
-        code, sortie, _ = self.lancer("--rapatrier", "--oui-rapatrier")
+        code, sortie, _ = self.lancer("--rapatrier")
         self.assertEqual(code, 0)
         self.assertNotIn("CARNET :", sortie)
         self.assertFalse(os.path.exists(os.path.join(self.racine, DRIVE_1, "CARNET")))
         self.assertTrue(os.path.isfile(os.path.join(self.pc, PC_1, COTES, "A.pdf")))
         pc = photo(self.pc)
-        # Le carnet seul : le document est déposé, les dossiers de chantier ne sont pas touchés
-        code, sortie, _ = self.lancer("--carnet", demander=saisies("o"))
+        # Le carnet seul : le document est déposé, les dossiers de chantier ne sont pas touchés (« A VOIR » gagne sa ligne de dépôt)
+        self.fiche(COTES + "/B.pdf", "b")
+        code, sortie, _ = self.lancer("--carnet")
         self.assertEqual(code, 0)
-        self.assertEqual(photo(self.pc), pc, "--carnet ne rapatrie pas")
+        apres = photo(self.pc)
+        self.assertEqual({n: v for n, v in apres.items() if n != ap.A_VOIR}, {n: v for n, v in pc.items() if n != ap.A_VOIR}, "--carnet ne recopie pas")
         self.assertTrue(os.path.isfile(os.path.join(self.racine, DRIVE_1, "CARNET", "carnet.json")))
         # Un chantier de la correspondance sans dossier sur le PC : rien n'est deviné ni copié pour lui, c'est écrit dans
         # « A VOIR » ; les autres chantiers sont faits ; ce n'est pas une erreur du programme (code 0)
@@ -1133,13 +1441,13 @@ class LigneDeCommande(Monde):
         self.noter_reglages()
         self.fiche(COTES + "/C.pdf", "c")
         self.fiche(COTES + "/D.pdf", "d", dossier=DRIVE_2)
-        code, sortie, _ = self.lancer("--rapatrier", "--oui-rapatrier")
+        code, sortie, _ = self.lancer("--rapatrier")
         self.assertEqual(code, 0)
         self.assertRegex(ap.lire_a_voir(self.pc), "Chantier n° 905 .*aucun dossier de chantier du PC ne commence par le numéro 905")
         self.assertIn("905", sortie)
         self.assertTrue(os.path.isfile(os.path.join(self.pc, PC_1, COTES, "C.pdf")))
         self.assertFalse([n for n in photo(self.pc) if n.endswith("D.pdf")])
-        self.assertEqual(sorted(os.listdir(self.prive)), ["appli-pc", "depot.json"])
+        self.assertEqual(sorted(os.listdir(self.prive)), ["appli-pc", ap.MEMOIRE_FICHIER, "depot.json"])
 
     def test_releve_impossible_a_ecrire_code_de_sortie_1(self):
         self.fiche(COTES + "/A.pdf", "a")
@@ -1151,15 +1459,15 @@ class LigneDeCommande(Monde):
             vraie(chemin, objet, lisible)
 
         with mock.patch.object(ap, "ecrire_json", panne):
-            code, sortie, _ = self.lancer("--rapatrier", "--oui-rapatrier")
+            code, sortie, _ = self.lancer("--rapatrier")
             self.assertEqual(code, 1, "une écriture manquée est un défaut")
             self.assertIn("1 fichier(s) copié(s)", sortie)
-            self.assertIn("1 en erreur", sortie)
+            self.assertIn("le relevé « releve-pc.json » n'a pas pu être écrit", sortie)
             self.assertIn("1 défaut(s)", sortie)
             self.fiche(COTES + "/B.pdf", "b")
             self.assertEqual(self.lancer("--rapatrier", "--auto")[0], 1, "en passage automatique aussi")
         with open(os.path.join(self.prive, "appli-pc", "auto.txt"), encoding="utf-8") as f:
-            self.assertIn("1 fichier(s) copié(s), 1 en erreur", f.read())
+            self.assertIn("1 fichier(s) copié(s), 0 document(s) déposé(s) au carnet, 1 en erreur", f.read())
         self.assertEqual(self.lancer("--rapatrier", "--auto")[0], 0, "le relevé s'écrit : tout est rentré dans l'ordre")
         self.assertEqual(len(lire(os.path.join(self.racine, DRIVE_1, ap.INDEX))["fichiers"]), 2)
 
@@ -1168,7 +1476,7 @@ class LigneDeCommande(Monde):
         self.assertEqual(code, 0)
         self.assertEqual(lire(self.reglages_fichier)["chantiers"]["902"]["dossier_drive"], DRIVE_2)
         self.bordereau(1, "901-10-105-A-RESERVATIONS.pdf")
-        self.assertEqual(self.lancer("--carnet", demander=saisies("o"))[0], 0)
+        self.assertEqual(self.lancer("--carnet")[0], 0)
         code, sortie, _ = self.lancer("--retirer", demander=saisies("1", "1", "o"))
         self.assertEqual(code, 0)
         self.assertIn("est retiré", sortie)
@@ -1190,11 +1498,12 @@ class LigneDeCommande(Monde):
         self.assertNotIn("105 A RESERVATIONS", sortie)
         # Tout traiter pour le 902 seul : son plan, ses fiches ; rien pour le 901 ; « A VOIR » n'est pas écrit
         drive, pc, _ = self.photos()
-        demander = saisies("o", "o")
-        code, sortie, erreur = self.lancer("--chantier", "902", demander=demander)
-        self.assertEqual((code, erreur, demander.reste), (0, "", []))
+        code, sortie, erreur = self.lancer("--chantier", "902")
+        self.assertEqual((code, erreur), (0, ""))
         self.assertIn("UN SEUL CHANTIER : le n° 902", sortie)
-        self.assertIn("1 chantier(s)", demander.questions[-1])
+        self.assertIn("106 A REPERAGE, 2 page(s), depuis « BORDEREAU 1 »", sortie)
+        self.assertEqual([d["id"] for d in self.carnet_json(DRIVE_2)["documents"]], ["106-A"])
+        self.assertFalse(os.path.exists(os.path.join(self.racine, DRIVE_1, "CARNET")), "le carnet du 901 n'est pas touché")
         apres_drive, apres_pc = photo(self.racine), photo(self.pc)
         self.assertTrue(os.path.isfile(os.path.join(self.pc, PC_2, COTES, "DEUX.pdf")))
         self.assertTrue(os.path.isfile(os.path.join(self.racine, DRIVE_2, "CARNET", "carnet.json")))
@@ -1210,7 +1519,7 @@ class LigneDeCommande(Monde):
         # Un numéro inconnu, ou qui n'est pas un nombre : refus avant toute écriture
         for numero, attendu in (("777", "n'est pas reconnu"), ("9O2", "n'est pas un nombre")):
             avant = self.photos()
-            code, _, erreur = self.lancer("--chantier", numero, demander=saisies("o", "o"))
+            code, _, erreur = self.lancer("--chantier", numero)
             self.assertEqual(code, 2)
             self.assertIn(attendu, erreur)
             self.assertEqual(self.photos(), avant)
@@ -1315,7 +1624,7 @@ class Automatique(Monde):
         self.assertEqual((releve["numero"], releve["fichiers"]), ("903", [{"chemin": COTES + "/A.pdf", "taille": 3}]))
         self.assertIn("Rien à signaler.", ap.lire_a_voir(self.pc))
         journal = self.lignes_du_journal()
-        self.assertRegex(journal[0], r"^\[\d{2}/\d{2}/\d{4} \d{2}:\d{2}\] 4 chantier\(s\) ; 4 fichier\(s\) copié\(s\), 0 en erreur ; 0 point\(s\) à voir\.$")
+        self.assertRegex(journal[0], r"^\[\d{2}/\d{2}/\d{4} \d{2}:\d{2}\] 4 chantier\(s\) ; 4 fichier\(s\) copié\(s\), 0 document\(s\) déposé\(s\) au carnet, 0 en erreur ; 0 point\(s\) à voir\.$")
         self.assertEqual(len(journal), 5, "le détail des copies suit la ligne du passage")
         self.assertEqual(sorted(os.listdir(self.prive)), ["appli-pc", "depot.json"], "le verrou est libéré")
 
@@ -1419,7 +1728,7 @@ class Automatique(Monde):
             self.assertTrue(os.path.exists(os.path.join(self.prive, ap.VERROU_FICHIER)), "le verrou de l'autre reste")
             # C'est écrit dans « A VOIR », en PLUS des points déjà connus, et une seule fois
             texte = ap.lire_a_voir(self.pc)
-            self.assertRegex(texte, "PASSAGE NON FAIT : la recopie automatique a trouvé le programme déjà occupé")
+            self.assertRegex(texte, "PASSAGE NON FAIT : le passage automatique a trouvé le programme déjà occupé")
             self.assertIn("raccourci Google", texte)
             self.assertIn("2 point(s)", texte)
             date = os.stat(os.path.join(self.pc, ap.A_VOIR)).st_mtime_ns
@@ -1450,7 +1759,7 @@ class Automatique(Monde):
         self.assertEqual(photo(self.racine), drive)
         self.assertFalse(os.path.exists(os.path.join(self.pc, PC_1, COTES, "A.pdf")))
         texte = ap.lire_a_voir(self.pc)
-        self.assertRegex(texte, "PASSAGE NON FAIT : la recopie des fiches n'a pas pu se faire.*Google Drive pour ordinateur")
+        self.assertRegex(texte, "PASSAGE NON FAIT : la recopie des fiches et le dépôt au carnet n'ont pas pu se faire.*Google Drive pour ordinateur")
         self.assertIn("raccourci Google", texte)
         self.assertIn("PAS FAIT", self.lignes_du_journal()[-1])
         # Drive revenu : le passage se fait, la ligne « non fait » disparaît
@@ -1494,7 +1803,7 @@ class Automatique(Monde):
         self.assertEqual(code, 0)
         self.assertIn("n'existe pas encore", sortie)
         self.assertIn("n'a encore jamais tourné", sortie)
-        self.assertRegex(self.lancer("--etat")[1], "jamais tourné.*étape 5 de la procédure.*APRÈS les essais")
+        self.assertRegex(self.lancer("--etat")[1], "jamais tourné.*étape 6 de la procédure.*APRÈS les essais")
         ap.ecrire_a_voir(self.pc, ["un point à regarder"])
         code, sortie, _ = self.lancer("--a-voir")
         self.assertIn("- un point à regarder", sortie)
@@ -1509,7 +1818,7 @@ class Automatique(Monde):
         ecrire(dernier, json.dumps({"instant": time.time() - 4 * 3600, "date": "14/11/2026 à 06:00"}))
         for option in ("--etat", "--a-voir"):
             sortie = self.lancer(option)[1]
-            self.assertRegex(sortie, "ATTENTION : la recopie automatique des fiches n'a pas tourné depuis le 14/11/2026 à 06:00")
+            self.assertRegex(sortie, "ATTENTION : le passage automatique .* n'a pas tourné depuis le 14/11/2026 à 06:00")
             self.assertIn("installer-tache.bat", sortie)
         # Un passage refusé (Drive arrêté) ne compte pas comme un passage réussi
         shutil.move(os.path.join(self.racine, "dossiers.json"), os.path.join(self.temp, "dossiers.json"))
@@ -1572,7 +1881,7 @@ class TachePlanifiee(Monde):
             self.assertEqual(v("Settings/" + nom), attendu, nom)
         # Ce qui est lancé : sans fenêtre (pythonw), en mode automatique, depuis le dépôt
         self.assertEqual(v("Actions/Exec/Command"), self.PYTHONW)
-        self.assertEqual(v("Actions/Exec/Arguments"), '"%s" --rapatrier --auto --reglages "C:\\Un Dossier\\depot.json"' % self.SCRIPT)
+        self.assertEqual(v("Actions/Exec/Arguments"), '"%s" --auto --reglages "C:\\Un Dossier\\depot.json"' % self.SCRIPT)
         self.assertEqual(v("Actions/Exec/WorkingDirectory"), "C:\\Dépôt d'essai <1>\\chantier-pro")
         self.assertNotIn("python.exe", texte)
         self.assertEqual(ap.commande_tache(ap.TACHE, "C:\\Temp\\t.xml"),
@@ -1595,7 +1904,7 @@ class TachePlanifiee(Monde):
         self.assertEqual(self.valeur(racine, "Actions/Exec/Command"), pythonw)
         self.assertEqual(self.valeur(racine, "Triggers/LogonTrigger/UserId"), "PC-ESSAI\\franck")
         self.assertEqual(self.valeur(racine, "Triggers/TimeTrigger/StartBoundary"), "2026-11-14T08:37:00")
-        for attendu in ("toutes les heures", "ouverture de ta session", "Planificateur de tâches", ap.A_VOIR, "mise à jour de Python"):
+        for attendu in ("Toutes les heures", "ouverture de ta session", "À METTRE AU CARNET", "Planificateur de tâches", ap.A_VOIR, "mise à jour de Python"):
             self.assertIn(attendu, self.texte())
 
     def test_identifiant_de_la_session(self):
@@ -1653,7 +1962,7 @@ class TachePlanifiee(Monde):
         racine = ET.fromstring(lanceur.xml[0].decode("utf-16").split("?>", 1)[1])
         self.assertEqual(self.valeur(racine, "Actions/Exec/Command"), os.path.join(self.temp, "python", "pythonw.exe"))
         arguments = self.valeur(racine, "Actions/Exec/Arguments")
-        self.assertRegex(arguments, r'^"[^"]+appli_pc\.py" --rapatrier --auto --reglages ')
+        self.assertRegex(arguments, r'^"[^"]+appli_pc\.py" --auto --reglages ')
         self.assertIn(self.reglages_fichier, arguments, "la tâche lancera le programme avec les mêmes réglages")
         self.assertEqual(self.valeur(racine, "Actions/Exec/WorkingDirectory"), DEPOT)
         self.assertEqual(lanceur.lectures, [["whoami", "/user", "/fo", "csv", "/nh"]])
