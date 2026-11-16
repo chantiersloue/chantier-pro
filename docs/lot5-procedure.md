@@ -118,9 +118,9 @@ Une ligne par chose qui **peut** partir à la corbeille :
 | État | Proposé, Impossible, En cours, Fait, Annulé |
 | Message | Ce que le serveur a fait la dernière fois sur cette ligne |
 | Mis à la corbeille le / Fichiers mis à la corbeille | Remplis après la purge |
-| Place libérée le | **30 jours plus tard** : tant qu'un fichier est dans la corbeille, il compte dans les 15 Go |
+| Place libérée le | **30 jours plus tard** (à partir de là pour les premiers fichiers partis) : tant qu'un fichier est dans la corbeille, il compte dans les 15 Go |
 | Annuler | La case pour tout remettre en place |
-| Annulation possible jusqu'au | 25 jours après la purge |
+| Annulation possible jusqu'au | 25 jours après les **premières** mises à la corbeille de cette purge (une grosse purge peut durer plusieurs jours : Google, lui, supprime chaque fichier 30 jours après SA mise à la corbeille) |
 
 ### Avant de cocher une purge de chantier terminé
 
@@ -153,7 +153,7 @@ Entre le 26e et le 30e jour, c'est encore possible **à la main** dans la corbei
 | « Cette ligne existe en double (copier-coller ?) » | Supprime la copie, puis recoche |
 | « Temps de purge du jour épuisé (30 minutes par jour) : la suite demain » | Normal sur une grosse purge : le serveur garde du temps pour les fiches. Elle reprend toute seule le lendemain. « Annuler », lui, n'attend jamais |
 | « Le dossier d'un autre chantier (« … ») est rangé dans ce dossier » | Un dossier de chantier a été glissé dans celui-ci, dans Drive. Sors-le de là : tant qu'il y est, rien n'est proposé |
-| « ⚠ document(s) du carnet montré(s) dans l'appli sans leurs images » | Tu as purgé un ancien indice, puis retiré le nouvel indice : l'appli remontre l'ancien, dont les images sont à la corbeille. Coche « Annuler » sur la ligne « Anciens indices du carnet » de ce chantier, ou redépose le document |
+| « ⚠ Cette purge a emporté les images d'un document que l'appli montre de nouveau » | Tu as purgé un ancien indice, puis retiré le nouvel indice : l'appli remontre l'ancien, dont les images sont à la corbeille. Le message est écrit **sur la ligne « Fait » à annuler** (et l'onglet *Stockage* donne sa date) : coche « Annuler » sur cette ligne-là, ou redépose le document |
 | « Ligne remise en ordre : une purge avait commencé sur cette ligne » | Une purge avait été coupée ; le serveur a retrouvé dans son journal ce qui était parti. La ligne est « Fait » : tu peux annuler normalement |
 
 Si tu coches « Annuler » pendant qu'une grosse purge est « En cours », elle s'arrête là, et ce qui était déjà parti revient.
@@ -175,28 +175,40 @@ Si la place est déjà au-dessus d'un seuil le jour de l'installation, le mail p
 
 Chaque fiche envoyée par mail reste aussi, avec son PDF, dans **« Messages envoyés »** de Gmail, qui compte dans les 15 Go. **La purge de Drive ne libère pas cette part.** D'après l'estimation, c'est ce qui remplirait le compte en deux à trois ans.
 
-**Ce que tu verras** : dans l'onglet *Purges*, **une seule ligne** « Mails envoyés de plus de 3 mois », chantier « (tout le compte) », proposée par la mesure de la nuit quand il y a quelque chose à gagner : le nombre de mails (environ) et leur poids (estimé).
+**Ce que tu verras** : dans l'onglet *Purges*, **une seule ligne** « Mails envoyés de plus de 3 mois », chantier « (tout le compte) », proposée par la mesure de la nuit quand il y a quelque chose à gagner : le nombre de mails (« au plus », c'est une estimation) et leur poids (estimé).
 
-**Quels mails, et seulement ceux-là** (chaque mail est relu juste avant de partir) :
-- un mail **envoyé par l'appli** : dans « Messages envoyés », envoyé par ce compte sous le nom « Loué Menuiserie », avec un objet qui **commence** par « [Loué App] » ;
-- **avec une pièce jointe**, et de **plus de 90 jours** ;
-- **jamais** un mail reçu, une réponse, un transfert (« TR: », « RE: »), un brouillon, un mail avec une étoile, un mail qui est aussi dans la boîte de réception, ni un mail dont ce compte est lui-même destinataire ;
-- les mails envoyés aux adresses tapées à la main (objet « Loué Menuiserie — … ») ne sont pas visés.
+**Quels mails, et seulement ceux-là** (choix prudent, que tu pourras élargir) : les mails des **fiches de chantier** dont le PDF est rangé dans le dossier Drive de leur chantier.
+- un mail **envoyé par l'appli** : dans « Messages envoyés », envoyé par ce compte sous le nom « Loué Menuiserie » ;
+- son objet est celui d'une **fiche de chantier** : note de réunion, bordereau (organigramme, matériaux), quitus, prise de cotes, fiche de fabrication, réception de support, attestation, signalement ;
+- l'objet nomme un **chantier de l'onglet *Chantiers*** dont le dossier Drive est sûr, et **le PDF de la fiche est retrouvé dans ce dossier** (un fichier de la même taille que la pièce jointe) ;
+- **avec une pièce jointe**, et de **plus de 90 jours**.
+
+Pour ces mails-là, la phrase de la ligne est vraie : **les PDF de ces fiches sont rangés dans le Drive et recopiés dans le dossier du chantier sur le PC**.
+
+**Ne sont jamais visés** :
+- les **demandes d'absence** (leur PDF est rangé hors chantier et n'est pas recopié sur le PC) ;
+- une fiche d'un **chantier inconnu** (rangée dans « _À CLASSER ») ou dont le **rangement dans Drive a échoué** : son PDF n'existe peut-être que dans le mail. Dans le doute, le mail reste ;
+- les mails d'un chantier **déjà purgé de Drive** : **purge donc les mails avant de purger un chantier terminé** (sinon ses mails restent, sans danger) ;
+- un mail reçu, une réponse, un transfert (« TR: », « RE: »), un brouillon ;
+- un mail avec une **étoile**, marqué **« Important »**, ou portant **un libellé** ;
+- un mail qui est aussi dans la boîte de réception, ou dont ce compte est lui-même destinataire ;
+- les mails envoyés aux adresses tapées à la main (objet « Loué Menuiserie — … ») ;
+- les mails d'alerte de l'appli (pas de pièce jointe).
 
 Le serveur agit **mail par mail**, jamais par conversation : une réponse reçue dans la même conversation n'est pas touchée.
 
 **Avant de cocher** :
-1. Demande-toi si tu as encore besoin de **retrouver ces mails dans Gmail** (à qui la fiche est partie, et quand). Les PDF, eux, restent dans Drive jusqu'à la purge du chantier, et dans le dossier du chantier sur le PC.
-2. Si tu utilises ce compte Google pour écrire toi-même des mails dont l'objet commence par « [Loué App] », dis-le-moi d'abord (ils ne partiraient que s'ils ont une pièce jointe, plus de 90 jours, et le nom d'expéditeur « Loué Menuiserie »).
-3. Si un mail compte pour toi, **mets-lui une étoile** dans Gmail : il ne partira jamais.
+1. Demande-toi si tu as encore besoin de **retrouver ces mails dans Gmail** (à qui la fiche est partie, et quand).
+2. Si un mail compte pour toi, **mets-lui une étoile ou un libellé** dans Gmail : il ne partira jamais.
+3. Si tu écris toi-même, depuis ce compte, des mails dont l'objet commence par « [Loué App] », dis-le-moi d'abord.
 
-**Quand tu coches** : dans la demi-heure, les mails partent à la **corbeille de Gmail**, par paquets (200 par passage, 30 minutes par jour au plus : une grosse première purge prend plusieurs jours, la ligne dit « En cours » puis « la suite demain »). Tu reçois un mail de compte rendu à la fin. **Gmail vide sa corbeille au bout de 30 jours** : la place est rendue à ce moment-là. La liste exacte est dans *Purges détail* (type « mail »).
+**Quand tu coches** : dans la demi-heure, les mails partent à la **corbeille de Gmail**, par passages (200 mails lus par passage, 30 minutes par jour au plus : une grosse première purge prend plusieurs jours ; la ligne dit « En cours », puis « la suite demain », avec le nombre déjà parti). Tu reçois un mail de compte rendu à la fin. **Gmail vide sa corbeille 30 jours après chaque mise à la corbeille** : la ligne donne la date pour les **premiers** mails partis. Dans *Purges détail* (type « mail ») : l'identifiant, la date et le début de l'objet des mails partis, et rien des autres.
 
-**Annuler** : la case « Annuler », pendant 25 jours : les mails ressortent de la corbeille et retrouvent leur place dans « Messages envoyés ».
+**Annuler** : la case « Annuler », jusqu'à la date écrite sur la ligne (**25 jours après les premières mises à la corbeille**, même si la purge a duré plusieurs jours) : les mails ressortent de la corbeille et retrouvent leur place dans « Messages envoyés ».
 
 **Sur la copie TEST** : elle est dans le même compte Google que la production, et rien ne distingue leurs mails. Sur TEST, la ligne ne vise donc que les mails dont l'objet contient « CHANTIER TEST AUTO » (le chantier d'essai). Pour l'essai, je réduirai l'âge de 90 jours à 1 jour par un réglage qui n'existe que sur TEST.
 
-**Autorisations** : le serveur a déjà le droit complet sur Gmail (il envoie les fiches), et le « service avancé Gmail » est déjà dans son manifeste. **Aucune nouvelle autorisation n'est attendue** ; si Google en demande une à la première mesure, ne l'accepte pas sans m'en parler. Si `verifierConfig` dit « Service avancé Gmail : absent », une étape pour toi, une fois : éditeur Apps Script → **Services** (le « + ») → **Gmail API** → **Ajouter**.
+**Autorisations — à constater, rien n'est acquis** : cette ligne se sert du « service avancé Gmail » d'Apps Script. Je ne peux pas savoir d'ici s'il est activé sur tes deux projets (TEST et production). `verifierConfig` le dit : « ✅ Service avancé Gmail » ou « ➖ … absent ». S'il est absent, la ligne n'est simplement pas proposée ; pour l'activer, une fois : éditeur Apps Script → **Services** (le « + ») → **Gmail API** → **Ajouter**. **Si Google te demande une nouvelle autorisation, ne l'accepte pas sans m'en parler.**
 
 Si tu préfères le faire à la main un jour : dans Gmail, cherche `in:sent has:attachment older_than:3m`, coche, corbeille.
 
@@ -206,16 +218,22 @@ Si tu préfères le faire à la main un jour : dans Gmail, cherche `in:sent has:
 - Tu repasses le chantier à un autre statut : **la date est effacée, même si c'est toi qui l'avais tapée**. C'est voulu : le délai de 30 jours repart de zéro à la prochaine clôture.
 - « terminé » ou « TERMINÉ » sont compris comme « Terminé ».
 
-## À vérifier sur la copie TEST, avec moi (ce que le faux serveur ne peut pas dire)
+## À vérifier sur la copie TEST, avec moi, avant toute production (ce que le faux serveur ne peut pas dire)
 
-1. **Le chiffre de place**, comparé à celui de one.google.com/storage, avec et sans le service avancé Drive ; et si l'activer demande une nouvelle autorisation.
-2. **Les durées** : combien de secondes par fichier pour une purge, et combien de temps dure un tour de mesure complet (le plafond de 30 minutes de purge par jour sera réglé là-dessus).
-3. **Un dossier mis à la corbeille** : son contenu est-il bien vu « à la corbeille », « Annuler » le fait-il revenir en entier, et un téléphone relit-il le carnet après l'annulation.
-4. **Un seul `releve-pc.json`** (et un seul `carnet.json`) hors corbeille après plusieurs réécritures par le PC. S'il y en a deux, l'appli bloque (« deux relevés ») : c'est sans danger, mais il faudra corriger le programme du PC.
-5. **Les noms que Drive pour ordinateur modifie** (« : », « ? », doublons « (1) ») : ces fiches resteraient « absentes du relevé » pour toujours. Sans danger, mais bloquant pour la purge du chantier.
-6. **Le Sheet TEST est une copie** : son onglet *Dossiers chantiers* porte des identifiants de dossiers de production. La mesure de TEST les lira (lecture seule) ; la purge les refuse (testé). À constater dans l'onglet *Purges* de TEST.
-7. **Refaire à la main** deux essais : trier une plage sans la colonne « Clé » puis cocher (la ligne doit refuser et se remettre en ordre) ; copier-coller une ligne puis cocher la copie (elle doit se décocher et le dire).
-8. **La ligne des mails envoyés**, sur quelques mails du chantier d'essai : aucune nouvelle autorisation demandée ; les mails partent à la corbeille de Gmail et en ressortent par « Annuler », à leur place dans « Messages envoyés » ; comment Gmail range ensemble plusieurs mails de même objet ; le temps par mail.
+1. **`verifierConfig`** : la ligne « Service avancé Gmail » dit-elle « présent » ? Une autorisation est-elle demandée ? **Ne l'accepte pas sans m'en parler.**
+2. **Les en-têtes que Gmail nous rend** : « Loué Menuiserie » et « [Loué App] » contiennent un « é ». S'ils reviennent encodés (`=?UTF-8?…`), aucun mail ne passera jamais la règle : sans danger, mais la ligne ne servirait à rien, et il faudra que je décode.
+3. **La recherche** : `subject:"[Loué App]"`, `before:AAAA/MM/JJ` (jour entier, dans le fuseau de Google), `-bcc:`. On compare le nombre proposé par la ligne à une recherche faite à la main dans Gmail.
+4. **L'essai des mails prend trois jours** : avec le réglage de TEST à 1 jour, il faut des mails « CHANTIER TEST AUTO » vieux d'au moins deux jours pleins. On envoie les fiches d'essai le premier jour, on coche le troisième.
+5. **Cocher, puis regarder dans Gmail** : seuls ces mails sont à la corbeille ; une réponse reçue dans la même conversation n'a pas bougé ; un mail avec une étoile ou un libellé non plus ; Gmail ne pose-t-il pas tout seul « Important » sur les mails envoyés (alors aucun ne partirait) ; la taille de la pièce jointe rendue par Gmail est-elle bien celle du PDF rangé dans Drive (sinon aucun ne partirait). Puis **« Annuler »** : ils reviennent dans « Messages envoyés », avec leurs libellés.
+6. **Un mail envoyé à une autre adresse qui arrive dans la même boîte** (alias, transfert automatique), puis archivé : un seul message, sans « boîte de réception » ; la règle ne peut pas le reconnaître. À regarder dans la vraie boîte.
+7. **Les durées** : les secondes par mail (lecture, corbeille) et par fichier de Drive, pour régler « 200 mails par passage » et « 30 minutes par jour ».
+8. **Refaire à la main sur TEST** : trier une plage sans la colonne « Clé » puis cocher (la ligne doit refuser et se remettre en ordre) ; copier-coller une ligne puis cocher la copie (elle doit se décocher et le dire) ; et les points de Drive :
+   - le **chiffre de place**, comparé à celui de one.google.com/storage, avec et sans le service avancé Drive (et si l'activer demande une autorisation) ;
+   - la **durée d'un tour de mesure** complet ;
+   - un **dossier mis à la corbeille** : son contenu est-il vu « à la corbeille », « Annuler » le fait-il revenir en entier, un téléphone relit-il le carnet après l'annulation ;
+   - **un seul `releve-pc.json`** (et un seul `carnet.json`) hors corbeille après plusieurs réécritures par le PC (sinon « deux relevés » bloque tout : sans danger) ;
+   - les **noms que Drive pour ordinateur modifie** (« : », « ? », doublons « (1) ») : ces fiches resteraient « absentes du relevé » pour toujours ;
+   - le Sheet TEST étant une copie, son onglet *Dossiers chantiers* porte des **identifiants de production** : la mesure de TEST les lira (lecture seule), la purge les refuse.
 
 ## Retour arrière
 

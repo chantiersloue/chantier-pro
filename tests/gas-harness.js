@@ -259,7 +259,7 @@ function creerGoogle(options = {}) {
     return { storageQuota: q };
   } } };
   // Lot 5 : service avancé « Gmail » (API Gmail v1), présent seulement si l'option gmail est donnée à la création.
-  // etat.gmail = [{ id, labels: ['SENT'…], taille, date (ms), de, a, cc, cci, objet, pj: vrai/faux }] : la boîte du compte.
+  // etat.gmail = [{ id, labels: ['SENT'…], taille, date (ms), de, a, cc, cci, objet, pj: vrai/faux, pjTaille (octets du PDF joint) }] : la boîte du compte.
   // list comprend la recherche utilisée par le serveur (in:sent, has:attachment, subject:"…", before:AAAA/MM/JJ, -in:inbox,
   // -is:starred, -to: -cc: -bcc:) ; trash et untrash posent et retirent le libellé TRASH ; il n'y a PAS de suppression.
   etat.gmail = options.gmail || []; etat.corbeillesMail = []; etat.avantCorbeilleMail = null;
@@ -290,7 +290,7 @@ function creerGoogle(options = {}) {
       get: (moi, id) => { const m = trouver(id); etat.lecturesMail = (etat.lecturesMail || 0) + 1;
         return { id: m.id, labelIds: m.labels.slice(), sizeEstimate: m.taille, internalDate: String(m.date),
           payload: { headers: [['From', m.de], ['To', m.a], ['Cc', m.cc], ['Bcc', m.cci], ['Subject', m.objet]].filter(h => h[1]).map(h => ({ name: h[0], value: h[1] })),
-            parts: [{ filename: '', mimeType: 'text/plain' }].concat(m.pj ? [{ filename: 'document.pdf', mimeType: 'application/pdf' }] : []) } }; },
+            parts: [{ filename: '', mimeType: 'text/plain', body: { size: 300 } }].concat(m.pj ? [{ filename: 'document.pdf', mimeType: 'application/pdf', body: { size: m.pjTaille === undefined ? 150000 : m.pjTaille, attachmentId: 'pj' } }] : []) } }; },
       trash: (moi, id) => { const m = trouver(id); if (typeof etat.avantCorbeilleMail === 'function') etat.avantCorbeilleMail(m);
         if (m.labels.indexOf('TRASH') < 0) m.labels.push('TRASH'); etat.corbeillesMail.push({ id: id, valeur: true }); return { id: id }; },
       untrash: (moi, id) => { const m = trouver(id); m.labels = m.labels.filter(l => l !== 'TRASH'); etat.corbeillesMail.push({ id: id, valeur: false }); return { id: id }; },

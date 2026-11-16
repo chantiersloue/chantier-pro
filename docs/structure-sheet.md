@@ -232,11 +232,11 @@ Une ligne par chose qui peut être mise à la corbeille de Drive. Le serveur n'e
 |G|Mettre à la corbeille|**Case cochée par Franck.** N'agit que sur une ligne à l'état « Proposé ». Traitée dans la demi-heure, après une nouvelle vérification de toutes les conditions|
 |H|État|Proposé, Impossible, En cours, Fait, Fait (mail à envoyer), Annulation en cours, Annulé|
 |I|Message|Ce que le serveur a fait la dernière fois sur cette ligne|
-|J|Mis à la corbeille le||
+|J|Mis à la corbeille le|Date de la première mise à la corbeille de cette purge|
 |K|Fichiers mis à la corbeille|D'après l'onglet *Purges détail*|
-|L|Place libérée le|30 jours après : la corbeille compte dans les 15 Go|
+|L|Place libérée le|30 jours après la plus ancienne mise à la corbeille de cette purge : la corbeille compte dans les 15 Go|
 |M|Annuler|**Case cochée par Franck**, dans les 25 jours : tout ressort de la corbeille|
-|N|Annulation possible jusqu'au||
+|N|Annulation possible jusqu'au|25 jours après la plus ancienne mise à la corbeille de cette purge (remplie dès que la ligne est « En cours »)|
 |O|Mise à jour le||
 |P|Clé (ne pas modifier)|Quatre morceaux séparés par une barre verticale : la sorte (indices ou termine), le nom du chantier en minuscules, l'identifiant du dossier, un numéro. Sert au serveur à retrouver la ligne, même triée|
 
@@ -249,7 +249,7 @@ Le journal : une ligne par fichier (ou par dossier de document du carnet), écri
 |A|Clé de la ligne|La clé de la ligne de l'onglet *Purges*|
 |B|Type|fichier, dossier, ou mail (identifiant du mail dans Gmail)|
 |C|Identifiant|Identifiant Drive|
-|D|Chemin|Depuis le dossier du chantier|
+|D|Chemin|Depuis le dossier du chantier ; pour un mail : sa date et le début de son objet (seuls les mails mis à la corbeille sont notés)|
 |E|Taille (octets)||
 |F|Fichiers|1 pour un fichier ; le nombre de fichiers contenus pour un dossier|
 |G|Noté le||

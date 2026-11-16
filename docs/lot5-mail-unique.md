@@ -29,12 +29,12 @@ Ta règle sur les adresses tapées à la main est déjà protégée : un nouveau
 |---|---|---|
 | Ce que voient les autres | ton adresse seulement | l'adresse du conducteur seulement |
 | Toi | tu reçois **toutes** les fiches (aujourd'hui : seulement celles où tu es destinataire) | rien de changé |
-| Quota | +1 destinataire par fiche quand tu n'étais pas dans la liste | inchangé (le conducteur reçoit déjà sa copie) |
+| Quota | +1 destinataire par fiche quand tu n'étais pas dans la liste | inchangé **seulement si** le conducteur est déjà parmi les adresses connues de la fiche (les fiches l'y ajoutent en général elles-mêmes) ; sinon +1. À noter : la « copie cachée au conducteur » d'aujourd'hui n'existe que sur le chemin des adresses tapées à la main |
 | Chantier sans conducteur, absence, signalement | marche toujours | il faut un repli (toi) |
 | Simplicité | la plus simple, une seule règle | une règle et un repli |
-| Risque | ta boîte se remplit | une adresse interne (le conducteur) visible des externes : c'est déjà le cas aujourd'hui quand il signe ses mails |
+| Risque | ta boîte se remplit ; et si ton adresse d'administration est le compte Google de l'appli lui-même, chaque fiche arrive aussi dans sa boîte de réception : la ligne « Mails envoyés de plus de 3 mois » ne la prendra alors **plus jamais** (règle « un mail dont le compte est destinataire n'est pas visé ») | une adresse interne (le conducteur) visible des externes : c'est déjà le cas aujourd'hui quand il signe ses mails |
 
-Écartée : aucun destinataire visible (copies cachées seulement). Gmail l'accepte peut-être, mais des messageries classent ces mails en indésirables, et je ne peux pas le vérifier ici.
+Les deux solutions mettent **un** destinataire visible dans le champ « À », alors que ta consigne dit « en copie cachée » : c'est la question que je te pose. Écartée : aucun destinataire visible (copies cachées seulement). Gmail l'accepte peut-être, mais des messageries classent ces mails en indésirables, et je ne peux pas le vérifier ici.
 
 ## Ma recommandation
 

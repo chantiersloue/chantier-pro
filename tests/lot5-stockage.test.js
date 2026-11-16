@@ -818,7 +818,7 @@ test('aucun appel de suppression définitive dans A-COLLER-DANS-APPS-SCRIPT/Code
   });
   // dans le lot 5, le seul geste qui retire quelque chose de Drive est setTrashed(true), à un seul endroit
   const purges = fs.readFileSync(path.join(RACINE, 'apps-script/Purges.gs'), 'utf8'), stockage = fs.readFileSync(path.join(RACINE, 'apps-script/Stockage.gs'), 'utf8');
-  assert.strictEqual((purges.match(/setTrashed\(true\)/g) || []).length, 1);
+  assert.strictEqual((purges.match(/setTrashed\(true\)/g) || []).length, 2, 'deux endroits : un fichier de Drive, un mail de Gmail');
   assert.ok(!/setTrashed|moveTo|createFile|createFolder|setContent|setSharing/.test(stockage), 'Stockage.gs ne modifie rien dans Drive');
   assert.ok(!/moveTo|createFile|createFolder|setContent|setSharing|\.delete\w*\(/.test(purges.replace(/deleteProperty/g, '')), 'Purges.gs : ni déplacement, ni création, ni suppression');
   // la porte de service (copie TEST) n'a aucun geste de mise à la corbeille pour le lot 5
@@ -1034,8 +1034,11 @@ test('I5 — ancien indice purgé, puis nouvel indice retiré : l’appli remont
   x.json.contenu = JSON.stringify(l);
   mesurer(g);
   const s = ligneS(g, 'chantier:' + x.d.id)[K.purge];
-  assert.ok(/^⚠ 1 document\(s\) du carnet montré\(s\) dans l’appli sans leurs images \(101-A\) : coche « Annuler » sur la ligne « Anciens indices du carnet » de ce chantier \(onglet « Purges »\), ou redépose le document/.test(s), s);
-  assert.ok(/^⚠ 1 document\(s\) du carnet montré\(s\) dans l’appli sans leurs images \(101-A\)/.test(faite[P.message]) && /coche « Annuler »/.test(faite[P.message]), faite[P.message]);
+  assert.ok(/^⚠ 1 document\(s\) du carnet montré\(s\) dans l’appli sans leurs images \(101-A\) : coche « Annuler » sur la ligne « Anciens indices du carnet » mise à la corbeille le 13\/11\/2026 de ce chantier \(onglet « Purges »\), ou redépose le document/.test(s), s);
+  assert.ok(/^⚠ Cette purge a emporté les images d’un document que l’appli montre de nouveau \(101-A\) : coche « Annuler » sur CETTE ligne, ou redépose le document\./.test(faite[P.message]), faite[P.message]);
+  // m7 : la nouvelle ligne « Proposé » du même chantier (l'indice B, retiré, est devenu un ancien indice) ne porte PAS ce message
+  const nouvelle = ligneP(g, 'INDICES', QUOI);
+  assert.ok(nouvelle !== faite && nouvelle[P.etat] === 'Proposé' && !/⚠/.test(String(nouvelle[P.message])), JSON.stringify(nouvelle));
   assert.strictEqual(faite[P.etat], 'Fait', 'l’état de la ligne n’est pas touché');
   faite[P.annuler] = true; g.ctx.traiterPurges();
   assert.ok(!corbeille(x.ancien) && faite[P.etat] === 'Annulé');
@@ -1220,6 +1223,25 @@ test('mutations — la garde : carnet.json seulement s’il ne reste aucun dossi
   assert.strictEqual(ligneP(g, 'FINI')[P.nbFaits], 5, 'il n’est pas compté, et ne sera pas ressorti par « Annuler »');
   cocher(g, 'FINI', undefined, P.annuler); g.ctx.traiterPurges();
   assert.ok(corbeille(x.f2) && !corbeille(x.f1));
+});
+test('N2 — purge de Drive étalée sur plusieurs jours : « Annulation possible jusqu’au » et « Place libérée le » comptés depuis la PREMIÈRE mise à la corbeille', () => {
+  const { g, x } = purgeEnDeuxTemps();
+  let l = ligneP(g, 'FINI');
+  assert.strictEqual(l[P.jusquau].getTime(), MAINTENANT + 25 * JOUR, 'dès le premier passage, la ligne « En cours » donne le vrai délai');
+  assert.ok(/Déjà 54 fichier\(s\) à la corbeille, depuis le 13\/11\/2026 : pour tout annuler, coche « Annuler » avant le 08\/12\/2026/.test(l[P.message]), l[P.message]);
+  g.now += 6 * JOUR;   // la suite six jours plus tard (plafond du jour, week-end…) ; la recopie du PC a refait le relevé entre-temps
+  x.releve.contenu = x.releve.contenu.replace(/"releve_le":"[^"]+"/, '"releve_le":"' + new Date(g.now - 3600 * 1000).toISOString() + '"');
+  g.ctx.traiterPurges();
+  l = ligneP(g, 'FINI');
+  assert.deepStrictEqual([l[P.etat], l[P.nbFaits]], ['Fait', 106]);
+  assert.strictEqual(l[P.faitLe].getTime(), MAINTENANT);
+  assert.strictEqual(l[P.jusquau].getTime(), MAINTENANT + 25 * JOUR, 'et non 25 jours après la fin');
+  assert.strictEqual(l[P.libere].getTime(), MAINTENANT + 30 * JOUR);
+  assert.ok(/Purge commencée le 13\/11\/2026, finie le 19\/11\/2026 : les délais se comptent depuis le début\. Pour annuler : coche « Annuler » avant le 08\/12\/2026\./.test(l[P.message]), l[P.message]);
+  const m = mailsDe(g, /Mise à la corbeille — FINI/)[0];
+  assert.ok(/avant le 08\/12\/2026/.test(m.texte) && /libérée le 13\/12\/2026/.test(m.texte), m.texte);
+  g.now = MAINTENANT + 26 * JOUR; l[P.annuler] = true; g.ctx.traiterPurges();
+  assert.ok(/Annulation refusée/.test(l[P.message]) && l[P.etat] === 'Fait', 'le 26e jour après le début : refusé, même si la fin date de 20 jours');
 });
 test('mutation — case décochée pendant une purge en plusieurs passages : la purge s’arrête, la ligne dit ce qui est parti, tout reste annulable', () => {
   const { g } = purgeEnDeuxTemps();
