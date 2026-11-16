@@ -152,13 +152,13 @@ Le premier vérifie le lien et la copie d'essai dans un dossier temporaire, sans
 
 ## 8. Le programme du PC : carnet et recopie des fiches (lot 4c)
 
-**La recopie des fiches de l'appli vers les dossiers de chantier du PC est automatique** : une tâche du Planificateur de tâches de Windows lance `outils/appli_pc.py --rapatrier --auto` toutes les heures et à l'ouverture de session, sans fenêtre. Ce qui demande l'attention de Franck est écrit dans `CHANTIERPRO - A VOIR.txt`, à côté des dossiers de chantier.
+**La recopie des fiches de l'appli vers les dossiers de chantier du PC est automatique** : une tâche du Planificateur de tâches de Windows lance `outils/appli_pc.py --rapatrier --auto` toutes les heures et à l'ouverture de ta session, sans fenêtre. Ce qui demande ton attention est écrit dans `CHANTIERPRO - A VOIR.txt`, à côté des dossiers de chantier ; le menu prévient si la recopie n'a pas tourné depuis plus de 3 heures.
 
 | Fichier (double-clic) | Ce que ça fait |
 |---|---|
-| `outils\installer-tache.bat` | Met la recopie automatique en place, une fois, sans droits d'administrateur |
+| `outils\installer-tache.bat` | Met la recopie automatique en place, sans droits d'administrateur. À relancer après une mise à jour de Python ou un déplacement du dépôt |
 | `outils\retirer-tache.bat` | L'arrête (aucun fichier n'est touché) |
-| `outils\appli-pc.bat` | Le menu : 1 tout traiter (carnet depuis les bordereaux, puis recopie des fiches) ; 2 voir seulement, sans rien écrire ; 3 lire « A VOIR » ; 4 associer un dossier du Drive à un dossier de chantier quand le numéro ne suffit pas ; 5 retirer un document du carnet |
+| `outils\appli-pc.bat` | Le menu : 1 tout traiter (carnet depuis les bordereaux, puis recopie des fiches) ; 2 voir seulement, sans rien écrire — pour ces deux choix, le menu demande le numéro d'un seul chantier (Entrée = tous) ; 3 lire « A VOIR » ; 4 associer un dossier du Drive à un dossier de chantier quand le numéro ne suffit pas ; 5 retirer un document du carnet |
 
 Ses réglages sont dans `_prive\depot.json` (jamais sur GitHub). Il ne supprime, ne déplace et n'écrase jamais rien. Mode d'emploi complet, limites et retour arrière : `docs/lot4c-procedure.md`. Ses tests, sur de faux dossiers, sans créer de tâche planifiée :
 
