@@ -36,6 +36,8 @@
 - **Chantier renommé** dans l'onglet *Chantiers* : ses points ouverts suivent **s'il a un N° (colonne E)**. Sans N°, ils restent sous l'ancien nom. Remplis donc la colonne E avant de renommer un chantier.
 - **Ne modifie ni la ligne de titres ni les deux colonnes « Données de l'appli »** de l'onglet *Comptes rendus*. Si les titres changent, les notes partent quand même (PDF et mails normaux), mais ne sont plus notées et leurs points ne sont plus suivis ; tu reçois un mail (un par jour au plus). Remets les titres : tout reprend.
 - Tu peux **trier** l'onglet : l'appli retrouve une note par son numéro de fiche, et la dernière note d'un chantier par la colonne « Reçu le ».
+- **Téléphone prêté** : une note écrite sous un compte et envoyée après qu'un autre compte s'est connecté sur le même téléphone part quand même ; si ce second compte n'a pas accès au chantier, les « clore » et « compléter » ne sont pas pris (c'est écrit dans le PDF et dans la colonne « Remarque »).
+- **Deux personnes complètent le même point** : le texte du dernier arrivé remplace l'autre (la colonne « Remarque » le signale).
 - Limites : 40 nouveaux points par note, 2 000 caractères par point, 10 photos par note (tous points confondus). Un chantier qui dépasse une centaine de longs points ouverts : tu reçois un mail (« points d'un chantier à regarder »), rien n'est refusé.
 
 ---

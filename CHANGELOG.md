@@ -28,6 +28,8 @@ Chaque lot : **quoi**, **pourquoi**, **comment déployer**. Procédures détaill
 
 *Historique sur la branche, jamais déployé* : un « lot 8b » (serveur v11.0, appli 10.1) donnait un numéro « Compte rendu n° x » et une liste de présents. Les deux ont été retirés avant toute mise en service.
 
+**Relecture indépendante (16/11/2026, un tour) : rien de bloquant.** Corrigé : la liste des points gardée dans le téléphone est mise à jour aussi quand la note part depuis l'accueil, et effacée à la déconnexion faite à l'accueil ; « Clore » ne jette plus sans question un texte tapé sur un point rouvert ; une note arrivée pendant qu'un chantier était hors de la liste ne fait plus repartir ses points de zéro ; un point clos se lit sur 2 lignes. Laissé : le plafond de 10 adresses est tenu par la page seule.
+
 ## Lot 8a — Note de réunion : annotation des photos qu'on peut rouvrir — pages seules — **construit, testé contre le faux serveur seulement** (sort avec le lot 8, appli 10.2)
 
 **Quoi**

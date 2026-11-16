@@ -1,10 +1,10 @@
 // ═══════════════════════════════════════════════════════════════
 // LOUÉ APP — SERVEUR COMPLET, À COLLER DANS APPS SCRIPT (fichier « Code.gs », tout remplacer)
 // FICHIER GÉNÉRÉ AUTOMATIQUEMENT par « node outils/construire.js » — NE PAS MODIFIER À LA MAIN :
-// les sources sont dans le dossier apps-script/ du dépôt. Version du serveur a1fd870305 (pages 9ea3361557)
+// les sources sont dans le dossier apps-script/ du dépôt. Version du serveur 75c4fba2c2 (pages 3e0000c931)
 // ═══════════════════════════════════════════════════════════════
 
-const EMPREINTE_SERVEUR = 'a1fd870305';
+const EMPREINTE_SERVEUR = '75c4fba2c2';
 
 // ████ Config.gs ████
 // ═══════════════════════════════════════════════════════════════
@@ -3307,6 +3307,8 @@ function crDerniereLigne_(lignes, chantier, sauf) {
     // même N° de chantier (quand les deux sont remplis), sinon même nom
     const meme = cleNum && numLigne ? numLigne === cleNum : crCleNom_(r[COL_CR.chantier - 1]) === cleNom;
     if (!meme) return;
+    // une note arrivée pendant que le chantier était hors de la liste n'a rien suivi : elle ne sert pas de point de départ
+    if (String(r[COL_CR.remarque - 1] || '').indexOf('chantier hors liste') > -1) return;
     const t = crMs_(r[COL_CR.recu - 1]);
     if (t >= quand) { quand = t; meilleure = i; }
   });

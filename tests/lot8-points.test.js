@@ -339,6 +339,13 @@ test('chantier HORS LISTE : la note part, ses points sont imprimés mais pas sui
   assert.deepStrictEqual([CR(g)[0][C.remarque], CR(g)[0][C.donnees], CR(g)[0][C.ouverts]], ['chantier hors liste : points non suivis', '', '']);
   assert.ok(/Point d’un chantier inconnu nouveau point OUVERT/.test(textePdf(g)));
 });
+test('chantier retiré de la liste puis remis : la note arrivée entre-temps ne fait pas repartir de zéro', () => {
+  const { g } = depart();
+  const lignes = g.feuilles['Chantiers'].lignes, i = lignes.findIndex(x => x[0] === 'CHANTIER TEST 1'), retiree = lignes.splice(i, 1)[0];
+  envoyer(g, 'seb', note('', [nouveau('Point écrit hors liste')], { chantier: 'CHANTIER TEST 1' }));
+  lignes.splice(i, 0, retiree);
+  assert.deepStrictEqual(ouverts(g), ['Point A', 'Point B', 'Point C']);
+});
 test('chantier RENOMMÉ qui a un N° : ses points ouverts suivent (rattachement par le N° du chantier)', () => {
   const { g, base } = depart();
   g.feuilles['Chantiers'].lignes.find(x => x[0] === 'CHANTIER TEST 1')[4] = '403';

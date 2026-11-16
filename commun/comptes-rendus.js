@@ -195,8 +195,8 @@
     return l;
   };
 
-  // ── Une note de réunion vient d'être confirmée par le serveur : la liste GARDÉE du chantier est mise à jour, quelle que
-  //    soit la page ouverte (la file peut partir depuis l'accueil). Hors réseau, on retrouve ainsi ce qu'on vient d'envoyer. ──
+  // ── Une note de réunion vient d'être confirmée par le serveur : la liste GARDÉE du chantier est mise à jour, que la file
+  //    parte de la note de réunion ou de l'accueil (les deux pages chargent ce fichier). Hors réseau, on retrouve ainsi ce qu'on vient d'envoyer. ──
   if (LOUE.surEvenement) LOUE.surEvenement(function (ev) {
     var a = ev.element;
     if (ev.type !== 'envoyee' || !a || a.type !== 'note' || !a.donnees || (a.saisiPar || '') !== moi() || !moi()) return;

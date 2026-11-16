@@ -10,8 +10,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Note Réunion">
 <meta name="theme-color" content="#1A2B4A">
-<link rel="stylesheet" href="commun/style.css?v=9ea3361557">
-<link rel="stylesheet" href="commun/fiche.css?v=9ea3361557">
+<link rel="stylesheet" href="commun/style.css?v=3e0000c931">
+<link rel="stylesheet" href="commun/fiche.css?v=3e0000c931">
 <style>
 .photo-item-head .photo-item-num{flex:1;}
 .photo-legende{display:block;width:100%;min-height:48px;padding:0 12px;border:none;border-bottom:1px solid var(--border);background:#fff;font-size:16px;font-family:inherit;color:var(--text);outline:none;}
@@ -29,7 +29,7 @@ div.pt-resume{cursor:default;}
 .pt-action{flex:none;min-width:88px;min-height:48px;margin:4px;align-self:center;}
 .pt-etat{flex:none;align-self:center;font-weight:800;font-size:14px;color:var(--green);padding:0 4px;white-space:nowrap;}
 .pt.clos{background:#EFECE8;}
-.pt.clos .pt-texte{color:var(--muted);}
+.pt.clos .pt-texte{color:var(--muted);white-space:normal;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;}
 .pt-corps{padding:10px;border-top:1px solid var(--border);}
 .pt-corps[hidden]{display:none;}
 .pt-complet{white-space:pre-wrap;word-break:break-word;overflow-wrap:break-word;margin-bottom:10px;line-height:1.5;}
@@ -210,17 +210,17 @@ body.loue-test .annot{top:40px;}
   </div>
 </div>
 
-<script src="commun/config.js?v=9ea3361557"></script>
-<script src="commun/api.js?v=9ea3361557"></script>
-<script src="commun/ui.js?v=9ea3361557"></script>
-<script src="commun/photos.js?v=9ea3361557"></script>
-<script src="commun/brouillon.js?v=9ea3361557"></script>
-<script src="commun/hors-ligne.js?v=9ea3361557"></script>
-<script src="commun/adresses.js?v=9ea3361557"></script>
-<script src="commun/destinataires.js?v=9ea3361557"></script>
-<script src="commun/comptes-rendus.js?v=9ea3361557"></script>
-<script src="modeles/mise-en-page.js?v=9ea3361557"></script>
-<script src="modeles/note.js?v=9ea3361557"></script>
+<script src="commun/config.js?v=3e0000c931"></script>
+<script src="commun/api.js?v=3e0000c931"></script>
+<script src="commun/ui.js?v=3e0000c931"></script>
+<script src="commun/photos.js?v=3e0000c931"></script>
+<script src="commun/brouillon.js?v=3e0000c931"></script>
+<script src="commun/hors-ligne.js?v=3e0000c931"></script>
+<script src="commun/adresses.js?v=3e0000c931"></script>
+<script src="commun/destinataires.js?v=3e0000c931"></script>
+<script src="commun/comptes-rendus.js?v=3e0000c931"></script>
+<script src="modeles/mise-en-page.js?v=3e0000c931"></script>
+<script src="modeles/note.js?v=3e0000c931"></script>
 <script>
 'use strict';
 // ── État de la fiche ──
@@ -733,7 +733,7 @@ document.getElementById('points-liste').addEventListener('click', ev => {
   else if (geste === 'completer') { enEdition[id] = true; depliees[id] = true; }
   else if (geste === 'photo-cam' || geste === 'photo-galerie') { choisirPhoto(id, geste === 'photo-cam' ? 'cam' : 'galerie'); return; }
   // « Clore » sur un point rouvert : il retourne dans « Clos récemment » (le geste « rouvert » est retiré)
-  else if (geste === 'clore') { if (dansClos) { delete GESTES[id]; if (!Object.keys(GESTES).length) GESTES_CHANTIER = ''; } else noterGeste(id, 'clos'); delete enEdition[id]; }
+  else if (geste === 'clore') { if (dansClos) { if (GESTES[id] && CR.nettoyer(GESTES[id].t) && !confirm('Clore ce point ? Le texte que vous venez d’y ajouter ne sera pas gardé.')) return; delete GESTES[id]; if (!Object.keys(GESTES).length) GESTES_CHANTIER = ''; } else noterGeste(id, 'clos'); delete enEdition[id]; }
   else if (geste === 'rouvrir') noterGeste(id, '');
   afficherRepris(true); prevenir();
   if (geste === 'completer') { const t = document.querySelector('#points-liste .pt[data-id="' + id + '"] textarea'); if (t) { t.focus(); t.setSelectionRange(t.value.length, t.value.length); } }

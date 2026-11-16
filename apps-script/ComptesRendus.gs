@@ -132,6 +132,8 @@ function crDerniereLigne_(lignes, chantier, sauf) {
     // même N° de chantier (quand les deux sont remplis), sinon même nom
     const meme = cleNum && numLigne ? numLigne === cleNum : crCleNom_(r[COL_CR.chantier - 1]) === cleNom;
     if (!meme) return;
+    // une note arrivée pendant que le chantier était hors de la liste n'a rien suivi : elle ne sert pas de point de départ
+    if (String(r[COL_CR.remarque - 1] || '').indexOf('chantier hors liste') > -1) return;
     const t = crMs_(r[COL_CR.recu - 1]);
     if (t >= quand) { quand = t; meilleure = i; }
   });
