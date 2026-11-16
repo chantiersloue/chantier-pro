@@ -2,7 +2,62 @@
 
 Chaque lot : **quoi**, **pourquoi**, **comment déployer**. Procédures détaillées dans `docs/lotN-procedure.md`.
 
-## Lot 3 — Notes de chantier : la liste des choses à faire — serveur v8.0, appli 8.0 — serveur en production le 13/11/2026 (déploiement « Lot 3 — production »), pages livrées par la fusion de livraison/lot-3
+## Lot 4c — Le programme du PC : carnet depuis les bordereaux, recopie automatique des fiches de l'appli — **construit, pas encore utilisé sur de vraies données**
+
+**Quoi**
+- Un programme sur le PC de Franck, `outils/appli_pc.py`. Il fait le pont entre le Drive de l'appli et les **dossiers de chantier du PC** (ceux où travaillent les skills ; MEGA ne fait que les synchroniser).
+- **Recopie automatique des fiches** (décision de Franck) : une tâche du Planificateur de tâches de Windows lance le programme **toutes les heures et à l'ouverture de session**, sans fenêtre et sans question. Les fiches que l'appli a rangées dans le Drive sont recopiées, au même chemin, dans le bon dossier de chantier du PC. Mise en place une seule fois, sans droits d'administrateur : double-clic sur **`outils\installer-tache.bat`** ; arrêt : `outils\retirer-tache.bat`.
+- **Le bon dossier est trouvé par le numéro du chantier**, en tête du nom des dossiers (`403 - …`, `403-…`, `403 …`). Rien n'est deviné : aucun dossier pour ce numéro, ou plusieurs, et rien n'est copié pour ce chantier. Une correspondance écrite à la main (`_prive/depot.json`, commande « Associer les chantiers ») règle les cas que le numéro ne règle pas.
+- **Copie seulement** : sous un nom temporaire, taille vérifiée, **jamais d'écrasement, de déplacement, de renommage ni de suppression**. Signalés sans copie : fichiers hors des dossiers de fiches, `_À CLASSER`, raccourcis Google, doublons `nom (1)`, chemins trop longs, fichiers illisibles, même nom mais autre taille. Jamais les demandes d'absence.
+- **`CHANTIERPRO - A VOIR.txt`**, à côté des dossiers de chantier, réécrit à chaque passage : ce qui demande l'attention de Franck, ou « Rien à signaler ».
+- Deux autres fichiers écrits : dans chaque dossier de chantier du PC, **`CHANTIERPRO - fiches rapatriees.json`** (la liste cumulée des fiches venues de l'appli, que les skills lisent) ; dans le Drive, **`releve-pc.json`** (le relevé de présence que le lot 5 lira avant toute purge ; il s'appelait « mega-index.json » dans le contrat précédent).
+- **Carnet** (double-clic sur **`outils\appli-pc.bat`**) : le programme lit les PDF figés dans `08 - DOCUMENTS ENVOYES AVEC BORDEREAU/BORDEREAU n`, ne retient que les documents du carnet (anciens numéros convertis par une table), et demande pour chacun : **o** (le mettre au carnet, avec `depot_carnet.py`, inchangé), **n** (l'écarter pour de bon) ou **Entrée** (plus tard). Il signale un document qui a changé depuis qu'il est au carnet, un PDF d'un autre chantier, un numéro non reconnu. Le même menu permet de voir sans rien écrire, de lire « A VOIR », de retirer un document du carnet, et de lancer la recopie à la demande.
+- Un seul traitement à la fois (verrou repris s'il est orphelin), refus avant toute écriture si un réglage est faux, journaux dans `_prive/appli-pc/` (celui des passages automatiques ne grossit pas sans fin).
+- `docs/contrat-skills.md` passe en **version 5** : un skill n'écrit jamais dans le Drive de l'appli, qui n'a plus à être relié à Claude ; les textes à coller ne concernent plus que `gestion-documentaire` (chapitre 8) ; « dossier du chantier sur le PC » remplace « MEGA ».
+- Ni le serveur ni les pages de l'appli ne changent.
+
+**Pourquoi** : un skill voit le dossier du chantier sur le PC, pas le Drive de l'appli (essai A2, `docs/lot4-etape0.md`) ; le PC voit les deux. Plutôt que de faire écrire des « demandes » par neuf skills, le programme lit ce qu'ils produisent déjà : les bordereaux. Seule une version validée, et confirmée par Franck, part aux poseurs. Et les fiches des téléphones rejoignent l'archive sans aucune manipulation. Plan et critique indépendante : `docs/lot4c-plan.md`.
+
+**Comment déployer** : rien à envoyer sur le serveur ni sur GitHub Pages. Marche à suivre de Franck (réglages, lignes à coller dans le skill, essais, installation de la tâche, limites, retour arrière) : `docs/lot4c-procedure.md`.
+
+**Tests** : `python -m unittest tests/test_appli_pc.py` (54 tests, faux dossiers temporaires, aucune tâche planifiée créée) ; `python -m unittest tests/test_depot_carnet.py` (26, inchangés). **Pas testé par moi** : le vrai Drive, les vrais dossiers de chantier, la copie TEST, la création réelle de la tâche planifiée et son lancement sans fenêtre, le double-clic sur les `.bat` au-delà du menu, et les lignes du contrat avec le vrai skill (essais obligatoires de la procédure).
+
+## Lot 4b — Carnet de chantier : hors réseau complet, et retrait de la tuile « Plans » — appli 9.0, serveur **v9.1** — **en production depuis le 16/11/2026** (déploiement « Lot 4 — production »)
+
+**Quoi**
+- **« ⬇ Tout télécharger »** sous chaque document (poids restant annoncé) et pour tout le chantier : avancement, arrêt, reprise où on en était. Une seule demande à la fois au serveur.
+- États dans la liste : **« ✓ disponible sans réseau, en entier »** ; **« ⚠ plus disponible en entier sans réseau »** quand le téléphone a fait de la place dans un document complet ; « ● Nouvel indice … téléchargez-le » sur les téléphones qui ne savent pas dire s'ils sont en Wi-Fi (iPhone).
+- **Android en Wi-Fi** : à l'ouverture du carnet d'un chantier, les plans incomplets se téléchargent tout seuls (case à cocher, cochée au départ), pour les poseurs seulement, jamais au-delà de 150 Mo de carnet, jamais quand des fiches attendent d'être envoyées, et plus après un arrêt par la personne.
+- La place se compte **avant** de commencer : un document qui ne tient pas est refusé avec les poids, sans rien effacer ; un document téléchargé en entier n'est jamais chassé par le téléchargement d'un autre.
+- Un ancien indice téléchargé en entier reste lisible tant que le nouveau ne l'est pas aussi.
+- L'écran reste allumé pendant un téléchargement.
+
+**Retrait de l'ancienne tuile « Plans »** (décision de Franck du 13/11/2026)
+- **Quoi, dans l'appli** : dans un chantier, la tuile « Plans » et sa fenêtre de documents n'existent plus (`index.html`) ; la tuile « Carnet » les remplace. Les tuiles Carnet, Signalements, Notes, les fiches et le **planning de l'équipe** ne changent pas.
+- **Quoi, sur le serveur** (toujours v9.0) : le dossier `Plans` d'un chantier n'est plus lu. Une ancienne page encore gardée dans un téléphone qui demande les plans d'un chantier reçoit une **liste vide, sans erreur**. Le sous-dossier `Plans` n'est plus créé dans les nouveaux dossiers de chantier. La fonction `lireSousDossier` est supprimée. Le planning garde exactement son fonctionnement (lecture du dossier Planning, partage par lien de ses fichiers).
+- **Pourquoi** : le carnet remplace la tuile (plans lus dans l'appli, au zoom, sans réseau, réservés aux comptes). Surtout, **la fin du partage par lien automatique** : jusqu'ici, chaque ouverture de la tuile mettait **tous** les fichiers du dossier `Plans` du chantier en « toute personne disposant du lien » ; un ancien salarié qui avait gardé un lien pouvait toujours ouvrir le plan. L'appli ne pose plus ces partages.
+- **Rien n'est supprimé dans le Drive** : les dossiers `Plans` existants et leurs fichiers restent où ils sont, et **les partages par lien déjà posés restent** tant que Franck ne les retire pas.
+- **Nouvelle fonction `listerPartagesPlans()`** (`apps-script/Admin.gs`, à lancer dans l'éditeur Apps Script) : écrit dans l'onglet **« Partages Plans »** les fichiers et dossiers encore partagés par lien dans les dossiers `Plans` des chantiers (chantier, chemin, nom, type de partage, date de modification, identifiant). **Lecture seule** : elle ne change aucun partage et ne supprime rien. Si le journal dit « À suivre », la relancer : elle reprend où elle s'était arrêtée. C'est Franck qui décide ensuite de retirer les partages, dans Drive.
+- **Comment vérifier** : `node tests/accueil-page.test.js` (page d'accueil dans un vrai Chrome), `node tests/lot0.test.js`, `node tests/lot1-dossiers.test.js`, `node tests/lot2-comptes.test.js`.
+
+**Pourquoi** : préparer son téléphone au dépôt ou en Wi-Fi, et savoir à tout moment si un plan est lisible sans réseau (exigence 9).
+
+**Comment déployer** : `docs/lot4b-procedure.md`. Le serveur reste en v9.0 mais son code change avec le retrait de la tuile « Plans » : le `Code.gs` à coller est celui de `A-COLLER-DANS-APPS-SCRIPT/` de cette livraison.
+
+## Lot 4a — Carnet de chantier : déposer et lire — serveur v9.1, appli 9.0 — **en production depuis le 16/11/2026** (déploiement « Lot 4 — production »)
+
+**Quoi**
+- Page **« Carnet »** (`carnet.html`), ouverte depuis un chantier : la liste des plans et documents validés (intitulé, indice, pages, poids, « nouveau »), et une visionneuse plein écran : un doigt déplace, deux doigts ou deux tapes grossissent, bouton de rotation, pages, « Signaler ici » (ouvre le signalement avec le chantier et le repère déjà remplis).
+- Les plans sont des **images** (jamais le PDF) : un aperçu de la page d'abord, puis seulement les morceaux de la zone regardée. Ce qui a été vu reste dans le téléphone et se relit **sans réseau**.
+- Programme de dépôt sur le PC : `outils/depot_carnet.py` et `outils/deposer.bat` (PDF → images dans `<chantier>/CARNET/`, liste `carnet.json` écrite en dernier ; reprise page par page ; `--verifier`, `--retirer` ; ne supprime jamais rien).
+- Serveur : actions `carnet` et `carnetTuiles` (`apps-script/Carnet.gs`) ; droit vérifié à chaque demande ; aucun lien public, aucun identifiant Drive envoyé aux téléphones ; le serveur n'écrit et ne supprime rien dans le carnet. Aucun onglet nouveau, aucun mail.
+- Dans le téléphone : base à part pour les plans, limitée (400 Mo, 80 Mo toujours laissés libres), rangée par compte.
+
+**Pourquoi** : les poseurs lisent les plans validés sur leur téléphone, au zoom, même sans réseau, sans manipulation de fichier (exigence 9 du plan).
+
+**Comment déployer** : `docs/lot4a-procedure.md`. Mesures préalables : `docs/lot4-etape0.md`.
+
+## Lot 3 — Notes de chantier : la liste des choses à faire — serveur v8.0, appli 8.0 — **en production depuis le 13/11/2026** (déploiement « Lot 3 — production »)
 
 **Quoi**
 - Page **« Notes »** (`notes.html`), ouverte depuis un chantier : la liste des choses à faire du chantier, façon « Keep ». Un élément = une ligne de texte et une case à cocher ; on ajoute en bas de l'écran ; toucher un texte permet de le corriger ; un élément coché descend dans « Éléments terminés », d'où on peut le décocher. Rien ne se supprime. Hors réseau : ajouts et gestes sont gardés dans le téléphone et partent au retour du réseau, dans l'ordre.
@@ -17,6 +72,16 @@ Chaque lot : **quoi**, **pourquoi**, **comment déployer**. Procédures détaill
 **Comment déployer** : `docs/lot3-procedure.md`.
 
 **Tests** : serveur (`tests/lot3-notes.test.js`), page dans un vrai Chrome en largeur téléphone, hors réseau et en réseau lent (`tests/lot3-page.test.js`), essais réels sur la copie TEST (`tests/reel-lot3.js`) ; toutes les séries existantes repassent. **Pas testé par moi** : un vrai téléphone, en particulier le champ d'ajout avec le clavier ouvert.
+
+## Lot 9b — Contrat avec les skills (12/11/2026) — un document, rien à déployer
+
+**Quoi** : `docs/contrat-skills.md`, le contrat entre l'appli et les skills Claude de Franck : identité du chantier lue dans l'onglet *Chantiers*, intervenants transmis par un fichier que l'appli recopie, carnet, rapatriement des fiches de Drive vers MEGA avec son relevé. Textes à coller dans les skills (chapitre 8). **13/11/2026** : la règle sur les cotes de placards (métré des plinthes) est abandonnée et retirée.
+
+**Pourquoi** : les lots 4, 5 et 8 en dépendent (`PLAN.md`, lot 9). Décisions D9b-1 à D9b-3. Principe retenu après une relecture indépendante : **un skill ne modifie jamais le Sheet de l'appli**.
+
+**Comment déployer** : rien dans l'appli. **Rien n'est collé dans les skills pour l'instant** (décision de Franck du 13/11/2026, D9b-4) : tous les blocs seront mis à jour en une seule fois au lot 4.
+
+**Pas vérifié** : aucun essai avec un vrai skill ni avec le vrai Sheet (hors de ma portée). Le contrat a été relu par un agent indépendant (trois tours) : les corrections sont listées à son chapitre 11.
 
 ## Lot 7 — Signalement casse / manquant / à recommander — serveur v7.0, appli 7.0 — **en production depuis le 13/11/2026** (déploiement « Lot 7 — production »)
 

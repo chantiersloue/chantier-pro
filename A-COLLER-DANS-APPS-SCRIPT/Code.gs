@@ -1,10 +1,10 @@
 // ═══════════════════════════════════════════════════════════════
 // LOUÉ APP — SERVEUR COMPLET, À COLLER DANS APPS SCRIPT (fichier « Code.gs », tout remplacer)
 // FICHIER GÉNÉRÉ AUTOMATIQUEMENT par « node outils/construire.js » — NE PAS MODIFIER À LA MAIN :
-// les sources sont dans le dossier apps-script/ du dépôt. Version du serveur 65e98fcecb (pages e8e22b3a6a)
+// les sources sont dans le dossier apps-script/ du dépôt. Version du serveur 8c2cdfd827 (pages a9e6413e09)
 // ═══════════════════════════════════════════════════════════════
 
-const EMPREINTE_SERVEUR = '65e98fcecb';
+const EMPREINTE_SERVEUR = '8c2cdfd827';
 
 // ████ Config.gs ████
 // ═══════════════════════════════════════════════════════════════
@@ -12,7 +12,7 @@ const EMPREINTE_SERVEUR = '65e98fcecb';
 // Loué Menuiserie
 // ═══════════════════════════════════════════════════════════════
 
-const VERSION_API = 'v8.0';   // lot 3 (notes de chantier) ; 7.0 : lot 7 (signalements) ; 6.0 : lot 2 (comptes)
+const VERSION_API = 'v9.1';   // 9.1 : retrait de la lecture du dossier Plans (lot 4b) ; 9.0 : lot 4a (carnet de chantier) ; 8.0 : lot 3 (notes de chantier) ; 7.0 : lot 7 (signalements) ; 6.0 : lot 2 (comptes)
 
 // ── CONFIGURATION ──
 const SHEET_CONTACTS      = 'Contacts';
@@ -39,8 +39,10 @@ const MAX_LIBRES_PAR_FICHE  = 2;   // adresses tapées à la main acceptées par
 const MAX_LIBRES_PAR_JOUR   = 10;  // adresses tapées à la main acceptées par jour, toute l'appli
 const MAX_ESSAIS_ATTENTE    = 12;  // un mail reporté est retenté toutes les 2 h, 12 fois au plus
 
-// Sous-dossiers dont les fichiers restent partagés par lien (consultation par les poseurs).
+// Sous-dossiers que listerPartages() (lot 0) marque « garder » : leurs partages par lien ne sont pas retirés par retirerPartages().
 // Tout le reste est en « accès limité » depuis le lot 0.
+// Depuis le lot 4b, l'appli ne lit plus le dossier Plans et n'y pose plus aucun partage : les partages restants se
+// listent avec listerPartagesPlans() (lecture seule), et c'est Franck qui décide de les retirer.
 const SOUS_DOSSIERS_PARTAGES = ['Plans'];
 
 // ── DRIVE ──
@@ -1200,7 +1202,7 @@ function mesurerHachage() {
 // ═══════════════════════════════════════════════════════════════
 
 // ═══════════════════════════════════════════════════════════════
-// GET — contacts, chantiers, documents Drive, listes
+// GET — contacts, chantiers, planning, listes
 // ═══════════════════════════════════════════════════════════════
 function doGet(e) {
   const action = e.parameter.action || '';
@@ -1275,99 +1277,39 @@ function donneesListes_() {
   };
 }
 
-// ── Lecture automatique des dossiers Drive pour un chantier ──
+// ── Planning de l'équipe (et, pour les anciennes pages, la liste vide des plans d'un chantier) ──
 function getDossiers(chantierNom, callback) {
-  const r = lireDossiers_(chantierNom);
-  return sortieJson_(r && r.__erreur ? { erreur: r.__erreur, dossiers: {} } : { dossiers: r }, callback);
+  return sortieJson_({ dossiers: lireDossiers_(chantierNom) }, callback);
 }
-// Documents lisibles d'un chantier (Plans), ou le planning (__PLANNING__) ; { __erreur } si le dossier n'existe pas
+// Le planning (__PLANNING__) : { planning: [...] } ; pour un chantier : { plans: [] }
 function lireDossiers_(chantierNom) {
+  // Un chantier : plus rien à lire. La tuile « Plans » est retirée (lot 4b) : les plans se lisent dans le carnet.
+  // Le Drive n'est pas ouvert, et plus aucun fichier du dossier Plans n'est mis en partage par lien.
+  // La liste vide (sans erreur) est pour les anciennes pages encore gardées dans les téléphones.
+  if (chantierNom !== '__PLANNING__') return { plans: [] };
+
+  // Planning de l'équipe — lecture directe par identifiant (comportement inchangé)
   const result = {};
-
   try {
-    // Cas spécial : planning global — lecture directe par ID
-    if (chantierNom === '__PLANNING__') {
-      try {
-        const planningFolder = DriveApp.getFolderById(drivePlanningId_());
-        const files = planningFolder.getFiles();
-        const docs = [];
-        while(files.hasNext()) {
-          const f = files.next();
-          try { f.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); } catch(e){}
-          const mime = f.getMimeType();
-          let type = 'link';
-          if(mime.includes('pdf'))   type='pdf';
-          else if(mime.includes('image')) type='image';
-          else if(mime.includes('spreadsheet')||mime.includes('excel')) type='xls';
-          else if(mime.includes('presentation')) type='ppt';
-          else if(mime.includes('document'))     type='doc';
-          docs.push({ nom:f.getName(), url:f.getUrl(), type, date:Utilities.formatDate(f.getLastUpdated(),'Europe/Paris','dd/MM/yyyy') });
-        }
-        docs.sort(parDateDecroissante_);
-        result.planning = docs;
-      } catch(err){ console.error('Planning:', err.message); result.planning=[]; }
-      return result;
-    }
-
-    // Chercher le dossier du chantier
-    // Lot 1.5 : même recherche que pour le classement (onglet « Dossiers chantiers », nom exact, ressemblance unique)
-    const chantierFolder = dossierChantier_(chantierNom, false);
-    if (!chantierFolder) return { __erreur: 'Dossier chantier non trouvé' };
-
-    // Lot 0 : seuls les sous-dossiers encore partagés par lien sont listés
-    // (les autres ne s'ouvriraient plus chez les poseurs, et leurs noms de fichiers ne doivent pas fuiter)
-    // Lot 1.5 : le dossier Plans est celui de dossiers.json (même nom que pour le rangement)
-    const plans = dossierParChemin_(chantierFolder, dossiers_().documents.plans, false);
-    result.plans = plans ? lireSousDossier(plans, '', true) : [];
-
-  } catch(err) {
-    console.error('getDossiers:', err.message);
-  }
-  return result;
-}
-
-// Lit tous les fichiers d'un sous-dossier (nomSousDossier vide = lire le dossier parent lui-même).
-// partager = true : les fichiers sont mis en « tous ceux qui ont le lien » (dossier Plans uniquement).
-function lireSousDossier(chantierFolder, nomSousDossier, partager) {
-  const docs = [];
-  try {
-    let folder;
-    if (!nomSousDossier) {
-      folder = chantierFolder;
-    } else {
-      const subFolders = chantierFolder.getFoldersByName(nomSousDossier);
-      if (!subFolders.hasNext()) return docs;
-      folder = subFolders.next();
-    }
-
-    const files = folder.getFiles();
-    while (files.hasNext()) {
+    const planningFolder = DriveApp.getFolderById(drivePlanningId_());
+    const files = planningFolder.getFiles();
+    const docs = [];
+    while(files.hasNext()) {
       const f = files.next();
-      if (partager) {
-        try { f.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); } catch(e){}
-      }
-
+      try { f.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); } catch(e){}
       const mime = f.getMimeType();
       let type = 'link';
-      if (mime.includes('pdf'))                           type = 'pdf';
-      else if (mime.includes('image'))                    type = 'image';
-      else if (mime.includes('spreadsheet') || mime.includes('excel')) type = 'xls';
-      else if (mime.includes('presentation'))             type = 'ppt';
-      else if (mime.includes('document'))                 type = 'doc';
-
-      docs.push({
-        nom  : f.getName(),
-        url  : f.getUrl(),
-        type : type,
-        date : Utilities.formatDate(f.getLastUpdated(), 'Europe/Paris', 'dd/MM/yyyy'),
-      });
+      if(mime.includes('pdf'))   type='pdf';
+      else if(mime.includes('image')) type='image';
+      else if(mime.includes('spreadsheet')||mime.includes('excel')) type='xls';
+      else if(mime.includes('presentation')) type='ppt';
+      else if(mime.includes('document'))     type='doc';
+      docs.push({ nom:f.getName(), url:f.getUrl(), type, date:Utilities.formatDate(f.getLastUpdated(),'Europe/Paris','dd/MM/yyyy') });
     }
-    // Tri par date décroissante
     docs.sort(parDateDecroissante_);
-  } catch(err) {
-    console.error('lireSousDossier '+nomSousDossier+':', err.message);
-  }
-  return docs;
+    result.planning = docs;
+  } catch(err){ console.error('Planning:', err.message); result.planning=[]; }
+  return result;
 }
 
 // Tri des documents par date « jj/mm/aaaa », la plus récente en premier
@@ -1455,7 +1397,7 @@ function routerV5_(corps) {
     if (corps.action === 'connexion')  return connexion_(corps);
     if (corps.action === 'motDePasse') return motDePasse_(corps);
     if (['photo', 'fiche', 'moi', 'listes', 'dossiers', 'signalements', 'signalementStatut',
-      'notes', 'notesNouvelles', 'notesVues'].indexOf(corps.action) < 0) return { ok: false, code: 'ACTION_INCONNUE', message: 'Action inconnue' };
+      'notes', 'notesNouvelles', 'notesVues', 'carnet', 'carnetTuiles'].indexOf(corps.action) < 0) return { ok: false, code: 'ACTION_INCONNUE', message: 'Action inconnue' };
     let qui = identifier_(corps);
     const envoi = corps.action === 'photo' || corps.action === 'fiche';
     // Lot 3 : une note de chantier (ou un geste sur une note) demande TOUJOURS un compte en règle : ni « compte désactivé »,
@@ -1489,6 +1431,9 @@ function routerV5_(corps) {
     if (corps.action === 'notes')          return listerNotes_(qui.compte, corps);
     if (corps.action === 'notesNouvelles') return notesNouvelles_(qui.compte);
     if (corps.action === 'notesVues')      return marquerNotesVues_(qui.compte, corps);
+    // Lot 4 : carnet de chantier (droits vérifiés dans Carnet.gs)
+    if (corps.action === 'carnet')       return carnetLister_(qui.compte, corps);
+    if (corps.action === 'carnetTuiles') return carnetTuiles_(qui.compte, corps);
   } catch (err) {
     console.error('routerV5_:', err.message);
     return { ok: false, code: 'ERREUR', message: 'Erreur du serveur : ' + err.message };
@@ -2153,7 +2098,7 @@ const DOSSIERS_DEFAUT = {
     'photos':              '05 - CHANTIER/PHOTOS CHANTIER',
     'signalement':         '05 - CHANTIER/SIGNALEMENTS',
     'carnet':              'CARNET',
-    'plans':               'Plans',
+    'plans':               'Plans',   // ancien dossier des plans : plus lu ni créé par l'appli (lot 4b) ; sert à listerPartagesPlans()
   },
   // À la racine du Drive de l'appli (hors chantier)
   hors_chantier: {
@@ -2293,8 +2238,8 @@ function dossierChantier_(chantierNom, creer) {
   if (proches.length === 1) { if (creer) noterDossierChantier_(nom, proches[0], 'ressemblance'); return proches[0]; }
   if (!creer) return null;
   // 4. Nouveau dossier (plusieurs ressemblances : on ne devine pas)
+  // (plus de sous-dossier « Plans » créé d'office : les plans passent par le carnet, lot 4b)
   const d = racine.createFolder(nom);
-  dossierParChemin_(d, dossiers_().documents.plans, true);   // « Plans » : le dossier que Franck remplit pour les gars
   noterDossierChantier_(nom, d, proches.length ? 'créé (plusieurs dossiers ressemblants)' : 'créé');
   return d;
 }
@@ -3187,6 +3132,184 @@ function installerLot3_(attendu) { return installer_('Lot 3', attendu, etapesLot
 function installerLot3Test() { return installerLot3_('TEST'); }
 function installerLot3Production() { return installerLot3_('PRODUCTION'); }
 
+// ████ Carnet.gs ████
+// ═══════════════════════════════════════════════════════════════════════════
+//  Carnet.gs — Lot 4 : carnet de chantier (plans et documents en pages-images)
+//
+//  Lu par la page carnet.html (commun/carnet.js). Mesuré sur la copie TEST le 13/11/2026 : docs/lot4-etape0.md.
+//
+//  Ce que le programme de dépôt écrit dans le dossier de chaque chantier (clé « carnet » de dossiers.json) :
+//    CARNET/carnet.json                      la liste des documents (lue ici, jamais écrite par le serveur)
+//    CARNET/<dossier du document>/…          les images : aperçu léger, aperçu net, et des PAQUETS de tuiles voisines
+//  Un paquet est un fichier où les tuiles sont mises bout à bout ; carnet.json dit où commence chaque tuile.
+//  Le serveur lit un paquet en entier avec DriveApp (aucune nouvelle autorisation) et n'en rend que les tuiles demandées.
+//
+//  Règles :
+//   - droit vérifié à chaque demande (accès au chantier, comme les notes) ; même réponse pour « inconnu » et « interdit » ;
+//   - le serveur ne supprime RIEN et n'écrit rien dans le carnet ;
+//   - aucun identifiant Drive ne part vers les téléphones ; un nom de fichier reçu n'est jamais utilisé : seuls les noms
+//     écrits dans carnet.json le sont.
+// ═══════════════════════════════════════════════════════════════════════════
+
+const CARNET_FICHIER = 'carnet.json';
+const CARNET_MAX_LECTURE = 300 * 1024;    // octets d'images par réponse, en lecture (une barre de réseau)
+const CARNET_MAX_MASSE = 1500 * 1024;     // … et pour « Tout télécharger » (Wi-Fi)
+const CARNET_MAX_TUILES = 64;             // tuiles demandées en une fois
+const CARNET_CACHE_IDS_S = 21600;         // identifiants Drive gardés 6 h (le maximum du cache)
+const CARNET_CACHE_LISTE_S = 600;         // liste gardée 10 min : un document déposé apparaît au plus tard 10 min après
+const CARNET_CACHE_MAX = 30000;           // caractères par morceau (une valeur du cache ne dépasse pas 100 Ko, accents compris)
+const CARNET_CACHE_MORCEAUX = 30;         // jusqu'à 900 000 caractères de liste ; au-delà, elle est relue à chaque demande
+const CARNET_NOM_SUR = /^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$/;   // noms des fichiers d'images : jamais un chemin
+const CARNET_REFUS = 'Ce chantier ne fait pas partie de vos chantiers : voyez avec le bureau.';
+
+function carnetErreur_(code, message) { return Object.assign(new Error(message), { carnet: code }); }
+
+// Le chantier demandé et son dossier CARNET (null : pas encore de carnet). Refus : chantier inconnu ou interdit.
+function carnetChantier_(compte, corps) {
+  const demande = typeof corps.chantier === 'string' ? corps.chantier.trim().slice(0, NOTE_MAX_CHANTIER) : '';
+  const chantier = demande ? noteChantierConnu_(demande) : '';
+  if (!chantier || !notePeutLire_(compte, chantier)) return null;
+  const dossier = dossierChantier_(chantier, false);
+  return { chantier: chantier, dossier: dossier ? dossier.getName() : '', carnet: dossier ? dossierParChemin_(dossier, dossiers_().documents.carnet, false) : null };
+}
+
+// La liste carnet.json du dossier CARNET : { liste, maj, doublon }. Deux fichiers de ce nom (Drive pour ordinateur en
+// fabrique parfois) : le plus récent est pris, et « doublon » le signale.
+function carnetListe_(carnet) {
+  const cache = cacheScript_(), cle = 'carnet:liste:1:' + carnet.getId();
+  const nombreGarde = Number(cache.get(cle + ':n')) || 0;
+  if (nombreGarde > 0 && nombreGarde <= CARNET_CACHE_MORCEAUX) {
+    const cles = []; for (let i = 0; i < nombreGarde; i++) cles.push(cle + ':' + i);
+    const morceaux = cache.getAll(cles);
+    if (cles.every(k => typeof morceaux[k] === 'string')) { try { return JSON.parse(cles.map(k => morceaux[k]).join('')); } catch (e) {} }
+  }
+  const it = carnet.getFilesByName(CARNET_FICHIER);
+  let fichier = null, nombre = 0;
+  while (it.hasNext()) {
+    const f = it.next();
+    if (f.isTrashed()) continue;
+    nombre++;
+    if (!fichier || f.getLastUpdated().getTime() > fichier.getLastUpdated().getTime()) fichier = f;
+  }
+  if (!fichier) {
+    const sous = carnet.getFolders();
+    while (sous.hasNext()) { if (!sous.next().isTrashed()) throw carnetErreur_('CARNET_ARRIVE', 'La liste du carnet est en cours d’arrivée : réessayez dans quelques minutes.'); }
+    return { liste: { documents: [] }, maj: 0, doublon: false };
+  }
+  let liste;
+  try { liste = JSON.parse(fichier.getBlob().getDataAsString('UTF-8')); } catch (e) { throw carnetErreur_('CARNET_ARRIVE', 'La liste du carnet est en cours d’arrivée : réessayez dans quelques minutes.'); }
+  if (!liste || !Array.isArray(liste.documents)) throw carnetErreur_('CARNET_ARRIVE', 'La liste du carnet est en cours d’arrivée : réessayez dans quelques minutes.');
+  const rendu = { liste: liste, maj: fichier.getLastUpdated().getTime(), doublon: nombre > 1 };
+  // gardée par morceaux (une valeur du cache ne dépasse pas 100 Ko ; la liste d'un chantier riche en grands plans, si)
+  const texte = JSON.stringify(rendu), parts = Math.ceil(texte.length / CARNET_CACHE_MAX);
+  if (parts <= CARNET_CACHE_MORCEAUX) {
+    const valeurs = {};
+    for (let i = 0; i < parts; i++) valeurs[cle + ':' + i] = texte.slice(i * CARNET_CACHE_MAX, (i + 1) * CARNET_CACHE_MAX);
+    valeurs[cle + ':n'] = String(parts);
+    try { cache.putAll(valeurs, CARNET_CACHE_LISTE_S); } catch (e) {}
+  }
+  return rendu;
+}
+
+// Les documents montrés : jamais un document retiré, et pour chaque code seulement le DERNIER déposé (dernier indice)
+function carnetDocuments_(liste, chantier, dossier) {
+  // le programme de dépôt écrit le nom du chantier, ou à défaut celui de son dossier : les deux sont acceptés
+  if (liste.chantier && cleChantier_(liste.chantier) !== cleChantier_(chantier) && cleChantier_(liste.chantier) !== cleChantier_(dossier)) throw carnetErreur_('CARNET_ARRIVE', 'Le carnet de ce dossier appartient à un autre chantier : prévenez le bureau.');
+  const parCode = {}, ordre = [];
+  liste.documents.forEach(d => {
+    if (!d || d.retire === true || typeof d.id !== 'string' || !CARNET_NOM_SUR.test(d.id) || typeof d.dossier !== 'string' || !Array.isArray(d.pages)) return;
+    if (/[\/\\]/.test(d.dossier) || !d.dossier.trim()) return;
+    const code = String(d.code || d.id);
+    if (!parCode[code]) ordre.push(code);
+    parCode[code] = d;
+  });
+  return ordre.map(c => parCode[c]);
+}
+
+// Action « carnet » : la liste des documents du chantier ET leur description (pages, niveaux, paquets), en une demande
+function carnetLister_(compte, corps) {
+  const debut = Date.now(), ou = carnetChantier_(compte, corps);
+  if (!ou) return avecJeton_({ ok: false, code: 'INTERDIT', message: CARNET_REFUS }, compte);
+  try {
+    const lu = ou.carnet ? carnetListe_(ou.carnet) : { liste: { documents: [] }, maj: 0, doublon: false };
+    // « empreinte » : change dès qu'un document est redéposé sous le même identifiant (le téléphone efface alors ce qu'il en gardait)
+    const empreinte = d => String(d.depose || [d.poids, d.pages.length, d.pages[0] && d.pages[0].leger && d.pages[0].leger.o, d.pages[0] && d.pages[0].net && d.pages[0].net.o, d.date].join('-'));
+    const docs = carnetDocuments_(lu.liste, ou.chantier, ou.dossier).map(d => ({ id: d.id, code: String(d.code || ''), indice: String(d.indice || ''),
+      intitule: String(d.intitule || ''), date: String(d.date || ''), poids: Number(d.poids) || 0, empreinte: empreinte(d), pages: d.pages }));
+    return avecJeton_({ ok: true, code: 'OK', message: docs.length + ' document(s)',
+      data: { chantier: ou.chantier, documents: docs, maj: lu.maj, heure: Date.now(), ms: Date.now() - debut } }, compte);
+  } catch (e) {
+    if (e && e.carnet) return avecJeton_({ ok: false, code: e.carnet, message: e.message }, compte);
+    throw e;
+  }
+}
+
+// Un fichier d'images du document, retrouvé par son nom (écrit dans carnet.json) puis par son identifiant gardé en cache.
+// La clé du cache change avec la date de carnet.json : un nouveau dépôt ne sert jamais un ancien fichier.
+function carnetFichier_(carnet, maj, doc, nom, taille) {
+  if (typeof nom !== 'string' || !CARNET_NOM_SUR.test(nom)) throw carnetErreur_('CARNET_ARRIVE', 'Ce document est incomplet : prévenez le bureau.');
+  const cache = cacheScript_(), cle = 'carnet:f:1:' + carnet.getId() + ':' + maj + ':' + doc.id + ':' + nom;
+  const bon = f => !!f && !f.isTrashed() && (!taille || f.getSize() === taille);
+  const id = cache.get(cle);
+  if (id) { try { const f = DriveApp.getFileById(id); if (bon(f)) return f; } catch (e) {} cache.remove(cle); }
+  const dossiers = carnet.getFoldersByName(doc.dossier);
+  while (dossiers.hasNext()) {
+    const d = dossiers.next();
+    if (d.isTrashed()) continue;
+    const it = d.getFilesByName(nom);
+    while (it.hasNext()) { const f = it.next(); if (bon(f)) { cache.put(cle, f.getId(), CARNET_CACHE_IDS_S); return f; } }
+  }
+  throw carnetErreur_('CARNET_ARRIVE', 'Ce document est en cours d’arrivée : réessayez dans quelques minutes.');
+}
+
+// Action « carnetTuiles » : { chantier, doc, page (à partir de 1), quoi: 'leger' | 'net' | 'tuiles', niveau, tuiles: [[colonne, ligne], …], masse }
+// Rend les images en base64. Pour les tuiles : autant que le plafond le permet (au moins une), le reste dans « reste ».
+function carnetTuiles_(compte, corps) {
+  const debut = Date.now(), ou = carnetChantier_(compte, corps);
+  if (!ou || !ou.carnet) return avecJeton_({ ok: false, code: 'INTERDIT', message: CARNET_REFUS }, compte);
+  try {
+    const lu = carnetListe_(ou.carnet);
+    const doc = carnetDocuments_(lu.liste, ou.chantier, ou.dossier).filter(d => d.id === corps.doc)[0];
+    const page = doc && doc.pages[Number(corps.page) - 1];
+    if (!page) return avecJeton_({ ok: false, code: 'CARNET_INCONNU', message: 'Ce document n’est plus au carnet : rouvrez la liste.' }, compte);
+    const rendre = (images, reste, lus) => avecJeton_({ ok: true, code: 'OK', message: images.length + ' image(s)',
+      data: { images: images, reste: reste, maj: lu.maj, ms: Date.now() - debut, octetsLus: lus } }, compte);
+    if (corps.quoi === 'leger' || corps.quoi === 'net') {
+      const im = page[corps.quoi];
+      if (!im || !im.f) return avecJeton_({ ok: false, code: 'CARNET_INCONNU', message: 'Image absente : rouvrez la liste.' }, compte);
+      const octets = carnetFichier_(ou.carnet, lu.maj, doc, im.f, Number(im.o) || 0).getBlob().getBytes();
+      return rendre([{ quoi: corps.quoi, b64: Utilities.base64Encode(octets) }], [], octets.length);
+    }
+    const niveau = (Array.isArray(page.niveaux) ? page.niveaux : []).filter(n => n && n.z === Number(corps.niveau))[0];
+    const voulues = Array.isArray(corps.tuiles) ? corps.tuiles.slice(0, CARNET_MAX_TUILES) : [];
+    if (corps.quoi !== 'tuiles' || !niveau || !voulues.length) return avecJeton_({ ok: false, code: 'CARNET_INCONNU', message: 'Demande incomprise : rouvrez la liste.' }, compte);
+    // Où est chaque tuile : « colonne,ligne » → [paquet, début, longueur]
+    const ou2 = {};
+    (niveau.paquets || []).forEach((p, i) => (p.tuiles || []).forEach(t => { ou2[t[0] + ',' + t[1]] = [i, Number(t[2]), Number(t[3])]; }));
+    const plafond = corps.masse === true ? CARNET_MAX_MASSE : CARNET_MAX_LECTURE;
+    const ouverts = {}, images = [], reste = [];
+    let total = 0, lus = 0;
+    voulues.forEach(v => {
+      const cle = Array.isArray(v) ? Number(v[0]) + ',' + Number(v[1]) : '', place = ou2[cle];
+      if (!place) return;                                              // tuile inconnue : ignorée
+      if (images.length && total + place[2] > plafond) { reste.push([Number(v[0]), Number(v[1])]); return; }
+      if (!ouverts[place[0]]) {
+        const p = niveau.paquets[place[0]];
+        ouverts[place[0]] = carnetFichier_(ou.carnet, lu.maj, doc, p.f, Number(p.o) || 0).getBlob().getBytes();
+        lus += ouverts[place[0]].length;
+      }
+      const octets = ouverts[place[0]];
+      if (!(place[1] >= 0) || !(place[2] > 0) || place[1] + place[2] > octets.length) throw carnetErreur_('CARNET_ARRIVE', 'Ce document est incomplet : prévenez le bureau.');
+      images.push({ c: Number(v[0]), l: Number(v[1]), b64: Utilities.base64Encode(octets.slice(place[1], place[1] + place[2])) });
+      total += place[2];
+    });
+    return rendre(images, reste, lus);
+  } catch (e) {
+    if (e && e.carnet) return avecJeton_({ ok: false, code: e.carnet, message: e.message }, compte);
+    throw e;
+  }
+}
+
 // ████ Admin.gs ████
 // ═══════════════════════════════════════════════════════════════
 // Loué App — Admin.gs : tâches à lancer dans l'éditeur (déclencheurs, vérification, partages, copie TEST)
@@ -3520,6 +3643,151 @@ function modifierPartages_(aTraiter, action, texteEtat) {
   const msg = faits + ' élément(s) traité(s).' + (restants ? ' ' + restants + ' restant(s) : relancer la même fonction.' : ' Terminé.');
   Logger.log(msg);
   return msg;
+}
+
+
+// ══════════════════════════════════════════════════════════
+// PARTAGES PAR LIEN RESTÉS DANS LES DOSSIERS « Plans » (lot 4b) — LECTURE SEULE
+// Jusqu'au lot 4b, ouvrir la tuile « Plans » mettait chaque fichier du dossier Plans d'un chantier en partage
+// « toute personne disposant du lien ». La tuile est retirée et l'appli ne pose plus ces partages, mais ceux
+// déjà posés restent : c'est Franck qui décide de les retirer (à la main dans Drive).
+// listerPartagesPlans() écrit dans l'onglet « Partages Plans » les fichiers et dossiers encore partagés.
+// Elle ne modifie RIEN dans le Drive (aucun partage changé, rien de supprimé, rien de déplacé).
+// Si le journal dit « À suivre », la relancer : elle reprend où elle s'était arrêtée.
+// ══════════════════════════════════════════════════════════
+const SHEET_PARTAGES_PLANS = 'Partages Plans';
+const ENTETES_PARTAGES_PLANS = ['Chantier', 'Chemin', 'Nom', 'Élément', 'Type de partage', 'Modifié le', 'Identifiant'];
+const TEXTES_PARTAGE = {
+  ANYONE_WITH_LINK: 'toute personne disposant du lien', ANYONE: 'public (trouvable sur Internet)',
+  DOMAIN_WITH_LINK: 'toute personne du domaine disposant du lien', DOMAIN: 'toute personne du domaine',
+};
+const TEXTES_DROIT = { VIEW: 'lecture', COMMENT: 'commentaire', EDIT: 'modification' };
+
+function listerPartagesPlans() {
+  const debut = Date.now();
+  const tempsDepasse = () => Date.now() - debut > DUREE_MAX_MS;
+  const props = PropertiesService.getScriptProperties();
+  const sh = feuille_(SHEET_PARTAGES_PLANS, ENTETES_PARTAGES_PLANS);
+  let suite = null;
+  try { suite = JSON.parse(props.getProperty('PARTAGES_PLANS_SUITE') || 'null'); } catch (e) {}
+  // Une reprise n'est suivie que si elle est récente ET si l'onglet contient exactement ce qu'elle y avait écrit :
+  // sinon (relance des jours plus tard, onglet supprimé ou modifié entre-temps) la liste serait annoncée « terminée »
+  // alors qu'il y manquerait les premiers chantiers. Dans le doute, on repart de zéro.
+  if (suite && (!(Date.now() - Number(suite.debut) < 3600000) || Math.max(0, sh.getLastRow() - 1) !== Number(suite.lignes))) suite = null;
+  if (!suite) {
+    // Nouvelle liste : l'ancienne est effacée (cet onglet n'est qu'un état des lieux, il ne sert à aucun retour arrière)
+    if (sh.getLastRow() > 1) sh.getRange(2, 1, sh.getLastRow() - 1, ENTETES_PARTAGES_PLANS.length).clearContent();
+    suite = { apres: '', chantiers: 0, sansPlans: 0, incomplets: 0, partages: 0, lignes: 0, debut: Date.now() };
+  }
+  const chantiers = dossiersChantiersConnus_();
+  // Nom du dossier Plans : celui de dossiers.json s'il existe (sinon le nom par défaut, sans créer le fichier : lecture seule)
+  const cheminPlans = fichierDossiers_(DriveApp.getFolderById(driveRootId_())) ? dossiers_().documents.plans : DOSSIERS_DEFAUT.documents.plans;
+  const cheminsPlans = [cheminPlans, DOSSIERS_DEFAUT.documents.plans, 'Plans'].filter((c, i, t) => c && t.indexOf(c) === i);
+  let fini = true, faitsCePassage = 0;
+  for (let i = 0; i < chantiers.length; i++) {
+    const ch = chantiers[i];
+    if (suite.apres && ch.id <= suite.apres) continue;   // déjà fait lors d'un passage précédent
+    if (tempsDepasse()) { fini = false; break; }
+    const lignes = [];
+    // 4 : le dossier du chantier lui-même, s'il est partagé (tout ce qu'il contient l'est alors aussi)
+    partageDe_(ch.dossier, ch.nom, '', 'dossier du chantier', lignes);
+    const plans = [];
+    cheminsPlans.forEach(c => sousDossiersParChemin_(ch.dossier, c).forEach(d => { if (!plans.some(x => x.getId() === d.getId())) plans.push(d); }));
+    let complet = true;
+    for (let k = 0; k < plans.length && complet; k++) complet = partagesDuDossier_(plans[k], ch.nom, plans[k].getName(), lignes, tempsDepasse);
+    // Limite de temps au milieu d'un chantier : il sera refait en entier au passage suivant. S'il est le premier
+    // du passage, il ne tiendra jamais dans un passage : ce qui a été vu est écrit, avec une ligne « liste incomplète »
+    if (!complet && faitsCePassage) { fini = false; break; }
+    suite.partages += lignes.length;
+    if (!complet) { lignes.push([ch.nom, '', '⚠ liste incomplète pour ce chantier (trop d’éléments pour un seul passage)', '', '', '', '']); suite.incomplets++; }
+    // Les lignes sont écrites AVANT de noter où l'on en est : rien n'est perdu si l'exécution est coupée
+    if (lignes.length) sh.getRange(sh.getLastRow() + 1, 1, lignes.length, ENTETES_PARTAGES_PLANS.length).setValues(lignes.map(l => l.map(cellule_)));
+    suite.apres = ch.id; suite.chantiers++; faitsCePassage++; suite.lignes += lignes.length;
+    if (!plans.length) suite.sansPlans++;
+    props.setProperty('PARTAGES_PLANS_SUITE', JSON.stringify(suite));
+  }
+  const n = suite.partages;   // les éléments partagés (les lignes « ⚠ liste incomplète » ne comptent pas)
+  let msg;
+  if (!fini) {
+    msg = 'À suivre : ' + suite.chantiers + ' dossier(s) de chantier parcouru(s) sur ' + chantiers.length + ', ' + n
+      + ' ligne(s) dans l’onglet « ' + SHEET_PARTAGES_PLANS + ' ». Relancer listerPartagesPlans() pour continuer.';
+  } else {
+    props.deleteProperty('PARTAGES_PLANS_SUITE');
+    msg = ['Liste terminée : ' + n + ' ligne(s) dans l’onglet « ' + SHEET_PARTAGES_PLANS + ' » (fichiers et dossiers encore partagés par lien dans les dossiers « ' + cheminPlans + ' » des chantiers).',
+      suite.chantiers + ' dossier(s) de chantier parcouru(s), dont ' + suite.sansPlans + ' sans dossier « ' + cheminPlans + ' ».',
+      suite.incomplets ? '⚠ ' + suite.incomplets + ' chantier(s) avec une liste incomplète (voir les lignes ⚠ de l’onglet).' : '',
+      'Rien n’a été modifié dans le Drive : c’est vous qui décidez de retirer ces partages (dans Drive : clic droit → Partager → « Accès limité »).',
+      'Un élément peut être partagé seulement parce que le dossier qui le contient l’est : commencez par les dossiers, du plus haut au plus bas, puis relancez cette liste pour voir ce qui reste.',
+      'Les raccourcis ne sont pas suivis : seul le partage du raccourci est lu, pas celui du fichier qu’il désigne.',
+    ].filter(Boolean).join('\n');
+  }
+  Logger.log(msg);
+  return msg;
+}
+
+// Dossiers de chantier connus : ceux de l'onglet « Dossiers chantiers » et les sous-dossiers de la racine
+// (hors dossiers techniques et corbeille), sans doublon, toujours dans le même ordre (par identifiant) pour la reprise
+function dossiersChantiersConnus_() {
+  const parId = {};
+  const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_DOSSIERS);   // lu seulement : jamais créé ici
+  (sh ? sh.getDataRange().getValues().slice(1) : []).forEach(l => {
+    const id = String(l[2] || '').trim();
+    if (!id || parId[id]) return;
+    try { const d = DriveApp.getFolderById(id); if (!d.isTrashed()) parId[id] = { id: id, nom: String(l[0] || d.getName()), dossier: d }; } catch (e) {}
+  });
+  const it = DriveApp.getFolderById(driveRootId_()).getFolders();
+  while (it.hasNext()) {
+    const d = it.next();
+    if (d.isTrashed() || estDossierTechnique_(d) || parId[d.getId()]) continue;
+    parId[d.getId()] = { id: d.getId(), nom: d.getName(), dossier: d };
+  }
+  return Object.keys(parId).sort().map(id => parId[id]);
+}
+
+// Tous les sous-dossiers « A/B » d'un dossier (Drive accepte plusieurs dossiers du même nom : aucun n'est oublié)
+function sousDossiersParChemin_(parent, chemin) {
+  const morceaux = String(chemin || '').split('/').map(x => x.trim()).filter(Boolean);
+  if (!morceaux.length) return [];
+  let niveau = [parent];
+  morceaux.forEach(nom => {
+    const suivants = [];
+    niveau.forEach(d => { const it = d.getFoldersByName(nom); while (it.hasNext()) { const x = it.next(); if (!x.isTrashed()) suivants.push(x); } });
+    niveau = suivants;
+  });
+  return niveau;
+}
+
+// Ajoute à « lignes » l'élément (dossier ou fichier) s'il est partagé ; LECTURE SEULE.
+function partageDe_(el, chantier, chemin, type, lignes) {
+  let acces, droit = '';
+  try { acces = String(el.getSharingAccess()); droit = String(el.getSharingPermission()); }
+  catch (e) { acces = 'ILLISIBLE'; droit = e.message; }
+  if (acces === 'PRIVATE') return;
+  const texte = acces === 'ILLISIBLE' ? 'partage illisible (' + droit + ') : à regarder dans Drive'
+    : (TEXTES_PARTAGE[acces] || acces) + (TEXTES_DROIT[droit] ? ' — ' + TEXTES_DROIT[droit] : '');
+  let date = '';
+  try { date = Utilities.formatDate(el.getLastUpdated(), 'Europe/Paris', 'dd/MM/yyyy'); } catch (e) {}
+  lignes.push([chantier, chemin, el.getName(), type, texte, date, el.getId()]);
+}
+// Ajoute à « lignes » le dossier (s'il est partagé), ses fichiers partagés, puis ses sous-dossiers ; LECTURE SEULE.
+// Renvoie false si la limite de temps est atteinte avant la fin.
+function partagesDuDossier_(dossier, chantier, chemin, lignes, tempsDepasse) {
+  const SEP = ' › ';   // comme l'onglet du lot 0 (« / » apparaît dans certains noms)
+  const noter = (el, type) => partageDe_(el, chantier, chemin, type, lignes);
+  noter(dossier, 'dossier');
+  const fichiers = dossier.getFiles();
+  while (fichiers.hasNext()) {
+    if (tempsDepasse()) return false;
+    const f = fichiers.next();
+    if (!f.isTrashed()) noter(f, 'fichier');
+  }
+  const sous = dossier.getFolders();
+  while (sous.hasNext()) {
+    if (tempsDepasse()) return false;
+    const d = sous.next();
+    if (!d.isTrashed() && !partagesDuDossier_(d, chantier, chemin + SEP + d.getName(), lignes, tempsDepasse)) return false;
+  }
+  return true;
 }
 
 

@@ -150,6 +150,26 @@ node tests/porte.test.js
 
 Le premier vérifie le lien et la copie d'essai dans un dossier temporaire, sans toucher à GitHub. Les deux autres (branche `outillage`) vérifient le moteur d'installation, la porte de service et la commande d'envoi, avec un faux Apps Script et un faux clasp : aucun appel à Google.
 
+## 8. Le programme du PC : carnet et recopie des fiches (lot 4c)
+
+**La recopie des fiches de l'appli vers les dossiers de chantier du PC est automatique** : une tâche du Planificateur de tâches de Windows lance `outils/appli_pc.py --rapatrier --auto` toutes les heures et à l'ouverture de session, sans fenêtre. Ce qui demande l'attention de Franck est écrit dans `CHANTIERPRO - A VOIR.txt`, à côté des dossiers de chantier.
+
+| Fichier (double-clic) | Ce que ça fait |
+|---|---|
+| `outils\installer-tache.bat` | Met la recopie automatique en place, une fois, sans droits d'administrateur |
+| `outils\retirer-tache.bat` | L'arrête (aucun fichier n'est touché) |
+| `outils\appli-pc.bat` | Le menu : 1 tout traiter (carnet depuis les bordereaux, puis recopie des fiches) ; 2 voir seulement, sans rien écrire ; 3 lire « A VOIR » ; 4 associer un dossier du Drive à un dossier de chantier quand le numéro ne suffit pas ; 5 retirer un document du carnet |
+
+Ses réglages sont dans `_prive\depot.json` (jamais sur GitHub). Il ne supprime, ne déplace et n'écrase jamais rien. Mode d'emploi complet, limites et retour arrière : `docs/lot4c-procedure.md`. Ses tests, sur de faux dossiers, sans créer de tâche planifiée :
+
+```
+python -m unittest tests/test_appli_pc.py
+```
+
+```
+python -m unittest tests/test_depot_carnet.py
+```
+
 ## Où est le code
 
 | Quoi | Où | Dans `main` ? |

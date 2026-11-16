@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Loué App — Carnet de chantier</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Loué App">
+<meta name="theme-color" content="#1A2B4A">
+<link rel="stylesheet" href="commun/style.css?v=a9e6413e09">
+<link rel="stylesheet" href="commun/fiche.css?v=a9e6413e09">
+<style>
+[hidden]{display:none!important;}
+.docs{background:var(--card);border:1px solid var(--border);border-radius:var(--rl);overflow:hidden;}
+.doc{display:block;width:100%;text-align:left;font:inherit;color:inherit;background:none;border:none;border-bottom:1px solid var(--border);padding:14px 14px;min-height:64px;cursor:pointer;}
+.doc:last-child{border-bottom:none;}
+.doc:active{background:#EEF2F8;}
+.doc-titre{font-size:18px;font-weight:700;line-height:1.3;overflow-wrap:anywhere;}
+.doc-indice{display:inline-block;margin-left:8px;padding:1px 8px;border-radius:10px;background:#1A2B4A;color:#fff;font-size:14px;font-weight:700;vertical-align:middle;}
+.doc-nouveau{display:inline-block;margin-left:8px;color:var(--red);font-size:14px;font-weight:800;vertical-align:middle;}
+.doc-detail{font-size:14px;color:var(--muted);margin-top:4px;}
+.doc-etat{font-size:14px;font-weight:700;margin-top:4px;}
+.doc-etat.garde{color:var(--green);}
+.doc.ancien{background:#FDF1F1;}
+.doc-etat.alerte{color:var(--red);}
+.doc-bloc{border-bottom:1px solid var(--border);}
+.doc-bloc:last-child{border-bottom:none;}
+.doc-bloc .doc{border-bottom:none;}
+.dl{display:block;width:calc(100% - 28px);margin:0 14px 14px;min-height:52px;border-radius:10px;border:2px solid #1A2B4A;background:#fff;color:#1A2B4A;font:inherit;font-size:16px;font-weight:800;cursor:pointer;padding:8px 12px;}
+.dl.en-cours{background:linear-gradient(to right,#CFE0FA var(--fait,0%),#fff var(--fait,0%));}
+.dl:disabled{opacity:.45;}
+#dl-tout{width:100%;margin:0 0 12px;}
+.auto-wifi{display:flex;align-items:center;gap:10px;min-height:48px;font-size:15px;margin:0 0 12px;}
+.auto-wifi input{width:24px;height:24px;}
+.doc-ancien{font-size:15px;font-weight:800;color:var(--red);margin-top:4px;}
+/* ── Visionneuse : plein écran, fond sombre (lisible en plein soleil), gros boutons ── */
+#vue{position:fixed;inset:0;z-index:50;background:#2B2F36;display:flex;flex-direction:column;}
+body.loue-test #vue{top:40px;}   /* sous le bandeau du mode test */
+.vue-tete{flex:0 0 auto;display:flex;align-items:center;gap:8px;padding:8px 10px;padding-top:calc(8px + env(safe-area-inset-top));background:#1A2B4A;color:#fff;}
+.vue-titre{flex:1;min-width:0;font-size:15px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.vue-btn{flex:0 0 auto;min-width:52px;min-height:52px;border-radius:10px;border:2px solid #fff;background:#1A2B4A;color:#fff;font-size:22px;font-weight:800;cursor:pointer;padding:0 12px;}
+.vue-btn:disabled{opacity:.35;}
+.vue-btn.texte{font-size:15px;}
+#scene{flex:1;position:relative;overflow:hidden;touch-action:none;background:#2B2F36;cursor:grab;user-select:none;-webkit-user-select:none;}
+#monde{position:absolute;left:0;top:0;transform-origin:0 0;background:#fff;will-change:transform;}
+#monde img{position:absolute;display:block;max-width:none;-webkit-user-drag:none;user-select:none;pointer-events:none;}
+.vue-pied{flex:0 0 auto;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px;padding-bottom:calc(8px + env(safe-area-inset-bottom));background:#1A2B4A;color:#fff;}
+#vue-signaler{flex:1 1 100%;}   /* seul sur sa ligne : il ne sort jamais de l'écran */
+.vue-page{font-size:17px;font-weight:700;min-width:70px;text-align:center;}
+#vue-info{position:absolute;left:50%;bottom:12px;transform:translateX(-50%);max-width:92%;background:rgba(26,43,74,.92);color:#fff;font-size:15px;font-weight:700;padding:8px 14px;border-radius:20px;text-align:center;pointer-events:none;}
+</style>
+</head>
+<body>
+
+<div class="topbar no-print">
+  <a class="btn btn-secondary btn-petit" href="index.html" aria-label="Retour à l'accueil">‹ Retour</a>
+  <span class="tb-name">Carnet</span>
+  <span id="loue-envoi-place"></span>
+  <button class="btn btn-secondary btn-petit" type="button" id="btn-actualiser" onclick="charger()">↻ Actualiser</button>
+</div>
+
+<div class="main">
+  <div class="aide" id="entete"></div>
+  <div class="listes-info" id="info" role="status"></div>
+  <button class="dl" type="button" id="dl-tout" onclick="toutTelecharger()" hidden></button>
+  <label class="auto-wifi" id="auto-wifi" hidden><input type="checkbox" id="auto-wifi-case" data-brouillon="non" onchange="CARNET.reglerAuto(this.checked)"> Télécharger les plans tout seul quand le téléphone est en Wi-Fi</label>
+  <div class="docs" id="docs" hidden></div>
+  <div class="aide" id="place" hidden></div>
+</div>
+
+<div id="vue" hidden>
+  <div class="vue-tete">
+    <button class="vue-btn texte" type="button" id="vue-fermer" onclick="fermerVue()" aria-label="Fermer le document">‹ Liste</button>
+    <span class="vue-titre" id="vue-titre"></span>
+    <button class="vue-btn" type="button" id="vue-tourner" onclick="tourner()" aria-label="Tourner le plan d'un quart de tour">⟳</button>
+  </div>
+  <div id="scene">
+    <div id="monde"></div>
+    <div id="vue-info" role="status" hidden></div>
+  </div>
+  <div class="vue-pied">
+    <button class="vue-btn" type="button" id="vue-avant" onclick="changerPage(-1)" aria-label="Page précédente">‹</button>
+    <span class="vue-page" id="vue-page"></span>
+    <button class="vue-btn" type="button" id="vue-apres" onclick="changerPage(1)" aria-label="Page suivante">›</button>
+    <button class="vue-btn" type="button" id="vue-moins" onclick="zoomer(1/1.6)" aria-label="Voir plus large">−</button>
+    <button class="vue-btn" type="button" id="vue-plus" onclick="zoomer(1.6)" aria-label="Voir plus gros">+</button>
+    <button class="vue-btn texte" type="button" id="vue-signaler" onclick="signalerIci()">⚠ Signaler ici</button>
+  </div>
+</div>
+
+<script src="commun/config.js?v=a9e6413e09"></script>
+<script src="commun/api.js?v=a9e6413e09"></script>
+<script src="commun/ui.js?v=a9e6413e09"></script>
+<script src="commun/carnet.js?v=a9e6413e09"></script>
+<script src="commun/hors-ligne.js?v=a9e6413e09"></script>
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+const el = (balise, classe, texte) => { const e = document.createElement(balise); if (classe) e.className = classe; if (texte !== undefined) e.textContent = texte; return e; };
+const CARNET = LOUE.carnet;
+let CHANTIER = '';
+try { CHANTIER = (new URLSearchParams(location.search).get('chantier') || '').trim().slice(0, 150); } catch (e) {}
+let DOCS = [], enCours = 0;
+
+function poids(o) { return o >= 1048576 ? (o / 1048576).toFixed(1).replace('.', ',') + ' Mo' : Math.max(1, Math.round(o / 1024)) + ' Ko'; }
+function dateFr(iso) { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso || ''); return m ? m[3] + '/' + m[2] + '/' + m[1] : ''; }
+// Indice déjà vu sur ce téléphone, par document (pastille « nouveau ») : petit mémo par compte, hors de la base des plans
+function cleVus() { return 'loue_carnet_vus_' + (LOUE.env || 'prod') + '_' + LOUE.dernierIdentifiant() + '_' + CHANTIER.toLowerCase(); }
+function lireVus() { try { return JSON.parse(localStorage.getItem(cleVus()) || '{}') || {}; } catch (e) { return {}; } }
+function noterVu(doc) { try { const v = lireVus(); v[doc.code || doc.id] = doc.id; localStorage.setItem(cleVus(), JSON.stringify(v)); } catch (e) {} }
+
+function pasDeCompte(message) {
+  $('docs').hidden = true; $('place').hidden = true; $('info').textContent = '';
+  const e = $('entete'); e.textContent = message + ' ';
+  const a = el('a', '', 'Aller à l’accueil'); a.href = 'index.html'; e.appendChild(a);
+}
+
+function charger() {
+  if (TELE) { $('info').textContent = 'Téléchargement en cours : arrêtez-le pour actualiser la liste.'; return; }
+  const moi = ++enCours;
+  // Session terminée du même compte : ce qui est gardé dans le téléphone reste lisible ; sans compte du tout : rien
+  const SESSION = !LOUE.compte();
+  if (SESSION && !LOUE.dernierIdentifiant()) { pasDeCompte('Connectez-vous pour voir le carnet du chantier.'); return; }
+  if (!CHANTIER) { pasDeCompte('Ouvrez le carnet depuis un chantier, à l’accueil.'); return; }
+  $('entete').textContent = CHANTIER;
+  $('btn-actualiser').disabled = true;
+  if (!DOCS.length) $('info').textContent = 'Chargement… (quelques secondes ; une barre de réseau suffit)';
+  CARNET.liste(CHANTIER).then(r => {
+    if (moi !== enCours) return;
+    if (r.interdit) { DOCS = []; $('docs').hidden = true; $('info').textContent = r.message; return; }
+    DOCS = r.documents || [];
+    const du = 'liste du ' + new Date(r.date).toLocaleDateString('fr-FR') + '. Seules les pages déjà ouvertes sur ce téléphone sont lisibles.';
+    $('info').textContent = SESSION ? '🔑 Session terminée : reconnectez-vous à l’accueil dès que vous avez du réseau. En attendant, ' + du
+      : r.horsReseau ? '📴 Pas de réseau : ' + du
+      : r.message ? '⚠ ' + r.message + (/[.!?…]$/.test(r.message) ? '' : '.') + ' En attendant, ' + du
+      : (DOCS.length ? '' : 'Aucun document dans le carnet de ce chantier pour l’instant.');
+    LISTE_FRAICHE = !r.horsReseau && !r.message && !SESSION;
+    return afficherListe().then(() => {
+      if (!LISTE_FRAICHE) return;
+      // iPhone (et tout téléphone qui ne dit pas s'il est en Wi-Fi) : on propose, on ne lance rien
+      const nouveaux = DOCS.filter(d => !d.ancien && document.querySelector('#docs .dl[data-dl="' + d.id + '"]')
+        && (DOCS.some(a => a.ancien && a.code === d.code) || (lireVus()[d.code || d.id] && lireVus()[d.code || d.id] !== d.id)));
+      if (nouveaux.length && !CARNET.wifi()) $('info').textContent = '● Nouvel indice : ' + nouveaux.map(d => d.intitule || d.id).join(', ') + '. Téléchargez-le (bouton ⬇) dès que vous êtes en Wi-Fi.';
+      autoWifi();
+    });
+  }).catch(err => {
+    if (moi !== enCours) return;
+    LISTE_FRAICHE = false;
+    $('docs').hidden = true;
+    $('info').textContent = SESSION ? '🔑 Session terminée : reconnectez-vous à l’accueil pour voir le carnet de ce chantier.'
+      : err && err.reponse && err.reponse.message ? '⚠ ' + err.reponse.message
+      : '⚠ ' + (LOUE.messageClair ? LOUE.messageClair(err) : 'Pas de réseau') + ' Le carnet de ce chantier n’a encore jamais été ouvert sur ce téléphone.';
+  }).then(() => { if (moi === enCours) $('btn-actualiser').disabled = false; });
+}
+
+function afficherListe() {
+  const zone = $('docs'), vus = lireVus();
+  return Promise.all(DOCS.map(d => Promise.all([CARNET.etat(CHANTIER, d.id), CARNET.bilan(CHANTIER, d)]))).then(lus => {
+    const etats = lus.map(x => x[0]), bilans = lus.map(x => x[1]);
+    zone.textContent = '';
+    let resteTout = 0;
+    DOCS.forEach((d, i) => {
+      const bloc = el('div', 'doc-bloc');
+      const b = el('button', 'doc' + (d.ancien ? ' ancien' : '')); b.type = 'button'; b.dataset.doc = d.id;
+      const t = el('div', 'doc-titre', d.intitule || d.id);
+      if (d.indice) t.appendChild(el('span', 'doc-indice', 'indice ' + d.indice));
+      const connu = vus[d.code || d.id];
+      if (d.ancien) { /* pas de pastille : la ligne rouge ci-dessous dit tout */ }
+      else if (connu && connu !== d.id) t.appendChild(el('span', 'doc-nouveau', '● nouvel indice'));
+      else if (!connu) t.appendChild(el('span', 'doc-nouveau', '● nouveau'));
+      b.appendChild(t);
+      if (d.ancien) b.appendChild(el('div', 'doc-ancien', '⚠ ANCIEN INDICE — l’indice ' + (d.remplacePar || 'suivant') + ' est sorti : ouvrez-le dès que vous avez du réseau.'));
+      const n = (d.pages || []).length;
+      b.appendChild(el('div', 'doc-detail', [d.code, dateFr(d.date), n + (n > 1 ? ' pages' : ' page'), poids(d.poids || 0)].filter(Boolean).join(' · ')));
+      const gardees = Object.keys(etats[i].pages).length, bl = bilans[i], reste = Math.max(0, bl.octets - bl.octetsGardes);
+      const perdu = bl.etaitComplet && !bl.complet;
+      b.appendChild(el('div', 'doc-etat' + (perdu ? ' alerte' : bl.complet || gardees ? ' garde' : ''),
+        bl.complet ? '✓ disponible sans réseau, en entier'
+        : perdu ? '⚠ plus disponible en entier sans réseau : le téléphone a fait de la place.' + (d.ancien ? '' : ' Téléchargez-le de nouveau.')
+        : gardees >= n ? '✓ déjà ouvert : lisible sans réseau aux endroits déjà regardés'
+        : gardees ? '✓ ' + gardees + ' page' + (gardees > 1 ? 's' : '') + ' sur ' + n + ' déjà ouverte' + (gardees > 1 ? 's' : '') + ' ; le reste demande du réseau'
+        : '📶 demande du réseau à la première ouverture'));
+      b.onclick = () => ouvrirDoc(d.id, 1);
+      bloc.appendChild(b);
+      // « Tout télécharger » : pas pour un ancien indice, pas quand tout y est déjà
+      if (LISTE_FRAICHE && !d.ancien && !bl.complet && bl.total) {
+        resteTout += reste;
+        const t = el('button', 'dl'); t.type = 'button'; t.dataset.dl = d.id; t.dataset.reste = reste;
+        t.onclick = () => (TELE && TELE.id === d.id ? arreterTelechargement() : telecharger([d.id]));
+        bloc.appendChild(t);
+      }
+      zone.appendChild(bloc);
+    });
+    zone.hidden = !DOCS.length;
+    RESTE_TOUT = resteTout;
+    $('auto-wifi').hidden = !(CARNET.saitWifi() && DOCS.length);
+    $('auto-wifi-case').checked = CARNET.autoActif();
+    peindreTelechargement();
+    return CARNET.occupation();
+  }).then(o => {
+    $('place').hidden = !o;
+    $('place').textContent = 'Plans gardés dans ce téléphone : ' + poids(o || 0) + '. Les plus anciens sont effacés tout seuls quand la place manque ; les fiches et les brouillons passent toujours avant.';
+  });
+}
+
+// ════════════════ Tout télécharger (lot 4b) ════════════════
+// Un document à la fois, une demande à la fois. L'écran est gardé allumé pendant le téléchargement (une appli web ne
+// travaille pas en arrière-plan) ; s'il est interrompu, il reprend où il en était au prochain appui.
+let TELE = null;          // { id, fait, total, file: [identifiants restants], auto }
+let RESTE_TOUT = 0;
+let verrouEcran = null, ecranVoulu = false, verrouDemande = false;
+let LISTE_FRAICHE = false;   // la liste affichée vient du serveur, à l'instant (sinon : pas de téléchargement)
+let AUTO_ARRETE = false;     // la personne a arrêté un téléchargement automatique : il ne repart pas tout seul pendant cette visite
+function ecranAllume(oui) {
+  ecranVoulu = oui;
+  try {
+    if (oui && navigator.wakeLock && !verrouEcran && !verrouDemande && document.visibilityState === 'visible') {
+      verrouDemande = true;
+      navigator.wakeLock.request('screen').then(v => {
+        verrouDemande = false;
+        if (!ecranVoulu) { v.release().catch(() => {}); return; }   // obtenu trop tard : le téléchargement est déjà fini
+        verrouEcran = v;
+        v.addEventListener('release', () => { if (verrouEcran === v) verrouEcran = null; });   // le téléphone l'a repris (appli quittée)
+      }).catch(() => { verrouDemande = false; });
+    } else if (!oui && verrouEcran) { const v = verrouEcran; verrouEcran = null; v.release().catch(() => {}); }
+  } catch (e) {}
+}
+// le téléphone rend l'écran dès qu'on quitte l'appli : on le redemande au retour, si un téléchargement tourne encore
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && TELE) ecranAllume(true); });
+// Le texte des boutons, d'après ce qui est en cours
+function peindreTelechargement() {
+  document.querySelectorAll('#docs .dl').forEach(t => {
+    const actif = TELE && TELE.id === t.dataset.dl;
+    const pc = actif && TELE.total ? Math.min(100, Math.floor(TELE.fait * 100 / TELE.total)) : 0;
+    t.classList.toggle('en-cours', !!actif);
+    t.style.setProperty('--fait', pc + '%');
+    t.disabled = !!TELE && !actif;
+    t.textContent = actif ? (TELE.arret ? 'Arrêt en cours…' : '⏸ Arrêter — ' + pc + ' % téléchargé') : '⬇ Tout télécharger (' + poids(Number(t.dataset.reste) || 0) + ')';
+  });
+  const tout = $('dl-tout'), plusieurs = document.querySelectorAll('#docs .dl').length > 1;
+  tout.hidden = !plusieurs && !(TELE && TELE.tous);
+  tout.classList.toggle('en-cours', !!(TELE && TELE.tous));
+  tout.textContent = TELE && TELE.tous ? (TELE.arret ? 'Arrêt en cours…' : '⏸ Arrêter le téléchargement du chantier') : '⬇ Tout télécharger pour ce chantier (' + poids(RESTE_TOUT) + ')';
+  tout.disabled = !!TELE && !TELE.tous;
+}
+function toutTelecharger() {
+  if (TELE) { if (TELE.tous) arreterTelechargement(); return; }
+  telecharger(Array.from(document.querySelectorAll('#docs .dl')).map(t => t.dataset.dl), true);
+}
+function arreterTelechargement() { if (TELE) { TELE.file = []; TELE.arret = true; if (TELE.auto) AUTO_ARRETE = true; } CARNET.arreterTelechargement(); peindreTelechargement(); }
+// ids : les documents à télécharger, dans l'ordre ; tous : lancé par le bouton du chantier ; auto : lancé tout seul en Wi-Fi
+function telecharger(ids, tous, auto) {
+  if (TELE || CARNET.telechargementEnCours()) return Promise.resolve();
+  TELE = { id: '', fait: 0, total: 0, file: ids.slice(), tous: !!tous, auto: !!auto };
+  const moi = TELE;
+  ecranAllume(true);
+  const suivant = () => {
+    const id = moi.file.shift(), d = id && DOCS.filter(x => x.id === id)[0];
+    if (!id || moi.arret) return Promise.resolve({ fini: !moi.arret, arrete: moi.arret });
+    if (!d || d.ancien) return suivant();
+    moi.id = id; moi.fait = 0; moi.total = 0; peindreTelechargement();
+    return CARNET.telecharger(CHANTIER, d, (fait, total) => { moi.fait = fait; moi.total = total; peindreTelechargement(); }).then(r => (r.fini ? suivant() : r));
+  };
+  return suivant().then(r => {
+    TELE = null; ecranAllume(false);
+    let message;
+    if (r.fini) message = '✓ Téléchargement terminé : ces plans sont lisibles sans réseau.';
+    else if (r.arrete) message = 'Téléchargement arrêté. Appuyez de nouveau pour le reprendre où il en est.';
+    else if (r.plein && r.avant) message = '⚠ Pas assez de place : il reste ' + poids(r.besoin) + ' à télécharger, et le carnet de ce téléphone n’a plus que ' + poids(r.place)
+      + ' (les plans déjà téléchargés en entier sont gardés). Rien n’a été effacé.';
+    else if (r.plein) message = '⚠ Plus de place pour les plans dans ce téléphone : le téléchargement s’est arrêté. Les plans déjà téléchargés en entier restent lisibles.';
+    else if (r.reponse && (r.reponse.code === 'CARNET_INCONNU' || r.reponse.code === 'INTERDIT' || r.reponse.code === 'COMPTE_REFUSE')) return charger();
+    else message = '⚠ ' + (r.erreur || 'Pas de réseau.') + (/[.!?…]$/.test(r.erreur || '.') ? '' : '.') + ' Appuyez de nouveau pour reprendre où il en est.';
+    return afficherListe().then(() => { $('info').textContent = message; });
+  });
+}
+// En Wi-Fi (Android), les plans incomplets du chantier ouvert se téléchargent tout seuls, si la case est cochée
+function autoWifi() {
+  const c = LOUE.compte();
+  if (TELE || AUTO_ARRETE || !CARNET.wifi() || !CARNET.autoActif() || !c || c.profil.conducteur || c.profil.tous) return;
+  const boutons = Array.from(document.querySelectorAll('#docs .dl'));
+  if (!boutons.length) return;
+  Promise.all([CARNET.occupation(), CARNET.fichesEnAttente()]).then(lus => {
+    if (TELE || AUTO_ARRETE || lus[1] > 0) return;   // des fiches attendent : elles passent d'abord
+    // seulement ce qui tient sous la limite de l'automatique ; le reste attend un appui sur « Tout télécharger »
+    let place = CARNET.AUTO_MAX - lus[0];
+    const ids = boutons.filter(t => { const o = Number(t.dataset.reste) || 0; if (o > place) return false; place -= o; return true; }).map(t => t.dataset.dl);
+    if (!ids.length) return;
+    $('info').textContent = '📶 Wi-Fi : les plans de ce chantier se téléchargent tout seuls. Gardez l’appli ouverte.';
+    telecharger(ids, true, true);
+  });
+}
+
+// ════════════════ Visionneuse ════════════════
+// Le plan est un grand rectangle (« monde », en points de l'image entière) déplacé, grossi et tourné par une seule
+// transformation. Les images sont posées dedans : l'aperçu de la page entière en dessous, puis les tuiles du niveau
+// de détail qui convient au grossissement, seulement pour la zone regardée.
+const V = { doc: null, page: 0, desc: null, s: 1, tx: 0, ty: 0, r: 0, niveaux: [], tuiles: {}, urls: [], gen: 0, minuteur: 0, apercu: '' };
+const TUILE = 512;
+const scene = $('scene'), monde = $('monde');
+
+function info(texte, duree) {
+  const i = $('vue-info'); clearTimeout(info.m);
+  i.textContent = texte || ''; i.hidden = !texte;
+  if (texte && duree) info.m = setTimeout(() => { i.hidden = true; }, duree);
+}
+function urlDe(octets) { const u = URL.createObjectURL(new Blob([octets], { type: 'image/webp' })); V.urls.push(u); return u; }
+function libererImages() { V.urls.forEach(u => URL.revokeObjectURL(u)); V.urls = []; V.tuiles = {}; monde.textContent = ''; }
+
+function ouvrirDoc(id, page) {
+  const d = DOCS.filter(x => x.id === id)[0];
+  if (!d || !(d.pages || []).length) return;
+  V.doc = d; V.r = 0;
+  if (!d.ancien) noterVu(d);
+  $('vue').hidden = false; document.body.style.overflow = 'hidden';
+  $('vue-titre').textContent = (d.ancien ? '⚠ ANCIEN ' : '') + (d.indice ? 'Ind. ' + d.indice + ' — ' : '') + (d.intitule || d.id);
+  CARNET.persister();
+  ouvrirPage(page || 1);
+  try { history.pushState({ vue: true }, ''); } catch (e) {}
+}
+function fermerVue(parRetour) {
+  if ($('vue').hidden) return;
+  V.gen++; CARNET.abandonner(); libererImages();
+  $('vue').hidden = true; document.body.style.overflow = '';
+  V.doc = null;
+  if (!parRetour) { try { history.back(); } catch (e) {} }
+  afficherListe();
+}
+window.addEventListener('popstate', () => fermerVue(true));
+function changerPage(sens) { const n = V.page + sens; if (V.doc && n >= 1 && n <= V.doc.pages.length) ouvrirPage(n); }
+
+function ouvrirPage(n) {
+  const gen = ++V.gen;
+  CARNET.abandonner(); libererImages();
+  V.page = n; V.desc = V.doc.pages[n - 1]; V.apercu = '';
+  const p = V.desc;
+  // Dimensions de chaque niveau : écrites par le dépôt, sinon recalculées (moitié arrondie au-dessus à chaque niveau)
+  let l = p.l, h = p.h;
+  V.niveaux = (p.niveaux || []).slice().sort((a, b) => a.z - b.z).map((nv, i) => {
+    if (i > 0) { l = Math.ceil(l / 2); h = Math.ceil(h / 2); }
+    const ou = {}; (nv.paquets || []).forEach(q => (q.tuiles || []).forEach(t => { ou[t[0] + ',' + t[1]] = true; }));
+    return { z: nv.z, l: nv.l || l, h: nv.h || h, cols: nv.cols, ligs: nv.ligs, existe: ou, calque: null };
+  });
+  monde.style.width = p.l + 'px'; monde.style.height = p.h + 'px';
+  const fond = el('img'); fond.id = 'vue-apercu'; fond.alt = ''; fond.style.left = '0'; fond.style.top = '0'; fond.style.width = p.l + 'px'; fond.style.height = p.h + 'px';
+  monde.appendChild(fond);
+  // du plus grossier (dessous) au plus fin (dessus)
+  V.niveaux.slice().reverse().forEach(nv => { nv.calque = el('div'); nv.calque.dataset.z = nv.z; monde.appendChild(nv.calque); });
+  $('vue-page').textContent = n + ' / ' + V.doc.pages.length;
+  $('vue-avant').disabled = n <= 1; $('vue-apres').disabled = n >= V.doc.pages.length;
+  cadrer();
+  info('Chargement de la page…');
+  const poser = (quoi, octets) => { if (gen !== V.gen) return; if (quoi === 'leger' && V.apercu === 'net') return; fond.src = urlDe(octets); V.apercu = quoi; };
+  // l'aperçu léger d'abord (affiché en quelques secondes), puis le net par-dessus
+  const leger = p.leger ? CARNET.apercu(CHANTIER, V.doc.id, n, 'leger').then(o => { poser('leger', o); info(''); }) : Promise.resolve();
+  leger.catch(() => {}).then(() => { if (gen === V.gen && p.net) return CARNET.apercu(CHANTIER, V.doc.id, n, 'net').then(o => { poser('net', o); info(''); }); })
+    .catch(err => { if (gen !== V.gen || (err && err.message === 'abandonné')) return; if (!refusServeur(err) && !V.apercu) info('⚠ Page pas encore gardée dans ce téléphone, et pas de réseau.'); })
+    .then(() => { if (gen !== V.gen) return; if ($('vue-info').textContent === 'Chargement de la page…') info(''); demanderTuiles(); });
+}
+
+// Le serveur a répondu par un refus (ce n'est pas une panne de réseau) : on dit ce qu'il a dit. Rend true si c'est le cas.
+function refusServeur(err) {
+  const rep = err && err.reponse;
+  if (!rep || !rep.code) return false;
+  if (rep.code === 'INTERDIT' || rep.code === 'COMPTE_REFUSE') { fermerVue(); charger(); return true; }   // la liste affiche le refus et fait le ménage
+  if (rep.code === 'CARNET_INCONNU' && V.doc && !V.doc.ancien) {   // le document a changé pendant la lecture (nouvel indice, retrait)
+    fermerVue(); charger(); LOUE.message && LOUE.message('Ce document a changé : la liste est mise à jour.', 5000); return true;
+  }
+  if (rep.code === 'CARNET_INCONNU') { info('Cette partie de l’ancien indice n’est pas gardée dans ce téléphone.', 5000); return true; }
+  if (LOUE.estRefusDeConnexion && LOUE.estRefusDeConnexion(rep)) { info('🔑 Session terminée : reconnectez-vous à l’accueil. Seul ce qui est déjà gardé reste lisible.', 6000); return true; }
+  info('⚠ ' + (rep.message || 'Le serveur ne répond pas.'), 6000);
+  return true;
+}
+
+// ── Géométrie : écran = T + R(s × point du plan) ──
+function versEcran(x, y) {
+  const a = x * V.s, b = y * V.s;
+  if (V.r === 90) return [V.tx - b, V.ty + a];
+  if (V.r === 180) return [V.tx - a, V.ty - b];
+  if (V.r === 270) return [V.tx + b, V.ty - a];
+  return [V.tx + a, V.ty + b];
+}
+function versPlan(ex, ey) {
+  const a = ex - V.tx, b = ey - V.ty;
+  let x = a, y = b;
+  if (V.r === 90) { x = b; y = -a; } else if (V.r === 180) { x = -a; y = -b; } else if (V.r === 270) { x = -b; y = a; }
+  return [x / V.s, y / V.s];
+}
+function appliquer() {
+  monde.style.transform = 'translate(' + V.tx + 'px,' + V.ty + 'px) rotate(' + V.r + 'deg) scale(' + V.s + ')';
+  clearTimeout(V.minuteur);
+  V.minuteur = setTimeout(demanderTuiles, 250);   // les tuiles ne sont demandées que quand le doigt s'arrête
+}
+// Boîte du plan à l'écran, et limites : le plan ne peut pas sortir entièrement de l'écran
+function boite() {
+  const p = V.desc, coins = [versEcran(0, 0), versEcran(p.l, 0), versEcran(0, p.h), versEcran(p.l, p.h)];
+  const xs = coins.map(c => c[0]), ys = coins.map(c => c[1]);
+  return { x0: Math.min.apply(null, xs), x1: Math.max.apply(null, xs), y0: Math.min.apply(null, ys), y1: Math.max.apply(null, ys) };
+}
+function retenir() {
+  const b = boite(), L = scene.clientWidth, H = scene.clientHeight, marge = 60;
+  if (b.x1 < marge) V.tx += marge - b.x1; if (b.x0 > L - marge) V.tx -= b.x0 - (L - marge);
+  if (b.y1 < marge) V.ty += marge - b.y1; if (b.y0 > H - marge) V.ty -= b.y0 - (H - marge);
+}
+function echelleMin() {
+  const p = V.desc, tourne = V.r === 90 || V.r === 270, l = tourne ? p.h : p.l, h = tourne ? p.l : p.h;
+  return Math.min(scene.clientWidth / l, scene.clientHeight / h);
+}
+// Page entière, centrée
+function cadrer() {
+  V.s = echelleMin(); V.tx = 0; V.ty = 0;
+  const b = boite();
+  V.tx = (scene.clientWidth - (b.x1 - b.x0)) / 2 - b.x0; V.ty = (scene.clientHeight - (b.y1 - b.y0)) / 2 - b.y0;
+  appliquer();
+}
+function zoomerAutour(k, ex, ey) {
+  const min = echelleMin() * 0.8, max = 3;   // jusqu'à 3 fois la taille réelle de l'image
+  const s = Math.max(min, Math.min(max, V.s * k)), reel = s / V.s;
+  V.tx = ex - reel * (ex - V.tx); V.ty = ey - reel * (ey - V.ty); V.s = s;
+  retenir(); appliquer();
+}
+function zoomer(k) { zoomerAutour(k, scene.clientWidth / 2, scene.clientHeight / 2); }
+function tourner() {
+  // le point du plan au centre de l'écran y reste
+  const c = versPlan(scene.clientWidth / 2, scene.clientHeight / 2);
+  V.r = (V.r + 90) % 360;
+  const e = versEcran(c[0], c[1]);
+  V.tx += scene.clientWidth / 2 - e[0]; V.ty += scene.clientHeight / 2 - e[1];
+  if (V.s < echelleMin() * 0.8) V.s = echelleMin() * 0.8;
+  retenir(); appliquer();
+}
+
+// ── Doigts et souris : un doigt déplace, deux doigts grossissent, deux tapes rapides grossissent, molette sur PC ──
+const doigts = new Map();
+let ecart = 0, derniereTape = 0;
+function positions() { return Array.from(doigts.values()); }
+function dansScene(ev) { const r = scene.getBoundingClientRect(); return [ev.clientX - r.left, ev.clientY - r.top]; }
+scene.addEventListener('pointerdown', ev => {
+  if (!V.desc) return;
+  try { scene.setPointerCapture(ev.pointerId); } catch (e) {}
+  doigts.set(ev.pointerId, dansScene(ev));
+  if (doigts.size === 2) { const p = positions(); ecart = Math.hypot(p[0][0] - p[1][0], p[0][1] - p[1][1]); }
+  if (doigts.size === 1) {
+    const t = Date.now();
+    if (t - derniereTape < 320) { const q = dansScene(ev); zoomerAutour(2, q[0], q[1]); derniereTape = 0; } else derniereTape = t;
+  }
+});
+scene.addEventListener('pointermove', ev => {
+  if (!doigts.has(ev.pointerId) || !V.desc) return;
+  const avant = doigts.get(ev.pointerId), apres = dansScene(ev);
+  doigts.set(ev.pointerId, apres);
+  if (doigts.size === 1) {
+    if (Math.abs(apres[0] - avant[0]) + Math.abs(apres[1] - avant[1]) > 2) derniereTape = 0;
+    V.tx += apres[0] - avant[0]; V.ty += apres[1] - avant[1]; retenir(); appliquer();
+  } else if (doigts.size === 2) {
+    const p = positions(), e = Math.hypot(p[0][0] - p[1][0], p[0][1] - p[1][1]);
+    const cx = (p[0][0] + p[1][0]) / 2, cy = (p[0][1] + p[1][1]) / 2;
+    // le milieu des deux doigts suit aussi leur déplacement
+    V.tx += (apres[0] - avant[0]) / 2; V.ty += (apres[1] - avant[1]) / 2;
+    if (ecart > 0 && e > 0) zoomerAutour(e / ecart, cx, cy);
+    ecart = e;
+  }
+});
+function lacher(ev) { doigts.delete(ev.pointerId); ecart = 0; }
+scene.addEventListener('pointerup', lacher); scene.addEventListener('pointercancel', lacher);
+scene.addEventListener('wheel', ev => { if (!V.desc) return; ev.preventDefault(); const q = dansScene(ev); zoomerAutour(ev.deltaY < 0 ? 1.25 : 0.8, q[0], q[1]); }, { passive: false });
+window.addEventListener('resize', () => { if (V.desc && !$('vue').hidden) { retenir(); appliquer(); } });
+
+// ── Tuiles : le niveau dont un point d'image fait à peu près un point de l'écran, pour la zone visible seulement ──
+function niveauVoulu() {
+  if (!V.niveaux.length) return null;
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  // au niveau z, un point de l'image couvre 2^z points du plan, donc s × 2^z points d'écran
+  let choisi = V.niveaux[V.niveaux.length - 1];
+  for (let i = 0; i < V.niveaux.length; i++) { if (V.s * Math.pow(2, V.niveaux[i].z) * dpr >= 0.75) { choisi = V.niveaux[i]; break; } }
+  return choisi;
+}
+function demanderTuiles(relance) {
+  if (!V.desc || $('vue').hidden) return;
+  const nv = niveauVoulu(), gen = V.gen;
+  // seuls le niveau voulu et les plus grossiers restent visibles (un niveau plus fin déjà chargé ne gêne pas : il est dessus et juste)
+  if (!nv) return;
+  // tant que l'aperçu suffit (page entière à l'écran), aucune tuile n'est demandée
+  const apercuSuffit = V.s * Math.max(V.desc.l, V.desc.h) <= 1700 / Math.min(window.devicePixelRatio || 1, 2) * 1.2 && V.apercu === 'net';
+  if (apercuSuffit) return;
+  const L = scene.clientWidth, H = scene.clientHeight;
+  const coins = [versPlan(0, 0), versPlan(L, 0), versPlan(0, H), versPlan(L, H)];
+  const cote = TUILE * Math.pow(2, nv.z);
+  const x0 = Math.max(0, Math.min.apply(null, coins.map(c => c[0]))), x1 = Math.min(V.desc.l, Math.max.apply(null, coins.map(c => c[0])));
+  const y0 = Math.max(0, Math.min.apply(null, coins.map(c => c[1]))), y1 = Math.min(V.desc.h, Math.max.apply(null, coins.map(c => c[1])));
+  if (x1 <= x0 || y1 <= y0) return;
+  const voulues = [];
+  for (let li = Math.floor(y0 / cote); li <= Math.floor((y1 - 0.01) / cote); li++) for (let c = Math.floor(x0 / cote); c <= Math.floor((x1 - 0.01) / cote); c++) {
+    const cle = nv.z + ':' + c + ',' + li;
+    if (nv.existe[c + ',' + li] && !V.tuiles[cle]) voulues.push([c, li]);
+  }
+  if (!voulues.length) return;
+  // ce qui attendait pour une zone quittée ne passera pas avant la zone regardée — seulement après un geste : une relance
+  // automatique qui viderait la file ferait tourner les demandes en rond
+  if (relance !== true) CARNET.abandonnerAttente();
+  // du centre de l'écran vers les bords
+  const centre = versPlan(L / 2, H / 2);
+  voulues.sort((a, b) => Math.hypot((a[0] + .5) * cote - centre[0], (a[1] + .5) * cote - centre[1]) - Math.hypot((b[0] + .5) * cote - centre[0], (b[1] + .5) * cote - centre[1]));
+  alleger(x0, y0, x1, y1);
+  for (let i = 0; i < Math.min(voulues.length, 48); i += 8) demanderLot(nv, voulues.slice(i, i + 8), cote, gen);
+}
+// Au-delà de 80 tuiles affichées, celles qui sont loin de la zone regardée sont retirées (mémoire du téléphone)
+function alleger(x0, y0, x1, y1) {
+  const cles = Object.keys(V.tuiles).filter(k => V.tuiles[k] && V.tuiles[k] !== 'demandée');
+  if (cles.length <= 80) return;
+  const mx = x1 - x0, my = y1 - y0;
+  cles.forEach(k => {
+    const im = V.tuiles[k], g = parseFloat(im.style.left), h = parseFloat(im.style.top), l = parseFloat(im.style.width), ha = parseFloat(im.style.height);
+    if (g + l < x0 - mx || g > x1 + mx || h + ha < y0 - my || h > y1 + my) {
+      try { URL.revokeObjectURL(im.src); } catch (e) {}
+      V.urls = V.urls.filter(u => u !== im.src);
+      im.remove(); delete V.tuiles[k];
+    }
+  });
+}
+function demanderLot(nv, lot, cote, gen) {
+  lot.forEach(t => { V.tuiles[nv.z + ':' + t[0] + ',' + t[1]] = 'demandée'; });
+  CARNET.tuiles(CHANTIER, V.doc.id, V.page, nv.z, lot, (c, li, octets) => {
+    if (gen !== V.gen) return;
+    const im = el('img'), k = Math.pow(2, nv.z);
+    im.alt = ''; im.dataset.t = c + ',' + li;
+    im.style.left = (c * cote) + 'px'; im.style.top = (li * cote) + 'px';
+    // largeur réelle de la tuile (celles du bord droit et du bas sont plus petites), ramenée aux points du plan
+    im.style.width = (Math.min(TUILE, nv.l - c * TUILE) * k) + 'px'; im.style.height = (Math.min(TUILE, nv.h - li * TUILE) * k) + 'px';
+    im.src = urlDe(octets);
+    nv.calque.appendChild(im);
+    V.tuiles[nv.z + ':' + c + ',' + li] = im;
+  }).then(bilan => {
+    if (gen !== V.gen) return;
+    // une tuile demandée mais pas reçue pourra être redemandée
+    lot.forEach(t => { const cle = nv.z + ':' + t[0] + ',' + t[1]; if (V.tuiles[cle] === 'demandée') delete V.tuiles[cle]; });
+    if (bilan.abandonnees) { clearTimeout(V.minuteur); V.minuteur = setTimeout(() => demanderTuiles(true), 300); }   // sorties de la file : redemandées si elles sont encore à l'écran
+    if (!bilan.manquantes || refusServeur(bilan.erreur)) return;
+    info(bilan.erreur ? '📴 Pas de réseau : cette zone n’est pas encore gardée dans ce téléphone à ce grossissement.' : '⚠ Zone incomplète : réessayez dans un instant.', 5000);
+  });
+}
+
+// « Signaler ici » : ouvre le signalement avec le chantier et le repère (document, page) déjà remplis
+function signalerIci() {
+  if (!V.doc) return;
+  const repere = (V.doc.intitule || V.doc.id) + (V.doc.indice ? ' indice ' + V.doc.indice : '') + ', page ' + V.page;
+  location.href = 'signaler.html?chantier=' + encodeURIComponent(CHANTIER) + '&repere=' + encodeURIComponent(repere.slice(0, 150));
+}
+
+if (LOUE.surEvenement) LOUE.surEvenement(ev => {
+  if (ev.type !== 'compte') return;
+  if (!LOUE.compte() && !LOUE.dernierIdentifiant()) { fermerVue(true); pasDeCompte('Connectez-vous pour voir le carnet du chantier.'); }   // déconnexion volontaire
+  else if ($('vue').hidden) charger();   // session terminée ou reconnexion : la liste dit où on en est, sans fermer un plan ouvert
+});
+document.addEventListener('DOMContentLoaded', charger);
+</script>
+</body>
+</html>

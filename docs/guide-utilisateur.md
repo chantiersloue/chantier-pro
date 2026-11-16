@@ -20,7 +20,7 @@
 ## Mes chantiers
 
 - L'accueil montre **tes chantiers** (ceux que le bureau t'a donnés), les derniers ouverts en premier. Une recherche apparaît s'il y en a beaucoup.
-- Touche un chantier : ses **fiches** (le chantier est **déjà rempli**) et ses **Plans**.
+- Touche un chantier : son **Carnet** (les plans), ses **Signalements**, ses **Notes** et ses **fiches** (le chantier est **déjà rempli**).
 - Un chantier manque ? Demande au bureau de te le cocher. En attendant : **« Fiche sans chantier choisi »** (tu tapes le chantier ; l'appli te demande de confirmer s'il n'est pas dans tes chantiers).
 - Conducteurs : bouton **« Voir tous les chantiers »**.
 
@@ -81,6 +81,27 @@ Ce qu'il ne faut pas oublier sur ce chantier. Tout le monde sur le chantier voit
 - « ● nouveau » et le chiffre rouge de l'accueil montrent ce que les autres ont ajouté ou changé depuis ta dernière visite.
 - La liste n'envoie **aucun mail**. Pour une casse ou un manquant, utilise **Signaler** : le conducteur est prévenu.
 
+## Le carnet du chantier : les plans
+
+Dans un chantier, la tuile **« Carnet »** donne les plans validés par le bureau, toujours au dernier indice.
+
+- Touchez un document pour l'ouvrir. La page s'affiche d'abord un peu floue, puis nette : comptez quelques secondes.
+- **Un doigt** déplace le plan. **Deux doigts** (ou deux tapes rapides, ou les boutons **+** et **−**) grossissent.
+- Le bouton **⟳** tourne le plan d'un quart de tour (utile si la rotation du téléphone est verrouillée).
+- **‹** et **›** changent de page. **« ‹ Liste »** revient à la liste.
+- **« ⚠ Signaler ici »** ouvre un signalement avec le chantier et le plan déjà notés.
+- **Sans réseau**, vous relisez ce que vous avez déjà ouvert sur ce téléphone, aux endroits déjà regardés. Ouvrez donc vos plans une première fois quand vous avez du réseau.
+- « ● nouvel indice » : le plan a changé depuis votre dernière visite. Regardez-le.
+
+**Préparer son téléphone pour un chantier sans réseau**
+- Sous chaque document, **« ⬇ Tout télécharger »** (le poids est indiqué) ; en haut, le même bouton pour tout le chantier. Faites-le **en Wi-Fi** de préférence, et **gardez l'appli ouverte** : si vous la quittez, le téléchargement s'arrête et reprendra où il en était au prochain appui.
+- Comptez **7 minutes pour un dossier de trois grands plans** (18 Mo), une minute pour un petit document. Le bouton devient « ⏸ Arrêter » pendant le téléchargement.
+- **« ✓ disponible sans réseau, en entier »** : tout le document se lit sans réseau, à tous les grossissements.
+- **« ⚠ plus disponible en entier »** : le téléphone a manqué de place et en a effacé une partie. Téléchargez-le de nouveau.
+- **« ⚠ ANCIEN INDICE »** (ligne rouge) : un nouvel indice est sorti et n'est pas encore dans votre téléphone. Ne posez pas d'après l'ancien sans vérifier.
+- **Android** : en Wi-Fi, les plans du chantier que vous ouvrez se téléchargent tout seuls (case « Télécharger les plans tout seul quand le téléphone est en Wi-Fi »). Attention : un partage de connexion depuis un autre téléphone compte comme du Wi-Fi ; décochez la case si votre forfait est limité.
+- **iPhone** : rien ne part tout seul ; appuyez sur « Tout télécharger ».
+
 ## Ne rien perdre : le brouillon
 
 - Tout ce que tu tapes est **gardé automatiquement** dans le téléphone, photos et signatures comprises.
@@ -95,9 +116,13 @@ Ce qu'il ne faut pas oublier sur ce chantier. Tout le monde sur le chantier voit
 
 ## Consulter les documents d'un chantier
 
-Accueil → touche ton chantier → **Plans** → touche un plan pour l'ouvrir. La liste de tes chantiers s'affiche aussi sans réseau (pour ouvrir un plan, il faut du réseau).
+Les plans et les documents d'un chantier se lisent dans le **Carnet** : Accueil → touche ton chantier → **Carnet** → touche un document pour l'ouvrir. Le mode d'emploi est plus haut : « Le carnet du chantier : les plans ».
 
-*Seul l'onglet Plans est affiché. Les autres documents (PPSPS, tableaux…) reviendront dans le futur « carnet de chantier ».*
+- **L'ancien bouton « Plans » n'existe plus** : le Carnet le remplace. Les plans s'ouvrent dans l'appli, au zoom, et se relisent **sans réseau** une fois téléchargés.
+- Le Carnet demande d'être **connecté** avec ton compte.
+- Un plan manque dans le Carnet ? Demande-le au bureau : c'est le bureau qui dépose les plans validés.
+- La liste de tes chantiers s'affiche aussi sans réseau.
+- Le **planning de l'équipe** ne change pas : Accueil → **Planning** → touche le document (il faut du réseau).
 
 ## Mise à jour de l'appli
 

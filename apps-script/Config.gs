@@ -3,7 +3,7 @@
 // Loué Menuiserie
 // ═══════════════════════════════════════════════════════════════
 
-const VERSION_API = 'v8.0';   // lot 3 (notes de chantier) ; 7.0 : lot 7 (signalements) ; 6.0 : lot 2 (comptes)
+const VERSION_API = 'v9.1';   // 9.1 : retrait de la lecture du dossier Plans (lot 4b) ; 9.0 : lot 4a (carnet de chantier) ; 8.0 : lot 3 (notes de chantier) ; 7.0 : lot 7 (signalements) ; 6.0 : lot 2 (comptes)
 
 // ── CONFIGURATION ──
 const SHEET_CONTACTS      = 'Contacts';
@@ -30,8 +30,10 @@ const MAX_LIBRES_PAR_FICHE  = 2;   // adresses tapées à la main acceptées par
 const MAX_LIBRES_PAR_JOUR   = 10;  // adresses tapées à la main acceptées par jour, toute l'appli
 const MAX_ESSAIS_ATTENTE    = 12;  // un mail reporté est retenté toutes les 2 h, 12 fois au plus
 
-// Sous-dossiers dont les fichiers restent partagés par lien (consultation par les poseurs).
+// Sous-dossiers que listerPartages() (lot 0) marque « garder » : leurs partages par lien ne sont pas retirés par retirerPartages().
 // Tout le reste est en « accès limité » depuis le lot 0.
+// Depuis le lot 4b, l'appli ne lit plus le dossier Plans et n'y pose plus aucun partage : les partages restants se
+// listent avec listerPartagesPlans() (lecture seule), et c'est Franck qui décide de les retirer.
 const SOUS_DOSSIERS_PARTAGES = ['Plans'];
 
 // ── DRIVE ──

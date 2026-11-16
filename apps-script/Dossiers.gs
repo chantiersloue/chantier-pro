@@ -29,7 +29,7 @@ const DOSSIERS_DEFAUT = {
     'photos':              '05 - CHANTIER/PHOTOS CHANTIER',
     'signalement':         '05 - CHANTIER/SIGNALEMENTS',
     'carnet':              'CARNET',
-    'plans':               'Plans',
+    'plans':               'Plans',   // ancien dossier des plans : plus lu ni créé par l'appli (lot 4b) ; sert à listerPartagesPlans()
   },
   // À la racine du Drive de l'appli (hors chantier)
   hors_chantier: {
@@ -169,8 +169,8 @@ function dossierChantier_(chantierNom, creer) {
   if (proches.length === 1) { if (creer) noterDossierChantier_(nom, proches[0], 'ressemblance'); return proches[0]; }
   if (!creer) return null;
   // 4. Nouveau dossier (plusieurs ressemblances : on ne devine pas)
+  // (plus de sous-dossier « Plans » créé d'office : les plans passent par le carnet, lot 4b)
   const d = racine.createFolder(nom);
-  dossierParChemin_(d, dossiers_().documents.plans, true);   // « Plans » : le dossier que Franck remplit pour les gars
   noterDossierChantier_(nom, d, proches.length ? 'créé (plusieurs dossiers ressemblants)' : 'créé');
   return d;
 }

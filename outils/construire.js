@@ -44,7 +44,7 @@ function swVersionne(contenu) {
 }
 
 // 4. Code.gs unique : ordre fixe (réglages d'abord) ; Modeles.gs est pris dans sa version à jour
-const ORDRE_GS = ['Config.gs', 'Securite.gs', 'Comptes.gs', 'Api.gs', 'Documents.gs', 'Dossiers.gs', 'Signalements.gs', 'Notes.gs', 'Admin.gs', 'Installation.gs', 'Modeles.gs'];
+const ORDRE_GS = ['Config.gs', 'Securite.gs', 'Comptes.gs', 'Api.gs', 'Documents.gs', 'Dossiers.gs', 'Signalements.gs', 'Notes.gs', 'Carnet.gs', 'Admin.gs', 'Installation.gs', 'Modeles.gs'];
 // La « porte de service » (outils d'essai) vit dans un dossier À PART : elle n'entre JAMAIS dans le Code.gs de
 // production. Seul outils/envoyer-test.js assemble un serveur « avec porte », directement dans le dossier clasp
 // de la copie TEST (hors du dépôt).
