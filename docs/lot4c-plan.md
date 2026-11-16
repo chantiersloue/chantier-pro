@@ -44,7 +44,7 @@ Le programme ne devine jamais quel dossier du Drive correspond à quel dossier d
 - Le programme parcourt, pour chaque chantier suivi, `08 - DOCUMENTS ENVOYES AVEC BORDEREAU/BORDEREAU n/*.pdf`. Il ne retient que les fichiers nommés `<n° chantier>-<lot>-<n° document>-<indice>-<INTITULÉ>.pdf` dont : le n° de chantier est celui du dossier ; le n° de document (après passage par `anciens_codes`) est dans la liste du carnet ; l'indice n'est **pas déjà au carnet** ; le fichier n'a pas été **écarté** par Franck.
 - Pour chacun, il montre : chantier, bordereau, nom, nombre de pages, poids, date du fichier, et le dossier Drive où il ira. Franck répond **o** (déposer), **n** (écarter pour de bon ; noté dans `_prive/carnet-ecartes.json`, avec la taille du fichier : un fichier refait sous le même nom est proposé de nouveau) ou **Entrée** (plus tard).
 - Le dépôt appelle `depot_carnet.deposer(...)` (lot 4a, inchangé), sans limite de 3 minutes, avec l'avancement page par page. À la fin : contrôle `verifier`.
-- Si le même indice a été refait (même nom, autre contenu) alors qu'il est déjà au carnet : le programme le **signale** (« ce document a changé depuis son dépôt ») et propose de retirer l'ancien puis de déposer le nouveau.
+- Si le même indice a été refait (même nom, autre contenu) alors qu'il est déjà au carnet : le programme le **signale** (« ce document a changé depuis son dépôt ») Rien n'est jamais écrasé au carnet : le document refait part sous l'**indice suivant** (nouveau bordereau). Retirer l'ancien le cache aux poseurs, mais ne libère pas son indice ; un document retiré n'est plus reproposé. (Corrigé le 16/11/2026 : la version précédente proposait « retirer puis redéposer », que le programme de dépôt refuse.)
 - Menu « Retirer un document du carnet » (aujourd'hui en ligne de commande seulement).
 
 ### 3.3 Rapatrier les fiches de l'appli (Drive → dossier du chantier sur le PC)
@@ -93,7 +93,7 @@ Le programme écrit ensuite **deux fichiers distincts** :
 |---|---|
 | Plan publié dans le mauvais chantier | le chantier vient du n° du dossier du chantier sur le PC et d'une correspondance tenue par Franck ; le n° du chantier est recoupé avec le nom du PDF ; le dossier Drive est montré avant confirmation |
 | Document non validé publié | seuls les PDF d'un bordereau sont proposés ; confirmation document par document |
-| Bordereau refait après dépôt | signalé (« a changé depuis son dépôt »), retrait puis nouveau dépôt proposés |
+| Bordereau refait après dépôt | signalé (« a changé depuis son dépôt ») ; le document refait part sous l'indice suivant ; rien n'est écrasé au carnet |
 | Le rapatriement abîme ou perd une fiche | copie seule, nom temporaire, jamais d'écrasement, taille vérifiée, tests |
 | Les outils de `gestion-documentaire` prennent les fiches rapatriées pour ses documents | liste de provenance dans le dossier du chantier sur le PC, exception écrite dans le skill et ses scripts, **essai réel obligatoire** (§5) |
 | Le relevé `releve-pc.json` fait croire à tort que tout est dans le dossier du chantier sur le PC | limite rappelée à l'écran ; le lot 5 demandera de vérifier l'icône MEGA avant toute purge |
@@ -116,12 +116,23 @@ Le programme écrit ensuite **deux fichiers distincts** :
 
 ## 10. Décisions de Franck du 14/11/2026 (D4-13) : recopie automatique des fiches
 
-- **Aucune manipulation au quotidien pour les fiches** : une tâche du Planificateur de tâches de Windows (déjà présent, rien à installer) lance la recopie **toutes les heures et à l'ouverture de session**. Vérifié sur le PC de Franck le 14/11/2026 : une tâche se crée **sans droits d'administrateur**.
+- **Aucune manipulation au quotidien pour les fiches** : une tâche du Planificateur de tâches de Windows (déjà présent, rien à installer) lance la recopie **toutes les heures et à l'ouverture de session**. Vérifié sur le PC de Franck le 14/11/2026 : une tâche simple, à déclencheur horaire, se crée **sans droits d'administrateur**. **Pas vérifié** : la tâche réellement livrée, créée à partir d'un fichier de description (XML) qui porte deux déclencheurs — toutes les heures, et à l'ouverture de la session de Franck seulement. Elle n'a été créée par personne à ce jour : c'est l'étape 5 de `docs/lot4c-procedure.md`.
 - **Copie seulement** : jamais de suppression ni d'écrasement (règles du §3.3 inchangées).
 - **Le bon dossier est trouvé tout seul** par le numéro du chantier en tête du nom de dossier. Aucun dossier ou plusieurs pour ce numéro, dossier du Drive sans numéro reconnaissable : rien n'est deviné, rien n'est copié pour ce chantier, et c'est **signalé** dans un fichier `CHANTIERPRO - A VOIR.txt` à la racine des dossiers de chantier du PC.
 - Le relevé de présence écrit dans le Drive s'appelle `releve-pc.json`.
-- Mise en place, une seule fois : `_prive/depot.json`, puis un double-clic sur `outils\installer-tache.bat` (`outilsetirer-tache.bat` pour revenir en arrière).
+- Mise en place, une seule fois : `_prive/depot.json`, puis un double-clic sur `outils\installer-tache.bat` (`outils\retirer-tache.bat` pour revenir en arrière).
 - Le dépôt au carnet reste un double-clic avec confirmation (un plan publié aux poseurs doit être vu par Franck).
 - Solution de repli écartée parce que l'automatique est possible : la recopie seulement à la clôture du chantier, avec le lot 5.
 - Limites : la tâche ne tourne que PC allumé et session ouverte ; Google Drive pour ordinateur doit tourner ; une fiche arrive dans le dossier du PC au plus tard une heure après son arrivée dans le Drive.
 
+## 11. Ce que la relecture indépendante du programme a fait changer (16/11/2026)
+
+- **Un premier essai sur un seul chantier** : option `--chantier NNN`, et la question dans le menu.
+- **Une fiche déjà copiée n'est jamais recopiée** : si Franck la déplace, la renomme ou la supprime dans le dossier du PC, son choix est respecté (signalé sept jours dans « A VOIR »).
+- **Le numéro seul ne suffit plus** : un dossier du Drive n'est suivi que s'il est un dossier de chantier de l'appli (un sous-dossier de fiches, ou le carnet) ; la correspondance écrite à la main ne peut pas contredire le numéro du dossier.
+- **Un fichier « déjà présent » n'est tenu pour une copie qu'après comparaison du contenu** ; le relevé `releve-pc.json` ne liste que les fiches du Drive réellement à leur place, et devra avoir moins de 48 heures au moment d'une purge (lot 5).
+- **Une seule tâche planifiée**, créée par un fichier de description : toutes les heures et à l'ouverture de la session de Franck seulement, sans élévation, y compris sur batterie, jamais deux passages à la fois.
+- **Le silence n'est plus possible** : verrou repris au bout de deux heures ; un passage empêché est écrit dans « A VOIR » ; le menu prévient si la recopie n'a pas tourné depuis plus de 3 heures.
+- « A VOIR » n'est réécrit que si sa liste change (et une fois par jour) ; un nom fini par « (n) » n'est un doublon que si son jumeau existe ; l'indice d'un document tient en une ou deux lettres ou chiffres ; un document retiré du carnet n'est plus reproposé.
+- **Seconde relecture (16/11/2026)** : une fiche nouvelle qui reprend le nom d'une ancienne est reconnue à sa taille et copiée ; liste de provenance écrite toutes les 25 copies ; date de la fiche notée et comparée avant d'affirmer au relevé ; résultat « même taille, autre contenu » mémorisé ; verrou rafraîchi après chaque question et chaque page déposée ; utilisateur de la tâche désigné par son identifiant Windows ; un document retiré dont le fichier a changé n'est signalé qu'une fois ; `deposer.bat` et `depot_carnet.py` tutoient.
+- **Décisions de Franck du 16/11/2026** : les deux noms de fichiers (`CHANTIERPRO - fiches rapatriees.json`, `CHANTIERPRO - A VOIR.txt`) sont gardés ; un document refait sous le même indice part sous l'indice suivant ; ordre de mise en place : les lignes dans `gestion-documentaire` et l'état documentaire vérifié sur un chantier, puis la tâche automatique.

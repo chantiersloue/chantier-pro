@@ -131,7 +131,8 @@ class DepotComplet(Base):
     def test_forme_de_carnet_json(self):
         liste = lire(os.path.join(self.carnet(self.reference), "carnet.json"))
         self.assertEqual(liste["version"], 1)
-        self.assertEqual(liste["chantier"], CHANTIER)
+        # sans nom de chantier donné, le carnet n'en porte pas : le nom du DOSSIER n'est jamais pris pour le nom dans l'appli
+        self.assertNotIn("chantier", liste)
         self.assertEqual(len(liste["documents"]), 1)
         d = liste["documents"][0]
         self.assertEqual((d["id"], d["code"], d["indice"], d["intitule"], d["dossier"]),
@@ -324,7 +325,7 @@ class LesRefus(Base):
 
     def test_document_deja_present(self):
         racine = self.copie()
-        self.refus(racine, "déjà au carnet", lambda: dc.deposer(racine, CHANTIER, None, self.pdf, "001", "A", "PLAN D'ESSAI"))
+        self.refus(racine, "déjà au carnet.*indice suivant", lambda: dc.deposer(racine, CHANTIER, None, self.pdf, "001", "A", "PLAN D'ESSAI"))
         self.refus(racine, "déjà au carnet", lambda: self.deposer_petit(racine, code="001", indice="A", intitule="AUTRE NOM"))
 
     def test_carnet_json_illisible(self):
@@ -340,7 +341,12 @@ class LesRefus(Base):
 
     def test_carnet_d_un_autre_chantier(self):
         racine = self.copie()
-        self.refus(racine, "celui du chantier", lambda: self.deposer_petit(racine, chantier="AUTRE CHANTIER"))
+        # un carnet qui porte un nom (donné au premier dépôt) refuse un dépôt fait au nom d'un autre chantier
+        self.deposer_petit(racine, chantier="Chantier Essai Un", code="002")
+        self.refus(racine, "celui du chantier", lambda: self.deposer_petit(racine, chantier="AUTRE CHANTIER", code="103"))
+        # … et accepte un dépôt sans nom (le nom du dossier vu par Windows n'est pas un nom de chantier)
+        self.deposer_petit(racine, code="103")
+        self.assertEqual(lire(os.path.join(self.carnet(racine), "carnet.json"))["chantier"], "Chantier Essai Un")
 
     def test_doublon_de_liste(self):
         racine = self.copie()
@@ -487,6 +493,22 @@ class Verification(Base):
         self.assertEqual(v["purges"], 0)
         self.assertTrue(any("p1-net.webp" in p for p in v["problemes"]), v["problemes"])
 
+    def test_un_nom_fini_par_un_numero_entre_parentheses_n_est_un_doublon_que_s_il_a_un_jumeau(self):
+        dossier = tempfile.mkdtemp(dir=self.temp)
+        for nom in ("plan.pdf", "plan (1).pdf", "IMG (12).jpg", "Façade (2)", "Dossier", "Dossier (1)"):
+            with open(os.path.join(dossier, nom), "w") as f:
+                f.write("x")
+        for nom, attendu in (("plan (1).pdf", True), ("IMG (12).jpg", False), ("Façade (2)", False), ("Dossier (1)", True),
+                             ("plan.pdf", False), ("absent (3).pdf", False)):
+            self.assertIs(dc.est_doublon(dossier, nom), attendu, nom)
+        self.assertIs(dc.est_doublon(os.path.join(dossier, "inexistant"), "plan (1).pdf"), False)
+        # Dans le carnet : un dossier « … (2) » sans jumeau n'est plus pris pour un doublon de Drive (il reste « inconnu de la liste »)
+        racine = self.copie()
+        os.mkdir(os.path.join(self.carnet(racine), "105 A PLAN (2)"))
+        problemes = "\n".join(dc.verifier(racine, CHANTIER)["problemes"])
+        self.assertNotIn("en double", problemes)
+        self.assertIn("n'est dans aucun document", problemes)
+
     def test_chantier_sans_carnet(self):
         racine = nouvelle_racine(self.temp)
         v = dc.verifier(racine, CHANTIER)
@@ -507,7 +529,7 @@ class LigneDeCommande(Base):
         depot = base + ("--pdf", self.petit, "--code", "105", "--indice", "A", "--intitule", "PETIT PLAN")
         code, sortie, _ = self.lancer(*depot, "--limite", "-1")
         self.assertEqual(code, 3)
-        self.assertIn("RELANCEZ LA MÊME COMMANDE", sortie)
+        self.assertIn("RELANCE LA MÊME COMMANDE", sortie)
         self.assertIn("il en reste 2", sortie)
         code, sortie, _ = self.lancer(*depot)
         self.assertEqual(code, 0)
