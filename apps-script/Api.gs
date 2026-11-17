@@ -439,7 +439,8 @@ function recevoirFiche_(corps, compte) {
   const rapport = RAPPORT_;
   RAPPORT_ = null;
   const n = k => (rapport[k] || []).length;
-  const detail = n('envoyé') + ' mail(s) envoyé(s)' + (n('reporté') ? ', ' + n('reporté') + ' reporté(s)' : '')
+  // Lot 5b : on compte des DESTINATAIRES (vrai avec un mail par adresse comme avec un seul mail en copie cachée)
+  const detail = 'envoyé à ' + n('envoyé') + ' destinataire(s)' + (n('reporté') ? ', ' + n('reporté') + ' reporté(s)' : '')
     + (n('refusé') ? ', ' + n('refusé') + ' adresse(s) refusée(s)' : '');
   sh.getRange(ligne, 5, 1, 2).setValues([['traité', estNote ? 'note de chantier (aucun mail)' : detail]]);
   // aucun mail pour une note : pas de « 0 mail envoyé » alarmant sur le téléphone

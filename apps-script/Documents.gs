@@ -102,9 +102,10 @@ function traiterNoteReunion(data, brut, contexte) {
 
   // Destinataires choisis dans la page + copie au conducteur du chantier calculée par le serveur (sinon Franck) :
   // toujours au moins un destinataire, même chantier tapé à la main (comme le quitus, D1-13) — contrôlés par distribuer_
-  // Lot 8 : le moteur des mails n'est PAS changé (un mail par adresse connue, toutes servies : lot 0). Le plafond de
-  // 10 adresses connues par note est tenu par la page (« + Ajouter » refusé) : une note déjà en attente dans un téléphone
-  // garde donc tous ses destinataires.
+  // Lot 8 : toutes les adresses connues sont servies (lot 0). Le plafond de 10 adresses connues par note est tenu par la
+  // page (« + Ajouter » refusé) : une note déjà en attente dans un téléphone garde donc tous ses destinataires.
+  // Lot 5b : selon la propriété MAIL_UNIQUE, distribuer_ leur envoie un mail chacune (« non », le défaut) ou un seul mail
+  // en copie cachée (« cache », « conducteur ») ; les adresses tapées à la main gardent toujours leur mail séparé.
   const adresses = (Array.isArray(brut.destinataires) ? brut.destinataires : []).concat([emailConducteurChantier_(brut.chantier) || emailAdmin_()]);
   distribuer_({
     fiche: 'note', chantier: brut.chantier, adresses: adresses,

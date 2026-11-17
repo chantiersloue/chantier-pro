@@ -113,6 +113,29 @@ test('la règle, mail par mail : seuls les mails de fiches de chantier envoyés 
   g3.pdf[0].corbeille = true;
   assert.ok(/introuvable dans le dossier Drive du chantier/.test(g3.ctx.prgMailRefus_(g3.ctx.prgMailLu_('bon1'), g3.ctx.prgMailsRegles_(), g3.ctx.prgContexte_(), true)));
 });
+// Lot 5b (« un seul mail par fiche ») : Purges.gs n'a PAS été modifié. Ce test prouve qu'un mail groupé — « À » vide, toutes
+// les adresses connues en copie cachée, ou « À » = le conducteur — est lu, trouvé et jugé comme un mail ordinaire.
+test('lot 5b — mail groupé (« À » vide, plusieurs copies cachées) : reconnu et visé comme un mail ordinaire ; jamais si le compte est l’une des copies cachées', () => {
+  const cci = 'seb@loue.test, client@exemple.test, archi@exemple.test';
+  const g = environnement({ gmail: boite().concat([
+    mail('groupe', { a: '', cci: cci, taille: 210 * 1024 }),                                            // réglage « cache »
+    mail('groupeConducteur', { a: 'seb@loue.test', cci: 'client@exemple.test, archi@exemple.test' }),   // réglage « conducteur »
+    mail('groupeAvecCompte', { a: '', cci: 'seb@loue.test, ' + COMPTE }),
+    mail('groupeAvecAlias', { a: '', cci: 'seb@loue.test, franck+contact1@loue.test' }),
+    mail('groupeRecent', { a: '', cci: cci, date: MAINTENANT - 10 * JOUR }),
+  ]) });
+  const ctx = g.ctx.prgContexte_(), regles = g.ctx.prgMailsRegles_();
+  assert.strictEqual(g.ctx.prgMailLu_('groupe').a, cci, 'les copies cachées sont lues comme des destinataires');
+  const refus = id => g.ctx.prgMailRefus_(g.ctx.prgMailLu_(id), regles, ctx, true);
+  assert.deepStrictEqual([refus('groupe'), refus('groupeConducteur')], ['', '']);
+  assert.ok(/lui-même destinataire/.test(refus('groupeAvecCompte')) && /lui-même destinataire/.test(refus('groupeAvecAlias')), 'comme aujourd’hui le mail envoyé à l’adresse du compte');
+  assert.ok(/depuis moins de 90 jours/.test(refus('groupeRecent')));
+  // la recherche dans Gmail les trouve, et la case cochée les met à la corbeille avec les autres
+  const trouves = Array.from(g.ctx.prgMailsListe_(regles, 100).ids);
+  assert.ok(trouves.indexOf('groupe') > -1 && trouves.indexOf('groupeConducteur') > -1 && trouves.indexOf('groupeAvecCompte') < 0, trouves.join());
+  cocherEtTraiter(g);
+  assert.deepStrictEqual(aLaCorbeille(g), ['bon1', 'bon2', 'groupe', 'groupeConducteur']);
+});
 test('N1 — liste FERMÉE des fiches de chantier : tout objet de mail « [Loué App] … » écrit par le serveur est soit dans la liste, soit dans les « jamais »', () => {
   const g = environnement();
   const liste = constante(g, 'PRG_MAILS_FICHES'), jamais = constante(g, 'PRG_MAILS_JAMAIS');

@@ -184,7 +184,14 @@ function creerGoogle(options = {}) {
   const GmailApp = {
     sendEmail: (to, sujet, texte, opts) => {
       if (options.mailEnPanne || etat.mailEnPanne) throw new Error('Service Gmail indisponible');
-      const n = 1 + (opts && opts.bcc ? 1 : 0);
+      // Lot 5b : etat.avantMail(to, sujet, texte, opts) est appelée avant chaque envoi ; si elle lève une erreur, c'est un refus simulé
+      if (typeof etat.avantMail === 'function') etat.avantMail(to, sujet, texte, opts || {});
+      // Lot 5b : comme Google, le quota compte chaque adresse réelle de « À », « Copie » et « Copie cachée » (un « À » vide
+      // compte 0) ; un mail sans aucun destinataire, ou à plus de 50 destinataires, est refusé
+      const adresses = v => String(v || '').split(/[,;\s]+/).filter(a => a.indexOf('@') > -1);
+      const n = adresses(to).length + adresses(opts && opts.cc).length + adresses(opts && opts.bcc).length;
+      if (!n) throw new Error('Failed to send email: no recipient');
+      if (n > 50) throw new Error('Limit Exceeded: Email Recipients Per Message.');
       if (etat.quota < n) throw new Error('Quota dépassé');
       etat.quota -= n;
       mails.push({ to, sujet, texte, opts: opts || {} });

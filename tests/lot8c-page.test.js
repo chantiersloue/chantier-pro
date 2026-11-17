@@ -465,8 +465,8 @@ function partiePoints() {
   verifier('aperçu : tableau « Points (3) — 2 ouverts, 1 clos », mentions, « Remarques générales », légende « Point 1 — vue du châssis »',
     /Points \(3\) — 2 ouverts, 1 clos/.test(a.apercu) && /1 Point A : fuite sur le châssis du R\+1 nouveau point OUVERT 2 Point B : plinthes du hall nouveau point, réglé pendant la réunion CLOS/.test(a.apercu)
     && /Remarques générales Remarque de la première réunion/.test(a.apercu) && /Point 1 — vue du châssis/.test(a.apercu), a.apercu);
-  verifier('envoi : « ✓ Compte rendu du <date> envoyé — 1 mail envoyé » ; le PDF du bureau porte les points, les remarques UNE fois, les 2 photos',
-    a.partie1 === true && a.message1 === '✓ Compte rendu du ' + D + ' envoyé — 1 mail envoyé' && /Points \(3\) — 2 ouverts, 1 clos/.test(a.pdf1.texte || '')
+  verifier('envoi : « ✓ Compte rendu du <date> envoyé — 1 destinataire » ; le PDF du bureau porte les points, les remarques UNE fois, les 2 photos',
+    a.partie1 === true && a.message1 === '✓ Compte rendu du ' + D + ' envoyé — 1 destinataire' && /Points \(3\) — 2 ouverts, 1 clos/.test(a.pdf1.texte || '')
     && a.pdf1.texte.split('Remarque de la première réunion').length === 2 && a.pdf1.texte.indexOf('POINTS 1.') < 0 && /Point 1 — vue du châssis/.test(a.pdf1.texte) && a.pdf1.images === 2, j([a.message1, a.pdf1]));
   verifier('note suivante : les 2 points ouverts reviennent tout seuls (« Points ouverts (2) »), en cartes repliées, « repris du compte rendu du jj/mm » ; le point clos est dans « Clos récemment »',
     a.repris.titre === 'Points ouverts (2)' && j(textes(a.repris)) === j(['Point A : fuite sur le châssis du R+1', 'Point C : porte palière B12']) && a.repris.cartes.every(c => c.plie && c.bouton === 'Clore' && c.m === 'repris du compte rendu du ' + d)
@@ -515,7 +515,7 @@ function partiePoints() {
   verifier('hors réseau SANS liste gardée : « Points de la dernière note indisponibles sans réseau. Écrivez vos nouveaux points : … »',
     a.sansListe.info === 'Points de la dernière note indisponibles sans réseau. Écrivez vos nouveaux points : les anciens restent ouverts et reviendront à la note suivante.' && a.sansListe.cartes.length === 0 && a.sansListe.titre === 'Points ouverts', j(a.sansListe));
   verifier('largeur PC (1 280 px) : pas de défilement horizontal, les 7 cartes, « + Nouveau point » visible', a.pc.largeur && a.pc.cartes === 7 && a.pc.plus, j(a.pc));
-  verifier('serveur du lot 8c (v11.1)', /v11\.1/.test(a.version), j(a.version));
+  verifier('serveur du lot 8c ou suivant (v11.2)', /v11\.2/.test(a.version), j(a.version));
 }
 
 function partieDroits() {
@@ -543,8 +543,8 @@ function partieDroits() {
   verifier('réseau lent (6 s par réponse) : la page affiche tout de suite la liste gardée (« mise à jour en cours… »), puis celle du bureau ; la note finit par partir',
     b.lentTout2s.cartes.length > 0 && /gardés dans le téléphone \(mise à jour en cours…\)\.$/.test(b.lentTout2s.info) && /^Points repris du compte rendu du /.test(b.lentApres.info) && b.lentPartie === true
     && b.lignesLent.some(x => x.objet === 'Réseau lent' && /Point écrit avec un réseau lent/.test(x.ouverts)), j([b.lentTout2s.info, b.lentApres.info, b.lentPartie]));
-  verifier('quota de mails presque atteint : « ⚠ Il ne reste que 5 mails possibles aujourd’hui … » sous les destinataires ; rien d’affiché en temps normal',
-    /^⚠ Il ne reste que \d+ mails? possibles? aujourd’hui pour toute l’appli/.test(b.quota) && b.quotaNormal === '', j([b.quota, b.quotaNormal]));
+  verifier('quota de mails presque atteint : « ⚠ Il ne reste que 5 destinataires possibles aujourd’hui … » sous les destinataires ; rien d’affiché en temps normal',
+    /^⚠ Il ne reste que \d+ destinataires? possibles? aujourd’hui pour toute l’appli/.test(b.quota) && b.quotaNormal === '', j([b.quota, b.quotaNormal]));
   verifier('une liste gardée depuis plus d’un jour pour un autre chantier est rafraîchie à l’ouverture', b.rafraichi.n === 1 && b.rafraichi.rajeunie === true, j(b.rafraichi));
 }
 
@@ -558,8 +558,8 @@ function partieAncienServeur() {
   const c = lancer('ancien-serveur', scenarioAncienServeur());
   verifier('c’est bien l’ancien serveur qui répond (pas de v11, pas d’onglet « Comptes rendus ») ; la page n’affiche ni liste ni message d’erreur',
     /Loué App API v/.test(c.version) && !/v11\./.test(c.version) && c.onglet === 0 && c.ecran.info === '' && c.ecran.cartes.length === 0, j([c.version, c.onglet, c.ecran]));
-  verifier('la note part, rien ne reste dans le téléphone, message « ✓ Compte rendu du <date> envoyé — 1 mail envoyé »',
-    c.partie === true && c.photosEnAttente === 0 && c.envois.join() === 'note:traité' && /^✓ Compte rendu du \d\d\/\d\d\/\d{4} envoyé — 1 mail envoyé$/.test(c.message), j([c.message, c.envois, c.photosEnAttente]));
+  verifier('la note part, rien ne reste dans le téléphone, message « ✓ Compte rendu du <date> envoyé — 1 destinataire »',
+    c.partie === true && c.photosEnAttente === 0 && c.envois.join() === 'note:traité' && /^✓ Compte rendu du \d\d\/\d\d\/\d{4} envoyé — 1 destinataire$/.test(c.message), j([c.message, c.envois, c.photosEnAttente]));
   verifier('rien n’est perdu dans le PDF de l’ancien serveur : les points (copie lisible), les remarques, la photo du point avec « Point 1 »',
     /POINTS 1\. \[OUVERT\] Point A pour l’ancien serveur \(nouveau point\) 2\. \[CLOS\] Point B, réglé \(nouveau point, réglé pendant la réunion\) REMARQUES GÉNÉRALES Remarque pour l’ancien serveur/.test(c.pdf.texte || '')
     && /Point 1/.test(c.pdf.texte) && c.pdf.images === 1, j(c.pdf));

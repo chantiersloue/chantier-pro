@@ -146,9 +146,57 @@ function verifierConfig() {
   const restes = presents.filter(d => /^outilTest/.test(d));
   if (restes.length) ok(false, 'Déclencheur d’essai resté en place (' + restes.join(', ') + ') : le supprimer (éditeur → icône réveil « Déclencheurs » → ⋮ → Supprimer)');
   if (ou.env === 'TEST' && (porte || cleOutils)) lignes.push('Outils d’essai (copie TEST) : porte ' + (porte ? 'présente' : 'absente') + ', clé ' + (cleOutils ? 'présente' : 'absente'));
+  // Lot 5b : le réglage du mail unique (propriété MAIL_UNIQUE), lu à chaque fiche — aucun déploiement à refaire pour le changer
+  const mailUnique = modeMailUnique_(), mailUniqueTape = String(propriete_('MAIL_UNIQUE')).trim();
+  if (mailUnique === 'non' && mailUniqueTape && mailUniqueTape.toLowerCase() !== 'non') {
+    ok(false, 'Mail unique (propriété MAIL_UNIQUE) : valeur « ' + mailUniqueTape + ' » inconnue, lue comme « non » (valeurs possibles : non, cache, conducteur)');
+  } else {
+    ok(true, 'Mail unique (propriété MAIL_UNIQUE) : ' + {
+      non: 'non — un mail par adresse connue, comme avant le lot 5b',
+      cache: 'cache — un seul mail par fiche pour les adresses connues, « À » vide, tout le monde en copie cachée',
+      conducteur: 'conducteur — un seul mail par fiche pour les adresses connues, « À » = le conducteur du chantier s’il est destinataire, les autres en copie cachée',
+    }[mailUnique]);
+  }
   lignes.push("Mails encore possibles aujourd'hui : " + MailApp.getRemainingDailyQuota());
   Logger.log(lignes.join('\n'));
   return lignes.join('\n');
+}
+
+
+// ══════════════════════════════════════════════════════════
+// ESSAI DU MAIL UNIQUE (lot 5b : essais E1, E4 et E5 de docs/lot5b-procedure.md) — copie TEST SEULEMENT
+// Envoie UN mail sans « À », avec en copie cachée les adresses de la propriété du script ESSAI_MAIL_UNIQUE (2 à 5 adresses
+// de Franck, séparées par une virgule), par la commande même du serveur (GmailApp.sendEmail), et lit le quota avant et après.
+// Aucune adresse n'est écrite dans le code. Hors de la copie TEST, la fonction ne fait rien.
+// ══════════════════════════════════════════════════════════
+function essaiMailUnique() {
+  const fin = lignes => { const t = lignes.join('\n'); Logger.log(t); return t; };
+  const ou = environnementReel_();
+  if (ou.env !== 'TEST') return fin(['Essai refusé : cette fonction tourne seulement sur la copie TEST (ici : ' + ou.env + ', Sheet « ' + ou.sheet + ' »). Aucun mail envoyé.']);
+  const adresses = decouperAdresses_(propriete_('ESSAI_MAIL_UNIQUE'));
+  if (adresses.length < 2 || adresses.length > 5) {
+    return fin(['Essai non lancé : la propriété du script ESSAI_MAIL_UNIQUE doit contenir 2 à 5 adresses à toi, séparées par une virgule ('
+      + adresses.length + ' adresse(s) lue(s)). Aucun mail envoyé.']);
+  }
+  const lignes = ['Essai du mail unique (' + VERSION_API + ') — un mail sans « À », en copie cachée à : ' + adresses.join(', ')];
+  let avant = -1, apres = -1;
+  try { avant = MailApp.getRemainingDailyQuota(); } catch (e) {}
+  try {
+    const pdf = HtmlService.createHtmlOutput('<p>Essai du mail unique — Loué App</p>').getAs('application/pdf').setName('essai-mail-unique.pdf');
+    GmailApp.sendEmail('', '[Loué App] Essai du mail unique',
+      'Bonjour,\n\nCeci est un essai de Loué App : un mail sans destinataire visible, envoyé en copie cachée.\n'
+      + 'Merci de noter s’il est arrivé dans la boîte de réception ou dans les indésirables.\n\nLoué App',
+      { bcc: adresses.join(', '), attachments: [pdf], name: NOM_ENTREPRISE });
+  } catch (err) {
+    lignes.push('E1 : ❌ Google a refusé le mail (« ' + err.message + ' ») : laisser MAIL_UNIQUE à « non » et envoyer cette ligne à Claude.');
+    return fin(lignes);
+  }
+  lignes.push('E1 : ✅ Google a accepté un mail sans « À ». Regarder maintenant les boîtes (E2) : boîte de réception ou indésirables ?');
+  try { apres = MailApp.getRemainingDailyQuota(); } catch (e) {}
+  const compte = avant - apres;
+  lignes.push('E4 : ' + (compte === adresses.length ? '✅' : '⚠') + ' quota : ' + avant + ' avant, ' + apres + ' après → Google a compté '
+    + compte + ' destinataire(s) (attendu : ' + adresses.length + ').');
+  return fin(lignes);
 }
 
 

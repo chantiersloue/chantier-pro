@@ -13,6 +13,8 @@
 //    (ou Franck) en copie cachée ; chaque envoi est noté dans l'onglet Journal ;
 //  - sous RESERVE_ADMIN mails restants dans la journée, seuls les mails vers Franck partent :
 //    les autres sont reportés dans l'onglet « Mails en attente » et renvoyés toutes les 2 h.
+//  - lot 5b : selon la propriété du script MAIL_UNIQUE (non par défaut | cache | conducteur), les adresses CONNUES d'une
+//    fiche reçoivent un seul mail, en copie cachée (envoyerGroupe_). Les adresses tapées à la main ne sont pas concernées.
 
 const LIBELLES_FICHES = {
   'note'               : 'Note de réunion',
@@ -201,7 +203,10 @@ function distribuer_(o) {
   const libelle    = LIBELLES_FICHES[o.fiche] || 'Document';
   const chantierOk = ligneChantier_(o.chantier) ? String(o.chantier).trim() : '';  // jamais de texte libre dans le mail
 
-  servies.forEach(email => envoyer_(o, email, { sujet: o.sujet, texte: o.texte, html: o.html || '', bcc: '' }, 'connue'));
+  // Lot 5b : selon la propriété MAIL_UNIQUE, les adresses connues reçoivent UN mail groupé (copie cachée). Quand il n'est pas
+  // parti (réglage « non », une seule adresse, plus de MAX_GROUPE_MAIL, quota trop bas, erreur), la ligne d'avant sert telle quelle.
+  if (!envoyerGroupe_(o, servies, { sujet: o.sujet, texte: o.texte, html: o.html || '' }))
+    servies.forEach(email => envoyer_(o, email, { sujet: o.sujet, texte: o.texte, html: o.html || '', bcc: '' }, 'connue'));
   libres.forEach((email, i) => {
     if (i >= MAX_LIBRES_PAR_FICHE) {
       journal_(o, email, 'refusé', 'plus de ' + MAX_LIBRES_PAR_FICHE + ' adresses libres sur la même fiche');
@@ -226,6 +231,60 @@ function distribuer_(o) {
       nomPJ: 'Loue Menuiserie - ' + libelle + ' - ' + jour_() + '.pdf',
     }, 'libre');
   });
+}
+
+// ══════════════════════════════════════════════════════════
+// UN SEUL MAIL PAR FICHE (lot 5b) — adresses CONNUES du Sheet seulement
+// ══════════════════════════════════════════════════════════
+// Les adresses tapées à la main ne passent JAMAIS ici (règle de Franck du 16/11/2026) : elles gardent leur mail séparé.
+// envoyer_ et differer_ ne sont pas modifiées : dès que le mail groupé n'est pas possible, distribuer_ reprend le chemin
+// d'avant (un mail par adresse). Il n'y a donc jamais de mail groupé dans l'onglet « Mails en attente ».
+
+// Le réglage, lu à chaque fiche dans les Propriétés du script : 'non' (défaut), 'cache' ou 'conducteur'.
+// Absent, vide ou inconnu = 'non'. Majuscules, espaces et accent (« Caché ») sont acceptés.
+function modeMailUnique_() {
+  const v = String(propriete_('MAIL_UNIQUE')).trim().toLowerCase().replace(/é/g, 'e');
+  return v === 'cache' || v === 'conducteur' ? v : 'non';
+}
+
+// Envoie UN mail à toutes les adresses connues d'une fiche, en copie cachée. Rend true si le mail est parti.
+// Rend false sans rien envoyer — l'appelant fait alors comme avant, un mail par adresse — quand :
+//  - le réglage est « non » ;
+//  - il n'y a qu'une adresse (rien à grouper), ou plus de MAX_GROUPE_MAIL ;
+//  - le quota du jour ne suffit pas pour tout le groupe, ou l'envoi entamerait la réserve de Franck (RESERVE_ADMIN) :
+//    par le chemin d'avant, les premiers partent, les autres sont reportés, et le mail à Franck part toujours ;
+//  - la préparation ou l'envoi lève une erreur (une ligne « repli » dans le Journal).
+// « À » : vide en mode « cache » ; en mode « conducteur », le conducteur du chantier S'IL EST DÉJÀ destinataire de la
+// fiche (personne n'est jamais ajouté), sinon vide.
+// m = { sujet, texte, html } : ceux du mail d'avant.
+function envoyerGroupe_(o, adresses, m) {
+  const n = adresses.length;
+  try {
+    const mode = modeMailUnique_();
+    if (mode === 'non' || n < 2 || n > MAX_GROUPE_MAIL) return false;
+    let reste = 0;
+    try { reste = MailApp.getRemainingDailyQuota(); } catch (e) {}
+    if (reste < n || reste - n < RESERVE_ADMIN) return false;
+    let a = '', cachees = adresses;
+    if (mode === 'conducteur') {
+      const conducteurs = decouperAdresses_(emailConducteurChantier_(o.chantier)).map(x => x.toLowerCase());
+      const i = adresses.findIndex(x => conducteurs.indexOf(x.toLowerCase()) > -1);
+      if (i > -1) { a = adresses[i]; cachees = adresses.filter((x, j) => j !== i); }
+    }
+    // Le PDF n'est fabriqué qu'une fois pour tous les mails de la fiche (comme dans envoyer_)
+    if (!o._blob) o._blob = o.faireBlob();
+    const blob = o._blob.copyBlob().setName(o._blob.getName());
+    const opts = { attachments: [blob], name: NOM_ENTREPRISE, bcc: cachees.join(', ') };
+    if (m.html) opts.htmlBody = m.html;
+    GmailApp.sendEmail(a, m.sujet, m.texte, opts);   // dernière instruction du bloc : une erreur ici = rien n'est parti
+  } catch (err) {
+    console.error('Envoi groupé échoué :', err.message);
+    journal_(o, n + ' adresses connues', 'repli', 'mail groupé impossible (' + err.message + ') : un mail par adresse');
+    return false;
+  }
+  // Comme après un envoi réussi à une adresse connue : compté dans la réponse au téléphone, rien au Journal
+  adresses.forEach(email => noter_('envoyé', email));
+  return true;
 }
 
 // Envoie un mail, ou le reporte si le quota du jour est trop bas

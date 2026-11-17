@@ -204,7 +204,7 @@ LOUE.chargerListes().then(r => {
 
 // ── Destinataires (brique commune : une adresse tapée sans « + Ajouter » n'est plus perdue) ──
 const DEST = LOUE.destinataires({ contacts: () => (LISTES.contactNotes || []).concat(LISTES.contacts || []) });
-// Lot 8 : combien de mails partiront, et 10 adresses connues au plus par note (le quota du compte est de 100 mails par jour).
+// Lot 8 : combien de personnes recevront la note (lot 5b : on compte des destinataires, pas des mails), et 10 adresses connues au plus par note (le quota du compte est de 100 destinataires par jour).
 // Le plafond est tenu ICI seulement : le serveur sert toujours toutes les adresses connues d'une note déjà en attente.
 const DEST_CONNUES_MAX = 10;
 function adressesConnues() {
@@ -221,7 +221,7 @@ window.LOUE_refuserAdresseLibre = function (val, deja, contacts) {
   }
   return refusAdresseLibre ? refusAdresseLibre(val, deja, contacts) : false;
 };
-// Le conducteur du chantier est-il déjà dans les destinataires ? (le serveur n'envoie qu'un mail par adresse)
+// Le conducteur du chantier est-il déjà dans les destinataires ? (le serveur ne sert chaque adresse qu'une fois)
 function conducteurDejaDestinataire() {
   const nom = document.getElementById('meta-chantier').value.trim().toLowerCase();
   const c = (LISTES.chantiers || []).find(x => String(x.nom).trim().toLowerCase() === nom);
@@ -232,9 +232,9 @@ function conducteurDejaDestinataire() {
 }
 function majCompteur() {
   const n = DEST.liste().length;
-  document.getElementById('dest-compteur').textContent = !n ? '1 mail partira : la copie au conducteur du chantier.'
-    : conducteurDejaDestinataire() ? (n > 1 ? n + ' mails partiront' : '1 mail partira') + ' (le conducteur du chantier est déjà dans la liste).'
-    : (n + 1) + ' mails partiront (' + n + ' destinataire' + (n > 1 ? 's' : '') + ' + le conducteur du chantier).';
+  document.getElementById('dest-compteur').textContent = !n ? '1 destinataire : le conducteur du chantier (il reçoit toujours une copie).'
+    : conducteurDejaDestinataire() ? (n > 1 ? n + ' destinataires' : '1 destinataire') + ' (le conducteur du chantier est déjà dans la liste).'
+    : (n + 1) + ' destinataires (' + n + ' choisi' + (n > 1 ? 's' : '') + ' + le conducteur du chantier).';
 }
 document.addEventListener('change', majCompteur);
 ['input', 'change'].forEach(e => document.getElementById('meta-chantier').addEventListener(e, majCompteur));

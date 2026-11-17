@@ -1,10 +1,10 @@
 // ═══════════════════════════════════════════════════════════════
 // LOUÉ APP — SERVEUR COMPLET, À COLLER DANS APPS SCRIPT (fichier « Code.gs », tout remplacer)
 // FICHIER GÉNÉRÉ AUTOMATIQUEMENT par « node outils/construire.js » — NE PAS MODIFIER À LA MAIN :
-// les sources sont dans le dossier apps-script/ du dépôt. Version du serveur 75c4fba2c2 (pages 3e0000c931)
+// les sources sont dans le dossier apps-script/ du dépôt. Version du serveur 071ab9bc6c (pages 6d35db7bea)
 // ═══════════════════════════════════════════════════════════════
 
-const EMPREINTE_SERVEUR = '75c4fba2c2';
+const EMPREINTE_SERVEUR = '071ab9bc6c';
 
 // ████ Config.gs ████
 // ═══════════════════════════════════════════════════════════════
@@ -12,7 +12,7 @@ const EMPREINTE_SERVEUR = '75c4fba2c2';
 // Loué Menuiserie
 // ═══════════════════════════════════════════════════════════════
 
-const VERSION_API = 'v11.1';   // 11.1 : lot 8c (note de réunion en points, reprise des points ouverts) ; 11.0 : lot 8b (onglet « Comptes rendus », une ligne par note de réunion) ; 10.0 : lot 5 (suivi du stockage, purge sur case cochée) ; 9.1 : retrait de la lecture du dossier Plans (lot 4b) ; 9.0 : lot 4a (carnet de chantier) ; 8.0 : lot 3 (notes de chantier) ; 7.0 : lot 7 (signalements) ; 6.0 : lot 2 (comptes)
+const VERSION_API = 'v11.2';   // 11.2 : lot 5b (un seul mail par fiche pour les adresses connues, ÉTEINT par défaut : propriété MAIL_UNIQUE) ; 11.1 : lot 8c (note de réunion en points, reprise des points ouverts) ; 11.0 : lot 8b (onglet « Comptes rendus », une ligne par note de réunion) ; 10.0 : lot 5 (suivi du stockage, purge sur case cochée) ; 9.1 : retrait de la lecture du dossier Plans (lot 4b) ; 9.0 : lot 4a (carnet de chantier) ; 8.0 : lot 3 (notes de chantier) ; 7.0 : lot 7 (signalements) ; 6.0 : lot 2 (comptes)
 
 // ── CONFIGURATION ──
 const SHEET_CONTACTS      = 'Contacts';
@@ -38,6 +38,7 @@ const RESERVE_ADMIN         = 20;  // destinataires gardés pour Franck : en des
 const MAX_LIBRES_PAR_FICHE  = 2;   // adresses tapées à la main acceptées par fiche
 const MAX_LIBRES_PAR_JOUR   = 10;  // adresses tapées à la main acceptées par jour, toute l'appli
 const MAX_ESSAIS_ATTENTE    = 12;  // un mail reporté est retenté toutes les 2 h, 12 fois au plus
+const MAX_GROUPE_MAIL = 40;        // lot 5b : adresses connues au plus dans un mail groupé (Google refuse plus de 50 destinataires par mail)
 
 // Sous-dossiers que listerPartages() (lot 0) marque « garder » : leurs partages par lien ne sont pas retirés par retirerPartages().
 // Tout le reste est en « accès limité » depuis le lot 0.
@@ -51,6 +52,9 @@ const SOUS_DOSSIERS_PARTAGES = ['Plans'];
 //   DRIVE_ROOT_ID     : dossier racine "Loué Menuiserie - Chantiers"
 //   DRIVE_PLANNING_ID : dossier Planning
 //   EMAIL_ADMIN       : (facultatif) adresse de Franck ; sinon celle du compte qui a déployé
+//   MAIL_UNIQUE       : (facultatif, lot 5b) non | cache | conducteur — un seul mail par fiche pour les adresses connues
+//                       du Sheet. Absente ou inconnue = non (un mail par adresse). Lue à chaque fiche : le changement est
+//                       immédiat, sans nouveau déploiement. Voir modeMailUnique_() et envoyerGroupe_() dans Securite.gs.
 function propriete_(cle) {
   return PropertiesService.getScriptProperties().getProperty(cle) || '';
 }
@@ -96,6 +100,8 @@ const SOUS_DOSSIERS = {
 //    (ou Franck) en copie cachée ; chaque envoi est noté dans l'onglet Journal ;
 //  - sous RESERVE_ADMIN mails restants dans la journée, seuls les mails vers Franck partent :
 //    les autres sont reportés dans l'onglet « Mails en attente » et renvoyés toutes les 2 h.
+//  - lot 5b : selon la propriété du script MAIL_UNIQUE (non par défaut | cache | conducteur), les adresses CONNUES d'une
+//    fiche reçoivent un seul mail, en copie cachée (envoyerGroupe_). Les adresses tapées à la main ne sont pas concernées.
 
 const LIBELLES_FICHES = {
   'note'               : 'Note de réunion',
@@ -284,7 +290,10 @@ function distribuer_(o) {
   const libelle    = LIBELLES_FICHES[o.fiche] || 'Document';
   const chantierOk = ligneChantier_(o.chantier) ? String(o.chantier).trim() : '';  // jamais de texte libre dans le mail
 
-  servies.forEach(email => envoyer_(o, email, { sujet: o.sujet, texte: o.texte, html: o.html || '', bcc: '' }, 'connue'));
+  // Lot 5b : selon la propriété MAIL_UNIQUE, les adresses connues reçoivent UN mail groupé (copie cachée). Quand il n'est pas
+  // parti (réglage « non », une seule adresse, plus de MAX_GROUPE_MAIL, quota trop bas, erreur), la ligne d'avant sert telle quelle.
+  if (!envoyerGroupe_(o, servies, { sujet: o.sujet, texte: o.texte, html: o.html || '' }))
+    servies.forEach(email => envoyer_(o, email, { sujet: o.sujet, texte: o.texte, html: o.html || '', bcc: '' }, 'connue'));
   libres.forEach((email, i) => {
     if (i >= MAX_LIBRES_PAR_FICHE) {
       journal_(o, email, 'refusé', 'plus de ' + MAX_LIBRES_PAR_FICHE + ' adresses libres sur la même fiche');
@@ -309,6 +318,60 @@ function distribuer_(o) {
       nomPJ: 'Loue Menuiserie - ' + libelle + ' - ' + jour_() + '.pdf',
     }, 'libre');
   });
+}
+
+// ══════════════════════════════════════════════════════════
+// UN SEUL MAIL PAR FICHE (lot 5b) — adresses CONNUES du Sheet seulement
+// ══════════════════════════════════════════════════════════
+// Les adresses tapées à la main ne passent JAMAIS ici (règle de Franck du 16/11/2026) : elles gardent leur mail séparé.
+// envoyer_ et differer_ ne sont pas modifiées : dès que le mail groupé n'est pas possible, distribuer_ reprend le chemin
+// d'avant (un mail par adresse). Il n'y a donc jamais de mail groupé dans l'onglet « Mails en attente ».
+
+// Le réglage, lu à chaque fiche dans les Propriétés du script : 'non' (défaut), 'cache' ou 'conducteur'.
+// Absent, vide ou inconnu = 'non'. Majuscules, espaces et accent (« Caché ») sont acceptés.
+function modeMailUnique_() {
+  const v = String(propriete_('MAIL_UNIQUE')).trim().toLowerCase().replace(/é/g, 'e');
+  return v === 'cache' || v === 'conducteur' ? v : 'non';
+}
+
+// Envoie UN mail à toutes les adresses connues d'une fiche, en copie cachée. Rend true si le mail est parti.
+// Rend false sans rien envoyer — l'appelant fait alors comme avant, un mail par adresse — quand :
+//  - le réglage est « non » ;
+//  - il n'y a qu'une adresse (rien à grouper), ou plus de MAX_GROUPE_MAIL ;
+//  - le quota du jour ne suffit pas pour tout le groupe, ou l'envoi entamerait la réserve de Franck (RESERVE_ADMIN) :
+//    par le chemin d'avant, les premiers partent, les autres sont reportés, et le mail à Franck part toujours ;
+//  - la préparation ou l'envoi lève une erreur (une ligne « repli » dans le Journal).
+// « À » : vide en mode « cache » ; en mode « conducteur », le conducteur du chantier S'IL EST DÉJÀ destinataire de la
+// fiche (personne n'est jamais ajouté), sinon vide.
+// m = { sujet, texte, html } : ceux du mail d'avant.
+function envoyerGroupe_(o, adresses, m) {
+  const n = adresses.length;
+  try {
+    const mode = modeMailUnique_();
+    if (mode === 'non' || n < 2 || n > MAX_GROUPE_MAIL) return false;
+    let reste = 0;
+    try { reste = MailApp.getRemainingDailyQuota(); } catch (e) {}
+    if (reste < n || reste - n < RESERVE_ADMIN) return false;
+    let a = '', cachees = adresses;
+    if (mode === 'conducteur') {
+      const conducteurs = decouperAdresses_(emailConducteurChantier_(o.chantier)).map(x => x.toLowerCase());
+      const i = adresses.findIndex(x => conducteurs.indexOf(x.toLowerCase()) > -1);
+      if (i > -1) { a = adresses[i]; cachees = adresses.filter((x, j) => j !== i); }
+    }
+    // Le PDF n'est fabriqué qu'une fois pour tous les mails de la fiche (comme dans envoyer_)
+    if (!o._blob) o._blob = o.faireBlob();
+    const blob = o._blob.copyBlob().setName(o._blob.getName());
+    const opts = { attachments: [blob], name: NOM_ENTREPRISE, bcc: cachees.join(', ') };
+    if (m.html) opts.htmlBody = m.html;
+    GmailApp.sendEmail(a, m.sujet, m.texte, opts);   // dernière instruction du bloc : une erreur ici = rien n'est parti
+  } catch (err) {
+    console.error('Envoi groupé échoué :', err.message);
+    journal_(o, n + ' adresses connues', 'repli', 'mail groupé impossible (' + err.message + ') : un mail par adresse');
+    return false;
+  }
+  // Comme après un envoi réussi à une adresse connue : compté dans la réponse au téléphone, rien au Journal
+  adresses.forEach(email => noter_('envoyé', email));
+  return true;
 }
 
 // Envoie un mail, ou le reporte si le quota du jour est trop bas
@@ -1639,7 +1702,8 @@ function recevoirFiche_(corps, compte) {
   const rapport = RAPPORT_;
   RAPPORT_ = null;
   const n = k => (rapport[k] || []).length;
-  const detail = n('envoyé') + ' mail(s) envoyé(s)' + (n('reporté') ? ', ' + n('reporté') + ' reporté(s)' : '')
+  // Lot 5b : on compte des DESTINATAIRES (vrai avec un mail par adresse comme avec un seul mail en copie cachée)
+  const detail = 'envoyé à ' + n('envoyé') + ' destinataire(s)' + (n('reporté') ? ', ' + n('reporté') + ' reporté(s)' : '')
     + (n('refusé') ? ', ' + n('refusé') + ' adresse(s) refusée(s)' : '');
   sh.getRange(ligne, 5, 1, 2).setValues([['traité', estNote ? 'note de chantier (aucun mail)' : detail]]);
   // aucun mail pour une note : pas de « 0 mail envoyé » alarmant sur le téléphone
@@ -1775,9 +1839,10 @@ function traiterNoteReunion(data, brut, contexte) {
 
   // Destinataires choisis dans la page + copie au conducteur du chantier calculée par le serveur (sinon Franck) :
   // toujours au moins un destinataire, même chantier tapé à la main (comme le quitus, D1-13) — contrôlés par distribuer_
-  // Lot 8 : le moteur des mails n'est PAS changé (un mail par adresse connue, toutes servies : lot 0). Le plafond de
-  // 10 adresses connues par note est tenu par la page (« + Ajouter » refusé) : une note déjà en attente dans un téléphone
-  // garde donc tous ses destinataires.
+  // Lot 8 : toutes les adresses connues sont servies (lot 0). Le plafond de 10 adresses connues par note est tenu par la
+  // page (« + Ajouter » refusé) : une note déjà en attente dans un téléphone garde donc tous ses destinataires.
+  // Lot 5b : selon la propriété MAIL_UNIQUE, distribuer_ leur envoie un mail chacune (« non », le défaut) ou un seul mail
+  // en copie cachée (« cache », « conducteur ») ; les adresses tapées à la main gardent toujours leur mail séparé.
   const adresses = (Array.isArray(brut.destinataires) ? brut.destinataires : []).concat([emailConducteurChantier_(brut.chantier) || emailAdmin_()]);
   distribuer_({
     fiche: 'note', chantier: brut.chantier, adresses: adresses,
@@ -5728,9 +5793,57 @@ function verifierConfig() {
   const restes = presents.filter(d => /^outilTest/.test(d));
   if (restes.length) ok(false, 'Déclencheur d’essai resté en place (' + restes.join(', ') + ') : le supprimer (éditeur → icône réveil « Déclencheurs » → ⋮ → Supprimer)');
   if (ou.env === 'TEST' && (porte || cleOutils)) lignes.push('Outils d’essai (copie TEST) : porte ' + (porte ? 'présente' : 'absente') + ', clé ' + (cleOutils ? 'présente' : 'absente'));
+  // Lot 5b : le réglage du mail unique (propriété MAIL_UNIQUE), lu à chaque fiche — aucun déploiement à refaire pour le changer
+  const mailUnique = modeMailUnique_(), mailUniqueTape = String(propriete_('MAIL_UNIQUE')).trim();
+  if (mailUnique === 'non' && mailUniqueTape && mailUniqueTape.toLowerCase() !== 'non') {
+    ok(false, 'Mail unique (propriété MAIL_UNIQUE) : valeur « ' + mailUniqueTape + ' » inconnue, lue comme « non » (valeurs possibles : non, cache, conducteur)');
+  } else {
+    ok(true, 'Mail unique (propriété MAIL_UNIQUE) : ' + {
+      non: 'non — un mail par adresse connue, comme avant le lot 5b',
+      cache: 'cache — un seul mail par fiche pour les adresses connues, « À » vide, tout le monde en copie cachée',
+      conducteur: 'conducteur — un seul mail par fiche pour les adresses connues, « À » = le conducteur du chantier s’il est destinataire, les autres en copie cachée',
+    }[mailUnique]);
+  }
   lignes.push("Mails encore possibles aujourd'hui : " + MailApp.getRemainingDailyQuota());
   Logger.log(lignes.join('\n'));
   return lignes.join('\n');
+}
+
+
+// ══════════════════════════════════════════════════════════
+// ESSAI DU MAIL UNIQUE (lot 5b : essais E1, E4 et E5 de docs/lot5b-procedure.md) — copie TEST SEULEMENT
+// Envoie UN mail sans « À », avec en copie cachée les adresses de la propriété du script ESSAI_MAIL_UNIQUE (2 à 5 adresses
+// de Franck, séparées par une virgule), par la commande même du serveur (GmailApp.sendEmail), et lit le quota avant et après.
+// Aucune adresse n'est écrite dans le code. Hors de la copie TEST, la fonction ne fait rien.
+// ══════════════════════════════════════════════════════════
+function essaiMailUnique() {
+  const fin = lignes => { const t = lignes.join('\n'); Logger.log(t); return t; };
+  const ou = environnementReel_();
+  if (ou.env !== 'TEST') return fin(['Essai refusé : cette fonction tourne seulement sur la copie TEST (ici : ' + ou.env + ', Sheet « ' + ou.sheet + ' »). Aucun mail envoyé.']);
+  const adresses = decouperAdresses_(propriete_('ESSAI_MAIL_UNIQUE'));
+  if (adresses.length < 2 || adresses.length > 5) {
+    return fin(['Essai non lancé : la propriété du script ESSAI_MAIL_UNIQUE doit contenir 2 à 5 adresses à toi, séparées par une virgule ('
+      + adresses.length + ' adresse(s) lue(s)). Aucun mail envoyé.']);
+  }
+  const lignes = ['Essai du mail unique (' + VERSION_API + ') — un mail sans « À », en copie cachée à : ' + adresses.join(', ')];
+  let avant = -1, apres = -1;
+  try { avant = MailApp.getRemainingDailyQuota(); } catch (e) {}
+  try {
+    const pdf = HtmlService.createHtmlOutput('<p>Essai du mail unique — Loué App</p>').getAs('application/pdf').setName('essai-mail-unique.pdf');
+    GmailApp.sendEmail('', '[Loué App] Essai du mail unique',
+      'Bonjour,\n\nCeci est un essai de Loué App : un mail sans destinataire visible, envoyé en copie cachée.\n'
+      + 'Merci de noter s’il est arrivé dans la boîte de réception ou dans les indésirables.\n\nLoué App',
+      { bcc: adresses.join(', '), attachments: [pdf], name: NOM_ENTREPRISE });
+  } catch (err) {
+    lignes.push('E1 : ❌ Google a refusé le mail (« ' + err.message + ' ») : laisser MAIL_UNIQUE à « non » et envoyer cette ligne à Claude.');
+    return fin(lignes);
+  }
+  lignes.push('E1 : ✅ Google a accepté un mail sans « À ». Regarder maintenant les boîtes (E2) : boîte de réception ou indésirables ?');
+  try { apres = MailApp.getRemainingDailyQuota(); } catch (e) {}
+  const compte = avant - apres;
+  lignes.push('E4 : ' + (compte === adresses.length ? '✅' : '⚠') + ' quota : ' + avant + ' avant, ' + apres + ' après → Google a compté '
+    + compte + ' destinataire(s) (attendu : ' + adresses.length + ').');
+  return fin(lignes);
 }
 
 

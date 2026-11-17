@@ -155,12 +155,13 @@
 
   // Lot 8 — note de réunion : message de fin d'envoi. Le compte rendu se désigne par sa date de réunion.
   // rep : la réponse du serveur ; date : la date de réunion de la note (« 06/11/2026 »).
+  // Lot 5b : le message compte des destinataires, pas des mails (un seul mail peut servir plusieurs personnes).
   LOUE.messageNoteEnvoyee = function (rep, date) {
     var d = (rep && rep.data) || {}, deja = !!rep && rep.code === 'DEJA_RECU';
     var sansMail = d.envoyes === 0 && !d.reportes && !deja;
-    var reportes = d.reportes ? d.reportes + (d.reportes > 1 ? ' mails reportés' : ' mail reporté') + ' à plus tard (quota du jour)' : '';
+    var reportes = d.reportes ? d.reportes + (d.reportes > 1 ? ' destinataires reportés' : ' destinataire reporté') + ' à plus tard (quota du jour)' : '';
     var mails = typeof d.envoyes !== 'number' ? '' : d.envoyes === 0 && reportes ? reportes
-      : d.envoyes + (d.envoyes > 1 ? ' mails envoyés' : ' mail envoyé') + (reportes ? ', ' + reportes : '');
+      : d.envoyes + (d.envoyes > 1 ? ' destinataires' : ' destinataire') + (reportes ? ', ' + reportes : '');
     var quoi = 'Compte rendu' + (date ? ' du ' + date : '');
     var texte;
     if (sansMail) texte = '⚠ ' + quoi + ' enregistré, mais aucun mail n’est parti';

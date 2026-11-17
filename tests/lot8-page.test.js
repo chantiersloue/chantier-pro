@@ -555,27 +555,27 @@ function partieNote() {
   pause(3000);
   const b = lancer('note', scenarioNote());
   const D = b.date;
-  verifier('page ouverte : « 1 mail partira : la copie au conducteur du chantier. » ; plus de présents ni de numéro de compte rendu à l’écran',
-    b.compteur0 === '1 mail partira : la copie au conducteur du chantier.' && b.restes === '|false', j([b.compteur0, b.restes]));
-  verifier('destinataires : compteur « 2 mails partiront (1 destinataire + le conducteur du chantier). » ; bouton de 48 px', b.compteur1 === '2 mails partiront (1 destinataire + le conducteur du chantier).' && b.bouton48 === true, j([b.compteur1, b.bouton48]));
-  verifier('… conducteur du chantier déjà dans la liste : « 1 mail partira (le conducteur du chantier est déjà dans la liste). »',
-    b.compteurConducteur === '1 mail partira (le conducteur du chantier est déjà dans la liste).', j(b.compteurConducteur));
+  verifier('page ouverte : « 1 destinataire : le conducteur du chantier (il reçoit toujours une copie). » ; plus de présents ni de numéro de compte rendu à l’écran',
+    b.compteur0 === '1 destinataire : le conducteur du chantier (il reçoit toujours une copie).' && b.restes === '|false', j([b.compteur0, b.restes]));
+  verifier('destinataires : compteur « 2 destinataires (1 choisi + le conducteur du chantier). » ; bouton de 48 px', b.compteur1 === '2 destinataires (1 choisi + le conducteur du chantier).' && b.bouton48 === true, j([b.compteur1, b.bouton48]));
+  verifier('… conducteur du chantier déjà dans la liste : « 1 destinataire (le conducteur du chantier est déjà dans la liste). »',
+    b.compteurConducteur === '1 destinataire (le conducteur du chantier est déjà dans la liste).', j(b.compteurConducteur));
   verifier('… la 11e adresse de la liste est refusée avec un message (10 gardées)', b.plafond.n === 10 && /10 destinataires de la liste au maximum/.test(b.plafond.message)
-    && /^11 mails partiront \(10 destinataires/.test(b.plafond.compteur), j(b.plafond));
+    && /^11 destinataires \(10 choisis/.test(b.plafond.compteur), j(b.plafond));
   verifier('aperçu : ni numéro ni présents ; le texte y est', !/Compte rendu n°|Présents/.test(b.apercu) && /NOTE DE RÉUNION/.test(b.apercu) && /Texte de la réunion/.test(b.apercu), b.apercu);
   verifier('hors réseau, page rouverte : le brouillon revient avec la photo annotée et ses traits',
-    /Brouillon retrouvé/.test(b.bandeau) && b.restaure.photo && b.restaure.photo.traits === 1 && b.restaure.texte === 'Texte de la réunion' && /^2 mails partiront/.test(b.restaure.compteur), j([b.bandeau, b.restaure]));
+    /Brouillon retrouvé/.test(b.bandeau) && b.restaure.photo && b.restaure.photo.traits === 1 && b.restaure.texte === 'Texte de la réunion' && /^2 destinataires/.test(b.restaure.compteur), j([b.bandeau, b.restaure]));
   verifier('envoi hors réseau : note gardée dans le téléphone, message clair (sans parler de numéro), formulaire vidé',
     b.horsReseau.file === 1 && /Pas de réseau : la note est gardée dans le téléphone\. Elle partira toute seule au retour du réseau\.$/.test(b.horsReseau.message) && b.horsReseau.vide === true, j(b.horsReseau));
-  verifier('retour du réseau : la note part et le message affiche « ✓ Compte rendu du <date> envoyé — 2 mails envoyés »', b.partie === true && b.retour === '✓ Compte rendu du ' + D + ' envoyé — 2 mails envoyés', j(b.retour));
+  verifier('retour du réseau : la note part et le message affiche « ✓ Compte rendu du <date> envoyé — 2 destinataires »', b.partie === true && b.retour === '✓ Compte rendu du ' + D + ' envoyé — 2 destinataires', j(b.retour));
   verifier('… le PDF reçu porte le texte UNE fois et la photo, sans numéro', (b.pdfPremier.texte || '').split('Texte de la réunion').length - 1 === 1 && !/Compte rendu n°/.test(b.pdfPremier.texte) && b.pdfPremier.images === 1, j(b.pdfPremier));
-  verifier('deuxième note du même chantier : « ✓ Compte rendu du <date> envoyé — 1 mail envoyé »', b.deuxieme === '✓ Compte rendu du ' + D + ' envoyé — 1 mail envoyé', j(b.deuxieme));
+  verifier('deuxième note du même chantier : « ✓ Compte rendu du <date> envoyé — 1 destinataire »', b.deuxieme === '✓ Compte rendu du ' + D + ' envoyé — 1 destinataire', j(b.deuxieme));
   verifier('fiche de l’ANCIEN format déjà en attente dans le téléphone : acceptée par le nouveau serveur', b.anciennePartie === true && /^✓ Compte rendu du 10\/11\/2026 envoyé/.test(b.ancienneFiche), j(b.ancienneFiche));
   verifier('réponse perdue : la note reste en attente, puis « ✓ Compte rendu du <date> déjà reçu par le bureau » (une seule ligne, pas de second envoi)',
     b.perdueEnFile === 1 && b.perduePartie === true && b.perdue === '✓ Compte rendu du ' + D + ' déjà reçu par le bureau', j([b.perdueEnFile, b.perdue]));
-  verifier('quota de mails presque atteint : « ✓ Compte rendu du <date> envoyé — 1 mail reporté à plus tard (quota du jour) »', b.quota === '✓ Compte rendu du ' + D + ' envoyé — 1 mail reporté à plus tard (quota du jour)', j(b.quota));
-  verifier('onglet « Comptes rendus » du serveur (v11.1) : cinq lignes, une par note, sans colonne de numéro ni de présents',
-    /v11\.1/.test(b.version) && j(b.comptesRendus) === j(['jour / Réunion 8b', 'jour / Deuxième réunion', '10/11/2026 / Ancienne fiche', 'jour / Réponse perdue', 'jour / Quota']) && !/N° du compte rendu|Présents/.test(b.titres), j([b.version, b.comptesRendus, b.titres]));
+  verifier('quota de mails presque atteint : « ✓ Compte rendu du <date> envoyé — 1 destinataire reporté à plus tard (quota du jour) »', b.quota === '✓ Compte rendu du ' + D + ' envoyé — 1 destinataire reporté à plus tard (quota du jour)', j(b.quota));
+  verifier('onglet « Comptes rendus » du serveur (v11.2) : cinq lignes, une par note, sans colonne de numéro ni de présents',
+    /v11\.2/.test(b.version) && j(b.comptesRendus) === j(['jour / Réunion 8b', 'jour / Deuxième réunion', '10/11/2026 / Ancienne fiche', 'jour / Réponse perdue', 'jour / Quota']) && !/N° du compte rendu|Présents/.test(b.titres), j([b.version, b.comptesRendus, b.titres]));
   verifier('après les envois : aucun « Brouillon retrouvé »', b.bandeauApres === '', j(b.bandeauApres));
   verifier('ANCIEN brouillon « mis de côté » (page d’avant le lot 8) : proposé et restauré', /Brouillon mis de côté/.test(b.deCoteBandeau) && b.deCote.objet === 'Mis de côté' && b.deCote.texte === 'Texte mis de côté', j([b.deCoteBandeau, b.deCote]));
   verifier('brouillon de la page 10.1 des essais (avec des présents) : restauré (objet, texte, destinataires), sans erreur', /Brouillon retrouvé/.test(b.dixUnBandeau) && b.dixUn.objet === 'Brouillon 10.1' && b.dixUn.texte === 'Texte 10.1' && b.dixUn.dest === 'archi@ext.test', j([b.dixUnBandeau, b.dixUn]));
@@ -592,8 +592,8 @@ function partieAncienServeur() {
   pause(3000);
   const c = lancer('ancien-serveur', scenarioAncienServeur());
   verifier('c’est bien l’ancien serveur qui répond (pas de v11, pas d’onglet « Comptes rendus »)', /Loué App API v/.test(c.version) && !/v11\./.test(c.version) && c.onglet === 0, j([c.version, c.onglet]));
-  verifier('la note part, rien ne reste dans le téléphone (ni fiche, ni photo), message « ✓ Compte rendu du <date> envoyé — 1 mail envoyé »',
-    c.partie === true && c.photosEnAttente === 0 && c.envois.join() === 'note:traité' && /^✓ Compte rendu du \d\d\/\d\d\/\d{4} envoyé — 1 mail envoyé$/.test(c.message), j([c.message, c.envois, c.photosEnAttente]));
+  verifier('la note part, rien ne reste dans le téléphone (ni fiche, ni photo), message « ✓ Compte rendu du <date> envoyé — 1 destinataire »',
+    c.partie === true && c.photosEnAttente === 0 && c.envois.join() === 'note:traité' && /^✓ Compte rendu du \d\d\/\d\d\/\d{4} envoyé — 1 destinataire$/.test(c.message), j([c.message, c.envois, c.photosEnAttente]));
   verifier('rien n’est perdu dans le PDF de l’ancien serveur : texte saisi, photo annotée', /Texte pour l’ancien serveur/.test(c.pdf.texte || '') && c.pdf.images === 1, j(c.pdf));
   verifier('… et aucun « Brouillon retrouvé » ensuite', c.bandeauApres === '', j(c.bandeauApres));
 }

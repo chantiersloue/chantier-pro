@@ -46,7 +46,7 @@ test('fiche : réponse « ENREGISTRE » avec le bilan des mails', () => {
   const r = poster(g, { action: 'fiche', id: 'fiche-0001-abcd', donnees: quitus({ destinataires: [FRANCK, SEB] }) });
   assert.strictEqual(r.code, 'ENREGISTRE', JSON.stringify(r));
   assert.strictEqual(r.data.envoyes, 2);
-  assert.ok(/2 mail\(s\) envoyé\(s\)/.test(r.message), r.message);
+  assert.ok(/Envoyé à 2 destinataire\(s\)/.test(r.message), r.message);   // lot 5b : on compte des destinataires
   assert.strictEqual(g.feuilles['Envois'].lignes[1][4], 'traité');
 });
 
