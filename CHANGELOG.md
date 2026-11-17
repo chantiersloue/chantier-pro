@@ -29,6 +29,8 @@ Chaque lot : **quoi**, **pourquoi**, **comment déployer**. Procédures détaill
 
 **Comment déployer** : `docs/lot10-procedure.md` (après le lot 8 ; le serveur d'abord, puis `installerLot10Production`, `verifierConfig`, nouveau déploiement, fusion).
 
+**Relecture indépendante (17/11/2026, un tour) : rien de bloquant.** Corrigé : deux demandes envoyées à la même seconde par deux téléphones ne peuvent plus s'écrire l'une sur l'autre ; une panne du Sheet juste après l'envoi du récapitulatif ne fait plus repartir le mail ; boutons du panneau de la file à 48 px.
+
 ## Lot 4c — retouche du 17/11/2026 : dossiers du Drive à ignorer (programme du PC seulement)
 
 **Quoi** : une ligne facultative `"ignorer"` dans `_prive\depot.json` (numéros de chantier ou noms exacts de dossiers du Drive). Ces dossiers ne sont plus copiés, plus déposés, et ne reviennent plus dans « A VOIR ».
