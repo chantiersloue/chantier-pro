@@ -1579,6 +1579,26 @@ class Automatique(Monde):
         bilan = ap.rapatrier_tout(self.reglages, dire=self.dire)
         self.assertEqual((bilan["copies"], [n for n in photo(self.pc) if n.startswith("2024") and "/" in n]), (0, []), "rien pour « 2024 - archives »")
 
+    def test_dossiers_du_drive_a_ignorer(self):
+        # Sans la clé « ignorer » : comme avant
+        avant_suivis, avant_a_voir = ap.chantiers_suivis(self.reglages)
+        self.assertIn("903", avant_suivis)
+        self.assertRegex("\n".join(avant_a_voir),"« %s » : pas de numéro de chantier" % DRIVE_2)
+        # Un numéro (chantier archivé) et un nom exact, sans tenir compte des majuscules : ni suivis, ni cités dans « à voir »
+        self.reglages["ignorer"] = ["903", DRIVE_2.lower()]
+        suivis, a_voir = ap.chantiers_suivis(self.reglages)
+        self.assertEqual(sorted(suivis), sorted(n for n in avant_suivis if n != "903"), "les autres chantiers ne bougent pas")
+        self.assertEqual(a_voir, [l for l in avant_a_voir if "« %s »" % DRIVE_2 not in l])
+        self.assertNotIn(DRIVE_2, "\n".join(a_voir))
+        # Un nom n'ignore que le dossier qui porte exactement ce nom ; un numéro ne se confond pas avec un autre (90 n'est pas 903)
+        self.reglages["ignorer"] = ["CHANTIER", "90", "", None]
+        self.assertEqual(ap.chantiers_suivis(self.reglages), (avant_suivis, avant_a_voir))
+        # Une clé mal écrite (un texte seul, ou autre chose qu'une liste) ne casse rien
+        self.reglages["ignorer"] = "903"
+        self.assertNotIn("903", ap.chantiers_suivis(self.reglages)[0])
+        self.reglages["ignorer"] = {"903": True}
+        self.assertEqual(ap.chantiers_suivis(self.reglages), (avant_suivis, avant_a_voir))
+
     def test_la_correspondance_ne_peut_pas_contredire_le_numero_du_dossier(self):
         self.monde_propre()
         # Une faute de frappe dans depot.json : le dossier « 903 - … » relié au chantier 904

@@ -67,6 +67,14 @@ Double-clique sur `outils\appli-pc.bat`, tape `2` puis Entrée. À la question �
 
 Si tu lis « REFUS », le message dit quel chemin est faux. (La première ligne du menu, « Le passage automatique… n'a encore jamais tourné… Il se met en place à l'étape 6 de la procédure, APRÈS les essais », est normale à ce stade : ne lance pas `installer-tache.bat` maintenant.)
 
+**Un dossier du Drive à laisser de côté** (un chantier archivé, un dossier d'essai) ? Ouvre `_prive\depot.json` avec le Bloc-notes et ajoute une ligne `"ignorer"`, avec entre crochets les numéros de chantier ou les noms exacts des dossiers du Drive, chacun entre guillemets, séparés par des virgules :
+
+```
+  "ignorer": ["345", "TEST CHANTIER", "essai"],
+```
+
+Un numéro écarte tout dossier du Drive dont le nom commence par ce numéro ; un nom écarte le dossier qui porte exactement ce nom (majuscules et accents ne comptent pas). Un dossier ignoré n'est plus copié, plus déposé au carnet, et ne revient plus dans « A VOIR ». Pour le reprendre : retire-le de la ligne. Attention à la virgule en fin de ligne, sauf si c'est la dernière ligne avant l'accolade `}`. Un chantier ignoré n'a plus de relevé du PC : la purge « Chantier terminé » ne lui sera donc pas proposée.
+
 **Un dossier de l'appli n'a pas de numéro en tête de son nom ?** Deux solutions : le renommer dans Drive (`NNN - NOM`), ou le relier à la main : choix `4` du menu (« Associer les chantiers »). Le programme affiche les dossiers du Drive encore libres ; tu tapes le numéro de la ligne, puis le nom du chantier dans l'appli. C'est noté dans `_prive\depot.json`. Attention : cette correspondance ne peut pas contredire un numéro. Si le dossier du Drive commence par `403` et que tu le relies au chantier 404, le programme ne copie rien pour lui et te le dit.
 
 ### Étape 3 — Les lignes à coller dans `gestion-documentaire` (20 à 30 min, avec Claude)

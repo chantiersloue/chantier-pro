@@ -18,6 +18,7 @@ et les PDF des bordereaux (« 08 - … / BORDEREAU n ») dont le numéro de docu
 Le programme lit ses réglages dans _prive/depot.json (jamais dans le dépôt public) :
     { "racine": "<racine du Drive de l'appli sur le PC>", "chantiers_pc": "<dossier qui contient les dossiers de chantier, sur le PC>",
       "chantiers": { "<n° du chantier>": { "chantier": "<nom dans l'appli>", "dossier_drive": "<nom du dossier dans le Drive>" } },
+      "ignorer": [ "<n° de chantier ou nom exact d'un dossier du Drive à laisser de côté>", … ],   (facultatif)
       "bordereaux": { "<n° du chantier>": "actuelle"  ou  { "<ancien n° de document>": "<n° actuel>" }  ou  "non" } }
 « bordereaux » : le dépôt au carnet depuis les bordereaux d'un chantier n'est actif que si sa numérotation y est déclarée.
 « chantiers » est facultatif : le dossier de chantier du PC est trouvé tout seul par le numéro en tête du nom des dossiers.
@@ -1412,6 +1413,23 @@ def tri_numeros(numeros):
     return sorted(numeros, key=lambda n: (len(n), n))
 
 
+def dossier_ignore(reglages, nom):
+    """Vrai si Franck a demandé d'ignorer ce dossier du Drive : clé « ignorer » de _prive/depot.json, une liste de numéros de
+    chantier (« 345 » : tout dossier dont le nom commence par ce numéro) ou de noms de dossier exacts (« TEST CHANTIER »).
+    Majuscules et accents ne comptent pas. Un dossier ignoré n'est ni copié, ni déposé, ni cité dans « A VOIR »."""
+    voulus = reglages.get("ignorer") or []
+    if isinstance(voulus, (str, int)):
+        voulus = [voulus]
+    if not isinstance(voulus, list):
+        return False
+    numero = numero_du_dossier(nom)
+    for voulu in voulus:
+        voulu = str(voulu).strip()
+        if voulu and (cle(voulu) == cle(str(nom).strip()) or (voulu.isdigit() and voulu == numero)):
+            return True
+    return False
+
+
 def chantiers_suivis(reglages, sous=None):
     """Trouve tout seul les chantiers. Un dossier du Drive est suivi s'il est un dossier de chantier de l'appli (il contient au
     moins un sous-dossier de fiches, ou le carnet) ou s'il est dans la correspondance de _prive/depot.json. Son n° : les chiffres
@@ -1429,6 +1447,8 @@ def chantiers_suivis(reglages, sous=None):
         dossier = os.path.join(racine, nom)
         if not os.path.isdir(dossier) or dossier_technique(nom, planning):
             continue                                   # _À CLASSER, ADMINISTRATIF, planning… : pas des chantiers
+        if dossier_ignore(reglages, nom):
+            continue                                   # dossier que Franck a demandé d'ignorer (clé « ignorer ») : sans bruit
         associe, lu = par_dossier.get(cle(nom)), numero_du_dossier(nom)
         connu = any(descendre(dossier, morceaux) is not None for morceaux in reperes)
         if not associe and not connu:
