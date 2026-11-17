@@ -3,6 +3,13 @@
 > Proposition du 16/11/2026. **Rien n'est construit.** Tout est gratuit et sans outil en plus. Tu choisis ; chaque idée retenue aura son petit plan.
 > « Effort » compte mon travail **et** le tien (essais, mise en production). « Serveur » = un envoi sur la copie TEST et un nouveau déploiement ; « pages seules » = une simple fusion.
 
+## Tes choix du 17/11/2026
+
+- **Retenues** : l'idée **4** (point de santé), regroupée avec un récapitulatif des signalements dans un seul mail du vendredi ; l'idée **7**, seulement pour les notes de réunion (récapitulatif des points ouverts), après la mise en service du lot 8.
+- **Refusées** : les idées 1, 2, 3, 5, 6 et 8. Elles ne seront pas construites.
+- **Ajoutée par toi** : la tuile « À commander » (petit matériel, outil en panne).
+- Le plan : `docs/lot10-plan.md`.
+
 ## Déjà fait dans d'autres lots (idées du plan d'origine)
 
 - **Indice périmé affiché en rouge** dans le carnet (lot 4).
