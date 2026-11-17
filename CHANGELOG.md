@@ -2,6 +2,12 @@
 
 Chaque lot : **quoi**, **pourquoi**, **comment déployer**. Procédures détaillées dans `docs/lotN-procedure.md`.
 
+## Lot 4c — retouche du 17/11/2026 : dossiers du Drive à ignorer (programme du PC seulement)
+
+**Quoi** : une ligne facultative `"ignorer"` dans `_prive\depot.json` (numéros de chantier ou noms exacts de dossiers du Drive). Ces dossiers ne sont plus copiés, plus déposés, et ne reviennent plus dans « A VOIR ».
+**Pourquoi** : un chantier archivé et des dossiers d'essai revenaient à chaque passage.
+**Déployer** : rien à installer ; ajouter la ligne (voir `docs/lot4c-procedure.md`). Sans cette ligne, rien ne change. 79 tests.
+
 ## Lot 5 — Suivi du stockage, alertes et purge sur case cochée — serveur **v10.0**, aucune page ne change — **construit, testé contre le faux serveur seulement** (rien n'a tourné chez Google)
 
 **Quoi**
