@@ -11,7 +11,9 @@
 //
 //  Règles :
 //   - droit vérifié à chaque demande (accès au chantier, comme les notes) ; même réponse pour « inconnu » et « interdit » ;
-//   - le serveur ne supprime RIEN et n'écrit rien dans le carnet ;
+//   - ce fichier (le carnet) ne supprime RIEN et n'écrit rien dans le carnet. Seul le lot 5 (Purges.gs) met des dossiers
+//     du carnet à la CORBEILLE de Drive, et seulement sur une case cochée par Franck dans l'onglet « Purges » : les anciens
+//     indices que plus aucun document montré ne désigne, ou le carnet d'un chantier terminé. Jamais de suppression définitive ;
 //   - aucun identifiant Drive ne part vers les téléphones ; un nom de fichier reçu n'est jamais utilisé : seuls les noms
 //     écrits dans carnet.json le sont.
 // ═══════════════════════════════════════════════════════════════════════════

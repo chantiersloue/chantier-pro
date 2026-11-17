@@ -5,7 +5,7 @@
 > **Ce fichier est public** (le dépôt l'est) : aucun identifiant, aucun lien, aucun chemin du PC, aucun nom de client ni de chantier réel.
 > **Vocabulaire** : les skills travaillent sur les **dossiers de chantier de ton PC**. MEGA ne fait que les synchroniser (sauvegarde, accès à distance) : ni l'appli ni les skills n'échangent avec MEGA.
 > **Je ne modifie pas tes skills** : les textes à coller sont au chapitre 8, dans **un seul** skill (`gestion-documentaire`), et tu les valides avec Claude.
-> **Version 5** (13/11/2026, lot 4c) : **c'est le programme du PC qui dépose au carnet, et qui recopie tout seul les fiches de l'appli dans les dossiers de chantier du PC** (toutes les heures) ; un skill n'écrit plus rien pour l'appli, et le Drive de l'appli n'a plus à être relié à Claude. Plan : `docs/lot4c-plan.md` ; marche à suivre : `docs/lot4c-procedure.md`.
+> **Version 6** (16/11/2026, lot 4c) : **le dépôt au carnet devient automatique** (décision de Franck), par la même tâche que la recopie des fiches. Version 5 (14/11/2026 ; corrigée le 16/11/2026 après deux relectures indépendantes) : **c'est le programme du PC qui dépose au carnet, et qui recopie tout seul les fiches de l'appli dans les dossiers de chantier du PC** (toutes les heures) ; un skill n'écrit plus rien pour l'appli, et le Drive de l'appli n'a plus à être relié à Claude. Plan : `docs/lot4c-plan.md` ; marche à suivre : `docs/lot4c-procedure.md`.
 > Historique : version 4 (13/11/2026) — règles 2 et 5 abandonnées, rien à coller avant le lot 4 ; versions 1 à 3 (12/11/2026) — trois relectures indépendantes (chapitre 11).
 
 ## En deux minutes
@@ -17,7 +17,7 @@ Deux principes, les plus prudents :
 | # | Règle | Qui le fait | Utilisable quand ? |
 |---|---|---|---|
 | 1 | L'identité d'un chantier (n°, nom, adresse, client, architecte) est **contrôlée** d'après l'onglet *Chantiers* du Sheet : tout écart avec la FICHE INFO t'est signalé. Les skills continuent de travailler avec la FICHE INFO. **Facultative.** | `gestion-documentaire` (lecture seule) | Si le connecteur Google Sheets marche (jamais essayé) ; rien d'autre n'en dépend |
-| 3 | Les plans utiles aux poseurs vont au carnet **depuis les bordereaux** : le programme du PC lit les PDF du dossier `08`, te montre chaque document, et le met au carnet si tu réponds « o ». | le programme du PC (double-clic sur `outils\appli-pc.bat`) ; le skill rappelle seulement le double-clic | Dès que `_prive/depot.json` est rempli (`docs/lot4c-procedure.md`) |
+| 3 | Les plans utiles aux poseurs vont au carnet **tout seuls** : le programme du PC y dépose, sans question, les PDF des bordereaux (dossier `08`) dont le numéro est dans la liste du carnet, et les PDF que tu glisses dans le dossier `À METTRE AU CARNET` d'un chantier. | le programme du PC, lancé toutes les heures par Windows ; le skill n'a rien à faire | Dès que la tâche planifiée est installée (`docs/lot4c-procedure.md`) |
 | 4 | Les fiches produites par l'appli (PDF, photos) sont recopiées **toutes seules** du Drive vers le dossier du chantier sur le PC, dans les mêmes sous-dossiers, et listées dans ce dossier pour que les skills les reconnaissent. | le programme du PC, lancé toutes les heures par Windows ; le skill lit la liste | Dès que la tâche planifiée est installée (`docs/lot4c-procedure.md`) |
 
 Les règles 2 et 5 sont abandonnées (chapitres 3 et 6).
@@ -106,27 +106,31 @@ La règle 2 prévoyait de transmettre à l'appli la liste des intervenants de la
 
 ---
 
-## 4. Règle 3 — Le carnet de chantier : c'est le programme du PC qui s'en charge
+## 4. Règle 3 — Le carnet de chantier : le dépôt est automatique
 
-### Le principe
-Un skill ne met rien au carnet et n'écrit aucune « demande ». **Le programme du PC lit les bordereaux** : les PDF figés dans `08 - DOCUMENTS ENVOYES AVEC BORDEREAU/BORDEREAU n` de chaque chantier suivi. Leur nom porte déjà tout ce qu'il faut (nomenclature de Franck) :
+### Le principe (décision de Franck du 16/11/2026)
+Un skill ne met rien au carnet et n'écrit aucune « demande ». **Le programme du PC dépose tout seul, sans question**, à chaque passage de la tâche planifiée (toutes les heures, et à l'ouverture de ta session) :
 
-`<N° chantier>-<lot>-<N° de document>-<indice>-<INTITULÉ>.pdf`
+1. **les PDF des bordereaux** — figés dans `08 - DOCUMENTS ENVOYES AVEC BORDEREAU/BORDEREAU n` de chaque dossier de chantier — dont le numéro de document est dans la liste ci-dessous. Leur nom porte déjà tout ce qu'il faut (nomenclature de Franck) : `<N° chantier>-<lot>-<N° de document>-<indice>-<INTITULÉ>.pdf` ;
+2. **les PDF que tu glisses dans un dossier `À METTRE AU CARNET`**, que tu crées toi-même à la racine d'un dossier de chantier (le programme ne le crée pas). Deux formes de nom y sont acceptées : la forme complète ci-dessus, ou une forme courte `<N° de document>-<indice>-<INTITULÉ>.pdf` (le chantier est celui du dossier où tu glisses le fichier).
 
-Ainsi, **seule une version validée** (mise dans un bordereau) peut aller au carnet, et **tu confirmes document par document**.
+Cette règle **remplace** « un double-clic, et une confirmation document par document » (versions 4 et 5). Ce qui est dans un bordereau part au carnet **sans délai** : un bordereau préparé mais pas encore envoyé part donc aussi.
 
-### Ce que fait le programme (`outils\appli-pc.bat`, choix 1)
-1. Pour chaque chantier suivi, il ne retient que les PDF dont : le n° de chantier est celui du dossier du chantier ; le n° de document — après passage par la table des anciens numéros — est dans la liste ci-dessous ; l'indice n'est pas déjà au carnet ; tu ne l'as pas écarté.
-2. Pour chacun, il te montre le chantier, le bordereau, le nom, le nombre de pages, le poids, la date, et le dossier du Drive où il ira. Tu réponds **o** (le mettre au carnet), **n** (l'écarter pour de bon ; un fichier refait sous le même nom sera proposé de nouveau) ou **Entrée** (plus tard).
-3. Le travail est fait par `depot_carnet.py` (lot 4a, inchangé), sans limite de temps, page par page ; à la fin, le carnet est contrôlé.
-4. Il signale sans rien faire : un PDF qui porte le n° d'un autre chantier ; un numéro de document non reconnu ; un document **qui a changé depuis qu'il est au carnet** (même indice, autre fichier) ; un même document présent dans plusieurs bordereaux (le plus récent est gardé).
+### Ce que fait le programme
+1. **Les bordereaux d'un chantier ne déposent que si tu as déclaré sa numérotation** (`_prive/depot.json`, clé `bordereaux` ; commande « Déclarer » du menu) : « actuelle », ou une table « ancien numéro → numéro actuel » propre au chantier — dans ce cas **seuls les numéros de la table** partent, convertis ; un numéro absent de la table ne part jamais, même s'il existe aujourd'hui. Un chantier non déclaré : rien ne part de ses bordereaux, et une ligne de « A VOIR » le rappelle. C'est la protection contre un ancien numéro pris pour un numéro d'aujourd'hui (un document avec des prix publié comme un plan). Le dossier `À METTRE AU CARNET` est toujours actif, avec les numéros d'aujourd'hui seulement.
+1 bis. Le chantier d'un dépôt est **toujours celui du dossier de chantier du PC** où se trouve le PDF (numéro en tête du nom), et de son dossier Drive (mêmes règles que la recopie des fiches, chapitre 5 : rien n'est deviné). Le numéro de chantier écrit dans le nom du PDF doit être celui du dossier.
+2. Un PDF n'est déposé que s'il n'a pas bougé depuis **deux minutes** (fini d'écrire ou de synchroniser), s'il commence bien comme un PDF, et s'il pèse 200 Mo au plus.
+3. Le travail est fait par `depot_carnet.py` (lot 4a), page par page. Une erreur sur un document n'arrête pas les autres ; après trois échecs, il n'est plus retenté tant que le fichier ne change pas. Un passage ne commence plus de dépôt après 40 minutes ; un dépôt interrompu **reprend où il en était** au passage suivant.
+4. **Rien n'est supprimé ni déplacé** : les PDF restent où ils sont. Le programme sait ce qui est déjà au carnet (`carnet.json` : numéro, indice, nom et poids du fichier d'origine) et ne le redépose pas.
+5. **Ce qui ne peut pas être déposé est écrit dans `CHANTIERPRO - A VOIR.txt`** (pour `À METTRE AU CARNET` et pour un chantier entier : tant que la cause est là ; pour un PDF de bordereau : sept jours, puis plus répété tant que le fichier ne change pas) : nom non reconnu, numéro hors de la liste, numéro d'un autre chantier, document déjà au carnet sous cet indice avec un **autre contenu** (« prends l'indice suivant »), PDF illisible, même document présent dans `À METTRE AU CARNET` et dans un bordereau avec des contenus différents (rien n'est déposé), fichier encore en cours d'écriture. Dans un bordereau, un PDF qui n'est pas un document du carnet (un devis, un dossier technique) n'est pas signalé : seul « Voir seulement » les liste.
+6. **Ce qui a été déposé est écrit** dans le journal du programme et dans la section « Déposé au carnet ces sept derniers jours » de `CHANTIERPRO - A VOIR.txt` : tu vois ce qui a été publié aux poseurs. Une erreur ? `appli-pc`, choix 5 (« Retirer un document du carnet » : aucun fichier n'est supprimé, et le document n'est pas redéposé).
 
 ### Ce qui est décidé (inchangé depuis le lot 4a)
 - **Ce que le poseur voit** : des pages-images (WebP, 200 dpi pour les plans, 150 dpi pour les documents de texte), jamais le PDF (décisions S1-1 et S1-2).
 - **Où** : dans le dossier Drive du chantier, sous-dossier donné par la clé `carnet` (chapitre 7). Jamais un chemin écrit en dur.
 - **Le PDF d'origine reste dans le dossier du chantier sur le PC.** Le carnet n'est pas une archive.
-- Nom dans le carnet : `<N° de document> <INDICE> <INTITULÉ>`. Le programme tient `carnet.json` (la liste que l'appli lit) ; personne ne l'écrit à la main.
-- Un document du carnet n'est jamais écrasé : un document refait part sous l'**indice suivant** (nouveau bordereau). Le choix 5 du menu retire un document de la vue des poseurs (aucun fichier n'est supprimé), mais ne libère pas son indice.
+- Nom dans le carnet : `<N° de document> <INDICE> <INTITULÉ>`. Le programme tient `carnet.json` (la liste que l'appli lit) ; personne ne l'écrit à la main. Le nom du chantier n'y est écrit que s'il est sûr ; le nom d'un dossier n'est jamais pris pour un nom de chantier.
+- Un document du carnet n'est jamais écrasé : un document refait part sous l'**indice suivant** (décidé par Franck le 16/11/2026). Retirer un document le cache aux poseurs, mais ne libère pas son indice.
 
 ### Quels documents
 
@@ -147,15 +151,16 @@ Ainsi, **seule une version validée** (mise dans un bordereau) peut aller au car
 Ne vont **jamais** au carnet : tout ce qui porte un prix, les documents internes (fiches de fabrication, notes internes, rapports d'incohérences), les brouillons. Tout autre numéro est refusé par le programme.
 
 ### Quel dossier du Drive pour quel chantier, et les anciens numéros
-- Le dossier du chantier dans le Drive de l'appli et le dossier du chantier sur le PC sont reliés **tout seuls par le numéro du chantier**, lu en tête de leur nom (`NNN - …`, `NNN-…` ou `NNN …`). Le programme **ne devine jamais** : aucun dossier du PC pour ce numéro, ou plusieurs, ou un dossier du Drive sans numéro — il ne fait rien pour ce chantier et le signale. Quand le numéro ne suffit pas (un dossier du Drive sans numéro), tu peux relier les deux à la main dans `_prive/depot.json` (commande « Associer les chantiers » du menu) : cette correspondance passe avant le numéro lu dans le nom. Le numéro est en plus recoupé avec le nom de chaque PDF.
-- **Anciens numéros de documents** (d'avant la numérotation par métier) : la table `anciens_codes` de `_prive/depot.json` les convertit. Un numéro qui n'est ni un document du carnet, ni dans cette table, est montré « numéro non reconnu » et n'est pas proposé. **Attention** : certains anciens numéros sont aussi des numéros d'aujourd'hui, avec un autre sens. Pour un chantier commencé avec l'ancienne numérotation, mets la table **dans la ligne de ce chantier** (elle l'emporte sur la table générale) : voir `docs/lot4c-procedure.md`.
+- Le dossier du chantier dans le Drive de l'appli et le dossier du chantier sur le PC sont reliés **tout seuls par le numéro du chantier**, lu en tête de leur nom (`NNN - …`, `NNN-…` ou `NNN …`). Trois garde-fous, parce qu'un numéro seul peut tromper : (1) un dossier du Drive n'est pris pour un chantier que s'il **est un dossier de chantier de l'appli** — il contient au moins un sous-dossier de fiches (chapitre 5) ou le carnet ; un dossier « 2024 - archives » est ignoré ; (2) le programme **ne devine jamais** : aucun dossier du PC pour ce numéro, ou plusieurs, ou un dossier de l'appli sans numéro — il ne fait rien pour ce chantier et le signale ; (3) la correspondance écrite à la main dans `_prive/depot.json` (commande « Associer les chantiers » du menu) sert pour un dossier du Drive **sans numéro** ; si elle contredit le numéro en tête du nom du dossier, rien n'est copié et c'est signalé. Le numéro est en plus recoupé avec le nom de chaque PDF.
+- **Anciens numéros de documents** (d'avant la numérotation par métier) : ils se déclarent **par chantier**, dans la table de ses bordereaux (point 1 ci-dessus). Il n'y a plus de table générale : un même ancien numéro n'a pas forcément le même sens d'un chantier à l'autre, et certains existent encore aujourd'hui avec un autre sens.
 
 ### Ce que les skills ont à faire
-Rien, sauf **un rappel** : après la préparation d'un bordereau qui contient un document de la liste ci-dessus, `gestion-documentaire` te rappelle de double-cliquer sur `appli-pc` une fois le bordereau envoyé (chapitre 8, bloc B). Les neuf skills de plans ne changent pas.
+**Rien.** Un document mis dans un bordereau part au carnet tout seul, dans l'heure. `gestion-documentaire` le dit simplement dans son compte rendu (chapitre 8, bloc B). Les neuf skills de plans ne changent pas. Un skill ne crée pas le dossier `À METTRE AU CARNET` et n'y range rien : ce dossier est à toi.
 
-### Ce que cette règle ne couvre pas
-- Un document **hors bordereau** : `outils\deposer.bat` (lot 4a) reste là pour cela.
-- Un bordereau **préparé mais pas encore envoyé** : ses PDF sont proposés aussi. Réponds **Entrée** (plus tard) tant que le mail n'est pas parti.
+### Ce qu'il faut savoir
+- **Un bordereau préparé mais pas encore envoyé part au carnet comme les autres**, sans délai (ta décision). Si tu le corriges ensuite, le document corrigé devra prendre l'indice suivant.
+- **Chantier non déclaré** : rien ne part de ses bordereaux. « Voir seulement » montre d'avance, par chantier, le nombre de documents et de pages qui partiraient et leur poids estimé.
+- Un document hors bordereau : glisse-le dans `À METTRE AU CARNET` ; `outils\deposer.bat` (lot 4a) marche toujours.
 
 ---
 
@@ -165,17 +170,17 @@ Rien, sauf **un rappel** : après la préparation d'un bordereau qui contient un
 Les dossiers de chantier de ton PC, que MEGA sauvegarde, sont l'archive maître. Or les fiches remplies sur les téléphones (prises de cotes, quitus, signalements, notes de réunion, photos…) arrivent dans **Drive**. Tant qu'elles n'ont pas été recopiées dans le dossier du chantier, elles n'existent qu'à un endroit.
 
 ### Quand : tout seul, sans manipulation
-- **Toutes les heures, et à l'ouverture de ta session Windows**, par une tâche du Planificateur de tâches de Windows (déjà présent sur le PC, rien à installer). Elle lance le programme sans fenêtre et sans question. Tu l'installes **une seule fois** (`outils\installer-tache.bat`, sans droits d'administrateur).
+- **Toutes les heures, et à l'ouverture de ta session Windows**, par **une** tâche du Planificateur de tâches de Windows (déjà présent sur le PC, rien à installer). Elle lance le programme sans fenêtre et sans question, y compris sur batterie ; un passage manqué (PC éteint) est rattrapé au rallumage. Tu l'installes **une seule fois** (`outils\installer-tache.bat`, sans droits d'administrateur), et tu refais ce double-clic après une mise à jour de Python ou un déplacement du dépôt. **La création réelle de cette tâche n'a pas été essayée par moi** : c'est ton premier essai (procédure, étape 6).
 - **À la demande** aussi : le double-clic sur `outils\appli-pc.bat` (choix 1) fait la même recopie, avec la même fonction.
 - Une fiche arrive donc dans le dossier du chantier **au plus tard une heure** après son arrivée dans le Drive, **si le PC est allumé, ta session ouverte et Google Drive pour ordinateur démarré**.
 - Le skill ne lance rien et ne tient plus de ligne de JOURNAL pour cela.
 
 ### « Me le signaler » : le fichier `CHANTIERPRO - A VOIR.txt`
-À la racine du dossier qui contient tes dossiers de chantier, le programme réécrit à chaque passage un petit fichier texte : la date du passage, puis la liste de ce qui demande ton attention — ou « Rien à signaler ». Y figurent : un chantier sans dossier sur le PC ou avec plusieurs, un dossier du Drive sans numéro, un fichier de même nom mais de taille différente, les fichiers hors des sous-dossiers de fiches, les raccourcis Google, les doublons, une copie qui a échoué, Google Drive pour ordinateur arrêté. Le menu de `appli-pc.bat` l'affiche (choix 3). **Ce fichier n'est pas un document** : les skills ne le rangent pas, ne le renomment pas, ne le portent pas au registre (chapitre 8, bloc C).
+À la racine du dossier qui contient tes dossiers de chantier, le programme tient un petit fichier texte : la liste de ce qui demande ton attention — ou « Rien à signaler ». Il n'est réécrit que **si cette liste change**, et au moins une fois par jour (pour ne pas faire travailler la sauvegarde toutes les heures). Y figurent : un chantier sans dossier sur le PC ou avec plusieurs, un dossier de l'appli sans numéro, une correspondance qui contredit un numéro, un fichier de même nom mais de taille ou de contenu différent, une fiche de l'appli que tu as déplacée ou supprimée (signalée sept jours, jamais recopiée), les fichiers hors des sous-dossiers de fiches, les raccourcis Google, les doublons, une copie qui a échoué, et un passage qui n'a pas pu se faire (Google Drive pour ordinateur arrêté, programme déjà occupé) — cette dernière ligne s'ajoute aux autres sans les effacer. Le menu de `appli-pc.bat` l'affiche (choix 3), avec la date du dernier passage automatique réussi ; **le menu prévient si ce passage date de plus de 3 heures**. **Ce fichier n'est pas un document** : les skills ne le rangent pas, ne le renomment pas, ne le portent pas au registre (chapitre 8, bloc C).
 
 ### Ce que fait le programme
 
-1. **Trouver les deux dossiers du chantier** par le numéro en tête de leur nom, ou par la correspondance de `_prive/depot.json` quand elle existe (chapitre 4). Aucun dossier sur le PC, plusieurs, dossier technique ou en double : rien n'est copié pour ce chantier, et c'est écrit dans « A VOIR ».
+1. **Trouver les deux dossiers du chantier** par le numéro en tête de leur nom (chapitre 4). Aucun dossier sur le PC, plusieurs, correspondance contradictoire, dossier en double : rien n'est copié pour ce chantier, et c'est écrit dans « A VOIR ».
 2. **Lire `dossiers.json`** (chapitre 7) pour connaître les sous-dossiers. **Une clé absente du fichier prend la valeur du tableau ci-dessous** (c'est aussi ce que fait l'appli).
 
    | Clé | Fiche de l'appli | Sous-dossier (le même dans Drive et dans le dossier du chantier sur le PC) |
@@ -190,14 +195,15 @@ Les dossiers de chantier de ton PC, que MEGA sauvegarde, sont l'archive maître.
    | `signalement` | Signalements (lot 7) | `05 - CHANTIER/SIGNALEMENTS` |
 
    Les clés `carnet` et `plans` ne sont **pas** rapatriées : ce sont des copies de documents déjà dans le dossier du chantier.
-3. **Copier dans le dossier du chantier sur le PC, au même chemin**, tout fichier qui n'y est pas déjà :
+3. **Copier dans le dossier du chantier sur le PC, au même chemin**, toute **nouvelle** fiche — une fiche qui n'y est pas, et qui n'a encore jamais été copiée :
+   - **une fiche déjà copiée une fois n'est jamais recopiée** : si tu l'as déplacée, renommée ou supprimée dans le dossier du PC, ton choix est respecté (c'est seulement signalé, sept jours). « La même fiche » veut dire : même chemin **et même taille** que ce qui a été noté à la copie. Un fichier du Drive qui porte le nom d'une ancienne fiche mais n'a pas sa taille est une fiche **nouvelle** : elle est copiée si la place est libre ; si un fichier d'une autre taille occupe la place, rien n'est touché et c'est signalé tant que cela dure ;
    - **copier, jamais déplacer** : rien n'est supprimé ni modifié dans Drive (la purge de Drive est le travail de l'appli, au lot 5, et tu la valides toi-même) ;
-   - **jamais écraser** : un fichier de même nom et de même taille déjà dans le dossier du chantier est « déjà présent » ; s'il n'a pas la même taille, il est signalé et rien n'est touché ;
+   - **jamais écraser** : un fichier de même nom et de même taille déjà dans le dossier du chantier est « déjà présent » — s'il n'a jamais été copié par le programme, son **contenu** est comparé une fois à celui du Drive avant d'être tenu pour la même fiche ; taille ou contenu différent : signalé, et rien n'est touché ;
    - **jamais renommer** ;
    - **créer le sous-dossier s'il manque dans le dossier du chantier** (`SIGNALEMENTS` et `BORDEREAUX MATERIAUX` sont nouveaux) : seule exception à « ne pas créer de nouveau dossier » ;
    - la copie se fait **sous un nom temporaire** (`….partiel`), puis elle prend son vrai nom seulement si sa taille est bonne : un arrêt en route ne laisse jamais un fichier tronqué sous son nom final ;
    - un fichier Drive « en ligne seulement » se télécharge à la copie : si cela échoue, il est signalé et le programme continue.
-4. **Signaler, sans les copier** (dans « A VOIR ») : les fichiers du dossier Drive du chantier qui sont **hors** de ces sous-dossiers (un dossier `Divers`, un ancien dossier) ; le contenu du dossier `_À CLASSER` de la racine ; les raccourcis Google (`.gdoc`, `.gsheet`… : ils ne contiennent pas le document) ; les doublons fabriqués par Drive (`nom (1).pdf`) ; les chemins trop longs ; les fichiers illisibles.
+4. **Signaler, sans les copier** (dans « A VOIR ») : les fichiers du dossier Drive du chantier qui sont **hors** de ces sous-dossiers (un dossier `Divers`, un ancien dossier) ; le contenu du dossier `_À CLASSER` de la racine ; les raccourcis Google (`.gdoc`, `.gsheet`… : ils ne contiennent pas le document) ; les doublons fabriqués par Drive (`nom (1).pdf` **quand `nom.pdf` existe à côté** ; un `IMG (12).jpg` tout seul est une vraie photo, copiée normalement) ; les chemins trop longs ; les fichiers illisibles.
 5. **Écrire deux fichiers distincts** (ci-dessous) : la liste de provenance, dans le dossier du chantier sur le PC ; le relevé de présence, dans Drive.
 
 **Ne sont jamais rapatriées** : les demandes d'absence (`ADMINISTRATIF/ABSENCES`, hors chantier).
@@ -206,7 +212,7 @@ Les dossiers de chantier de ton PC, que MEGA sauvegarde, sont l'archive maître.
 
 - **Où** : à la **racine du dossier du chantier sur le PC** (avec « A VOIR », c'est le seul ajout à tes dossiers). Les skills la voient, puisqu'ils travaillent dans ce dossier.
 - **À quoi elle sert** : c'est la **seule** source qui dit « ce fichier vient de l'appli ». Les skills s'en servent pour ne pas prendre ces fichiers pour leurs propres documents.
-- **Écrite par** : le programme du PC, et lui seul. **Cumulative** : une entrée n'est jamais retirée, même si le fichier a été déplacé ensuite ; jamais deux fois le même chemin.
+- **Écrite par** : le programme du PC, et lui seul, **toutes les 25 copies et à la fin** (un arrêt en route ne fait pas refaire le travail). **Cumulative** : une entrée n'est jamais retirée, même si le fichier a été déplacé ensuite ; jamais deux fois le même chemin (l'entrée est mise à jour quand une fiche nouvelle reprend le nom d'une ancienne). C'est aussi sa mémoire : **une fiche qui y figure, avec la même taille, n'est plus jamais recopiée**.
 
 ```json
 {
@@ -219,8 +225,8 @@ Les dossiers de chantier de ton PC, que MEGA sauvegarde, sont l'archive maître.
 }
 ```
 
-- `chemin` : relatif au dossier du chantier, avec des `/`. `taille` : en octets (l'unité de poids d'un fichier). `copie_le` : heure de Paris.
-- Un fichier trouvé « déjà présent » dans le dossier du chantier (même nom, même taille qu'une fiche du Drive, dans un sous-dossier de fiches) et absent de la liste y est ajouté : il vient de l'appli, même s'il a été copié avant ce programme.
+- `chemin` : relatif au dossier du chantier, avec des `/`. `taille` : en octets (l'unité de poids d'un fichier). `copie_le` : heure de Paris. Des mentions que les skills ignorent : `"date"` (date de modification de la fiche dans le Drive au moment de la copie, en secondes), `"verifie": "contenu"` (fichier trouvé déjà là, reconnu identique à la fiche du Drive par comparaison du contenu), `"absente_signalee_le"` (date à laquelle le programme a vu que tu avais déplacé ou supprimé cette fiche) ; et, à côté de `fichiers`, une liste `"differents"` (les fichiers de même nom et de même taille dont le contenu n'est PAS celui du Drive : ce ne sont pas des fiches de l'appli, **les skills ne lisent que `fichiers`**).
+- Un fichier trouvé « déjà présent » dans le dossier du chantier (même nom, même taille qu'une fiche du Drive, dans un sous-dossier de fiches) et absent de la liste n'y est ajouté **qu'après comparaison de son contenu** avec la fiche du Drive (empreinte SHA-256, une seule fois). Contenu différent : il est signalé, pas ajouté.
 
 ### Trois règles du skill à protéger (sinon il abîmerait ces fichiers)
 Les fiches de l'appli se nomment `<INTITULÉ> <nom court, sinon nom du chantier> [complément] <AAAA-MM-JJ>[_Vn].pdf` : la même forme que les documents de `gestion-documentaire`. Sans précaution, ses outils les prendraient pour ses propres documents.
@@ -234,8 +240,8 @@ Le bloc C du chapitre 8 contient les lignes à ajouter aux paragraphes concerné
 
 **À quoi il sert** : au lot 5, avant de proposer la purge d'un chantier, l'appli vérifiera que chaque fichier de Drive a bien été copié. Elle n'a pas accès aux dossiers de ton PC : elle lira ce relevé et comparera **le nom et la taille**.
 
-- **Où** : à la racine du dossier Drive du chantier. **Écrit par** : le programme du PC, à partir de la liste réelle des fichiers du disque, refait en entier quand son contenu change, et au moins une fois par jour. Avec « A VOIR », c'est le **seul** fichier que le programme remplace, et le seul qu'il écrit dans le Drive hors du carnet. **Les skills ne le voient pas et ne l'écrivent pas.**
-- **Contenu** : les fichiers présents dans le **dossier du chantier sur ton PC**, pour les sous-dossiers du point 2 (tous, pas seulement ceux qui viennent de l'appli).
+- **Où** : à la racine du dossier Drive du chantier. **Écrit par** : le programme du PC, d'après ce qu'il a réellement trouvé sur le disque ; refait en entier quand son contenu change, et **au moins une fois par jour** par la tâche planifiée. C'est le seul fichier que le programme écrit dans le Drive hors du carnet. (Le programme remplace aussi, dans tes dossiers, ses deux propres fichiers : la liste de provenance et « A VOIR ». Jamais un fichier à toi.) **Les skills ne le voient pas et ne l'écrivent pas.**
+- **Contenu** : les **fiches du Drive** qui sont à leur place dans le **dossier du chantier sur ton PC**, avec la même taille, que la liste de provenance connaît (copiées par le programme, ou contenu vérifié), **et dont la date dans le Drive est celle notée à la copie** — au moindre doute, le contenu est comparé avant d'affirmer quoi que ce soit. Rien d'autre : ni tes propres documents des mêmes sous-dossiers (comptes rendus de la maîtrise d'œuvre, photos), ni une fiche que tu as déplacée, ni un fichier d'une autre taille ou d'un autre contenu.
 
 ```json
 {
@@ -251,7 +257,7 @@ Le bloc C du chapitre 8 contient les lignes à ajouter aux paragraphes concerné
 
 - `chemin` : relatif au dossier du chantier, avec des `/`. `taille` : en octets. `releve_le` : heure de Paris. Aucun chemin complet du PC, aucun lien.
 - **Limite à connaître** : le relevé prouve que le fichier est dans le dossier du chantier **sur le PC**, pas que MEGA (la sauvegarde) a fini de le synchroniser. Si la synchronisation de MEGA est arrêtée, il ne le voit pas. Le lot 5 te demandera donc de vérifier que MEGA a fini de synchroniser avant de cocher une purge.
-- **Relevé absent ou de plus de 30 jours : l'appli ne proposera pas la purge.** Un relevé manquant ne fait donc jamais rien supprimer ; il faut seulement que la recopie automatique tourne (ou relancer le programme) avant de purger.
+- **Relevé absent, ou de plus de 48 heures au moment de la purge : l'appli ne proposera pas la mise à la corbeille** (lot 5). La tâche le refait au moins une fois par jour : un relevé plus vieux veut dire que la recopie automatique ne tourne plus. Un relevé manquant ou trop vieux ne fait donc jamais rien supprimer ; il faut seulement que la recopie tourne (ou relancer le programme) avant de purger.
 
 ---
 
@@ -328,8 +334,11 @@ Liste illisible : ne rien deviner, le dire à Franck.
 
 Un skill N'ÉCRIT JAMAIS dans le Drive de l'appli ChantierPro, et n'a pas besoin de le voir : ni plan, ni image,
 ni liste. Mettre un plan au carnet des poseurs et recopier les fiches dans le dossier du chantier, c'est le travail
-du programme du PC. Si Franck demande « mets ce plan au carnet » ou « récupère les fiches de l'appli » :
-lui rappeler de double-cliquer sur « appli-pc » (dossier outils du dépôt chantier-pro), ne rien tenter d'autre.
+du programme du PC, qui le fait tout seul toutes les heures : tout PDF d'un bordereau (dossier 08) qui est un document
+du carnet y part sans rien demander. Si Franck demande « mets ce plan au carnet » pour un document hors bordereau :
+lui dire de glisser le PDF dans le dossier « À METTRE AU CARNET » du chantier (c'est lui qui crée ce dossier ; Claude
+n'y range rien et ne le crée pas), sous le nom `<n° document>-<indice>-<INTITULÉ>.pdf`. Ne rien tenter d'autre.
+Le dossier « À METTRE AU CARNET » n'est pas un dossier de l'arborescence : ne pas y appliquer versions, registre ni 0-OLD.
 ```
 
 **C.4 — § 3 (registre), à la fin du dernier alinéa (« … le disque a raison et je corrige le registre »), ajouter :**
@@ -397,14 +406,14 @@ registre ↔ disque (7). L'état documentaire donne seulement leur nombre, par s
   - comme la veille tourne sur des fichiers stagés, la liste de provenance doit être stagée avec eux (bloc C.5) ; si elle n'est pas là, le script le dit (« liste de provenance absente du dossier stagé ») au lieu de l'ignorer en silence.
 - **Essai obligatoire après modification** : chapitre 9, essais 6 et 7.
 
-### Bloc B — Le rappel après un bordereau (une ligne)
+### Bloc B — Après un bordereau : le document part au carnet tout seul (une ligne)
 
 **B.1 — § 7.1, étape 9 (compte rendu), à la fin, ajouter :**
 
 ```
    Si le bordereau contient un document qui va au carnet des poseurs (n° 001, 002, 103 à 109, 151, 152, 205, 206 ;
-   ou leur ancien numéro) : rappeler à Franck, une fois le mail envoyé, de double-cliquer sur « appli-pc »
-   (dossier outils du dépôt chantier-pro) pour le mettre au carnet. Claude ne le fait jamais lui-même (§1 ter).
+   ou leur ancien numéro) : dire à Franck que ce document part au carnet TOUT SEUL dans l'heure, dès qu'il est dans
+   le dossier BORDEREAU n — même si le mail n'est pas encore envoyé. Claude ne dépose rien lui-même (§1 ter).
 ```
 
 ### Bloc A — L'identité du chantier (facultatif : seulement si le connecteur Google Sheets marche)
@@ -474,10 +483,10 @@ la FICHE INFO : le Sheet ne sert qu'à comparer.
 | # | Essai | Attendu |
 |---|---|---|
 | 4 | **Programme, sur la copie TEST et un faux dossier de chantiers** (avec moi) : un faux bordereau, une recopie des fiches | Le plan apparaît dans le carnet de l'appli de test ; les fiches sont copiées dans le faux dossier de chantier ; rien n'a changé dans le Drive TEST à part le carnet et `releve-pc.json` |
-| 5 | **Programme, « Voir seulement » (choix 2) sur les vrais dossiers** | Chaque chantier est relié au bon dossier ; les documents proposés sont bien ceux des bordereaux ; rien n'est écrit |
-| 6 | **Avec le vrai skill, sur un vrai chantier, après une première recopie des fiches** : « fais-moi l'état documentaire du NNN » | **Aucune fiche de l'appli** n'apparaît en « plusieurs versions actives », « même document à plusieurs endroits » ou « hors de son dossier » ; aucune n'a été déplacée ni renommée ; le registre n'a pas de ligne pour elles |
+| 5 | **Programme, « Voir seulement » (choix 2) sur les vrais dossiers, puis une première recopie sur UN SEUL chantier** (le menu demande son numéro) | Chaque chantier est relié au bon dossier ; les documents proposés sont bien ceux des bordereaux ; rien n'est écrit |
+| 6 | **Avec le vrai skill, sur ce chantier-là, après cette première recopie** : « fais-moi l'état documentaire du NNN » | **Aucune fiche de l'appli** n'apparaît en « plusieurs versions actives », « même document à plusieurs endroits » ou « hors de son dossier » ; aucune n'a été déplacée ni renommée ; le registre n'a pas de ligne pour elles |
 | 7 | **Veille des comptes rendus** sur ce même chantier (il faut au moins une note de réunion de l'appli dans `05 - CHANTIER/COMPTE RENDU`) | Aucune note de l'appli n'est comptée comme compte rendu ; les CR de la maîtrise d'œuvre sont lus comme avant |
-| 8 | Après la préparation d'un bordereau qui contient un plan de réservations | Le compte rendu du skill rappelle le double-clic sur `appli-pc` |
+| 8 | Après la préparation d'un bordereau qui contient un plan de réservations | Le compte rendu du skill dit que le plan part au carnet tout seul dans l'heure ; une heure après, il est dans la section « Déposé au carnet » de « A VOIR » et dans l'appli |
 
 Si l'essai 6 ou 7 échoue (une fiche de l'appli traitée comme un document du skill) : **retire la tâche planifiée** (`outils\retirer-tache.bat`), garde le compte rendu de Claude et montre-le-moi. Rien n'est perdu : le programme ne supprime rien, et les fichiers qu'il a copiés sont listés dans `CHANTIERPRO - fiches rapatriees.json`.
 
@@ -501,17 +510,21 @@ Si une case de *Chantiers* a changé sans toi : retire le bloc A, remets à la m
 |---|---|
 | Règle 2 : par un fichier, ou par une écriture dans le Sheet ? | **Ni l'un ni l'autre** (13/11/2026) : la note de réunion est interne, ses participants seront ajoutés à la main si nécessaire. Règle 2 abandonnée |
 | Quel dossier du Drive donner à Claude ? | **Aucun** (lot 4c). La réponse du 13/11/2026 (« toute la racine ») est remplacée : un skill ne peut de toute façon pas y travailler (essai A2), et le programme du PC fait le pont |
-| Carnet : quand y mettre un document ? | **Seulement une version validée** : ce qui est dans un bordereau, et après ta confirmation document par document. Écart assumé avec le plan d'origine, qui disait « automatiquement » |
+| Carnet : quand y mettre un document ? | **Tout seul, sans question** (décision de Franck du 16/11/2026, qui remplace « après confirmation document par document ») : dès qu'un document du carnet est dans un bordereau, ou dans le dossier `À METTRE AU CARNET` d'un chantier. Pas de délai |
 | Carnet : quels documents en plus de ta liste ? | **Tableau de portes (103), repérage des portes (104), pose des huisseries (107)** |
-| Où tourne le programme du carnet ? | **Sur ton PC**, lancé par toi (double-clic sur `outils\appli-pc.bat`) |
+| Où tourne le programme du carnet ? | **Sur ton PC**, lancé toutes les heures par la tâche planifiée (la même que la recopie des fiches) ; le double-clic sur `outils\appli-pc.bat` fait la même chose à la demande |
 | Comment le programme sait-il quels documents prendre ? | **Il lit les bordereaux** (lot 4c, après critique indépendante). Écartée : une « demande » écrite par chaque skill (un dossier de plus dans chaque chantier, un bloc dans neuf skills, le risque d'une demande fausse) |
-| Qui recopie les fiches, et quand ? | **Le programme du PC, tout seul** : une tâche du Planificateur de tâches de Windows le lance toutes les heures et à l'ouverture de session (décision de Franck) ; le double-clic reste possible. Copie seulement : jamais de suppression ni d'écrasement. Le skill ne lance rien |
+| Qui recopie les fiches, et quand ? | **Le programme du PC, tout seul** : une tâche du Planificateur de tâches de Windows le lance toutes les heures et à l'ouverture de ta session (décision de Franck du 14/11/2026) ; le double-clic reste possible. Copie seulement, des **nouvelles** fiches : jamais de suppression ni d'écrasement, jamais deux fois la même fiche. Le skill ne lance rien |
 | Comment le programme trouve-t-il le dossier du chantier ? | **Par le numéro en tête du nom des dossiers** ; rien n'est deviné (aucun dossier ou plusieurs : rien n'est copié, c'est signalé). Une correspondance écrite à la main reste possible pour les cas que le numéro ne règle pas |
-| Comment Franck est-il prévenu ? | Par le fichier `CHANTIERPRO - A VOIR.txt`, réécrit à chaque passage, à côté de ses dossiers de chantier |
+| Comment Franck est-il prévenu ? | Par le fichier `CHANTIERPRO - A VOIR.txt`, à côté de ses dossiers de chantier, réécrit quand sa liste change ; et par le menu de `appli-pc`, qui prévient si la recopie n'a pas tourné depuis plus de 3 heures |
+| Quand le relevé `releve-pc.json` est-il trop vieux pour une purge ? | **Au-delà de 48 heures** (au lieu de 30 jours) : la tâche le refait au moins une fois par jour |
+| Les noms des deux fichiers ajoutés aux dossiers de Franck | **Décidé (Franck, 16/11/2026)** : `CHANTIERPRO - fiches rapatriees.json` et `CHANTIERPRO - A VOIR.txt` sont gardés |
+| Un document refait après son dépôt au carnet, sous le même indice ? | **Décidé (Franck, 16/11/2026)** : il part sous l'**indice suivant** ; rien n'est écrasé au carnet |
+| Dans quel ordre mettre en place ? | **Décidé (Franck, 16/11/2026)** : d'abord coller les lignes dans `gestion-documentaire` et vérifier l'état documentaire sur un chantier ; **ensuite seulement** installer la tâche automatique |
 | Comment les skills reconnaissent-ils une fiche de l'appli ? | Par la **liste de provenance dans le dossier du chantier** (`CHANTIERPRO - fiches rapatriees.json`). Le relevé `releve-pc.json` (appelé « mega-index.json » jusqu'à la version 4), lui, reste dans Drive et ne sert qu'à la purge (lot 5) |
 | MEGA est-il un outil du contrat ? | **Non** (décision de Franck) : MEGA synchronise les dossiers de chantier du PC (sauvegarde, accès à distance). L'appli et les skills ne connaissent que ces dossiers |
 
-**Reste à trancher par toi** : le nom exact du fichier `CHANTIERPRO - fiches rapatriees.json` (c'est le seul fichier ajouté à la racine de chaque dossier de chantier). Si tu veux un autre nom, dis-le **avant d'installer la recopie automatique** : il est écrit à un seul endroit du programme, et dans les blocs du chapitre 8.
+**Plus rien à trancher** dans ce chapitre : les trois dernières lignes du tableau sont des décisions de Franck du 16/11/2026.
 
 ---
 
@@ -522,20 +535,27 @@ Si une case de *Chantiers* a changé sans toi : retire le bloc A, remets à la m
 - **Le programme du PC n'a tourné que sur de faux dossiers** (tests automatiques). Son premier lancement sur tes vrais dossiers se fait avec « Voir seulement ».
 - **La protection des fiches de l'appli tient à des consignes** écrites dans le skill et à deux scripts modifiés : tant que le bloc C n'est pas collé et que les scripts ne sont pas modifiés, la recopie amène dans les dossiers de chantier des fichiers que `gestion-documentaire` pourrait prendre pour les siens. C'est pourquoi le bloc C se colle **avant** d'installer la tâche planifiée.
 - **`releve-pc.json`** ne prouve que la présence sur le PC (chapitre 5).
-- **La recopie automatique ne tourne que PC allumé, session ouverte, Google Drive pour ordinateur démarré** ; sur un portable, Windows ne lance pas la tâche quand il est sur batterie. Elle n'a jamais tourné sur le vrai PC : la tâche planifiée elle-même n'a pas été créée par moi.
-- **Un bordereau préparé mais pas envoyé** est proposé comme les autres : c'est toi qui réponds « plus tard ».
-- **Anciens numéros de documents** : la table est à remplir avec toi, chantier par chantier pour les chantiers anciens (chapitre 4).
+- **La recopie automatique ne tourne que PC allumé, session ouverte, Google Drive pour ordinateur démarré.** Elle n'a jamais tourné sur le vrai PC : **la tâche planifiée n'a pas été créée par moi**, et sa description (un fichier XML donné à `schtasks`, avec le déclencheur d'ouverture de session limité à ton compte) n'est vérifiée que par des tests de forme. Si Windows la refuse, le double-clic `appli-pc` fait le même travail à la demande.
+- **Une fiche que tu supprimes du dossier du PC ne revient pas** : c'est voulu. Pour la faire revenir, recopie-la toi-même depuis le Drive.
+- **Un chantier tout neuf, sans aucune fiche ni carnet dans le Drive**, n'est pas encore reconnu par son numéro : il le devient à sa première fiche. Pour y déposer un plan avant, relie-le à la main (« Associer les chantiers »).
+- **Un bordereau préparé mais pas envoyé part au carnet comme les autres**, sans délai : les poseurs peuvent voir un plan avant que le mail soit parti. C'est ta décision ; « A VOIR » liste chaque dépôt, et un document se retire par le menu.
+- **Le dépôt automatique n'a jamais tourné sur le vrai PC**, et personne ne confirme plus un document avant sa publication : les garde-fous sont le numéro du chantier lu sur le dossier et recoupé avec le nom du PDF, la liste fermée des numéros de documents, et la liste des dépôts dans « A VOIR ».
+- **Numérotation des bordereaux** : à déclarer par toi, chantier par chantier (chapitre 4). Si tu déclares « actuelle » un chantier qui a d'anciens bordereaux, leurs anciens numéros seront lus comme des numéros d'aujourd'hui : la commande te montre les PDF et leurs intitulés avant ta réponse, et « Voir seulement » ce qui partirait.
 - **Règle 1** : jamais essayée ; « lecture seule » y est une consigne, pas un verrou (chapitre 1).
 - **Un seul PC** est prévu pour le programme.
 - **Gratuité** : rien de nouveau à payer ni à installer.
 
-### Ce que le lot 4c a fait changer (version 5, 13/11/2026)
+### Ce que le lot 4c a fait changer (version 5, 14/11/2026)
 - **Plus de « demandes » écrites par les skills** : le programme du PC lit les bordereaux. Le chantier n'est plus choisi par un skill : le dossier est trouvé par le numéro du chantier, recoupé avec le nom du PDF.
 - **Le Drive de l'appli n'est plus à relier à Claude** ; un skill n'y écrit jamais (remplace la partie « racine » de la décision D4-1).
 - **La recopie des fiches est faite par le programme du PC, tout seul** (tâche planifiée de Windows, toutes les heures), plus par un script lancé par le skill : le script séparé annoncé dans la version 4 n'a pas été écrit. Ce qui demande l'attention de Franck est écrit dans `CHANTIERPRO - A VOIR.txt`.
 - **Vocabulaire** : « dossier du chantier sur le PC » remplace « MEGA » partout où l'on parlait des dossiers ; MEGA n'est que leur sauvegarde. Le relevé s'appelle `releve-pc.json` (il s'appelait « mega-index.json »).
 - **Deux fichiers distincts** : la provenance (dans le dossier du chantier, lisible par les skills) et le relevé de présence (dans Drive, pour la purge). La version 4 faisait reconnaître les fiches par le relevé, que les skills n'auraient pas pu lire.
-- **Les doublons `nom (1).pdf` et les raccourcis Google sont signalés, plus copiés.**
+- **Les doublons `nom (1).pdf` (quand `nom.pdf` existe à côté) et les raccourcis Google sont signalés, plus copiés.**
+- **Version 6, après relecture (16/11/2026)** : les bordereaux d'un chantier ne déposent que si sa numérotation est déclarée ; les signalements de `À METTRE AU CARNET` restent tant que la cause est là ; une erreur sur un document n'arrête pas les autres.
+- **Version 6 (16/11/2026)** : le dépôt au carnet est automatique (bordereaux et dossier `À METTRE AU CARNET`), sans question ; ce qui est déposé et ce qui ne peut pas l'être est écrit dans « A VOIR » ; le skill ne rappelle plus de double-clic.
+- **Après la seconde relecture (16/11/2026)** : une fiche nouvelle qui reprend le nom d'une ancienne est bien copiée ; la liste de provenance est écrite toutes les 25 copies ; la date de la fiche est notée et comparée avant d'affirmer au relevé ; un « même taille, autre contenu » n'est recomparé que si l'un des deux fichiers change ; l'utilisateur de la tâche est désigné par son identifiant Windows.
+- **Après la relecture indépendante (16/11/2026)** : une fiche déjà copiée n'est jamais recopiée ; un dossier du Drive n'est suivi que s'il est un dossier de chantier de l'appli ; la correspondance ne peut pas contredire un numéro ; un fichier « déjà présent » n'est tenu pour une copie qu'après comparaison du contenu ; le relevé ne liste que les fiches du Drive ; une seule tâche planifiée, limitée à ta session ; « A VOIR » réécrit seulement quand il change ; verrou repris au bout de deux heures ; option « un seul chantier » pour le premier essai.
 - **La règle 1 devient facultative**, et ne lit plus que l'onglet *Chantiers*.
 - **Les textes à coller ne concernent plus qu'un seul skill** (`gestion-documentaire`), au lieu de neuf.
 

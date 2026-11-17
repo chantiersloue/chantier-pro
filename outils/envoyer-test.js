@@ -189,7 +189,7 @@ async function envoyer(o) {
   const memoire = path.join(prive, 'script-test-id.txt');
   const jetonHabituel = path.join(o.dossierJeton || os.homedir(), '.clasprc.json');
   // Restes d'un envoi précédent interrompu brutalement : effacés avant tout
-  const PREFIXE = 'loue-clasp-';
+  const PREFIXE = o.prefixeTemp || 'loue-clasp-';   // les tests donnent leur propre préfixe : ils ne touchent jamais au dossier d'un vrai envoi en cours
   try {
     fs.readdirSync(os.tmpdir()).filter(d => d.indexOf(PREFIXE) === 0 && !o.garderRestes)
       .forEach(d => { try { fs.rmSync(path.join(os.tmpdir(), d), { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }); } catch (e) {} });

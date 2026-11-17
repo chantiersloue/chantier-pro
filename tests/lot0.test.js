@@ -171,6 +171,72 @@ test('adresse libre : plafond de 10 par jour pour toute l\'appli', () => {
   assert.strictEqual(refuses, 2);
 });
 
+// Règle de Franck du 16/11/2026 (D5-25) : le chemin des adresses tapées à la main ne doit JAMAIS changer, quel que soit le
+// sort fait plus tard aux adresses connues (mail unique en copie cachée). Les deux tests « photographie » qui suivent ne
+// regardent QUE ce chemin : ils devront passer SANS ÊTRE MODIFIÉS le jour où le mail unique sera codé.
+const FICHE_MIXTE = { type: 'note', chantier: 'CHANTIER TEST 1', auteur: 'Franck', date: '29/10/2026', objet: 'Réunion <script>',
+  commentaires: 'Texte libre de la fiche', destinataires: [FRANCK, ARCHI, 'client@gmail.test', 'voisin@orange.test', 'troisieme@x.test'] };
+const TEXTE_IMPOSE = 'Bonjour,\n\nVeuillez trouver ci-joint le document « Note de réunion » établi par Loué Menuiserie.\n\nCordialement,\nLoué Menuiserie';
+const estLibre = a => /gmail\.test|orange\.test|x\.test/.test(String(a));
+test('photographie (FIGÉE) du chemin des adresses tapées à la main : un mail séparé par adresse, texte imposé, plafonds, copie cachée au conducteur', () => {
+  const g = environnement();
+  assert.strictEqual(poster(g, FICHE_MIXTE).status, 'ok');
+  const libres = g.mails.filter(m => estLibre(m.to));
+  assert.deepStrictEqual(libres.map(m => [m.to, m.sujet, m.opts.bcc, m.opts.name, !!m.opts.htmlBody, m.opts.attachments.length]), [
+    ['client@gmail.test', 'Loué Menuiserie — Note de réunion — CHANTIER TEST 1', SEB, 'Loué Menuiserie', false, 1],
+    ['voisin@orange.test', 'Loué Menuiserie — Note de réunion — CHANTIER TEST 1', SEB, 'Loué Menuiserie', false, 1]], 'un mail par adresse tapée à la main, 2 par fiche au plus, conducteur du chantier en copie cachée');
+  libres.forEach(m => {
+    assert.strictEqual(m.texte, TEXTE_IMPOSE, 'texte imposé, rien de la fiche');
+    assert.ok(/^Loue Menuiserie - Note de réunion - \d{4}-\d{2}-\d{2}\.pdf$/.test(m.opts.attachments[0].nom), m.opts.attachments[0].nom);
+  });
+  // une adresse tapée à la main n'est jamais mêlée à un autre mail (ni destinataire, ni copie, ni copie cachée)
+  g.mails.forEach(m => {
+    const toutes = [m.to, m.opts.cc, m.opts.bcc].filter(Boolean).join(',').split(/[,;]+/).map(x => x.trim()).filter(Boolean);
+    assert.ok(toutes.filter(estLibre).length <= 1 && (toutes.filter(estLibre).length === 0 || estLibre(m.to)), 'mail à ' + toutes.join(', '));
+  });
+  // la troisième adresse libre : refusée, journalisée, une alerte à Franck
+  assert.strictEqual(g.mails.filter(m => [m.to, m.opts.bcc].join(',').indexOf('troisieme@x.test') > -1).length, 0);
+  assert.deepStrictEqual(journal(g).map(l => [l[3], l[4]]), [['client@gmail.test', 'envoyé'], ['voisin@orange.test', 'envoyé'], ['troisieme@x.test', 'refusé']]);
+  assert.ok(/copie cachée à seb@loue\.test/.test(journal(g)[0][5]) && /plus de 2 adresses libres sur la même fiche/.test(journal(g)[2][5]));
+  assert.strictEqual(g.mails.filter(m => m.to === FRANCK && /Envoi refusé/.test(m.sujet)).length, 1);
+  // plafond de 10 adresses libres par jour pour toute l'appli : inchangé
+  for (let i = 0; i < 5; i++) poster(g, { type: 'quitus', chantier: 'CHANTIER TEST 1', destinataires: ['p' + i + '@x.test', 'q' + i + '@x.test'] });
+  assert.strictEqual(journal(g).filter(l => l[4] === 'envoyé').length, 10);
+  assert.ok(journal(g).filter(l => l[4] === 'refusé').some(l => /plafond de 10 adresses libres par jour/.test(l[5])));
+  assert.strictEqual(g.mails.filter(m => estLibre(m.to)).length, 10, 'dix mails « libres » dans la journée, pas un de plus');
+});
+test('photographie (FIGÉE) : mail à une adresse tapée à la main REPORTÉ faute de quota — une ligne « Mails en attente » au texte imposé, copie cachée au conducteur ; le renvoi l’envoie tel quel', () => {
+  const g = environnement({ quota: 21 });   // 20 destinataires sont réservés à Franck : il n'en reste qu'un pour les autres
+  poster(g, { type: 'quitus', chantier: 'CHANTIER TEST 1', destinataires: ['client@gmail.test'] });
+  assert.strictEqual(g.mails.filter(m => estLibre(m.to)).length, 0, 'pas envoyé : il faudrait 2 destinataires (l’adresse et le conducteur en copie cachée)');
+  const attente = g.feuilles['Mails en attente'].lignes.slice(1).filter(l => estLibre(l[3]));
+  assert.strictEqual(attente.length, 1);
+  const l = attente[0];
+  assert.deepStrictEqual([l[1], l[2], l[3], l[4], l[5], l[7], l[10], l[13]], ['quitus', 'CHANTIER TEST 1', 'client@gmail.test', SEB, 'Loué Menuiserie — Quitus — CHANTIER TEST 1', '', 'en attente', 'libre']);
+  assert.strictEqual(l[6], 'Bonjour,\n\nVeuillez trouver ci-joint le document « Quitus » établi par Loué Menuiserie.\n\nCordialement,\nLoué Menuiserie');
+  assert.ok(/^Loue Menuiserie - Quitus - \d{4}-\d{2}-\d{2}\.pdf$/.test(l[9]), l[9]);
+  assert.ok(journal(g).some(x => x[3] === 'client@gmail.test' && x[4] === 'reporté'));
+  // le lendemain, le quota est revenu : le renvoi envoie CE mail, à l'identique
+  g.etat.quota = 100;
+  g.ctx.renvoyerMailsEnAttente();
+  const m = g.mails.filter(x => x.to === 'client@gmail.test');
+  assert.strictEqual(m.length, 1);
+  assert.deepStrictEqual([m[0].sujet, m[0].opts.bcc, m[0].texte, !!m[0].opts.htmlBody], ['Loué Menuiserie — Quitus — CHANTIER TEST 1', SEB, l[6], false]);
+  assert.ok(/^Loue Menuiserie - Quitus - /.test(m[0].opts.attachments[0].nom));
+  assert.strictEqual(l[10], 'envoyé');
+});
+// Ce test-ci décrit le comportement ACTUEL des adresses connues du Sheet. Il est APPELÉ À CHANGER le jour du mail unique
+// (docs/lot5-mail-unique.md) : c'est lui qu'on réécrira, pas les deux « photographies » ci-dessus.
+test('adresses connues du Sheet, comportement actuel (appelé à changer avec le mail unique) : un mail chacune, objet de la fiche, sans copie cachée', () => {
+  const g = environnement();
+  poster(g, FICHE_MIXTE);
+  const connues = g.mails.filter(m => /^\[Loué App\] Note de réunion/.test(m.sujet));
+  assert.deepStrictEqual(connues.map(m => m.to).sort(), [ARCHI, FRANCK, SEB].sort());
+  assert.ok(connues.every(m => !m.opts.bcc && m.sujet === '[Loué App] Note de réunion — CHANTIER TEST 1 — Réunion <script>'));
+  assert.strictEqual(g.mails.length, 6, '3 adresses connues + 2 libres + 1 alerte');
+  assert.strictEqual(g.etat.quota, 100 - 3 - 2 * 2 - 1, 'le quota se compte par destinataire : chaque mail libre en compte 2');
+});
+
 test('adresse mal formée : refusée sans envoi', () => {
   const g = environnement();
   poster(g, { type: 'quitus', chantier: 'CHANTIER TEST 1', destinataires: ['pas une adresse', 'a@b'] });
@@ -269,7 +335,7 @@ console.log('Lot 0 — consultation et partages Drive');
 
 test('doGet : version, callback JSONP contrôlé', () => {
   const g = environnement();
-  assert.strictEqual(g.ctx.doGet({ parameter: {} }).contenu, 'Loué App API v9.1 OK');
+  assert.strictEqual(g.ctx.doGet({ parameter: {} }).contenu, 'Loué App API v10.0 OK');
   const r = g.ctx.doGet({ parameter: { action: 'getContacts', callback: 'alert(1);x' } });
   assert.ok(r.contenu.charAt(0) === '{', 'callback invalide ignoré : JSON simple');
 });
@@ -367,11 +433,13 @@ test('installerDeclencheurs + verifierConfig', () => {
   const g = environnement();
   g.ctx.installerDeclencheurs();
   g.ctx.installerDeclencheurs();
-  assert.deepStrictEqual(g.declencheurs, ['renvoyerMailsEnAttente', 'traiterComptes', 'surModificationSheet']);   // lot 2 : 3 déclencheurs
+  assert.deepStrictEqual(g.declencheurs, ['renvoyerMailsEnAttente', 'traiterComptes', 'surModificationSheet', 'mesurerStockage', 'poursuivreMesureStockage', 'traiterPurges']);   // lot 2 : 3 déclencheurs ; lot 5 : 3 de plus
   assert.ok(g.ctx.verifierConfig().indexOf('❌ Clé des jetons') > -1, 'lot 2 pas mis en place : signalé');
   g.ctx.genererCle(); g.ctx.preparerOngletsLot2();
   assert.ok(g.ctx.verifierConfig().indexOf('❌ Onglet « Signalements »') > -1, 'lot 7 pas installé : signalé');
   assert.ok(/installation terminée/.test(g.ctx.installerLot7Production()), 'lot 7 installé');
+  assert.ok(g.ctx.verifierConfig().indexOf('❌ Onglet « Stockage »') > -1, 'lot 5 pas installé : signalé');
+  assert.ok(/installation terminée/.test(g.ctx.installerLot5Production()), 'lot 5 installé');
   const rapport = g.ctx.verifierConfig();
   assert.ok(rapport.indexOf('❌') < 0, rapport);
 });

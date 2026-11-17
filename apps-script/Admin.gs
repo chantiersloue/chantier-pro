@@ -79,7 +79,9 @@ function renvoyerMailsEnAttente() {
 //  - renvoyerMailsEnAttente toutes les 2 h (lot 0)
 //  - traiterComptes toutes les 10 min, et surModificationSheet à chaque modification du Sheet (lot 2 : cases
 //    « Réinitialiser » et « Déconnecter », onglet « Accès chantiers »)
-const DECLENCHEURS = ['renvoyerMailsEnAttente', 'traiterComptes', 'surModificationSheet'];
+//  - mesurerStockage chaque nuit vers 2 h, poursuivreMesureStockage une heure plus tard (ne fait quelque chose que si le
+//    tour de mesure n'est pas fini), traiterPurges toutes les 30 min (sort tout de suite s'il n'y a rien à faire) (lot 5)
+const DECLENCHEURS = ['renvoyerMailsEnAttente', 'traiterComptes', 'surModificationSheet', 'mesurerStockage', 'poursuivreMesureStockage', 'traiterPurges'];
 function installerDeclencheurs() {
   ScriptApp.getProjectTriggers()
     .filter(t => DECLENCHEURS.indexOf(t.getHandlerFunction()) > -1)
@@ -87,11 +89,15 @@ function installerDeclencheurs() {
   ScriptApp.newTrigger('renvoyerMailsEnAttente').timeBased().everyHours(2).create();
   ScriptApp.newTrigger('traiterComptes').timeBased().everyMinutes(10).create();
   ScriptApp.newTrigger('surModificationSheet').forSpreadsheet(SpreadsheetApp.getActiveSpreadsheet()).onEdit().create();
-  const m = 'Déclencheurs installés : renvoyerMailsEnAttente (2 h), traiterComptes (10 min), surModificationSheet (à chaque modification).';
+  ScriptApp.newTrigger('mesurerStockage').timeBased().atHour(2).nearMinute(0).everyDays(1).create();
+  ScriptApp.newTrigger('poursuivreMesureStockage').timeBased().atHour(3).nearMinute(15).everyDays(1).create();
+  ScriptApp.newTrigger('traiterPurges').timeBased().everyMinutes(30).create();
+  const m = 'Déclencheurs installés : renvoyerMailsEnAttente (2 h), traiterComptes (10 min), surModificationSheet (à chaque modification), '
+    + 'mesurerStockage (chaque nuit vers 2 h), poursuivreMesureStockage (vers 3 h), traiterPurges (30 min).';
   Logger.log(m); return m;
 }
 
-// Retire les 3 déclencheurs (à lancer sur la copie TEST après les essais : les 90 min de déclencheurs par jour
+// Retire les déclencheurs de l'appli (à lancer sur la copie TEST après les essais : les 90 min de déclencheurs par jour
 // sont partagées par tout le compte Google, production comprise)
 function retirerDeclencheurs() {
   let n = 0;
@@ -130,6 +136,7 @@ function verifierConfig() {
     else ok(false, 'Déclencheur ' + d + ' (sinon lancer installerDeclencheurs)');
   });
   lignes.push(verifierComptes_());    // lot 2 : comptes, clé, partage du Sheet, transition
+  lignes.push(verifierStockage_());   // lot 5 : onglets Stockage et Purges, place du compte
   // Outillage : les outils d'essai (porte de service et sa clé) ne doivent exister que sur la copie TEST
   const ou = environnementReel_(), porte = typeof outilTest_ === 'function', cleOutils = !!propriete_('CLE_OUTILS_TEST');
   if (ou.env === 'INCOHERENT') ok(false, 'Environnement incohérent : la propriété ENVIRONNEMENT et le nom du Sheet « ' + ou.sheet + ' » ne disent pas la même chose');
