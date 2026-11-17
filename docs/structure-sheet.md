@@ -156,6 +156,32 @@ Une ligne par note de réunion reçue, écrite **en une fois** par l'appli. Un c
 - **Chantier renommé** : ses points suivent s'il a un N° (colonne C) ; sinon ils restent sous l'ancien nom.
 - Les **photos** ne sont pas gardées ici : elles sont dans le PDF de leur note.
 
+## Onglet « Demandes » (lot 10a-1 — créé par `installerLot10Test` / `installerLot10Production`, ou à la première demande)
+
+Une ligne par demande « À commander » ou « Outil en panne » d'un poseur (petit matériel : visserie, consommables, outillage). Aucun chantier.
+
+|Colonne|Titre|Contenu|Exemple fictif|
+|-|-|-|-|
+|A|Date|Heure d'arrivée au serveur. **C'est elle qui décide du récapitulatif**, pas l'heure du téléphone|17/11/2026 10:02|
+|B|Poseur|Le nom du **compte** qui a envoyé (jamais saisi)|Poseur A|
+|C|Type|« À commander » ou « Outil en panne »|À commander|
+|D|Quoi|80 caractères au plus|Vis 4×40|
+|E|Quantité|30 caractères au plus ; pour un outil en panne : la précision (facultative)|2 boîtes|
+|F|Commandé|**Case à cocher, posée par l'appli sur chaque nouvelle ligne. C'est la seule colonne que Franck remplit.** Cochée : le poseur voit « ✓ Commandé »|☐|
+|G|Récapitulatif du|Vide = pas encore partie dans un mail. Sinon la date du mail (jj/mm/aaaa), écrite par l'appli|17/11/2026|
+|H|Compte|Identifiant du compte (technique)|poseura|
+|I|N° de fiche|Créé par le téléphone ; sert à ne jamais noter deux fois la même demande (technique)||
+
+- **Le mail** : du lundi au vendredi, au premier passage du réveil des 10 minutes après 15 h 45 (heure de Paris), toutes les lignes dont la colonne G est vide partent dans un mail à Franck, puis la date est écrite en G. Réglages : `DEMANDES_HEURE_LIMITE` et `DEMANDES_FIN_ESSAIS` dans `apps-script/Config.gs`.
+- Case cochée **avant** le mail : la ligne y figure quand même, avec « (déjà commandé) ».
+- Une cellule F **sans case** (colonne refaite à la main) est tolérée : « oui », « x », « ok » comptent comme cochée.
+- **Ne change pas la ligne de titres et ne déplace pas les colonnes.** Sinon l'appli ne lit et n'écrit plus rien ici : les demandes attendent dans les téléphones, le mail ne part pas, et Franck reçoit un mail d'alerte (un par jour au plus). Remets les titres : tout repart, rien n'est perdu.
+- **Ne vide pas la colonne G à la main** : la ligne repartirait dans le prochain mail.
+- Tu peux **trier** l'onglet et **supprimer** une ligne (demande faite par erreur) : l'appli retrouve une demande par son N° de fiche, jamais par sa place.
+- Colonnes de texte en « texte brut » ; une formule tapée dans « Quoi » reste du texte.
+- 30 demandes par compte et par jour au plus.
+- Deux réglages techniques sont gardés dans les Propriétés du script (pas dans le Sheet) : `DEMANDES_PASSAGE` (le dernier jour dont le récapitulatif est fait) et `DEMANDES_REPORT` (un récapitulatif qui n'a pas pu partir avant 17 h 30).
+
 ## Onglet « Installation » (outillage)
 
 Bilan des fonctions d'installation (`installerLot7…`, `controlerInstallationLot2`) : date, lot, environnement, mode, ligne du bilan. Les 50 dernières lignes sont gardées. Peut être supprimé sans risque.

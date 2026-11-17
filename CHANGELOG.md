@@ -2,6 +2,33 @@
 
 Chaque lot : **quoi**, **pourquoi**, **comment déployer**. Procédures détaillées dans `docs/lotN-procedure.md`.
 
+## Lot 10a-1 — « À commander » : le petit matériel des poseurs — serveur **v11.2**, appli **10.3** — **construit, testé contre le faux serveur seulement** (rien n'a tourné chez Google, aucun mail n'est parti)
+
+**Quoi**
+- **Une tuile « À commander » sur l'accueil**, sous « Hors chantier » : aucun chantier à choisir. Page `commander.html` : deux gros boutons **À commander** (choisi d'avance) / **Outil en panne**, deux champs **Quoi ?** (80 caractères) et **Quantité** (30 ; « Précision (facultatif) » pour un outil en panne), bouton **Demander**. Aucune liste à dérouler.
+- **Une demande = un article**, envoyé tout de suite ; la page est prête pour le suivant. Le nom du poseur est celui de son **compte**, jamais saisi.
+- **Chemin** : la file d'attente commune, nouveau type de fiche « demande », traité comme une note de chantier : compte obligatoire (sans compte, la demande attend dans le téléphone), contrôle du téléphone partagé, ni PDF, ni mail à l'envoi, renvoi sans doublon.
+- **Un mail par jour à Franck, du lundi au vendredi, vers 15 h 45** : « À commander — mardi 17/11 (3 demandes) », « À COMMANDER » puis « OUTIL EN PANNE », une ligne par demande (poseur, quoi, quantité). Aucun mail s'il n'y a rien. Il est lancé par le « réveil » des 10 minutes qui existe déjà (aucun réveil en plus), à l'heure de Paris été comme hiver.
+- **Si le mail ne peut pas partir** : nouvel essai toutes les 10 minutes jusqu'à 17 h 30, puis report en tête du mail suivant (« DEMANDES NON ENVOYÉES HIER »).
+- **Le téléphone dit quand la demande part** : « ✓ Elle part dans le récapitulatif d'aujourd'hui (vers 15 h 45). » ou « ✓ Le récapitulatif d'aujourd'hui est déjà parti : elle sera dans celui de lundi 23/11. » ou, sans réseau, « ⏳ En attente… ».
+- **« Mes demandes »** (les siennes, 90 jours), gardées dans le téléphone par compte : « ⏳ en attente d'envoi », « partira dans le prochain récapitulatif », « récapitulatif du 17/11 », « ✓ Commandé ».
+- **Onglet *Demandes*** : Date, Poseur, Type, Quoi, Quantité, **Commandé** (case posée par le serveur sur chaque nouvelle ligne), Récapitulatif du, Compte, N° de fiche. Titres changés : rien n'est lu ni écrit, les demandes attendent dans les téléphones, Franck reçoit un mail (un par jour au plus).
+- Limites : 30 demandes par compte et par jour ; un texte qui commence par « = » ne devient pas une formule.
+- **Deux phrases de renvoi** : sur « À commander », « Menuiserie cassée ou manquante ? Utilise Signaler. » ; sur « Signaler », « Vis, consommables, outil en panne ? Utilise À commander (sur l'accueil). » « Signaler » ne change pas autrement.
+- Fichiers : `apps-script/Demandes.gs` (nouveau), `Api.gs`, `Comptes.gs` (appel du récapitulatif à la fin de `traiterComptes`), `Securite.gs` (`mailBureau_`), `Config.gs`, `Admin.gs` (`verifierConfig`), `apps-script-test/OutilsTest.gs` ; `commander.html` (nouvelle), `commun/commander.js` (nouveau), `commun/ui.js`, `commun/config.js`, `index.html`, `signaler.html`, `sw.js`, `outils/construire.js` ; tests `tests/lot10-demandes.test.js` (36) et `tests/lot10-page.test.js` (27, vrai Chrome). `commun/api.js` et `commun/brouillon.js` ne sont pas modifiés.
+
+**Pourquoi** : les poseurs demandaient le petit matériel par téléphone ou par message, au fil de la journée. Une seule liste, un seul mail à une heure où Franck peut encore commander (`docs/lot10-plan.md`, version 3).
+
+**Pas dans ce lot** : les gros boutons des articles habituels, les propositions pendant la frappe et l'onglet *Articles* (lot 10a-2) ; le mail du vendredi (lot 10b).
+
+**Trois écarts avec le plan, pour la sécurité des données** (`DECISIONS.md`, D10-2, D10-7, D10-8) : titres de l'onglet changés → les demandes attendent dans les téléphones au lieu d'être « notées quand même » ; un premier passage après 17 h 30 n'envoie plus le mail ce jour-là ; après 17 h 30 sans passage, le téléphone nomme le jour suivant.
+
+**Tests existants mis à jour** (ce que le lot change, rien d'autre) : la version du serveur citée par `tests/lot0.test.js`, `lot3-notes`, `lot5-stockage`, `lot8-note`, `lot8-points`, `lot8-page`, `lot8c-page` ; `tests/lot0.test.js` installe le lot 10 avant `verifierConfig`. Le faux Google (`tests/gas-harness.js`) sait calculer l'heure dans un fuseau donné (option éteinte par défaut).
+
+**Pas vérifié** : tout ce qui se passe chez Google (la case à cocher posée par le serveur, l'heure de Paris, l'envoi et l'heure réelle du mail, son affichage dans Outlook) ; le clavier ouvert avec des gants ; plein soleil ; une barre de réseau. Ce sont les étapes B et C de la procédure.
+
+**Comment déployer** : `docs/lot10-procedure.md` (après le lot 8 ; le serveur d'abord, puis `installerLot10Production`, `verifierConfig`, nouveau déploiement, fusion).
+
 ## Lot 4c — retouche du 17/11/2026 : dossiers du Drive à ignorer (programme du PC seulement)
 
 **Quoi** : une ligne facultative `"ignorer"` dans `_prive\depot.json` (numéros de chantier ou noms exacts de dossiers du Drive). Ces dossiers ne sont plus copiés, plus déposés, et ne reviennent plus dans « A VOIR ».

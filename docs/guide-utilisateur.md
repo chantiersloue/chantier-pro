@@ -83,6 +83,28 @@ Dans un chantier, touche **Signaler**.
 - **Bloquant et pas de réseau ? Téléphone au bureau** : le mail ne partira qu'au retour du réseau.
 - Après l'envoi, le chantier reste rempli : tu peux signaler autre chose tout de suite.
 
+- **Ce n'est pas une menuiserie ?** Pour des vis, des consommables ou un outil en panne, utilise **À commander** (sur l'accueil).
+
+## À commander : vis, consommables, outil en panne
+
+Sur l'accueil, sous « Hors chantier », touche **À commander**. Il n'y a pas de chantier à choisir. Il faut être connecté : ton nom est celui de ton compte.
+
+1. **À commander** est déjà choisi. Pour un outil cassé, touche **Outil en panne**.
+2. **Quoi ?** : l'article (« Vis 4×40 »). **Quantité** : « 2 boîtes », « 6 »… Pour un outil en panne, le second champ sert à préciser (« ne charge plus ») ; il n'est pas obligatoire.
+3. Touche **Demander**. **Un article à la fois** : la page se vide, tu peux demander le suivant.
+
+- La page te répond tout de suite :
+  - « ✓ Elle part dans le récapitulatif d'aujourd'hui (vers 15 h 45). » : le bureau la reçoit aujourd'hui ;
+  - « ✓ Le récapitulatif d'aujourd'hui est déjà parti : elle sera dans celui de lundi 23/11. » : tu l'as faite après 15 h 45 ;
+  - « ⏳ En attente : elle partira au retour du réseau… » : pas de réseau, elle est gardée dans le téléphone.
+- **C'est urgent et il est plus de 15 h 45 ? Téléphone au bureau.**
+- **Mes demandes** (en bas de la page) : tes demandes des 90 derniers jours, et où elles en sont : « ⏳ en attente d'envoi », « partira dans le prochain récapitulatif », « récapitulatif du 17/11 » (le bureau l'a reçue ce jour-là), « ✓ Commandé ». Sans réseau, la dernière liste reçue s'affiche, avec sa date.
+- Pas connecté ? La demande est gardée dans le téléphone et part après la connexion.
+- 30 demandes par jour au plus.
+- **Une menuiserie cassée ou manquante ne se demande pas ici** : utilise **Signaler**, dans le chantier.
+
+**Au bureau (Franck)** : un mail par jour, du lundi au vendredi, vers 15 h 45, avec toutes les demandes depuis le mail précédent ; aucun mail s'il n'y en a pas. Dans le Sheet, onglet *Demandes* : coche **Commandé** quand c'est fait, le poseur le voit dans son téléphone.
+
 ## Suivre les signalements
 
 Touche **Signalements** (dans un chantier : ceux du chantier ; à l'accueil : tous). Il faut être connecté.

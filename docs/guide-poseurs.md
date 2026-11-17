@@ -44,6 +44,16 @@ L'accueil montre **tes chantiers**. Touche le tien : tout ce qui suit est dedans
 - **C'est bloquant et tu n'as pas de réseau ? Téléphone au bureau.**
 - **Signalements** (dans le chantier) te montre où en sont les tiens : À traiter, Commandé, Livré, Clos.
 
+## 5 bis. À commander : vis, consommables, outil en panne
+
+1. Sur l'**accueil**, touche **À commander** (pas besoin de choisir un chantier).
+2. Écris **quoi** et la **quantité**. Pour un outil cassé, touche d'abord **Outil en panne**.
+3. Touche **Demander**. Un article à la fois.
+
+- Le bureau reçoit la liste **chaque jour vers 15 h 45**. Après, ta demande part le jour suivant : la page te dit lequel.
+- **Mes demandes**, en bas : **✓ Commandé** quand le bureau a commandé.
+- Une menuiserie cassée ou manquante ? Ce n'est pas ici : utilise **Signaler**.
+
 ## 6. Les notes du chantier (la liste des choses à faire)
 
 1. Dans ton chantier, touche **Notes**.
