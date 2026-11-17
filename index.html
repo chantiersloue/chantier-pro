@@ -6,7 +6,7 @@
 <title>Loué App</title>
 <link rel="icon" type="image/png" href="apple-touch-icon.png">
 <link rel="manifest" href="manifest.json">
-<link rel="stylesheet" href="commun/style.css?v=5870b89102">
+<link rel="stylesheet" href="commun/style.css?v=e6424dd075">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -229,6 +229,18 @@ body.loue-test .installer{padding-top:calc(56px + env(safe-area-inset-top,0px));
 
     <div class="home-label label-section">Hors chantier</div>
     <div class="home-tiles">
+
+      <!-- Lot 10 : petit matériel des poseurs (rattaché à aucun chantier) -->
+      <div class="home-tile" id="tuile-commander" style="border-color:#B8DCC6" onclick="location.href='commander.html'">
+        <div class="tile-icon" style="background:var(--green-l)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="1.8"><circle cx="9" cy="20" r="1.4"/><circle cx="18" cy="20" r="1.4"/><path d="M2 3h3l2.6 12.2a1.5 1.5 0 001.5 1.2h8.6a1.5 1.5 0 001.5-1.2L21 7H6"/></svg>
+        </div>
+        <div class="tile-body">
+          <div class="tile-title">À commander</div>
+          <div class="tile-sub">Vis, consommables, outil en panne</div>
+        </div>
+        <div class="tile-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg></div>
+      </div>
 
       <div class="home-tile" style="border-color:#F0D8B0" onclick="showPage('planning')">
         <div class="tile-icon" style="background:var(--amber-l)">
@@ -494,12 +506,13 @@ body.loue-test .installer{padding-top:calc(56px + env(safe-area-inset-top,0px));
 </div>
 
 
-<script src="commun/config.js?v=5870b89102"></script>
-<script src="commun/api.js?v=5870b89102"></script>
-<script src="commun/ui.js?v=5870b89102"></script>
-<script src="commun/notes.js?v=5870b89102"></script>
-<script src="commun/comptes-rendus.js?v=5870b89102"></script>
-<script src="commun/hors-ligne.js?v=5870b89102"></script>
+<script src="commun/config.js?v=e6424dd075"></script>
+<script src="commun/api.js?v=e6424dd075"></script>
+<script src="commun/ui.js?v=e6424dd075"></script>
+<script src="commun/notes.js?v=e6424dd075"></script>
+<script src="commun/comptes-rendus.js?v=e6424dd075"></script>
+<script src="commun/commander.js?v=e6424dd075"></script>
+<script src="commun/hors-ligne.js?v=e6424dd075"></script>
 <script>
 // ── Accueil (lot 2) : connexion, « Mes chantiers », fiches du chantier avec le chantier pré-rempli ──
 // Rien ici n'empêche de remplir une fiche : « Remplir une fiche sans être connecté » est toujours proposé,

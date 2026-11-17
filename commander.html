@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Loué App — À commander</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Loué App">
+<meta name="theme-color" content="#1A2B4A">
+<link rel="stylesheet" href="commun/style.css?v=e6424dd075">
+<link rel="stylesheet" href="commun/fiche.css?v=e6424dd075">
+<style>
+[hidden]{display:none!important;}   /* un élément caché le reste, même s'il a une mise en forme « flex » */
+/* Sur cette page, toutes les zones à toucher font 48 px au moins (gants) */
+.topbar .btn{min-height:48px;padding:6px 14px;text-decoration:none;}
+.topbar .loue-envoi{min-height:48px;}
+.loue-brouillon button{min-height:48px;}
+.choix span{min-height:64px;font-size:17px;white-space:normal;}
+.dem-champ{display:flex;flex-direction:column;gap:5px;margin-top:14px;scroll-margin-top:70px;}
+body.loue-test .dem-champ{scroll-margin-top:110px;}
+.dem-champ .meta-label{font-size:16px;color:var(--text);font-weight:700;}
+.dem-champ .meta-input{min-height:56px;font-size:18px;}
+.dem-bouton{width:100%;min-height:64px;margin-top:16px;font-size:20px;font-weight:800;}
+.dem-connexion{background:#FFF4D6;border:1px solid #E0B030;color:#5A3D00;border-radius:var(--r);padding:12px 14px;margin-bottom:12px;font-size:15px;font-weight:600;line-height:1.4;}
+.dem-connexion a{display:inline-flex;align-items:center;min-height:48px;color:#5A3D00;font-weight:800;}
+.dem-etat{margin-top:14px;padding:12px 14px;border-radius:var(--r);font-size:16px;font-weight:600;line-height:1.4;overflow-wrap:anywhere;}
+.dem-etat b{display:block;font-weight:800;margin-bottom:2px;}
+.dem-etat.attente{background:#FFF4D6;border:1px solid #E0B030;color:#5A3D00;}
+.dem-etat.ok{background:var(--green-l);border:1px solid #9CCFB1;color:#145A31;}
+.dem-etat.erreur{background:var(--red-l);border:1px solid #EFC0C0;color:#8A1F1F;}
+.dem-liste{list-style:none;}
+.dem-ligne{padding:11px 0;border-bottom:1px solid var(--border);}
+.dem-ligne:last-child{border-bottom:none;}
+.dem-quoi{font-size:17px;font-weight:700;line-height:1.35;overflow-wrap:anywhere;}
+.dem-quoi span{font-weight:400;}
+.dem-suivi{font-size:15px;color:var(--muted);margin-top:3px;line-height:1.4;overflow-wrap:anywhere;}
+.dem-suivi strong{color:var(--text);font-weight:700;}
+.dem-ligne.commande .dem-suivi strong{color:#145A31;}
+.dem-ligne.attente .dem-suivi strong{color:#7A5200;}
+.dem-ligne.erreur .dem-suivi strong{color:#8A1F1F;}
+.vide{text-align:center;color:var(--muted);padding:18px 6px;font-size:16px;line-height:1.5;}
+.renvoi{text-align:center;font-size:16px;margin-top:4px;}
+.renvoi a{display:inline-block;padding:14px 2px;color:var(--header-bg);}
+</style>
+</head>
+<body data-page-commander>
+
+<div class="topbar no-print">
+  <a class="btn btn-secondary" href="index.html" aria-label="Retour à l'accueil">‹ Retour</a>
+  <span class="tb-name">À commander</span>
+  <span id="loue-envoi-place"></span>
+</div>
+
+<div class="main">
+
+  <div class="val-banner" id="valBanner" role="alert"></div>
+
+  <div class="dem-connexion" id="dem-connexion" hidden>Pas connecté : la demande sera gardée dans le téléphone et partira après la connexion.
+    <a href="index.html">Se connecter (accueil)</a></div>
+
+  <!-- LA DEMANDE : un article à la fois -->
+  <div class="section">
+    <div class="section-body">
+      <div class="choix-row" id="choix-sorte" role="radiogroup" aria-label="Type de demande">
+        <label class="choix"><input type="radio" name="sorte" id="sorte-commander" value="commander" checked><span>À commander</span></label>
+        <label class="choix"><input type="radio" name="sorte" id="sorte-panne" value="panne"><span>Outil en panne</span></label>
+      </div>
+
+      <div class="dem-champ" id="bloc-quoi">
+        <label class="meta-label" for="dem-quoi">Quoi ? <span class="oblig">*</span></label>
+        <input class="meta-input" id="dem-quoi" maxlength="80" autocomplete="off" autocapitalize="sentences" enterkeyhint="next" placeholder="Ex. : vis 4×40">
+      </div>
+      <div class="dem-champ">
+        <label class="meta-label" for="dem-quantite" id="label-quantite">Quantité</label>
+        <input class="meta-input" id="dem-quantite" maxlength="30" autocomplete="off" enterkeyhint="send" placeholder="Ex. : 2 boîtes">
+      </div>
+
+      <button class="btn btn-green dem-bouton" id="btn-demander" type="button" onclick="demander()">Demander</button>
+
+      <div class="dem-etat" id="dem-etat" role="status" aria-live="polite" hidden></div>
+    </div>
+  </div>
+
+  <!-- MES DEMANDES -->
+  <div class="section">
+    <div class="section-head" style="color:var(--green)">Mes demandes</div>
+    <div class="section-body">
+      <div class="listes-info" id="dem-info" style="margin:0 0 6px"></div>
+      <ul class="dem-liste" id="dem-liste"></ul>
+      <div class="vide" id="dem-vide" hidden></div>
+    </div>
+  </div>
+
+  <p class="aide renvoi">Menuiserie cassée ou manquante ? Utilise <a href="signaler.html"><strong>Signaler</strong></a>.</p>
+
+</div>
+
+<script src="commun/config.js?v=e6424dd075"></script>
+<script src="commun/api.js?v=e6424dd075"></script>
+<script src="commun/ui.js?v=e6424dd075"></script>
+<script src="commun/commander.js?v=e6424dd075"></script>
+<script src="commun/brouillon.js?v=e6424dd075"></script>
+<script src="commun/hors-ligne.js?v=e6424dd075"></script>
+<script>
+'use strict';
+const DEM = LOUE.demandes;
+const champ = id => document.getElementById(id);
+const sorteChoisie = () => { const el = document.querySelector('input[name="sorte"]:checked'); return el && el.value === 'panne' ? 'panne' : 'commander'; };
+
+// ── « À commander » ou « Outil en panne » : le second champ change de nom ──
+function majLibelles() {
+  const panne = sorteChoisie() === 'panne';
+  champ('label-quantite').textContent = panne ? 'Précision (facultatif)' : 'Quantité';
+  champ('dem-quantite').placeholder = panne ? 'Ex. : ne charge plus' : 'Ex. : 2 boîtes';
+  champ('dem-quoi').placeholder = panne ? 'Ex. : visseuse à choc' : 'Ex. : vis 4×40';
+}
+document.querySelectorAll('input[name="sorte"]').forEach(el => el.addEventListener('change', majLibelles));
+majLibelles();
+
+// Clavier ouvert : le champ touché remonte en haut de l'écran (les deux champs et « Demander » restent visibles) ;
+// la touche « Suivant » passe à la quantité, la touche « Envoyer » fait la demande
+champ('dem-quoi').addEventListener('focus', () => { try { champ('bloc-quoi').scrollIntoView({ block: 'start' }); } catch (e) {} });
+champ('dem-quoi').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); champ('dem-quantite').focus(); } });
+champ('dem-quantite').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); demander(); } });
+
+// ── Connexion : le nom du poseur est celui du compte, jamais saisi ──
+function majConnexion() { champ('dem-connexion').hidden = !!LOUE.compte(); }
+majConnexion();
+
+// ── Brouillon automatique : le choix et les deux champs sont gardés tout seuls ──
+const BROUILLON = LOUE.brouillon({ cle: 'commander' });
+
+// ── Ce qui est arrivé à la DERNIÈRE demande faite sur cette page ──
+let derniere = null;   // { id, resume }
+function afficherEtat(classe, texte, resume) {
+  const bloc = champ('dem-etat');
+  bloc.textContent = '';
+  if (resume) { const b = document.createElement('b'); b.textContent = resume; bloc.appendChild(b); }
+  bloc.appendChild(document.createTextNode(texte));
+  bloc.className = 'dem-etat ' + classe;
+  bloc.hidden = false;
+}
+function texteReponse(rep) {
+  const recap = rep && rep.data && rep.data.recap;
+  if (recap && recap.texte) return recap.texte;
+  return rep && rep.code === 'DEJA_RECU' ? '✓ Demande déjà reçue par le bureau.' : '✓ Demande envoyée au bureau.';
+}
+const MSG_RESEAU = '⏳ En attente : elle partira au retour du réseau, dans le récapitulatif qui suivra.';
+const MSG_CONNEXION = '⏳ En attente : elle partira après la connexion (depuis l’accueil), dans le récapitulatif qui suivra.';
+
+// ── « Mes demandes » : en tête celles qui attendent encore dans le téléphone, puis celles du bureau (90 jours) ──
+let LISTE = null;          // { donnees: { demandes }, date, depuisLeTelephone } ou null (rien de connu)
+let lectureEnCours = false, etatLecture = '';   // '' | 'encours' | 'serveur : message'
+function jourCourt(ms) { const d = new Date(ms || Date.now()), p = n => ('0' + n).slice(-2); return p(d.getDate()) + '/' + p(d.getMonth() + 1); }
+function quand(ms) { const d = new Date(ms), p = n => ('0' + n).slice(-2); return jourCourt(ms) + ' à ' + p(d.getHours()) + 'h' + p(d.getMinutes()); }
+function ligne(classe, quoi, quantite, debut, etat) {
+  const li = document.createElement('li'); li.className = 'dem-ligne ' + classe;
+  const haut = document.createElement('div'); haut.className = 'dem-quoi'; haut.textContent = quoi;
+  if (quantite) { const q = document.createElement('span'); q.textContent = ' — ' + quantite; haut.appendChild(q); }
+  const bas = document.createElement('div'); bas.className = 'dem-suivi'; bas.textContent = debut + ' · ';
+  const fort = document.createElement('strong'); fort.textContent = etat; bas.appendChild(fort);
+  li.appendChild(haut); li.appendChild(bas);
+  return li;
+}
+let rendu = 0;
+function afficherListe() {
+  const tour = ++rendu;
+  return DEM.enAttente().then(attente => {
+    if (tour !== rendu) return;   // un affichage plus récent est déjà en route
+    const liste = champ('dem-liste');
+    liste.textContent = '';
+    const enFile = {};
+    attente.forEach(e => {
+      enFile[e.id] = true;
+      const d = e.donnees || {}, type = DEM.SORTES[d.sorte] || DEM.SORTES.commander;
+      const etat = e.etat === 'erreur' ? '⚠ à vérifier : ' + (e.message || 'refusée') + ' (toucher l’indicateur en haut de l’écran)'
+        : '⏳ en attente d’envoi' + (e.attendConnexion ? ' (connexion nécessaire)' : '');
+      liste.appendChild(ligne(e.etat === 'erreur' ? 'erreur' : 'attente', d.quoi || '', d.quantite || '', jourCourt(e.cree) + ' · ' + type, etat));
+    });
+    const recues = LOUE.compte() && LISTE ? LISTE.donnees.demandes.filter(x => !enFile[x.id]) : [];
+    recues.forEach(x => liste.appendChild(ligne(x.etat === 'commande' ? 'commande' : '', x.quoi || '', x.quantite || '', jourCourt(x.date) + ' · ' + (x.type || ''), x.etatTexte || '')));
+    // La ligne d'information et le texte « rien »
+    const info = champ('dem-info'), vide = champ('dem-vide');
+    let texteInfo = '', texteVide = '';
+    if (!LOUE.compte()) texteVide = attente.length ? '' : 'Connecte-toi depuis l’accueil pour voir tes demandes.';
+    else if (LISTE && LISTE.depuisLeTelephone) texteInfo = lectureEnCours ? 'Liste gardée dans le téléphone (mise à jour en cours…).'
+      : 'Pas de réseau : liste du ' + quand(LISTE.date) + ' gardée dans le téléphone.';
+    else if (!LISTE) texteVide = lectureEnCours ? 'Chargement…' : (etatLecture || 'Pas de réseau, et aucune liste gardée dans le téléphone pour l’instant.');
+    if (LOUE.compte() && LISTE && etatLecture && !lectureEnCours) texteInfo = etatLecture;
+    if (LOUE.compte() && LISTE && !recues.length && !attente.length) texteVide = 'Aucune demande depuis 90 jours.';
+    info.textContent = texteInfo; info.hidden = !texteInfo;
+    vide.textContent = texteVide; vide.hidden = !texteVide;
+  });
+}
+// Demande la liste au bureau ; hors réseau, la liste gardée dans le téléphone (pour ce compte) reste affichée
+function lireListe() {
+  if (!LOUE.compte()) { LISTE = null; etatLecture = ''; return afficherListe(); }
+  if (lectureEnCours) { aRelire = true; return Promise.resolve(); }
+  lectureEnCours = true;
+  if (!LISTE) LISTE = DEM.gardees();
+  afficherListe();
+  return DEM.lire().then(r => { LISTE = r; etatLecture = ''; }, err => {
+    if (err && err.connexion) { LISTE = null; etatLecture = ''; }
+    else etatLecture = err && err.serveur ? 'Liste pas à jour : ' + err.message : '';
+    if (!LISTE) LISTE = DEM.gardees();
+  }).then(() => {
+    lectureEnCours = false; majConnexion();
+    if (aRelire) { aRelire = false; return lireListe(); }
+    return afficherListe();
+  });
+}
+let aRelire = false, minuteurLecture = null;
+function relireBientot() { clearTimeout(minuteurLecture); minuteurLecture = setTimeout(lireListe, 1200); }
+lireListe();
+window.addEventListener('online', relireBientot);
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') relireBientot(); });
+
+// ── Ce que dit la file d'envoi ──
+LOUE.surEvenement(ev => {
+  if (ev.type === 'compte') { majConnexion(); LISTE = null; lireListe(); return; }
+  if (ev.type === 'file') { afficherListe(); return; }
+  const a = ev.element;
+  if (!a || a.type !== 'demande') return;
+  const laDerniere = derniere && derniere.id === a.id;
+  if (ev.type === 'envoyee') {
+    if (laDerniere) afficherEtat('ok', texteReponse(ev.reponse), derniere.resume);
+    const g = DEM.gardees();   // commun/commander.js vient d'y ranger la demande
+    if (g) LISTE = { donnees: g.donnees, date: LISTE ? LISTE.date : g.date, depuisLeTelephone: LISTE ? LISTE.depuisLeTelephone : true };
+    afficherListe(); relireBientot();
+  } else if (ev.type === 'en attente') {
+    if (laDerniere) afficherEtat('attente', a.attendConnexion ? (/écrit par/.test(a.message || '') ? '⏳ ' + a.message : MSG_CONNEXION)
+      : (a.attenteReseau || a.aConfirmer) ? MSG_RESEAU
+      : '⏳ En attente : le bureau n’a pas encore pu la noter (' + (a.message || 'nouvel essai automatique') + '). Elle est gardée dans le téléphone.', derniere.resume);
+    afficherListe();
+  } else if (ev.type === 'erreur') {
+    if (laDerniere) afficherEtat('erreur', '⚠ Demande refusée : ' + (a.message || '') + '. Elle reste dans le téléphone (indicateur en haut de l’écran).', derniere.resume);
+    afficherListe();
+  }
+});
+
+// ── Remet la page à blanc, prête pour l'article suivant ──
+function viderFiche() {
+  champ('dem-quoi').value = ''; champ('dem-quantite').value = '';
+  champ('sorte-commander').checked = true;
+  majLibelles();
+}
+
+// ── « Demander » : la demande est rangée dans le téléphone, puis part (tout de suite ou au retour du réseau) ──
+let envoiEnCours = false;
+async function demander() {
+  if (envoiEnCours) return;
+  const sorte = sorteChoisie();
+  const quoi = DEM.nettoyer(champ('dem-quoi').value, DEM.MAX_QUOI), quantite = DEM.nettoyer(champ('dem-quantite').value, DEM.MAX_QUANTITE);
+  const erreurs = [];
+  champ('dem-quoi').classList.remove('error'); champ('dem-quantite').classList.remove('error');
+  if (!quoi) { champ('dem-quoi').classList.add('error'); erreurs.push(sorte === 'panne' ? 'écris quel outil est en panne' : 'écris ce qu’il faut commander'); }
+  if (sorte === 'commander' && !quantite) { champ('dem-quantite').classList.add('error'); erreurs.push('indique la quantité (exemple : 2 boîtes)'); }
+  const bandeau = champ('valBanner');
+  if (erreurs.length) {
+    bandeau.textContent = 'À compléter : ' + erreurs.join(', ') + '.';
+    bandeau.classList.add('show'); bandeau.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    return;
+  }
+  bandeau.classList.remove('show');
+  envoiEnCours = true;
+  const bouton = champ('btn-demander');
+  const finir = () => { bouton.disabled = false; bouton.textContent = 'Demander'; envoiEnCours = false; };
+  bouton.disabled = true; bouton.textContent = 'Rangement dans le téléphone…';
+  const d = { sorte: sorte, quoi: quoi, quantite: quantite };
+  const resume = (sorte === 'panne' ? 'Outil en panne : ' : '') + quoi + (quantite ? ' — ' + quantite : '');
+  let enFile = false;
+  try {
+    const el = await LOUE.mettreEnFile('demande', d, [], DEM.SORTES[sorte] + ' : ' + quoi);
+    enFile = true;
+    derniere = { id: el.id, resume: resume };
+    await BROUILLON.effacer();   // la demande est à l'abri dans la file d'envoi
+    afficherEtat('attente', '⏳ Demande notée', resume);
+    viderFiche();
+    LOUE.viderFile();
+    BROUILLON.reprendre();
+    afficherListe();
+    finir();
+  } catch (err) {
+    if (enFile) {   // déjà dans la file : surtout pas d'envoi direct (doublon)
+      afficherEtat('attente', '⏳ Demande notée : elle partira toute seule.', resume);
+      try { viderFiche(); BROUILLON.reprendre(); LOUE.viderFile(); afficherListe(); } catch (e2) {}
+      finir(); return;
+    }
+    // Plan de secours : le téléphone refuse de garder la demande (navigation privée, mémoire pleine) → envoi direct
+    bouton.textContent = 'Envoi direct… ne quitte pas la page';
+    try {
+      const rep = await LOUE.envoyerDirect('demande', d, []);
+      await BROUILLON.effacer();
+      afficherEtat('ok', texteReponse(rep), resume);
+      viderFiche(); BROUILLON.reprendre(); relireBientot();
+    } catch (err2) {
+      afficherEtat('erreur', err2.stockageBloque ? '⚠ La demande n’est pas partie : ' + err2.message + '.'
+        : err2.aConfirmer ? '⏳ Pas encore confirmé par le bureau (la demande est peut-être déjà arrivée). Touche « Demander » de nouveau, SANS RIEN CHANGER : elle ne sera pas notée deux fois.'
+        : err2.connexion ? '⚠ Demande pas envoyée : il faut se connecter, et le téléphone n’a PAS pu la garder. Ne quitte pas cette page : touche « Demander » de nouveau, une fenêtre de connexion s’ouvrira ici.'
+        : '⚠ La demande n’est pas partie : ' + err2.message + '. Garde la page ouverte et touche « Demander » de nouveau quand il y aura du réseau.', resume);
+    }
+    finir();
+  }
+}
+</script>
+</body>
+</html>

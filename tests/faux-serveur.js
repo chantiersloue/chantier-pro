@@ -14,6 +14,7 @@
 // Lot 10 — LOUE_FUSEAUX=1 : l'heure de Paris est calculée comme chez Google (quel que soit le réglage du PC) ;
 //   GET /reglage?mode=horloge&quand=2026-11-17T10:00:00%2B01:00 règle l'horloge du serveur (quand=reel : la vraie heure) ;
 //   mode=reveil : un passage du réveil des 10 minutes (traiterComptes, donc le récapitulatif « À commander ») ;
+//   mode=oublier-passage : efface la marque « passage du jour fait » (le faux serveur a pu la poser à son démarrage, à la vraie heure) ;
 //   mode=commande&quoi=<texte>&valeur=1 : coche (0 : décoche) la case « Commandé » des demandes dont « Quoi » est ce texte.
 'use strict';
 const http = require('http');
@@ -111,6 +112,7 @@ http.createServer((req, res) => {
       ctx.maintenant_ = quand === 'reel' ? () => Date.now() : () => ms;
       res.writeHead(200, entetes); return res.end(JSON.stringify({ horloge: quand === 'reel' ? 'reel' : ms }));
     }
+    if (m === 'oublier-passage') { delete google.proprietes.DEMANDES_PASSAGE; delete google.proprietes.DEMANDES_REPORT; res.writeHead(200, entetes); return res.end('{"passage":"oublié"}'); }
     if (m === 'reveil') { res.writeHead(200, entetes); return res.end(JSON.stringify({ reveil: ctx.traiterComptes() })); }
     if (m === 'commande') {
       const quoi = url.searchParams.get('quoi') || '', valeur = url.searchParams.get('valeur') === '1';
