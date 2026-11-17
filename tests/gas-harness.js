@@ -214,8 +214,18 @@ function creerGoogle(options = {}) {
     base64EncodeWebSafe: o => (typeof o === 'string' ? Buffer.from(o, 'utf8') : Buffer.from(o.map(x => x & 0xFF))).toString('base64').replace(/\+/g, '-').replace(/\//g, '_'),
     base64DecodeWebSafe: t => Array.from(Buffer.from(String(t).replace(/-/g, '+').replace(/_/g, '/'), 'base64')).map(o => o > 127 ? o - 256 : o),
     sleep: ms => { etat.pauses = (etat.pauses || 0) + ms; },
-    formatDate: (d, tz, f) => f.replace('yyyy', d.getFullYear()).replace('MM', deux(d.getMonth() + 1))
-      .replace('dd', deux(d.getDate())).replace('HH', deux(d.getHours())).replace('mm', deux(d.getMinutes())),
+    formatDate: (d, tz, f) => {
+      // Par défaut : l'heure du PC (comme depuis le lot 0). Lot 10 — option « fuseaux » : l'heure est calculée dans le
+      // fuseau DEMANDÉ (« Europe/Paris »), comme le vrai Apps Script, quel que soit le réglage du PC (heure d'été comprise).
+      let p = { a: d.getFullYear(), m: d.getMonth() + 1, j: d.getDate(), h: d.getHours(), mi: d.getMinutes() };
+      if (options.fuseaux && tz) {
+        const morceaux = {};
+        new Intl.DateTimeFormat('en-CA', { timeZone: tz, hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
+          .formatToParts(new Date(d.getTime())).forEach(x => { morceaux[x.type] = Number(x.value); });
+        p = { a: morceaux.year, m: morceaux.month, j: morceaux.day, h: morceaux.hour % 24, mi: morceaux.minute };
+      }
+      return f.replace('yyyy', p.a).replace('MM', deux(p.m)).replace('dd', deux(p.j)).replace('HH', deux(p.h)).replace('mm', deux(p.mi));
+    },
   };
   const declencheurs = [];
   const cache = {};

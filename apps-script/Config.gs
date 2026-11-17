@@ -3,7 +3,7 @@
 // Loué Menuiserie
 // ═══════════════════════════════════════════════════════════════
 
-const VERSION_API = 'v11.1';   // 11.1 : lot 8c (note de réunion en points, reprise des points ouverts) ; 11.0 : lot 8b (onglet « Comptes rendus », une ligne par note de réunion) ; 10.0 : lot 5 (suivi du stockage, purge sur case cochée) ; 9.1 : retrait de la lecture du dossier Plans (lot 4b) ; 9.0 : lot 4a (carnet de chantier) ; 8.0 : lot 3 (notes de chantier) ; 7.0 : lot 7 (signalements) ; 6.0 : lot 2 (comptes)
+const VERSION_API = 'v11.2';   // 11.2 : lot 10a-1 (« À commander » : onglet « Demandes », récapitulatif de 15 h 45) ; 11.1 : lot 8c (note de réunion en points, reprise des points ouverts) ; 11.0 : lot 8b (onglet « Comptes rendus », une ligne par note de réunion) ; 10.0 : lot 5 (suivi du stockage, purge sur case cochée) ; 9.1 : retrait de la lecture du dossier Plans (lot 4b) ; 9.0 : lot 4a (carnet de chantier) ; 8.0 : lot 3 (notes de chantier) ; 7.0 : lot 7 (signalements) ; 6.0 : lot 2 (comptes)
 
 // ── CONFIGURATION ──
 const SHEET_CONTACTS      = 'Contacts';
@@ -29,6 +29,12 @@ const RESERVE_ADMIN         = 20;  // destinataires gardés pour Franck : en des
 const MAX_LIBRES_PAR_FICHE  = 2;   // adresses tapées à la main acceptées par fiche
 const MAX_LIBRES_PAR_JOUR   = 10;  // adresses tapées à la main acceptées par jour, toute l'appli
 const MAX_ESSAIS_ATTENTE    = 12;  // un mail reporté est retenté toutes les 2 h, 12 fois au plus
+
+// ── LOT 10 — « À COMMANDER » (petit matériel des poseurs) : les réglages. Les heures sont à l'heure de Paris, été comme hiver ──
+const DEMANDES_HEURE_LIMITE  = '15:45';  // du lundi au vendredi : le récapitulatif part au premier passage du réveil des 10 minutes après cette heure
+const DEMANDES_FIN_ESSAIS    = '17:30';  // si le mail n'a pas pu partir : nouvel essai toutes les 10 minutes jusqu'à cette heure, puis report au récapitulatif suivant
+const DEMANDES_MAX_PAR_JOUR  = 30;       // demandes acceptées par compte et par jour
+const DEMANDES_JOURS_LISTE   = 90;       // « Mes demandes » : les 90 derniers jours
 
 // Sous-dossiers que listerPartages() (lot 0) marque « garder » : leurs partages par lien ne sont pas retirés par retirerPartages().
 // Tout le reste est en « accès limité » depuis le lot 0.

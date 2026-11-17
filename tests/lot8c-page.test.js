@@ -515,7 +515,7 @@ function partiePoints() {
   verifier('hors réseau SANS liste gardée : « Points de la dernière note indisponibles sans réseau. Écrivez vos nouveaux points : … »',
     a.sansListe.info === 'Points de la dernière note indisponibles sans réseau. Écrivez vos nouveaux points : les anciens restent ouverts et reviendront à la note suivante.' && a.sansListe.cartes.length === 0 && a.sansListe.titre === 'Points ouverts', j(a.sansListe));
   verifier('largeur PC (1 280 px) : pas de défilement horizontal, les 7 cartes, « + Nouveau point » visible', a.pc.largeur && a.pc.cartes === 7 && a.pc.plus, j(a.pc));
-  verifier('serveur du lot 8c (v11.1)', /v11\.1/.test(a.version), j(a.version));
+  verifier('serveur du lot 8c (v11.2)', /v11.2/.test(a.version), j(a.version));
 }
 
 function partieDroits() {

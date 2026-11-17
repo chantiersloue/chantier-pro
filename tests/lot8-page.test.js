@@ -574,8 +574,8 @@ function partieNote() {
   verifier('réponse perdue : la note reste en attente, puis « ✓ Compte rendu du <date> déjà reçu par le bureau » (une seule ligne, pas de second envoi)',
     b.perdueEnFile === 1 && b.perduePartie === true && b.perdue === '✓ Compte rendu du ' + D + ' déjà reçu par le bureau', j([b.perdueEnFile, b.perdue]));
   verifier('quota de mails presque atteint : « ✓ Compte rendu du <date> envoyé — 1 mail reporté à plus tard (quota du jour) »', b.quota === '✓ Compte rendu du ' + D + ' envoyé — 1 mail reporté à plus tard (quota du jour)', j(b.quota));
-  verifier('onglet « Comptes rendus » du serveur (v11.1) : cinq lignes, une par note, sans colonne de numéro ni de présents',
-    /v11\.1/.test(b.version) && j(b.comptesRendus) === j(['jour / Réunion 8b', 'jour / Deuxième réunion', '10/11/2026 / Ancienne fiche', 'jour / Réponse perdue', 'jour / Quota']) && !/N° du compte rendu|Présents/.test(b.titres), j([b.version, b.comptesRendus, b.titres]));
+  verifier('onglet « Comptes rendus » du serveur (v11.2) : cinq lignes, une par note, sans colonne de numéro ni de présents',
+    /v11.2/.test(b.version) && j(b.comptesRendus) === j(['jour / Réunion 8b', 'jour / Deuxième réunion', '10/11/2026 / Ancienne fiche', 'jour / Réponse perdue', 'jour / Quota']) && !/N° du compte rendu|Présents/.test(b.titres), j([b.version, b.comptesRendus, b.titres]));
   verifier('après les envois : aucun « Brouillon retrouvé »', b.bandeauApres === '', j(b.bandeauApres));
   verifier('ANCIEN brouillon « mis de côté » (page d’avant le lot 8) : proposé et restauré', /Brouillon mis de côté/.test(b.deCoteBandeau) && b.deCote.objet === 'Mis de côté' && b.deCote.texte === 'Texte mis de côté', j([b.deCoteBandeau, b.deCote]));
   verifier('brouillon de la page 10.1 des essais (avec des présents) : restauré (objet, texte, destinataires), sans erreur', /Brouillon retrouvé/.test(b.dixUnBandeau) && b.dixUn.objet === 'Brouillon 10.1' && b.dixUn.texte === 'Texte 10.1' && b.dixUn.dest === 'archi@ext.test', j([b.dixUnBandeau, b.dixUn]));

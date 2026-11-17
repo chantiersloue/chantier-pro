@@ -587,6 +587,10 @@ function traiterComptes() {
     return 'erreur : ' + err.message;
   } finally {
     UTILISATEURS_ = null;
+    // Lot 10 : le récapitulatif « À commander » (Demandes.gs), après les comptes, SOUS LE MÊME VERROU (il n'est ni repris ni
+    // rendu là-bas) et dans son propre try/catch : s'il plante, les comptes ont déjà été traités et le verrou est rendu ;
+    // si le traitement des comptes a planté plus haut, le récapitulatif est lancé quand même.
+    try { demRecapituler_(); } catch (err) { console.error('récapitulatif « À commander » :', err && err.message ? err.message : err); }
     verrou.releaseLock();
   }
 }

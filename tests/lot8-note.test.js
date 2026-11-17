@@ -354,9 +354,9 @@ test('installation : un onglet du même nom avec d’autres titres et des donné
   assert.ok(/❌/.test(t) && /existe déjà avec d’autres titres/.test(t), t);
   assert.deepStrictEqual(g.feuilles['Comptes rendus'].lignes, [['Ancien', 'Titres'], ['donnée', 'gardée']]);
 });
-test('livraison : le serveur à coller contient le lot 8, en version v11.1, sans numéro de compte rendu ni présents, sans les outils d’essai', () => {
+test('livraison : le serveur à coller contient le lot 8, en version v11.2, sans numéro de compte rendu ni présents, sans les outils d’essai', () => {
   const code = fs.readFileSync(path.join(__dirname, '..', 'A-COLLER-DANS-APPS-SCRIPT', 'Code.gs'), 'utf8');
-  ["const VERSION_API = 'v11.1'", 'function crEnregistrer_(', 'SpreadsheetApp.flush();', 'function installerLot8Test(', 'function installerLot8Production(', 'ComptesRendus.gs'].forEach(t => assert.ok(code.indexOf(t) > -1, t));
+  ["const VERSION_API = 'v11.2'", 'function crEnregistrer_(', 'SpreadsheetApp.flush();', 'function installerLot8Test(', 'function installerLot8Production(', 'ComptesRendus.gs'].forEach(t => assert.ok(code.indexOf(t) > -1, t));
   ['numeroCR', 'crReserver_', 'crPresents_', 'Compte rendu n°', 'CR n°'].forEach(t => assert.ok(code.indexOf(t) < 0, 'reste : ' + t));
   assert.ok(code.indexOf('function outilTest_(') < 0);
   assert.ok(code.indexOf(String.fromCharCode(0x2028)) < 0 && code.indexOf(String.fromCharCode(0x2029)) < 0, 'aucun séparateur de ligne brut dans le fichier à coller');

@@ -89,6 +89,12 @@ function outilTest_(corps) {
         .map((l, i) => { if (i > 0 && !/^fiche-auto-/.test(String(l[0]))) l[0] = '(note réelle)'; return l; }) });
       case 'purgerComptesRendusEssai': return ok('Lignes des essais automatiques retirées', outilTestSousVerrou_(outilTestPurgerComptesRendus_));
       case 'installerLot8': { const r = installer_('Lot 8', 'TEST', etapesLot8_()); if (!r.ok) throw new Error('installation du lot 8 non terminée : ' + r.texte); return ok(r.texte); }
+      // Lot 10 : date, type, commandé, récapitulatif du, compte, n° de fiche — ni nom, ni texte saisi
+      case 'lireDemandes': return ok('Dernières lignes de l’onglet Demandes', { passage: propriete_(DEM_PROP_PASSAGE), report: propriete_(DEM_PROP_REPORT),
+        lignes: outilTestDernieresLignes_(SHEET_DEMANDES, corps.n, [COL_DEM.date, COL_DEM.type, COL_DEM.commande, COL_DEM.recap, COL_DEM.compte, COL_DEM.fiche])
+          .map((l, i) => { if (i > 0 && l[4] && !Object.prototype.hasOwnProperty.call(OUTIL_TEST_COMPTES, l[4])) l[4] = '(compte réel)';
+            if (i > 0 && !/^fiche-auto-/.test(String(l[5]))) l[5] = '(demande réelle)'; return l; }) });
+      case 'installerLot10': { const r = installer_('Lot 10', 'TEST', etapesLot10_()); if (!r.ok) throw new Error('installation du lot 10 non terminée : ' + r.texte); return ok(r.texte); }
       case 'installerLot5': { const r = installer_('Lot 5', 'TEST', etapesLot5_()); if (!r.ok) throw new Error('installation du lot 5 non terminée : ' + r.texte); return ok(r.texte); }
       // Lot 5 — LECTURES seulement (aucun geste de cette porte ne met quoi que ce soit à la corbeille, pas même dans le chantier d'essai) :
       //   placeCompte        : la place du compte vue par les deux sources (à comparer avec one.google.com/storage) ;

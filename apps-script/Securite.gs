@@ -322,6 +322,7 @@ function alerte_(texte, sorte) {
       notes  : '[Loué App] Listes « Notes » bloquées — titres d’un onglet changés',
       comptesrendus: '[Loué App] Notes de réunion non notées — titres de l’onglet « Comptes rendus » changés',
       pointscr: '[Loué App] Comptes rendus — points d’un chantier à regarder',
+      demandes: '[Loué App] « À commander » bloqué — titres de l’onglet « Demandes » changés',
       photos : "[Loué App] Trop de photos aujourd'hui",
       dossiers : '[Loué App] dossiers.json illisible',
       rangement: '[Loué App] Document non rangé dans Drive',
@@ -334,6 +335,23 @@ function alerte_(texte, sorte) {
       texte + "\n\nLes cas suivants de la journée sont notés dans l'onglet « Journal » du Sheet, sans autre mail.\n\nLoué App",
       { name: NOM_ENTREPRISE });
   } catch (err) { console.error('alerte_ :', err.message); }
+}
+
+// Lot 10 — un mail au bureau (Franck), SANS pièce jointe : le récapitulatif « À commander ».
+// Même chemin que les alertes : il part tant qu'il reste UN mail dans le quota du jour (il est pris sur la réserve du bureau,
+// RESERVE_ADMIN), sans passer par l'onglet « Mails en attente » (c'est l'appelant qui décide de réessayer).
+// Rend '' si le mail est parti, sinon la raison (texte court).
+function mailBureau_(sujet, texte, html) {
+  try {
+    if (MailApp.getRemainingDailyQuota() < 1) return 'quota de mails du jour épuisé';
+    const opts = { name: NOM_ENTREPRISE };
+    if (html) opts.htmlBody = html;
+    GmailApp.sendEmail(emailAdmin_(), sujet, texte, opts);
+    return '';
+  } catch (err) {
+    console.error('mailBureau_ :', err.message);
+    return 'erreur : ' + String(err && err.message ? err.message : err).slice(0, 200);
+  }
 }
 
 // Réserve une place dans le plafond quotidien des adresses libres

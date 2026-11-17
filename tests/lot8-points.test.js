@@ -425,9 +425,9 @@ test('installation : un onglet du lot 8b (10 colonnes) déjà rempli reçoit les
   assert.strictEqual(g.feuilles['Comptes rendus'].lignes[1][0], 'fiche-8b-000001');
   assert.ok(/déjà fait/.test(g.ctx.installerLot8Production()));
 });
-test('livraison : le serveur à coller contient le lot 8c, en version v11.1, sans les outils d’essai', () => {
+test('livraison : le serveur à coller contient le lot 8c, en version v11.2, sans les outils d’essai', () => {
   const code = fs.readFileSync(path.join(__dirname, '..', 'A-COLLER-DANS-APPS-SCRIPT', 'Code.gs'), 'utf8');
-  ["const VERSION_API = 'v11.1'", 'function crAppliquer_(', 'function crLire_(', "corps.action === 'compteRendu'", 'function crEnregistrer_(', 'SpreadsheetApp.flush();'].forEach(t => assert.ok(code.indexOf(t) > -1, t));
+  ["const VERSION_API = 'v11.2'", 'function crAppliquer_(', 'function crLire_(', "corps.action === 'compteRendu'", 'function crEnregistrer_(', 'SpreadsheetApp.flush();'].forEach(t => assert.ok(code.indexOf(t) > -1, t));
   assert.ok(code.indexOf('function outilTest_(') < 0);
   assert.ok(code.indexOf(String.fromCharCode(0x2028)) < 0 && code.indexOf(String.fromCharCode(0x2029)) < 0, 'aucun séparateur de ligne brut dans le fichier à coller');
   const page = fs.readFileSync(path.join(__dirname, '..', 'note-reunion.html'), 'utf8');

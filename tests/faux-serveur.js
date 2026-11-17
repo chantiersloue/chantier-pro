@@ -11,12 +11,17 @@
 // Lot 4 — LOUE_RACINE_ESSAI=<dossier> : ce dossier (un faux « Drive de l'appli » rempli par outils/depot_carnet.py) est recopié dans le faux Drive ;
 //   GET /reglage?mode=acces&id=poseur1&valeur=0 retire au compte la case de CHANTIER TEST 1 (1 : la remet) ; /recharger-carnet relit le dossier.
 //   GET /reglage?mode=transition-finie (fin de la période sans compte) | transition-ouverte | deconnecter&id=poseur1 | jeton-ancien
+// Lot 10 — LOUE_FUSEAUX=1 : l'heure de Paris est calculée comme chez Google (quel que soit le réglage du PC) ;
+//   GET /reglage?mode=horloge&quand=2026-11-17T10:00:00%2B01:00 règle l'horloge du serveur (quand=reel : la vraie heure) ;
+//   mode=reveil : un passage du réveil des 10 minutes (traiterComptes, donc le récapitulatif « À commander ») ;
+//   mode=commande&quoi=<texte>&valeur=1 : coche (0 : décoche) la case « Commandé » des demandes dont « Quoi » est ce texte.
 'use strict';
 const http = require('http');
 const { creerGoogle, chargerScript } = require('./gas-harness');
 
 const port = Number(process.argv[2] || 8790);
 const google = creerGoogle({
+  fuseaux: process.env.LOUE_FUSEAUX === '1',
   proprietes: { DRIVE_ROOT_ID: 'RACINE', DRIVE_PLANNING_ID: 'PLANNING' },
   feuilles: {
     'Contacts': [['Nom', 'Role', 'Email', 'ChefEquipe', 'Destinataire', 'ConducteurDefaut', 'ChefAtelier', 'absenceNotif'],
@@ -71,6 +76,7 @@ ctx.traiterComptes();
 ctx.installerLot3Production();   // lot 3 : onglets des notes de chantier
 console.log(ctx.installerLot7Production().split(String.fromCharCode(10)).filter(l => /installation terminée|❌|Refusé/.test(l)).join(' ') || 'Lot 7 : installation non confirmée');   // lot 7 : onglet Signalements
 if (typeof ctx.installerLot8Production === 'function') ctx.installerLot8Production();   // lot 8b : onglet « Comptes rendus » (absent d'un ancien serveur)
+if (typeof ctx.installerLot10Production === 'function') ctx.installerLot10Production();   // lot 10 : onglet « Demandes » (absent d'un ancien serveur)
 U.lignes.slice(1).filter(l => l[0]).forEach(l => {
   if (l[0] === 'nouveau1') { console.log('Compte « nouveau1 » : mot de passe provisoire ' + l[5]); return; }
   const r = ctx.motDePasse_({ identifiant: l[0], ancien: l[5], nouveau: 'Essai-2026' });
@@ -97,6 +103,20 @@ http.createServer((req, res) => {
       const col = A.lignes[0].indexOf(url.searchParams.get('id'));
       if (col > 1) A.lignes.forEach(l => { if (l[0] === 'CHANTIER TEST 1') l[col] = url.searchParams.get('valeur') === '1'; });
       res.writeHead(200, entetes); return res.end('{"acces":' + (col > 1) + '}');
+    }
+    // Lot 10 : horloge du serveur, passage du réveil des 10 minutes, case « Commandé »
+    if (m === 'horloge') {
+      const quand = url.searchParams.get('quand') || 'reel', ms = quand === 'reel' ? 0 : Date.parse(quand);
+      if (quand !== 'reel' && !(ms > 0)) { res.writeHead(400, entetes); return res.end('{"erreur":"date illisible"}'); }
+      ctx.maintenant_ = quand === 'reel' ? () => Date.now() : () => ms;
+      res.writeHead(200, entetes); return res.end(JSON.stringify({ horloge: quand === 'reel' ? 'reel' : ms }));
+    }
+    if (m === 'reveil') { res.writeHead(200, entetes); return res.end(JSON.stringify({ reveil: ctx.traiterComptes() })); }
+    if (m === 'commande') {
+      const quoi = url.searchParams.get('quoi') || '', valeur = url.searchParams.get('valeur') === '1';
+      let n = 0;
+      ((google.feuilles['Demandes'] || { lignes: [] }).lignes).slice(1).forEach(l => { if (l[3] === quoi) { l[5] = valeur; n++; } });
+      res.writeHead(200, entetes); return res.end(JSON.stringify({ commande: n }));
     }
     if (m === 'recharger-carnet') { chargerCarnet(); viderCacheCarnet(); res.writeHead(200, entetes); return res.end('{"carnet":"relu"}'); }
     // Lot 4 : la liste carnet.json absente (en cours d'arrivée) puis revenue ; un second état du Drive (redépôt, nouvel indice) ; un compte désactivé
@@ -130,6 +150,9 @@ http.createServer((req, res) => {
       signalements: (google.feuilles['Signalements'] || { lignes: [] }).lignes,   // lot 7
       notes: (google.feuilles['Notes'] || { lignes: [] }).lignes,                 // lot 3
       comptesRendus: (google.feuilles['Comptes rendus'] || { lignes: [] }).lignes,   // lot 8b
+      // lot 10 : l'onglet « Demandes » et les récapitulatifs « À commander » partis (sujet et texte)
+      demandes: (google.feuilles['Demandes'] || { lignes: [] }).lignes,
+      recaps: google.mails.filter(m => /^À commander — /.test(m.sujet)).map(m => ({ to: m.to, sujet: m.sujet, texte: m.texte })),
       // lot 8b : le texte des 5 derniers PDF envoyés (sans les images), pour vérifier ce qui est imprimé
       pdfs: google.mails.filter(m => m.opts && m.opts.attachments && m.opts.attachments[0]).slice(-5)
         .map(m => ({ sujet: m.sujet, texte: String(m.opts.attachments[0].contenu).replace(/base64,[A-Za-z0-9+\/=]+/g, 'base64,…').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').slice(0, 3000),

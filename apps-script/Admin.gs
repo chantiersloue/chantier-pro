@@ -78,7 +78,8 @@ function renvoyerMailsEnAttente() {
 // À lancer après le déploiement (le relancer ne crée pas de doublon : chaque déclencheur est supprimé puis recréé)
 //  - renvoyerMailsEnAttente toutes les 2 h (lot 0)
 //  - traiterComptes toutes les 10 min, et surModificationSheet à chaque modification du Sheet (lot 2 : cases
-//    « Réinitialiser » et « Déconnecter », onglet « Accès chantiers »)
+//    « Réinitialiser » et « Déconnecter », onglet « Accès chantiers ») ; lot 10 : traiterComptes lance aussi, après les
+//    comptes, le récapitulatif « À commander » (du lundi au vendredi, au premier passage après 15 h 45)
 //  - mesurerStockage chaque nuit vers 2 h, poursuivreMesureStockage une heure plus tard (ne fait quelque chose que si le
 //    tour de mesure n'est pas fini), traiterPurges toutes les 30 min (sort tout de suite s'il n'y a rien à faire) (lot 5)
 const DECLENCHEURS = ['renvoyerMailsEnAttente', 'traiterComptes', 'surModificationSheet', 'mesurerStockage', 'poursuivreMesureStockage', 'traiterPurges'];
@@ -137,6 +138,7 @@ function verifierConfig() {
   });
   lignes.push(verifierComptes_());    // lot 2 : comptes, clé, partage du Sheet, transition
   lignes.push(verifierStockage_());   // lot 5 : onglets Stockage et Purges, place du compte
+  lignes.push(verifierDemandes_());   // lot 10 : onglet Demandes, récapitulatif « À commander »
   // Outillage : les outils d'essai (porte de service et sa clé) ne doivent exister que sur la copie TEST
   const ou = environnementReel_(), porte = typeof outilTest_ === 'function', cleOutils = !!propriete_('CLE_OUTILS_TEST');
   if (ou.env === 'INCOHERENT') ok(false, 'Environnement incohérent : la propriété ENVIRONNEMENT et le nom du Sheet « ' + ou.sheet + ' » ne disent pas la même chose');
