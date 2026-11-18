@@ -34,6 +34,7 @@ import argparse
 import datetime
 import hashlib
 import json
+import math
 import os
 import re
 import socket
@@ -100,7 +101,10 @@ PDF_MAX = 200 * 1024 * 1024                    # octets : au-delà, un PDF n'est
 REPOS = 120                                    # secondes : un PDF n'est déposé que s'il n'a pas bougé depuis deux minutes (fini d'écrire)
 LIMITE_PASSAGE = 40 * 60                       # secondes : au-delà, le passage ne commence plus de dépôt (la tâche est arrêtée à 1 heure)
 ECHECS_MAX = 3                                 # après trois dépôts manqués, un PDF n'est plus retenté tant qu'il ne change pas
-OCTETS_PAR_POINT = 0.14                        # estimation du poids des images du carnet, par point d'image (plans au trait)
+# Estimation du poids des images du carnet (« Voir seulement ») : quelques tuiles sont vraiment fabriquées et pesées (lot 4d)
+ESTIMATION_TUILES = (12, 8, 6)                 # tuiles pesées : au niveau le plus fin, au suivant, puis à chacun des autres niveaux
+ESTIMATION_EXACTE = 600000                     # points d'image : un niveau plus petit que cela est fabriqué en entier (pesée exacte)
+ESTIMATION_PAGES = 8                           # au-delà, l'estimation porte sur 8 pages réparties dans le document
 DEPOT_VISIBLE = 7 * 24 * 3600                  # secondes : un dépôt, ou un signalement du carnet, reste sept jours dans « A VOIR »
 # Dans « À METTRE AU CARNET », la forme courte : <n° document>-<indice>-<INTITULÉ>.pdf (le chantier est celui du dossier)
 NOM_COURT = re.compile(r"^(\d{3}[A-Za-z]?)-([A-Za-z0-9]{1,2})-(.+)\.pdf$", re.IGNORECASE)
@@ -209,6 +213,11 @@ def heure_de_paris(instant=None):
     ete = dernier_dimanche(3) <= instant < dernier_dimanche(10)
     paris = datetime.timezone(datetime.timedelta(hours=2 if ete else 1))
     return instant.astimezone(paris).isoformat(timespec="seconds")
+
+
+def pluriel(n, un, plusieurs):
+    """« 1 fichier » / « 4 fichiers » : « plusieurs » contient %d."""
+    return un if n == 1 else plusieurs % n
 
 
 def mo(octets):
@@ -527,6 +536,7 @@ def documents_a_deposer(reglages, horloge=time.time, compter_pages=nombre_de_pag
             if des_bordereaux:
                 signaler(numero, "a-declarer", "Chantier n° %s : %d document(s) de bordereau en attente — numérotation à déclarer "
                          "(appli-pc, choix 6). Rien n'est déposé au carnet depuis ses bordereaux d'ici là." % (numero, len(des_bordereaux)))
+                rendu["signales"][-1]["nombre"] = len(des_bordereaux)      # « A VOIR » regroupe ces chantiers en une seule ligne
         elif declare != "non":
             trouves += [(origine, dossier, f, False) for origine, dossier, f in des_bordereaux]
 
@@ -671,20 +681,85 @@ def decrire_candidat(c, rang=None, total=None):
     return lignes
 
 
+def ligne_a_declarer(chantiers):
+    """UNE ligne « A VOIR » pour tous les chantiers dont la numérotation des bordereaux n'est pas déclarée : [(n°, nombre de PDF)]."""
+    chantiers = sorted(chantiers, key=lambda x: (len(str(x[0])), str(x[0])))
+    liste = ", ".join("n° %s (%d PDF)" % (numero, nombre) for numero, nombre in chantiers)
+    return ("Numérotation des bordereaux à déclarer (appli-pc, choix 6) — %s : %s. Rien ne part au carnet depuis leurs bordereaux d'ici là "
+            "(réponse « r » au choix 6 pour un chantier dont aucun plan ne doit partir)."
+            % (pluriel(len(chantiers), "1 chantier", "%d chantiers"), liste))
+
+
 def ligne_depot(d):
     return "%s — chantier n° %s : %s %s %s, %d page(s), depuis « %s » (fichier « %s »)" % (
         d.get("le", "?"), d.get("numero", "?"), d.get("code", "?"), d.get("indice", "?"), d.get("intitule", ""), d.get("pages", 0),
         d.get("origine", "?"), d.get("fichier", "?"))
 
 
+def poids_page_estime(page, dpi):
+    """Le poids des images du carnet pour UNE page (aperçus + tuiles de tous les niveaux), estimé en fabriquant pour de vrai
+    une partie des images, exactement comme le dépôt (depot_carnet.traiter_page), sans rien écrire.
+    Pourquoi : le poids d'une tuile va de 0,5 Ko (blanche) à plus de 100 Ko (hachures, textes serrés) ; une règle fixe « tant
+    d'octets par point d'image » se trompait du simple au double (lot 4d). Ici : les deux aperçus sont fabriqués ; un petit niveau
+    est fabriqué en entier ; dans un grand niveau, les tuiles sont classées de la plus vide à la plus chargée d'après l'aperçu net
+    (la quantité de contours), coupées en ESTIMATION_TUILES groupes, et la tuile du milieu de chaque groupe est fabriquée et pesée :
+    elle compte pour tout son groupe."""
+    from PIL import ImageChops, ImageStat
+    largeur_pt, hauteur_pt = page.get_size()
+    plein = dpi / 72.0
+    largeur, hauteur = int(round(largeur_pt * plein)), int(round(hauteur_pt * plein))
+    total = 0
+    for cote in (dc.LEGER, dc.NET):
+        apercu = page.render(scale=min(plein, cote / max(largeur_pt, hauteur_pt))).to_pil().convert("RGB")
+        total += len(dc.webp(apercu))
+    if max(largeur, hauteur) <= dc.NET:
+        return total                              # comme au dépôt : une très petite page n'a que ses aperçus
+    gris = apercu.convert("L")
+    contours = ImageChops.add(ImageChops.difference(gris, ImageChops.offset(gris, 1, 0)), ImageChops.difference(gris, ImageChops.offset(gris, 0, 1)))
+    fx, fy = apercu.width / largeur, apercu.height / hauteur
+    for z, l, h in dc.niveaux_de(largeur, hauteur):
+        echelle, k = plein / (2 ** z), 2 ** z
+        tuiles = []
+        for li in range(-(-h // dc.TUILE)):
+            for c in range(-(-l // dc.TUILE)):
+                x0, y0, x1, y1 = c * dc.TUILE, li * dc.TUILE, min(l, (c + 1) * dc.TUILE), min(h, (li + 1) * dc.TUILE)
+                ax, ay = int(x0 * k * fx), int(y0 * k * fy)
+                zone = (ax, ay, max(ax + 1, int(math.ceil(x1 * k * fx))), max(ay + 1, int(math.ceil(y1 * k * fy))))
+                tuiles.append((ImageStat.Stat(contours.crop(zone)).mean[0], (x1 - x0) * (y1 - y0), (x0, y0, x1, y1)))
+        if l * h <= ESTIMATION_EXACTE:
+            image = page.render(scale=echelle).to_pil().convert("RGB")
+            for _, _, (x0, y0, x1, y1) in tuiles:
+                boite = (x0, y0, min(image.width, x1), min(image.height, y1))
+                if boite[2] > boite[0] and boite[3] > boite[1]:
+                    total += len(dc.webp(image.crop(boite)))
+            image.close()
+            continue
+        tuiles.sort(key=lambda t: t[0])
+        n = len(tuiles)
+        groupes = min(n, ESTIMATION_TUILES[min(z, len(ESTIMATION_TUILES) - 1)])
+        for g in range(groupes):
+            groupe = tuiles[g * n // groupes:(g + 1) * n // groupes]
+            x0, y0, x1, y1 = tuiles[min(n - 1, int((g + 0.5) * n / groupes))][2]
+            image = page.render(scale=echelle, crop=(x0 / echelle, max(0.0, hauteur_pt - y1 / echelle),
+                                                     max(0.0, largeur_pt - x1 / echelle), y0 / echelle)).to_pil().convert("RGB")
+            total += len(dc.webp(image)) / max(1, image.width * image.height) * sum(t[1] for t in groupe)
+            image.close()
+    return int(total)
+
+
 def poids_estime(chemin, code):
-    """Une estimation du poids des images du carnet pour ce PDF (d'après la surface de ses pages) ; None si on ne sait pas."""
+    """Une estimation du poids des images du carnet pour ce PDF (à ±20 % près sur les essais du lot 4d) ; None si on ne sait pas.
+    Environ une seconde par grande page ; au-delà de ESTIMATION_PAGES pages, seules 8 pages réparties sont estimées, et le
+    résultat est ramené à la surface de tout le document."""
     try:
         pypdfium2, _ = dc.charger_modules()
         document = pypdfium2.PdfDocument(chemin)
         try:
-            echelle = dc.DPI_PAR_CODE[code] / 72.0
-            return int(sum(document[n].get_size()[0] * document[n].get_size()[1] for n in range(len(document))) * echelle * echelle * OCTETS_PAR_POINT)
+            dpi, n = dc.DPI_PAR_CODE[code], len(document)
+            surfaces = [document[i].get_size()[0] * document[i].get_size()[1] for i in range(n)]
+            choisies = sorted({min(n - 1, int((i + 0.5) * n / ESTIMATION_PAGES)) for i in range(ESTIMATION_PAGES)}) if n > ESTIMATION_PAGES else range(n)
+            pese = sum(poids_page_estime(document[i], dpi) for i in choisies)
+            return int(pese * sum(surfaces) / max(1e-9, sum(surfaces[i] for i in choisies)))
         finally:
             document.close()
     except Exception:
@@ -697,7 +772,8 @@ def deposer_tout(reglages, prive, dire=print, horloge=time.time, attente=time.sl
     « fin » : l'heure (horloge) après laquelle on ne commence plus de dépôt ; un dépôt en cours s'arrête proprement entre deux
     pages et reprendra au passage suivant. « memoriser » faux (essai sur un seul chantier) : les signalements ne sont pas retenus.
     Une erreur sur un document n'arrête jamais les autres ; la mémoire est écrite quoi qu'il arrive.
-    Rend {"deposes", "a_voir" (lignes), "recents" (dépôts des sept derniers jours), "erreurs", "reste", "signales", "sans_module"}."""
+    Rend {"deposes", "a_voir" (lignes : ce qui demande une action), "infos" (lignes « pour information »), "recents" (dépôts des
+    sept derniers jours), "erreurs", "reste", "signales", "sans_module"}."""
     deposer, verifier = deposer or dc.deposer, verifier or dc.verifier
     chemin_memoire = os.path.join(prive, MEMOIRE_FICHIER)
     memoire = lire_memoire(chemin_memoire)
@@ -714,7 +790,7 @@ def deposer_tout(reglages, prive, dire=print, horloge=time.time, attente=time.sl
                                    "durable": True,
                                    "texte": "Chantier n° %s, « %s », « %s » : fichier encore en cours d'écriture ou de synchronisation. "
                                             "Il sera déposé au prochain passage." % (d["numero"], d["origine"], d["fichier"])})
-    bilan = {"deposes": [], "a_voir": [], "recents": [], "erreurs": 0, "reste": 0, "signales": len(vu["signales"]),
+    bilan = {"deposes": [], "a_voir": [], "infos": [], "recents": [], "erreurs": 0, "reste": 0, "signales": len(vu["signales"]),
              "sans_module": vu["sans_module"], "candidats": len(vu["candidats"])}
     if vu["sans_module"]:
         bilan["a_voir"].append("Le dépôt au carnet ne peut pas se faire sur ce PC : un module de Python manque. À lancer une fois dans une "
@@ -780,7 +856,14 @@ def deposer_tout(reglages, prive, dire=print, horloge=time.time, attente=time.sl
         # Ce qui n'a pas pu être déposé. « Durable » (« À METTRE AU CARNET », chantier entier) : dit tant que la cause est là.
         # Le reste (bordereaux) : dit une fois — la ligne reste sept jours — puis plus répété tant que le fichier ne change pas.
         maintenant = horloge()
+        a_declarer = []
         for x in vu["signales"]:
+            if x["motif"] == "a-declarer":
+                a_declarer.append((x["numero"], x.get("nombre", 0)))      # une seule ligne pour tous ces chantiers, plus bas
+                continue
+            if x["motif"] == "en-cours":
+                bilan["infos"].append(x["texte"])                          # rien à faire : il part au passage suivant
+                continue
             if x.get("durable"):
                 bilan["a_voir"].append(x["texte"])
                 continue
@@ -794,6 +877,8 @@ def deposer_tout(reglages, prive, dire=print, horloge=time.time, attente=time.sl
             if memoriser:
                 memoire["signales"] = [m for m in memoire["signales"] if m not in note]
                 memoire["signales"].append({"chemin": x["chemin"], "motif": x["motif"], "taille": x["taille"], "date": x["date"], "vu": maintenant})
+        if a_declarer:
+            bilan["a_voir"].append(ligne_a_declarer(a_declarer))
         memoire["deposes"] = [d for d in memoire["deposes"] if maintenant - float(d.get("instant", 0)) < DEPOT_VISIBLE]
         memoire["signales"] = [m for m in memoire["signales"] if maintenant - float(m.get("vu", 0)) < 400 * 24 * 3600]
         bilan["recents"] = [ligne_depot(d) for d in memoire["deposes"]]
@@ -1510,11 +1595,52 @@ def un_seul(suivis, a_voir, seul):
 
 
 # ── Ce qui demande l'attention de Franck : le fichier « CHANTIERPRO - A VOIR.txt » ──
+# Deux sortes de lignes (lot 4d, demande de Franck du 18/11/2026) :
+#  - les POINTS (« - ») : ce qui demande une action de Franck, en clair, un par fichier ; eux seuls sont comptés ;
+#  - « POUR INFORMATION » (« * ») : ce qui n'est pas copié mais ne demande rien, UNE ligne par chantier avec les nombres.
+#    Le détail, fichier par fichier, reste dans « Voir seulement » (appli-pc, choix 2).
+INFOS = ("hors-rangement", "doublon", "raccourci", "absente")      # motifs de la recopie regroupés « pour information »
+VOIR_DETAIL = "détail : appli-pc, choix 2 « Voir seulement »"
+
+
+def et(morceaux):
+    return morceaux[0] if len(morceaux) == 1 else "%s et %s" % (", ".join(morceaux[:-1]), morceaux[-1])
+
+
+def phrase_info(numero, comptes):
+    """La ligne « pour information » d'un chantier, d'après {motif: nombre}. None s'il n'y a rien."""
+    non_copies = [pluriel(comptes[m], un, plusieurs) for m, un, plusieurs in (
+        ("hors-rangement", "1 fichier hors des dossiers de fiches", "%d fichiers hors des dossiers de fiches"),
+        ("doublon", "1 doublon fabriqué par Drive", "%d doublons fabriqués par Drive"),
+        ("raccourci", "1 raccourci Google", "%d raccourcis Google")) if comptes.get(m)]
+    morceaux = []
+    if non_copies:
+        morceaux.append("%s, %s" % (et(non_copies), "non copié" if sum(comptes.get(m, 0) for m in INFOS[:3]) == 1 else "non copiés"))
+    if comptes.get("absente"):
+        morceaux.append(pluriel(comptes["absente"], "1 fiche de l'appli absente du dossier du PC (déplacée ou supprimée par toi : pas recopiée)",
+                                "%d fiches de l'appli absentes du dossier du PC (déplacées ou supprimées par toi : pas recopiées)"))
+    if not morceaux:
+        return None
+    return "Chantier n° %s : %s (%s)." % (numero, " ; ".join(morceaux), VOIR_DETAIL)
+
+
+def info_a_voir(plan):
+    """La ligne « pour information » d'un chantier (ce qui n'est pas copié et ne demande rien) ; None s'il n'y a rien."""
+    comptes = {}
+    for s in plan["signales"]:
+        if s["motif"] in INFOS:
+            comptes[s["motif"]] = comptes.get(s["motif"], 0) + 1
+    return phrase_info(plan["numero"], comptes)
+
+
 def lignes_a_voir(plan, maxi=A_VOIR_MAX):
-    """Les lignes « à voir » d'un chantier : ce qui a été signalé sans être copié, les copies et les écritures en erreur."""
+    """Les POINTS « à voir » d'un chantier (ce qui demande une action) : ce qui a été signalé sans être copié — sauf les motifs
+    « pour information » (INFOS, voir info_a_voir) —, les copies et les écritures en erreur."""
     qui = "Chantier n° %s (« %s »)" % (plan["numero"], plan["dossier_pc"])
     lignes = []
     for motif in LIBELLES:
+        if motif in INFOS:
+            continue
         trouves = [s for s in plan["signales"] if s["motif"] == motif]
         for s in trouves[:maxi]:
             lignes.append("%s — %s : %s%s" % (qui, LIBELLES[motif], s["chemin"], " (%s)" % s["detail"] if s["detail"] else ""))
@@ -1527,7 +1653,7 @@ def lignes_a_voir(plan, maxi=A_VOIR_MAX):
     return lignes
 
 
-def texte_a_voir(lignes, maintenant=None, deposes=()):
+def texte_a_voir(lignes, maintenant=None, deposes=(), infos=()):
     quand = datetime.datetime.fromisoformat(heure_de_paris(maintenant)).strftime("%d/%m/%Y à %H:%M")
     texte = ["CHANTIERPRO — À VOIR", "Mis à jour le %s (recopie des fiches de l'appli, dépôt au carnet des poseurs)." % quand, ""]
     if lignes:
@@ -1535,6 +1661,9 @@ def texte_a_voir(lignes, maintenant=None, deposes=()):
         texte.extend("- " + ligne for ligne in lignes)
     else:
         texte.append("Rien à signaler.")
+    if infos:
+        texte += ["", "Pour information (rien à faire ; le détail, fichier par fichier : appli-pc, choix 2 « Voir seulement ») :"]
+        texte.extend("* " + ligne for ligne in infos)
     texte += ["", "Déposé au carnet ces sept derniers jours (les poseurs voient ces documents) :"]
     texte.extend("+ " + ligne for ligne in deposes)
     if not deposes:
@@ -1554,9 +1683,10 @@ def lire_a_voir(chantiers_pc):
         return None
 
 
-def points_a_voir(chantiers_pc, deposes=False):
+def points_a_voir(chantiers_pc, deposes=False, infos=False):
     """Ce que dit le fichier « A VOIR » déjà écrit : (ses lignes, la date de sa mise à jour) ; (None, None) s'il n'existe pas.
-    « deposes » vrai : les lignes de la section « Déposé au carnet » à la place des points."""
+    « deposes » vrai : les lignes de la section « Déposé au carnet » à la place des points ; « infos » vrai : celles de la section
+    « Pour information » (aucune dans un fichier écrit avant le lot 4d)."""
     texte = lire_a_voir(chantiers_pc)
     if texte is None:
         return None, None
@@ -1565,26 +1695,30 @@ def points_a_voir(chantiers_pc, deposes=False):
         quand = datetime.datetime.strptime("%s %s" % trouve.groups(), "%d/%m/%Y %H:%M") if trouve else None
     except ValueError:
         quand = None
-    return [ligne[2:] for ligne in texte.splitlines() if ligne.startswith("+ " if deposes else "- ")], quand
+    return [ligne[2:] for ligne in texte.splitlines() if ligne.startswith("+ " if deposes else "* " if infos else "- ")], quand
 
 
-def ecrire_a_voir(chantiers_pc, lignes, maintenant=None, deposes=None):
+def ecrire_a_voir(chantiers_pc, lignes, maintenant=None, deposes=None, infos=None):
     """Réécrit « CHANTIERPRO - A VOIR.txt » SEULEMENT si ses lignes changent, ou s'il a plus d'un jour (pour ne pas faire
     travailler la sauvegarde toutes les heures). Temporaire puis remplacement. Rend True s'il a été réécrit.
-    « deposes » : les lignes de la section « Déposé au carnet » ; None = garder celles qui y sont déjà."""
+    « lignes » : les points qui demandent une action ; « infos » : les lignes « Pour information » ; « deposes » : les lignes de
+    la section « Déposé au carnet ». « infos » ou « deposes » à None = garder celles qui y sont déjà."""
     anciennes, quand = points_a_voir(chantiers_pc)
     anciens_depots = points_a_voir(chantiers_pc, deposes=True)[0] or []
+    anciennes_infos = points_a_voir(chantiers_pc, infos=True)[0] or []
     if deposes is None:
         deposes = anciens_depots
+    if infos is None:
+        infos = anciennes_infos
     present = datetime.datetime.fromisoformat(heure_de_paris(maintenant)).replace(tzinfo=None)
-    if anciennes == list(lignes) and anciens_depots == list(deposes) and quand is not None \
+    if anciennes == list(lignes) and anciens_depots == list(deposes) and anciennes_infos == list(infos) and quand is not None \
             and 0 <= (present - quand).total_seconds() < A_VOIR_FRAIS:
         return False
     chemin = os.path.join(chantiers_pc, A_VOIR)
     temporaire = chemin + ".tmp"
     try:
         with open(temporaire, "w", encoding="utf-8-sig", newline="") as f:      # « -sig » : le Bloc-notes affiche bien les accents
-            f.write(texte_a_voir(lignes, maintenant, deposes))
+            f.write(texte_a_voir(lignes, maintenant, deposes, infos))
         for essai in range(6):
             try:
                 os.replace(temporaire, chemin)
@@ -1599,23 +1733,53 @@ def ecrire_a_voir(chantiers_pc, lignes, maintenant=None, deposes=None):
     return True
 
 
+ANCIENNE_INFO = re.compile(r"^Chantier n° (\d+) \(« .* »\) — (%s) : (.*)$" % "|".join(re.escape(LIBELLES[m]) for m in INFOS))
+ANCIEN_A_DECLARER = re.compile(r"^Chantier n° (\d+) : (\d+) document\(s\) de bordereau en attente — numérotation à déclarer")
+
+
+def reclasser(lignes):
+    """Les points d'un fichier « A VOIR » écrit AVANT le lot 4d : les motifs « pour information » y sont un par fichier, et les
+    bordereaux à déclarer une ligne par chantier. Ils sont regroupés comme aujourd'hui. Rend (points, infos).
+    Un point déjà au format d'aujourd'hui passe tel quel."""
+    points, comptes, a_declarer = [], {}, []
+    for ligne in lignes:
+        trouve = ANCIENNE_INFO.match(ligne)
+        if trouve:
+            numero, libelle, reste = trouve.groups()
+            motif = [m for m in INFOS if LIBELLES[m] == libelle][0]
+            autres = re.match(r"… et (\d+) autre", reste)
+            par_motif = comptes.setdefault(numero, {})
+            par_motif[motif] = par_motif.get(motif, 0) + (int(autres.group(1)) if autres else 1)
+            continue
+        trouve = ANCIEN_A_DECLARER.match(ligne)
+        if trouve:
+            a_declarer.append((trouve.group(1), int(trouve.group(2))))
+            continue
+        points.append(ligne)
+    if a_declarer:
+        points.append(ligne_a_declarer(a_declarer))
+    return points, [phrase_info(numero, comptes[numero]) for numero in comptes]
+
+
 def ajouter_a_voir(chantiers_pc, ligne, maintenant=None):
-    """Un passage n'a pas pu se faire : on AJOUTE cette ligne aux points déjà connus, sans les effacer."""
+    """Un passage n'a pas pu se faire : on AJOUTE cette ligne aux points déjà connus, sans les effacer (ni les lignes « Pour
+    information »). Un fichier laissé par une version d'avant le lot 4d est relu et regroupé au passage."""
     anciennes, _ = points_a_voir(chantiers_pc)
-    gardees = [a for a in (anciennes or []) if not a.startswith(PAS_FAIT)]
-    return ecrire_a_voir(chantiers_pc, gardees + ["%s : %s" % (PAS_FAIT, ligne)], maintenant)
+    infos = points_a_voir(chantiers_pc, infos=True)[0] or []
+    points, regroupees = reclasser([a for a in (anciennes or []) if not a.startswith(PAS_FAIT)])
+    return ecrire_a_voir(chantiers_pc, points + ["%s : %s" % (PAS_FAIT, ligne)], maintenant, infos=infos + regroupees)
 
 
 def rapatrier_tout(reglages, dire=print, maintenant=None, econome=False, resume=True, seul=None, ecrire=True):
     """La recopie des fiches de tous les chantiers reconnus (ou du seul chantier « seul »), puis le fichier « A VOIR ».
     La même fonction sert au double-clic et au passage automatique.
-    Rend {"chantiers", "copies", "deja", "signales", "erreurs", "refuses", "ecritures", "plans", "a_voir"}."""
+    Rend {"chantiers", "copies", "deja", "signales", "erreurs", "refuses", "ecritures", "plans", "a_voir", "infos"}."""
     racine, chantiers_pc = reglages["racine"], dossier_des_chantiers(reglages)
     sous = sous_dossiers(racine)
     suivis, a_voir = un_seul(*chantiers_suivis(reglages, sous), seul)
     effectif = dict(reglages, chantiers=suivis)
     bilan = {"chantiers": len(suivis), "copies": 0, "deja": 0, "signales": 0, "erreurs": 0, "refuses": 0, "ecritures": 0,
-             "plans": [], "a_voir": a_voir}
+             "plans": [], "a_voir": a_voir, "infos": []}
     for numero in tri_numeros(suivis):
         try:
             plan = rapatrier(effectif, numero, sous, dire=dire, maintenant=maintenant, econome=econome)
@@ -1635,13 +1799,16 @@ def rapatrier_tout(reglages, dire=print, maintenant=None, econome=False, resume=
         bilan["erreurs"] += len(plan["erreurs"])
         bilan["ecritures"] += len(plan["ecritures"])
         a_voir.extend(lignes_a_voir(plan))
+        info = info_a_voir(plan)
+        if info:
+            bilan["infos"].append(info)
     if seul is None:
         en_attente = a_classer(racine)
         if en_attente:
             a_voir.append("%d fichier(s) dans « %s » (racine du Drive de l'appli) : ils n'iront dans aucun dossier de chantier tant qu'ils "
                           "ne sont pas rangés dans le Drive (%s%s)." % (len(en_attente), A_CLASSER, ", ".join(en_attente[:5]), "…" if len(en_attente) > 5 else ""))
         if ecrire:
-            ecrire_a_voir(chantiers_pc, a_voir, maintenant)      # avec --chantier (un essai), « A VOIR » n'est pas touché
+            ecrire_a_voir(chantiers_pc, a_voir, maintenant, infos=bilan["infos"])      # avec --chantier (un essai), pas touché
     return bilan
 
 
@@ -1693,16 +1860,16 @@ def passage(reglages, prive, dire=print, maintenant=None, econome=False, resume=
     """UN passage complet, le même pour la tâche planifiée et pour le double-clic : la recopie des fiches, PUIS le dépôt au carnet,
     pour tous les chantiers reconnus (ou le seul chantier « seul »), sans aucune question ; puis « A VOIR ».
     Rend {"chantiers", "copies", "deja", "signales", "rates" (copies, chantiers, écritures, dépôts en erreur), "deposes", "reste",
-    "a_voir", "recents", "candidats"}."""
+    "a_voir" (les points qui demandent une action), "infos" (lignes « pour information »), "recents", "candidats"}."""
     debut = horloge()
     racine, chantiers_pc = reglages["racine"], dossier_des_chantiers(reglages)
     sous = sous_dossiers(racine)
     suivis, a_voir = un_seul(*chantiers_suivis(reglages, sous), seul)
     bilan = {"chantiers": len(suivis), "copies": 0, "deja": 0, "signales": 0, "rates": 0, "deposes": [], "reste": 0, "candidats": 0,
-             "a_voir": a_voir, "recents": None}
+             "a_voir": a_voir, "infos": [], "recents": None}
     if fiches:
         fait = rapatrier_tout(reglages, dire=dire, maintenant=maintenant, econome=econome, resume=resume, seul=seul, ecrire=False)
-        bilan.update(copies=fait["copies"], deja=fait["deja"], signales=fait["signales"], a_voir=fait["a_voir"],
+        bilan.update(copies=fait["copies"], deja=fait["deja"], signales=fait["signales"], a_voir=fait["a_voir"], infos=fait["infos"],
                      rates=fait["erreurs"] + fait["refuses"] + fait["ecritures"])
     if carnet:
         if resume:
@@ -1714,10 +1881,11 @@ def passage(reglages, prive, dire=print, maintenant=None, econome=False, resume=
         bilan["rates"] += depots["erreurs"]
         bilan["signales"] += depots["signales"]
         bilan["a_voir"] = bilan["a_voir"] + depots["a_voir"]
+        bilan["infos"] = bilan["infos"] + depots["infos"]
         if resume and not depots["candidats"]:
             dire("Aucun document à déposer au carnet.")
     if seul is None:
-        ecrire_a_voir(chantiers_pc, bilan["a_voir"], maintenant, bilan["recents"])      # avec --chantier (un essai) : pas touché
+        ecrire_a_voir(chantiers_pc, bilan["a_voir"], maintenant, bilan["recents"], bilan["infos"])      # avec --chantier (un essai) : pas touché
     return bilan
 
 
@@ -1767,9 +1935,9 @@ def passage_auto(chemin_reglages, maintenant=None, seul=None, fiches=True, carne
         return 1
     finally:
         liberer_verrou(verrou, moi)
-    ligne = "%d chantier(s) ; %d fichier(s) copié(s), %d document(s) déposé(s) au carnet%s, %d en erreur ; %d point(s) à voir." % (
+    ligne = "%d chantier(s) ; %d fichier(s) copié(s), %d document(s) déposé(s) au carnet%s, %d en erreur ; %d point(s) à voir%s." % (
         bilan["chantiers"], bilan["copies"], len(bilan["deposes"]), " (%d restent pour le prochain passage)" % bilan["reste"] if bilan["reste"] else "",
-        bilan["rates"], len(bilan["a_voir"]))
+        bilan["rates"], len(bilan["a_voir"]), " (+ %d ligne(s) pour information)" % len(bilan["infos"]) if bilan["infos"] else "")
     noter_auto(prive, [ligne] + ["DÉPOSÉ AU CARNET : " + ligne_depot(d) for d in bilan["deposes"]]
                + ([x for x in detail if x.strip() and "DÉPOSÉ AU CARNET" not in x] if bilan["copies"] or bilan["rates"] else []))
     noter_passage(prive)
@@ -1976,7 +2144,8 @@ def lister(reglages, dire=print, seul=None, horloge=time.time):
             dire(ligne)
     if vu["candidats"]:
         dire("")
-        dire("Ce qui partirait au carnet, par chantier (le poids est une estimation des images, dans le Drive de l'appli) :")
+        dire("Ce qui partirait au carnet, par chantier (poids des images dans le Drive de l'appli, estimé à 20 % près en fabriquant "
+             "une partie des images : environ une seconde par grande page, patiente) :")
         for numero in tri_numeros({c["numero"] for c in vu["candidats"]}):
             les_siens = [c for c in vu["candidats"] if c["numero"] == numero]
             poids = [poids_estime(c["chemin"], c["code"]) for c in les_siens]
@@ -2023,6 +2192,10 @@ def tout_traiter(reglages, prive, dire, carnet=True, rapatriement=True, seul=Non
         resume.append("À voir : %d point(s) pour ce chantier." % len(bilan["a_voir"]))
     for ligne in bilan["a_voir"][:LISTE_MAX]:
         resume.append("  ! " + ligne)
+    if bilan["infos"]:
+        resume.append("Pour information (rien à faire) : %d ligne(s)." % len(bilan["infos"]))
+        for ligne in bilan["infos"][:LISTE_MAX]:
+            resume.append("  * " + ligne)
     if bilan["copies"]:
         resume.append("PENSE À VÉRIFIER QUE MEGA A FINI DE SYNCHRONISER : les fichiers sont sur le disque du PC, la sauvegarde suit.")
     dire("")

@@ -324,6 +324,14 @@ class Carnet(Monde):
         self.assertEqual([d["id"] for d in self.carnet_json()["documents"]], ["106-A"], "aucun document de bordereau n'est parti")
         heure = [time.time() + 30 * 86400]
         self.assertEqual(len(self.deposer(horloge=lambda: heure[0])["a_voir"]), 1, "la ligne reste tant que ce n'est pas déclaré")
+        # Deux chantiers non déclarés : UNE seule ligne « A VOIR », qui les cite tous les deux (lot 4d) ; le détail reste dans « Voir seulement »
+        self.reglages["chantiers"]["902"] = {"chantier": "Chantier Essai Deux", "dossier_drive": DRIVE_2}
+        self.bordereau(3, "902-10-105-A-RESERVATIONS.pdf", chantier=PC_2)
+        self.assertEqual(self.deposer()["a_voir"], [
+            "Numérotation des bordereaux à déclarer (appli-pc, choix 6) — 2 chantiers : n° 901 (3 PDF), n° 902 (1 PDF). Rien ne part au carnet "
+            "depuis leurs bordereaux d'ici là (réponse « r » au choix 6 pour un chantier dont aucun plan ne doit partir)."])
+        self.assertEqual([x["motif"] for x in self.voir()["signales"]], ["a-declarer", "a-declarer"])
+        del self.reglages["chantiers"]["902"]
         # « Ne rien déposer depuis ces bordereaux » : plus de dépôt, plus de ligne
         self.reglages["bordereaux"] = {"901": "non"}
         vu = self.voir()
@@ -579,8 +587,8 @@ class Carnet(Monde):
             autre = self.mettre("106-A-REPERAGE.pdf")
             os.utime(autre, (heure[0], heure[0]))
             bilan = self.deposer(horloge=lambda: heure[0], attente=lambda secondes: None)
-            self.assertEqual(bilan["deposes"], [])
-            self.assertRegex(bilan["a_voir"][0], "106-A-REPERAGE.pdf » : fichier encore en cours d'écriture")
+            self.assertEqual((bilan["deposes"], bilan["a_voir"]), ([], []), "rien à faire : ce n'est pas un point d'action")
+            self.assertRegex(bilan["infos"][0], "106-A-REPERAGE.pdf » : fichier encore en cours d'écriture")
             heure[0] += 3600
             self.assertEqual([d["code"] for d in self.deposer(horloge=lambda: heure[0], attente=patienter)["deposes"]], ["106"])
         self.assertTrue(os.path.isfile(chemin) and os.path.isfile(autre), "les PDF restent où Franck les a mis")
@@ -903,7 +911,13 @@ class Rapatriement(Monde):
         self.assertEqual([a["chemin"] for a in plan["copies"]], [COTES + "/C.pdf"], "A, déjà copié une fois, n'est JAMAIS recopié : son choix est respecté")
         self.assertFalse(os.path.exists(os.path.join(self.pc, PC_1, COTES, "A.pdf")))
         self.assertEqual([(x["motif"], x["chemin"]) for x in plan["signales"]], [("absente", COTES + "/A.pdf")])
-        self.assertRegex("\n".join(ap.lignes_a_voir(plan)), "fiche de l'appli absente du dossier du PC : déplacée ou supprimée \\?.*A\\.pdf")
+        # « A VOIR » (lot 4d) : pas un point d'action, une ligne « pour information » avec le nombre ; le détail reste à l'écran
+        self.assertEqual(ap.lignes_a_voir(plan), [])
+        self.assertEqual(ap.info_a_voir(plan), "Chantier n° 901 : 1 fiche de l'appli absente du dossier du PC (déplacée ou supprimée par toi : "
+                                               "pas recopiée) (détail : appli-pc, choix 2 « Voir seulement »).")
+        self.lignes = []
+        ap.dire_rapatriement(plan, self.dire)
+        self.assertRegex(self.texte(), "fiche de l'appli absente du dossier du PC : déplacée ou supprimée \\?.*\n.*A\\.pdf")
         provenance = self.provenance()
         self.assertEqual([e["chemin"] for e in provenance["fichiers"]], [COTES + "/A.pdf", COTES + "/B.pdf", COTES + "/C.pdf"], "jamais de doublon")
         self.assertEqual(provenance["fichiers"][1], premiere["fichiers"][1], "les entrées existantes sont gardées telles quelles")
@@ -1397,7 +1411,8 @@ class LigneDeCommande(Monde):
         self.assertTrue(os.path.isfile(os.path.join(self.pc, PC_1, COTES, "A.pdf")))
         for attendu in ("BILAN", "Recopie des fiches : 1 fichier(s) copié(s) dans les dossiers de chantier du PC, 0 déjà présent(s)",
                         "Carnet : 1 document(s) déposé(s)", "DÉPOSÉ AU CARNET : ", "105 A RESERVATIONS, 2 page(s), depuis « BORDEREAU 1 »",
-                        "choix 5 du menu", "À voir : 4 point(s)", "VÉRIFIER QUE MEGA A FINI DE SYNCHRONISER", "Rien n'a été supprimé", "page 2/2"):
+                        "choix 5 du menu", "À voir : 3 point(s)", "Pour information (rien à faire) : 1 ligne(s).",
+                        "* Chantier n° 901 : 1 raccourci Google, non copié (détail : appli-pc, choix 2 « Voir seulement »).", "VÉRIFIER QUE MEGA A FINI DE SYNCHRONISER", "Rien n'a été supprimé", "page 2/2"):
             self.assertIn(attendu, sortie)
         self.assertEqual(sorted(os.listdir(self.prive)), ["appli-pc", ap.MEMOIRE_FICHIER, "depot.json"], "le verrou est libéré")
         journal = [n for n in os.listdir(os.path.join(self.prive, "appli-pc")) if n.startswith("journal-")]
@@ -1725,11 +1740,14 @@ class Automatique(Monde):
         for attendu in (r"n° 906 \(dossier du Drive « 906 - SANS DOSSIER PC »\) : aucun dossier de chantier du PC ne commence par le numéro 906",
                         r"n° 907 .*plusieurs dossiers de chantier du PC commencent par le numéro 907 \(« 907 - OPERATION », « 907-OPERATION BIS »\)",
                         r"« CHANTIER SANS NUMERO » : pas de numéro de chantier", r"PAS de la même taille.*MEME NOM\.pdf",
-                        r"hors des dossiers de fiches.*Divers/HORS\.pdf", r"raccourci Google.*Lien\.gdoc", r"6 point\(s\) demandent ton attention"):
+                        r"4 point\(s\) demandent ton attention", r"Pour information .*\n\* Chantier n° 903 : 1 fichier hors des dossiers de fiches et "
+                        r"1 raccourci Google, non copiés \(détail : appli-pc, choix 2 « Voir seulement »\)\."):
             self.assertRegex(texte, attendu)
         self.assertNotIn(self.racine, texte)
         self.assertNotIn(self.pc, texte)
-        self.assertIn("6 point(s) à voir", self.lignes_du_journal()[0])
+        self.assertIn("4 point(s) à voir (+ 1 ligne(s) pour information).", self.lignes_du_journal()[0])
+        self.assertNotIn("HORS.pdf", texte, "le détail fichier par fichier n'est plus dans « A VOIR »…")
+        self.assertIn("Divers/HORS.pdf", self.lancer("--lister")[1], "… il est dans « Voir seulement »")
 
     def test_verrou_pris_sort_sans_erreur_et_le_dit(self):
         self.monde_propre()
@@ -1749,8 +1767,8 @@ class Automatique(Monde):
             # C'est écrit dans « A VOIR », en PLUS des points déjà connus, et une seule fois
             texte = ap.lire_a_voir(self.pc)
             self.assertRegex(texte, "PASSAGE NON FAIT : le passage automatique a trouvé le programme déjà occupé")
-            self.assertIn("raccourci Google", texte)
-            self.assertIn("2 point(s)", texte)
+            self.assertIn("* Chantier n° 901 : 1 raccourci Google", texte, "les lignes « pour information » sont gardées aussi")
+            self.assertIn("1 point(s)", texte)
             date = os.stat(os.path.join(self.pc, ap.A_VOIR)).st_mtime_ns
             self.assertEqual(self.auto(), 0)
             self.assertEqual(os.stat(os.path.join(self.pc, ap.A_VOIR)).st_mtime_ns, date, "même ligne : pas réécrit")
@@ -1806,6 +1824,104 @@ class Automatique(Monde):
         self.assertTrue(os.path.isfile(os.path.join(self.pc, "903 - OPERATION TROIS - VILLE", COTES, "A.pdf")))
         self.assertIn("Rien à signaler.", ap.lire_a_voir(self.pc))
 
+    def test_a_voir_regroupe_par_chantier_ce_qui_ne_demande_rien(self):
+        """Lot 4d : « hors des dossiers de fiches », « doublon fabriqué par Drive »… : UNE ligne par chantier, avec les nombres,
+        après les points d'action, sous « Pour information » ; le compteur ne compte que les points d'action."""
+        self.monde_propre()
+        for nom in ("CCTP/LOT 08.pdf", "CCTP/LOT 10.pdf", "QT Tableau/QUANTITATIF.pdf"):
+            self.fiche(nom, "hors", dossier="903 - CHANTIER TROIS")
+        for nom in ("FICHE.pdf", "FICHE (1).pdf", "FICHE (2).pdf"):
+            self.fiche(COTES + "/" + nom, "même", dossier="903 - CHANTIER TROIS")
+        self.fiche(COTES + "/AUTRE.pdf", "a", dossier="904-CHANTIER QUATRE")
+        self.fiche(COTES + "/AUTRE (1).pdf", "a", dossier="904-CHANTIER QUATRE")
+        self.fiche(COTES + "/MEME NOM.pdf", "taille du Drive", dossier="904-CHANTIER QUATRE")
+        ecrire(os.path.join(self.pc, "904-OPERATION QUATRE", COTES, "MEME NOM.pdf"), "autre taille")
+        self.assertEqual(self.auto(), 0)
+        texte = ap.lire_a_voir(self.pc)
+        lignes = texte.splitlines()
+        self.assertIn("1 point(s) demandent ton attention :", lignes, "seul le fichier de taille différente demande une action")
+        self.assertEqual([l for l in lignes if l.startswith("* ")], [
+            "* Chantier n° 903 : 3 fichiers hors des dossiers de fiches et 2 doublons fabriqués par Drive, non copiés "
+            "(détail : appli-pc, choix 2 « Voir seulement »).",
+            "* Chantier n° 904 : 1 doublon fabriqué par Drive, non copié (détail : appli-pc, choix 2 « Voir seulement »)."])
+        # L'ordre : les points d'action, puis « Pour information », puis les dépôts au carnet
+        rang = [next(i for i, l in enumerate(lignes) if l.startswith(debut)) for debut in ("- ", "Pour information", "* ", "Déposé au carnet")]
+        self.assertEqual(rang, sorted(rang))
+        self.assertNotIn("CCTP/LOT 08.pdf", texte)
+        self.assertEqual(ap.points_a_voir(self.pc)[0], [l[2:] for l in lignes if l.startswith("- ")])
+        self.assertEqual(len(ap.points_a_voir(self.pc, infos=True)[0]), 2)
+        self.assertIn("1 point(s) à voir (+ 2 ligne(s) pour information).", [l for l in self.lignes_du_journal() if l.startswith("[")][-1])
+        # Rien ne change : le fichier n'est pas réécrit
+        date = os.stat(os.path.join(self.pc, ap.A_VOIR)).st_mtime_ns
+        self.assertEqual(self.auto(), 0)
+        self.assertEqual(os.stat(os.path.join(self.pc, ap.A_VOIR)).st_mtime_ns, date, "mêmes lignes : pas réécrit")
+        # Un nombre change : réécrit
+        self.fiche("CCTP/LOT 12.pdf", "hors", dossier="903 - CHANTIER TROIS")
+        self.assertEqual(self.auto(), 0)
+        self.assertIn("* Chantier n° 903 : 4 fichiers hors des dossiers de fiches et 2 doublons", ap.lire_a_voir(self.pc))
+        # « Voir seulement » garde TOUT le détail, fichier par fichier
+        code, sortie, _ = self.lancer("--lister")
+        self.assertEqual(code, 0)
+        for nom in ("CCTP/LOT 08.pdf", "CCTP/LOT 10.pdf", "CCTP/LOT 12.pdf", "QT Tableau/QUANTITATIF.pdf", "FICHE (1).pdf", "FICHE (2).pdf", "AUTRE (1).pdf"):
+            self.assertIn(nom, sortie)
+
+    def test_ancien_fichier_a_voir_relu_sans_erreur(self):
+        """La tâche planifiée tournera avec la nouvelle version sur le fichier laissé par l'ancienne (lot 4c)."""
+        self.monde_propre()
+        hors = "hors des dossiers de fiches (pas copié : range-le dans le Drive s'il doit aller dans le dossier du chantier)"
+        ancien = "\r\n".join([
+            "CHANTIERPRO — À VOIR", "Mis à jour le 18/11/2026 à 17:42 (recopie des fiches de l'appli, dépôt au carnet des poseurs).", "",
+            "8 point(s) demandent ton attention :",
+            "- Dossier du Drive « CHANTIER SANS NUMERO » : pas de numéro de chantier en tête de son nom. Rien n'est copié pour lui "
+            "(pour le relier à son dossier du PC : choix 4 du menu de appli-pc).",
+            "- Chantier n° 903 (« 903 - OPERATION TROIS - VILLE ») — %s : CCTP/LOT 08.pdf" % hors,
+            "- Chantier n° 903 (« 903 - OPERATION TROIS - VILLE ») — %s : QT Tableau/QUANTITATIF.pdf" % hors,
+            "- Chantier n° 903 (« 903 - OPERATION TROIS - VILLE ») — %s : … et 4 autre(s) (liste complète : choix 2 du menu de appli-pc)." % hors,
+            "- Chantier n° 903 (« 903 - OPERATION TROIS - VILLE ») — raccourci Google, qui ne contient pas le document (pas copié) : "
+            "05 - CHANTIER/PRISE DE COTES/Lien.gdoc",
+            "- Chantier n° 904 (« 904 - OPERATION — QUATRE ») — doublon fabriqué par Drive (pas copié) : 07 - ATELIER/Fab (1).pdf",
+            "- Chantier n° 901 : 11 document(s) de bordereau en attente — numérotation à déclarer (appli-pc, choix 6). "
+            "Rien n'est déposé au carnet depuis ses bordereaux d'ici là.",
+            "- Chantier n° 902 : 4 document(s) de bordereau en attente — numérotation à déclarer (appli-pc, choix 6). "
+            "Rien n'est déposé au carnet depuis ses bordereaux d'ici là.",
+            "", "Déposé au carnet ces sept derniers jours (les poseurs voient ces documents) :",
+            "+ 18/11/2026 17:23 — chantier n° 903 : 152 A PLAN D'ESSAI, 7 page(s), depuis « BORDEREAU 9 » (fichier « 903-08-152-A-PLAN D'ESSAI.pdf »)",
+            "", "Un document déposé par erreur ? appli-pc, choix 5 (« Retirer un document du carnet »).",
+            "Ce fichier n'est réécrit que si quelque chose change, et au moins une fois par jour.",
+            "Pour savoir quand le passage automatique a tourné pour la dernière fois : appli-pc, choix 3.",
+            "Rien n'est jamais supprimé ni écrasé par le programme.", ""])
+        fichier = os.path.join(self.pc, ap.A_VOIR)
+        with open(fichier, "w", encoding="utf-8-sig", newline="") as f:
+            f.write(ancien)
+        # Relu tel quel
+        points, quand = ap.points_a_voir(self.pc)
+        self.assertEqual((len(points), quand), (8, datetime.datetime(2026, 11, 18, 17, 42)))
+        self.assertEqual(ap.points_a_voir(self.pc, infos=True)[0], [])
+        # Un passage NON FAIT (Drive arrêté) juste après la mise à jour : sa ligne est ajoutée, l'ancien détail est regroupé
+        shutil.move(os.path.join(self.racine, "dossiers.json"), os.path.join(self.temp, "dossiers.json"))
+        self.assertEqual(self.auto(), 2)
+        lignes = ap.lire_a_voir(self.pc).splitlines()
+        self.assertIn("3 point(s) demandent ton attention :", lignes)
+        self.assertIn("- Numérotation des bordereaux à déclarer (appli-pc, choix 6) — 2 chantiers : n° 901 (11 PDF), n° 902 (4 PDF). "
+                      "Rien ne part au carnet depuis leurs bordereaux d'ici là (réponse « r » au choix 6 pour un chantier dont aucun plan "
+                      "ne doit partir).", lignes)
+        self.assertEqual([l for l in lignes if l.startswith("* ")], [
+            "* Chantier n° 903 : 6 fichiers hors des dossiers de fiches et 1 raccourci Google, non copiés (détail : appli-pc, choix 2 « Voir seulement »).",
+            "* Chantier n° 904 : 1 doublon fabriqué par Drive, non copié (détail : appli-pc, choix 2 « Voir seulement »)."])
+        self.assertEqual(len([l for l in lignes if l.startswith("+ ")]), 1, "les dépôts récents sont gardés")
+        self.assertEqual(len([l for l in lignes if l.startswith("- PASSAGE NON FAIT")]), 1)
+        # Le passage suivant réussit et réécrit tout au format d'aujourd'hui, sans erreur ; « --a-voir » le montre
+        shutil.move(os.path.join(self.temp, "dossiers.json"), os.path.join(self.racine, "dossiers.json"))
+        self.assertEqual(self.auto(), 0)
+        texte = ap.lire_a_voir(self.pc)
+        self.assertIn("Rien à signaler.", texte)
+        self.assertNotIn("PASSAGE NON FAIT", texte)
+        self.assertNotIn("hors des dossiers de fiches (pas copié", texte)
+        self.assertIn("152 A PLAN D'ESSAI", texte, "la section des dépôts n'est pas touchée par un passage des fiches seules")
+        code, sortie, _ = self.lancer("--a-voir")
+        self.assertEqual(code, 0)
+        self.assertIn("Rien à signaler.", sortie)
+
     def test_le_journal_ne_grossit_pas_sans_fin(self):
         ecrire(self.journal, "x" * (ap.JOURNAL_AUTO_MAX + 10))
         ap.noter_auto(self.prive, ["un passage", "son détail"])
@@ -1845,6 +1961,60 @@ class Automatique(Monde):
         self.assertEqual(self.auto(), 2)
         self.assertIn("ATTENTION", self.lancer("--etat")[1])
 
+
+class EstimationDuPoids(unittest.TestCase):
+    """Lot 4d : le poids des images du carnet annoncé par « Voir seulement » doit tomber à ±20 % du poids réel du dépôt,
+    quel que soit le plan (aéré ou chargé), alors que l'ancienne règle (tant d'octets par point) ne voyait que la surface."""
+
+    @staticmethod
+    def plan(chemin, pages=1, largeur=1700, hauteur=1200, charge=False):
+        """Un PDF inventé : des pièces et quelques cotes (aéré), ou des hachures serrées et beaucoup de textes (chargé).
+        Les points sont posés à 100 par pouce : une page de 1 700 points fait 3 400 points d'image à 200 dpi."""
+        images = []
+        for n in range(pages):
+            image = Image.new("RGB", (largeur, hauteur), "white")
+            trait = ImageDraw.Draw(image)
+            for x in range(60 + 20 * n, largeur - 200, 260):
+                trait.rectangle([x, 80, x + 200, hauteur - 120], outline=(0, 0, 0), width=3)
+                trait.text((x + 60, hauteur // 2), "CH %d" % (x // 10), fill=(0, 0, 0))
+            if charge:
+                for x in range(-hauteur, largeur, 9):
+                    trait.line([(x, 0), (x + hauteur, hauteur)], fill=(70, 70, 70), width=1)
+                for y in range(20, hauteur, 14):
+                    for x in range(10, largeur - 60, 70):
+                        trait.text((x + (y * 7) % 23, y), "%d" % ((x * 31 + y * 17) % 4000), fill=(150, 0, 0))
+            images.append(image)
+        images[0].save(chemin, "PDF", resolution=100, save_all=True, append_images=images[1:])
+        return chemin
+
+    @staticmethod
+    def vrai_poids(chemin, code):
+        pypdfium2, _ = dc.charger_modules()
+        document = pypdfium2.PdfDocument(chemin)
+        try:
+            return sum(o for n in range(len(document)) for _, o in dc.traiter_page(document[n], dc.DPI_PAR_CODE[code])[1])
+        finally:
+            document.close()
+
+    def test_estimation_a_20_pour_cent_pres(self):
+        dossier = tempfile.mkdtemp(dir=COMMUN["temp"])
+        aere = self.plan(os.path.join(dossier, "aere.pdf"))
+        charge = self.plan(os.path.join(dossier, "charge.pdf"), charge=True)
+        long = self.plan(os.path.join(dossier, "long.pdf"), pages=11, largeur=900, hauteur=650, charge=True)
+        estimes = {}
+        for chemin, code in ((aere, "105"), (charge, "105"), (long, "001")):
+            vrai, estime = self.vrai_poids(chemin, code), ap.poids_estime(chemin, code)
+            estimes[os.path.basename(chemin)] = estime
+            self.assertLess(abs(estime / vrai - 1), 0.20, "%s : estimé %d octets, réel %d" % (os.path.basename(chemin), estime, vrai))
+        # Même surface, poids très différents : c'est ce que l'ancienne règle ne voyait pas
+        self.assertGreater(estimes["charge.pdf"], 3 * estimes["aere.pdf"])
+
+    def test_estimation_impossible(self):
+        dossier = tempfile.mkdtemp(dir=COMMUN["temp"])
+        self.assertIsNone(ap.poids_estime(ecrire(os.path.join(dossier, "faux.pdf"), "pas un PDF"), "105"))
+        self.assertIsNone(ap.poids_estime(COMMUN["pdf"], "999"), "un numéro qui n'est pas du carnet : pas d'estimation")
+        petit = ap.poids_estime(COMMUN["pdf"], "105")
+        self.assertEqual(petit, self.vrai_poids(COMMUN["pdf"], "105"), "une petite page n'a que ses deux aperçus : pesée exacte")
 
 
 class TachePlanifiee(Monde):

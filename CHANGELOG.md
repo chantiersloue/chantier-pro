@@ -2,6 +2,18 @@
 
 Chaque lot : **quoi**, **pourquoi**, **comment déployer**. Procédures détaillées dans `docs/lotN-procedure.md`.
 
+## Lot 4d — retouches du programme du PC (« A VOIR » moins bavard, poids du carnet) — branche `lot-4d`, **construit et testé sur de faux dossiers, pas encore en service**
+
+**Quoi**
+- **« A VOIR » ne garde en clair que ce qui demande une action.** Les fichiers hors des dossiers de fiches, les doublons fabriqués par Drive, les raccourcis Google, les fiches déplacées par Franck et les PDF encore en cours d'écriture passent sous un titre « Pour information », **une ligne par chantier avec les nombres**, après les points d'action ; le compteur « N point(s) demandent ton attention » ne compte que les points d'action. Les bordereaux à déclarer : **une seule ligne** qui cite tous les chantiers concernés. Le détail, fichier par fichier, reste dans « Voir seulement » (choix 2). L'écran du double-clic et le journal `auto.txt` suivent la même règle.
+- **Ancien fichier « A VOIR »** (écrit par le lot 4c) relu sans erreur ; s'il faut y ajouter une ligne « PASSAGE NON FAIT » avant le premier passage réussi, ses anciennes lignes sont regroupées au passage.
+- **Poids du carnet dans « Voir seulement »** : nouvelle estimation, en fabriquant pour de vrai une partie des images (aperçus, petits niveaux en entier, quelques tuiles représentatives des grands niveaux). À ±20 % sur un vrai plan et sur des plans inventés (aéré, chargé, scan, texte) ; environ une seconde par grande page.
+- **Étude** `docs/lot4d-poids-carnet.md` : comment alléger le carnet (mesures, lisibilité, place du compte pour 35 à 40 chantiers). **Rien n'est changé dans la fabrication des images.**
+
+**Pourquoi** : le vrai « A VOIR » comptait 48 points, dont 39 ne demandaient rien et 7 répétaient la même demande (demande de Franck du 18/11/2026) ; un plan annoncé à 50 Mo en pesait 29 (l'ancienne règle comptait un poids fixe par point d'image, alors que le blanc ne pèse presque rien).
+
+**Mettre en service** : rien à installer, rien sur Google ni sur les téléphones ; la tâche automatique n'est pas à refaire. Procédure (faite par Claude, juste après un passage automatique) : `docs/lot4d-procedure.md`. 83 tests (`python tests/test_appli_pc.py`), 29 tests (`python tests/test_depot_carnet.py`).
+
 ## Lot 4c — EN SERVICE depuis le 18/11/2026 (programme du PC)
 
 Mis en service par Franck le 18/11/2026 :
