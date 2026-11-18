@@ -109,6 +109,8 @@ Sur l'accueil, sous « Hors chantier », touche **À commander**. Il n'y a pas d
 - **Une menuiserie cassée ou manquante ne se demande pas ici** : utilise **Signaler**, dans le chantier.
 
 **Au bureau (Franck)** : un mail par jour, du lundi au vendredi, vers 15 h 45, avec toutes les demandes depuis le mail précédent ; aucun mail s'il n'y en a pas. Dans le Sheet, onglet *Demandes* : coche **Commandé** quand c'est fait, le poseur le voit dans son téléphone.
+**Le vendredi vers 14 h (Franck)** : un mail « Point du vendredi » avec les signalements de la semaine et leur état, le rappel des « Bloquant » restés « À traiter » depuis une semaine, et le point de santé de l'appli (mails en attente, place du compte, fiches bloquées). Il part toujours, même s'il n'y a rien à signaler : s'il n'arrive pas, préviens-moi.
+
 Onglet *Articles* (facultatif) : écris-y les articles que tu veux proposer à tous pendant la frappe, **un par ligne, dans la colonne A** (500 au plus). Vide, tout marche quand même. Un changement arrive dans les téléphones à l'ouverture suivante de « À commander ».
 
 ## Suivre les signalements

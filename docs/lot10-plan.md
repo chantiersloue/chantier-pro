@@ -25,11 +25,12 @@
 |---|---|---|---|---|
 | **10a-1** | 17/11/2026 | serveur **v11.2**, appli **10.3** | `lot-10a1` (partie de `lot-8`) | la page, la tuile, l'onglet *Demandes*, le mail de 15 h 45, « Mes demandes », « ✓ Commandé » |
 | **10a-2** | 18/11/2026 | serveur **v11.3**, appli **10.4** | `lot-10a2` (partie de `lot-10a1`) | les gros boutons des articles habituels (avec la dernière quantité), les propositions pendant la frappe, l'onglet *Articles* |
+| **10b** | 18/11/2026 | serveur **v11.4**, appli inchangée (**10.4**) | `lot-10b` (partie de `lot-10a2`) | le mail du vendredi : signalements de la semaine, rappel des « Bloquant » restés « À traiter », point de santé |
 
 Testé contre le faux serveur (un faux Google qui tourne sur mon ordinateur) et dans un vrai Chrome. **Rien n'a tourné chez Google, aucun mail n'est parti.**
-Procédure : `docs/lot10-procedure.md` (une partie par lot). Choix faits seul : `DECISIONS.md`, lignes D10-1 et suivantes (10a-2 : D10-27 et suivantes).
+Procédure : `docs/lot10-procedure.md` (une partie par lot). Choix faits seul : `DECISIONS.md`, lignes D10-1 et suivantes (10a-2 : D10-27 et suivantes ; 10b : D10-43 et suivantes).
 
-**Pas construit** : 10b (mail du vendredi), 10b-2 (plus tard), 10c (abandonné pour le moment).
+**Pas construit** : 10b-2 (plus tard), 10c (abandonné pour le moment).
 
 **Le lot 10a-2 en clair** (chapitres 3.4 et 4)
 - **Les gros boutons** : sous « À commander / Outil en panne », les **5 articles que ce compte demande le plus**, deux par ligne, avec la dernière quantité demandée écrite dessous. Un toucher remplit « Quoi ? » **et** la quantité (qu'on peut changer) ; il reste « Demander ». Rien tant qu'il n'a rien demandé. Ils ne sont pas comptés à part : ils sont **recomptés à chaque affichage** à partir de « Mes demandes » (90 jours, gardées dans le téléphone) et des demandes encore en attente d'envoi. Téléphone changé ou appli réinstallée : ils reviennent tout seuls à la connexion.
@@ -37,6 +38,16 @@ Procédure : `docs/lot10-procedure.md` (une partie par lot). Choix faits seul : 
 - **L'onglet *Articles*** : créé vide par l'installation, une colonne, un article par ligne. Le serveur le donne avec « Mes demandes », donc aux comptes connectés seulement ; le téléphone le garde pour le hors réseau. 500 articles et 80 caractères au plus, doublons retirés. Vide, absent, très long ou illisible : tout marche.
 - **Clavier ouvert** : quand il reste peu de hauteur à l'écran, la barre du haut ne reste plus collée : le champ, ses 3 propositions, puis « Quantité » et « Demander » tiennent dans 280 px. **C'est mesuré dans Chrome avec un écran réduit, pas avec un vrai clavier** : c'est ton essai, avec des gants.
 - Seulement pour « À commander » : « Outil en panne » n'a ni boutons ni propositions (D10-30).
+
+**Le lot 10b en clair** (chapitre 6, avec tes réponses 3, 4 et 7)
+- **Un mail par semaine, à toi seul, le vendredi vers 14 h** (au premier passage du réveil des 10 minutes après 14 h, heure de Paris). **Il part toujours**, même s'il n'y a rien à signaler.
+- Objet : « Point du vendredi 20/11 — 4 signalements, 1 bloquant en retard, santé à regarder » ou « … — rien à signaler ».
+- Trois parties : **les signalements de la semaine** (créés depuis le mail précédent : chantier, type, urgence, auteur, état) ; **le rappel** des « Bloquant » restés « À traiter » depuis 7 jours ou plus ; **le point de santé** (mails reportés encore en attente, place du compte d'après l'onglet *Stockage*, fiches arrivées au bureau mais en erreur ou en attente de leurs photos).
+- Une partie vide dit « rien à signaler ». Un onglet absent ou illisible ne bloque pas le mail : sa partie dit « indisponible », les autres sont remplies.
+- **Si le mail ne peut pas partir** : nouvel essai toutes les 10 minutes jusqu'à 18 h, puis abandon pour la semaine (une ligne dans l'onglet *Journal*). Jamais de mail le samedi, jamais deux la même semaine. Le vendredi suivant reprend depuis le dernier mail parti : aucun signalement n'est oublié.
+- **Il faut le mettre en service une fois** : fonction `demarrerPointDuVendredi` (D10-44). `arreterPointDuVendredi` l'arrête. `essaiPointDuVendredi` fabrique le mail tout de suite, pour le voir.
+- **Aucune page ne change. Aucun onglet n'est modifié** : le serveur ne fait que lire.
+- Pas dans ce mail, comme prévu : comptes bloqués, fiches restées dans un téléphone, dernière connexion (le serveur ne le sait pas ; lot 10b-2, plus tard).
 
 **Trois écarts avec le texte ci-dessous, pour la sécurité des données** (détail dans `DECISIONS.md`) :
 1. **Titres de l'onglet *Demandes* changés** (chapitre 5) : le plan disait « les demandes sont quand même notées ». Au vu du code, les noter dans un onglet dont les colonnes ont bougé, c'est risquer de les écrire au mauvais endroit et d'envoyer un mail faux. J'ai fait comme pour les notes de chantier : **rien n'est lu ni écrit, les demandes attendent dans les téléphones** (« ⏳ en attente d'envoi ») **et repartent dès que les titres sont remis** (après 12 essais refusés, le téléphone affiche « à vérifier » : le poseur touche « Réessayer ») ; tu reçois le mail d'alerte (un par jour au plus). Rien n'est perdu.
@@ -190,7 +201,7 @@ Ces deux dernières lignes sont pourtant les plus utiles du point de santé (voi
 |---|---|---|---|
 | **10a-1** | « À commander » : page, tuile, onglet *Demandes*, récapitulatif de 15 h 45, « Mes demandes », « ✓ Commandé », les deux phrases de renvoi | serveur + pages | un envoi sur TEST, 15 min d'essais téléphone, production (30 min) |
 | **10a-2** | les gros boutons appris, les propositions pendant la frappe, l'onglet *Articles* | pages surtout (le serveur donne la liste) | un envoi sur TEST, 10 min d'essais téléphone avec des gants, production (le serveur change : coller, relancer `installerLot10Production`, nouveau déploiement, fusion) |
-| **10b** | le mail du vendredi, avec ce que le serveur sait déjà | serveur seul | un envoi sur TEST, lire le mail, production (20 min) |
+| **10b** | le mail du vendredi, avec ce que le serveur sait déjà | serveur seul | un envoi sur TEST, lire le mail fabriqué par `essaiPointDuVendredi`, production (coller, `demarrerPointDuVendredi`, nouveau déploiement) : 20 min |
 | **10b-2** | (si tu dis oui) les téléphones déclarent leurs fiches en attente ; deux lignes de plus dans le mail du vendredi | serveur + pages | à décider |
 | **10c** | idée 7 : les points ouverts des notes de réunion, par chantier | serveur | après un mois de lot 8 en service |
 

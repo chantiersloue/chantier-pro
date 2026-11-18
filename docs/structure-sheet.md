@@ -199,6 +199,20 @@ La liste des articles que Franck propose à **tous** les poseurs pendant la frap
 - La liste n'est donnée qu'aux **comptes connectés**. Un téléphone la reçoit à l'ouverture de « À commander » (avec du réseau), seulement si elle a changé, et la garde pour le hors réseau.
 - Tu peux trier, vider ou supprimer l'onglet : rien ne casse.
 
+## Le point du vendredi (lot 10b) : ce qu'il lit, sans rien écrire
+
+Le mail du vendredi ne crée et ne modifie aucun onglet. Il **lit** :
+
+|Onglet|Ce qui est lu|Si l'onglet manque|
+|-|-|-|
+|*Signalements*|« Reçu le », Chantier, Auteur, Type, Urgence, Statut. **La ligne de titres doit rester celle de l'appli**|la partie dit « indisponible »|
+|*Mails en attente*|les lignes au statut « en attente » et leur date|« rien à signaler »|
+|*Stockage*|les cellules « Place utilisée » et « Mesurée le » (lignes 2 et 3)|« pas encore mesurée »|
+|*Envois*|les fiches au statut « erreur » ou « en attente de photos », reçues depuis 30 jours|« rien à signaler »|
+
+- Sa mémoire est dans les Propriétés du script (pas dans le Sheet) : `VENDREDI_POINT` (en service ou non, dernier vendredi réglé, date du dernier mail parti).
+- Un mail abandonné (pas parti avant 18 h) laisse une ligne dans l'onglet *Journal* : fiche « point du vendredi », statut « abandonné ».
+
 ## Onglet « Installation » (outillage)
 
 Bilan des fonctions d'installation (`installerLot7…`, `controlerInstallationLot2`) : date, lot, environnement, mode, ligne du bilan. Les 50 dernières lignes sont gardées. Peut être supprimé sans risque.

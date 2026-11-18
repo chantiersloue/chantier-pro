@@ -2,6 +2,25 @@
 
 Chaque lot : **quoi**, **pourquoi**, **comment déployer**. Procédures détaillées dans `docs/lotN-procedure.md`.
 
+## Lot 10b — le point du vendredi (un mail par semaine à Franck) — serveur **v11.4**, appli inchangée (**10.4**) — **construit, testé contre le faux serveur seulement** (rien n'a tourné chez Google, aucun mail n'est parti)
+
+**Quoi**
+- **Un mail à Franck seul, le vendredi, au premier passage du réveil des 10 minutes après 14 h** (heure de Paris), sans pièce jointe, pris sur la réserve du bureau. **Il part toujours**, même vide (« rien à signaler »).
+- Trois parties : **signalements de la semaine** (depuis le mail précédent : chantier, type, urgence, auteur, état) ; **rappel** des « Bloquant » restés « À traiter » depuis 7 jours ou plus ; **point de santé** (mails reportés encore en attente ; place du compte d'après l'onglet *Stockage* ; fiches en erreur ou en attente de leurs photos d'après l'onglet *Envois*).
+- Un onglet absent ou illisible ne fait pas échouer le mail : sa partie dit « indisponible ».
+- Mail en échec : nouvel essai à chaque passage jusqu'à 18 h, puis abandon pour la semaine (ligne au Journal) ; jamais le samedi, jamais deux la même semaine.
+- **Mise en service** : `demarrerPointDuVendredi()` ; arrêt : `arreterPointDuVendredi()` ; essai à la demande : `essaiPointDuVendredi()` ; `verifierConfig` complété.
+- **Lecture seule** : aucun onglet n'est modifié. **Aucune page ne change.**
+- Fichiers : `apps-script/PointVendredi.gs` (nouveau), `Comptes.gs` (appel à la fin de `traiterComptes`, après le récapitulatif « À commander »), `Config.gs` (`VENDREDI_HEURE`, `VENDREDI_FIN_ESSAIS`, `VENDREDI_RAPPEL_JOURS`), `Admin.gs` (`verifierConfig`), `outils/construire.js` ; tests `tests/lot10-vendredi.test.js`.
+
+**Pourquoi** : voir chaque semaine, sans ouvrir le Sheet, ce qui a été signalé et ce qui traîne ; et savoir que l'appli tourne (`docs/lot10-plan.md`, chapitre 6).
+
+**Pas dans ce lot** : comptes bloqués, fiches restées dans un téléphone, dernière connexion (lot 10b-2, plus tard) ; points ouverts des notes de réunion (idée 7, abandonnée pour l'instant).
+
+**Pas vérifié** : rien n'a tourné chez Google ; l'affichage du mail dans Outlook et sur téléphone ; l'heure réelle d'arrivée.
+
+**Comment déployer** : `docs/lot10-procedure.md`, partie « Lot 10b » (serveur seul : coller, `demarrerPointDuVendredi`, `verifierConfig`, nouveau déploiement).
+
 ## Lot 10a-2 — « À commander » : articles habituels, propositions, onglet *Articles* — serveur **v11.3**, appli **10.4** — **construit, testé contre le faux serveur seulement** (rien n'a tourné chez Google)
 
 **Quoi**

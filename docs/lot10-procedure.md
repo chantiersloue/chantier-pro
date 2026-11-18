@@ -196,3 +196,66 @@ C'est le fichier qui ira en production. Je revérifie par l'empreinte.
 - **Rien n'a tourné chez Google** : la création de l'onglet *Articles*, sa lecture « telle qu'affichée » par Google.
 - **Le vrai clavier**, sur Android et sur iPhone, avec des gants : étape B, point 6. Dans Chrome, j'ai seulement réduit la hauteur de l'écran à 280 px.
 - **Plein soleil** : le vert des boutons se lit-il ?
+
+---
+
+# Lot 10b — le point du vendredi : procédure
+
+> Pour Franck. **Une livraison à part, après le lot 10a-2. Le serveur seul** : **v11.4**, branche `lot-10b` (elle contient les lots 10a-1 et 10a-2). **Aucune page ne change** (l'appli reste **10.4**).
+> **État au 18/11/2026 : construit et testé contre le faux serveur seulement.** Rien n'a tourné chez Google. **Aucun mail n'est parti.**
+
+## Ce qui change, en clair
+
+- **Un mail par semaine, à toi seul, le vendredi vers 14 h** (entre 14 h et 14 h 10 en général). **Il part toujours**, même s'il n'y a rien à signaler : s'il n'arrive pas un vendredi, quelque chose ne tourne plus.
+- Son objet dit l'essentiel : « Point du vendredi 20/11 — 4 signalements, 1 bloquant en retard, santé à regarder », ou « Point du vendredi 20/11 — rien à signaler ».
+- Trois parties :
+  1. **Signalements de la semaine** : ceux créés depuis le mail précédent (depuis 7 jours la première fois). Pour chacun : chantier, type, urgence, qui l'a signalé, état (À traiter, Commandé, Livré, Clos).
+  2. **Rappel** : une ligne par signalement « Bloquant » resté « À traiter » depuis 7 jours ou plus, même ancien.
+  3. **Point de santé** : les mails reportés encore en attente (combien, le plus ancien) ; la place du compte Google (le dernier chiffre de l'onglet *Stockage*, avec sa date) ; les fiches arrivées au bureau mais **en erreur** ou **en attente de leurs photos** depuis 30 jours au plus.
+- Une partie vide dit « rien à signaler ». Si un onglet est absent ou illisible, sa partie dit « indisponible » et le reste du mail est rempli.
+- **Si le mail ne peut pas partir** (quota de mails épuisé, panne de Google) : nouvel essai toutes les 10 minutes **jusqu'à 18 h**. Après : pas de mail cette semaine (une ligne dans l'onglet *Journal*), **jamais de mail le samedi**. Le vendredi suivant, le mail reprend depuis le dernier mail parti : aucun signalement n'est oublié.
+- Ce mail est pris sur ta **réserve de 20 mails**, comme le récapitulatif « À commander ». Il n'a pas de pièce jointe.
+- Le vendredi, tu reçois donc **deux** mails de l'appli : le point (vers 14 h) et « À commander » (vers 15 h 45, s'il y a des demandes). Ils ne se gênent pas.
+- **Rien n'est modifié dans le Sheet** : le serveur ne fait que lire les onglets *Signalements*, *Mails en attente*, *Stockage* et *Envois*.
+- **À savoir** : ne change pas la ligne de titres de l'onglet *Signalements*. Si tu le fais, le mail part quand même, mais sa partie « signalements » dit « indisponible ».
+- **Pas dans ce mail** (le serveur ne le sait pas) : les comptes bloqués, les fiches restées dans un téléphone, la dernière connexion de chacun.
+
+## Étape A — la copie TEST (toi : 5 minutes)
+
+1. Je prépare ton dossier sur la branche `lot-10b` et je te le confirme par écrit (« dossier prêt, branche lot-10b, serveur v11.4 »). Ouvre PowerShell **dans ce dossier** et lance :
+   ```
+   node outils\envoyer-test.js --sans-porte
+   ```
+   Attends `✅ Envoi réussi`. La version affichée doit être **v11.4**. Dis-moi « envoi fait », avec l'empreinte affichée.
+2. Ouvre l'éditeur Apps Script de la copie **TEST**. En haut, choisis la fonction **`essaiPointDuVendredi`** et clique ▶ **Exécuter**.
+3. Le journal (en bas) doit commencer par `✅ Essai du point du vendredi (TEST) : mail envoyé à … seulement`, puis montrer le texte du mail.
+4. **Lis le mail** (objet « [ESSAI] Point du vendredi … ») dans Outlook **et** sur ton téléphone : les trois parties sont-elles là ? Les tableaux se lisent-ils ? Dis-moi ce qui gêne.
+5. Tu peux relancer `essaiPointDuVendredi` autant que tu veux : il ne compte pas pour le vrai mail du vendredi, et il ne modifie rien.
+
+**Facultatif — voir le vrai mail partir tout seul sur TEST.** Un vendredi avant 14 h : lance `demarrerPointDuVendredi` sur TEST et dis-moi « réveils » (je les pose pour l'après-midi, comme pour le lot 10a-1). Vers 14 h, le mail arrive ; note l'heure. Ensuite lance `arreterPointDuVendredi` sur TEST, et je retire les réveils.
+
+## Étape B — production (toi : 10 minutes)
+
+**Après le lot 10a-2 en production**, et après l'étape A verte. **Dans cet ordre :**
+
+1. Éditeur Apps Script de **production** : remplace tout `Code.gs` par `A-COLLER-DANS-APPS-SCRIPT/Code.gs` **de la branche `lot-10b`** (je te donne son empreinte ; la ligne `VERSION_API` doit dire `v11.4`). **Enregistre**.
+2. Choisis la fonction **`demarrerPointDuVendredi`** et clique ▶. Tu dois lire `✅ Point du vendredi mis en service : un mail à … , le vendredi, … après 14 h 00`. **Sans cette étape, le mail ne part pas.**
+3. Choisis la fonction **`verifierConfig`** et clique ▶. Aucune ligne ne doit commencer par ❌. Tu dois lire `✅ Point du vendredi : en service — … ; dernier mail parti : jamais`.
+4. Si tu veux voir le mail avec les vraies données sans attendre vendredi : **`essaiPointDuVendredi`**, ▶. (Un mail « [ESSAI] » à toi seul.)
+5. **Déployer → Nouveau déploiement** (description « Lot 10b — production »). Copie la nouvelle adresse et donne-la-moi : je la mets dans `commun/config.js`, puis je te donne le lien de fusion (**Create pull request**, **Merge pull request**, **Confirm merge**).
+   - *À savoir* : le mail du vendredi marche dès l'étape 2, même avant ce déploiement (les réveils lancent toujours le dernier code enregistré). Le nouveau déploiement sert à ce que l'adresse du serveur et le fichier collé soient à la même version.
+6. Vérification : l'adresse du serveur ouverte dans un navigateur affiche `Loué App API v11.4 OK`.
+7. **Le premier vendredi**, vers 14 h 10 : le mail « Point du vendredi … » est-il arrivé ? Dis-moi l'heure.
+
+## Retour arrière
+
+1. **Arrêter le mail** : fonction **`arreterPointDuVendredi`**, ▶. C'est immédiat ; rien d'autre à faire. `demarrerPointDuVendredi` le remet.
+2. **Le serveur** : l'ancien `Code.gs` (v11.3) recollé. Le mail s'arrête ; rien d'autre ne change. **Aucune donnée n'est modifiée par ce lot : rien à sauvegarder, rien à restaurer.**
+3. Changer l'heure : c'est un réglage (`VENDREDI_HEURE` et `VENDREDI_FIN_ESSAIS` dans `apps-script/Config.gs`) ; dis-le-moi.
+
+## Ce qui n'a pas été vérifié
+
+- **Rien n'a tourné chez Google** : la lecture des vrais onglets, l'heure de Paris calculée par Google, l'envoi du mail.
+- **L'affichage du mail** (tableaux) dans Outlook et sur ton téléphone : étape A, point 4.
+- **L'heure réelle** du mail le vendredi : étape B, point 7.
+- Le temps que ce mail ajoute au réveil des 10 minutes (un seul passage par semaine lit le Sheet) : je le lis dans le journal d'exécution le premier vendredi.
