@@ -10,8 +10,8 @@
 | **4c** (programme du PC) + retouche « ignorer » | `lot-5` (ton dossier) | prêt pour tes étapes 3 à 5 aujourd'hui |
 | **8** (note de réunion en points), serveur v11.1, appli 10.2 | `lot-8` | construit, relu, corrigé. **À essayer sur la copie TEST** |
 | **10a-1** « À commander », serveur v11.2, appli 10.3 | `lot-10a1` (contient le lot 8) | construit, relu une fois (rien de bloquant), corrigé. Testé contre le faux serveur et dans Chrome à 375 px |
-| **10a-2** boutons appris, propositions, onglet *Articles* | `lot-10a2` | en construction (voir le compte rendu du matin) |
-| **10b** mail du vendredi | `lot-10b` | en construction après le 10a-2 |
+| **10a-2** boutons appris, propositions, onglet *Articles*, serveur v11.3, appli 10.4 | `lot-10a2` (contient 10a-1) | construit, testé contre le faux serveur et dans Chrome (25 séries vertes). Pas de relecture indépendante (ta règle) |
+| **10b** mail du vendredi, serveur v11.4 | `lot-10b` (contient 10a-2) | construit, testé (26 séries vertes). Pas de relecture indépendante. **Le mail ne part qu'après `demarrerPointDuVendredi()`**, lancé une fois par toi dans l'éditeur (`arreterPointDuVendredi()` pour l'arrêter) |
 | **Mail unique** (lot 5b), serveur v11.2, appli 10.3 | `lot-5b` | construit sur l'ancien `lot-8`, **pas encore relu** ; livré éteint. À remettre à la suite du lot 10 |
 | **11** planning, heures, atelier | — | étude écrite : `_prive\etudes\lot11-etude.md` (hors du dépôt public) |
 
@@ -61,9 +61,12 @@ Détail dans `docs/lot10-procedure.md` (branche `lot-10a1`).
    - titres de l'onglet *Demandes* changés : rien n'est écrit, les demandes attendent dans les téléphones (après 12 essais, le poseur touche « Réessayer ») ;
    - premier passage du réveil après 17 h 30 : pas de mail ce jour-là, les demandes partent en tête du suivant ;
    - « Précision (facultatif) » : faut-il écrire « facultative » ? (accord grammatical)
-3. **Mail unique**, mode `conducteur` (si le « À » vide échoue à l'essai) : le conducteur n'est mis en « À » que s'il est déjà destinataire ; personne n'est jamais ajouté. D'accord ?
-4. **Lot 11** : lire l'étude (`_prive\etudes\lot11-etude.md`), répondre à ses questions, me donner les documents de son chapitre 11, et d'abord **obtenir l'accord de la direction**.
-5. **Planning actuel** : aujourd'hui en production, le serveur met les fichiers du dossier *Planning* en partage « toute personne qui a le lien » ; le PDF du planning est lisible sans compte par quiconque a ce lien. Corriger maintenant (petit lot à part), ou avec le lot 11 ?
+3. **Lot 10b**, deux choix pris par moi :
+   - le mail du vendredi ne part qu'une fois `demarrerPointDuVendredi()` lancé à la main (pas d'envoi surprise sur la copie TEST, arrêt en un clic) ;
+   - `essaiPointDuVendredi()` fabrique le mail à la demande, à toi seul, avec « [ESSAI] » dans l'objet, aussi en production.
+4. **Mail unique**, mode `conducteur` (si le « À » vide échoue à l'essai) : le conducteur n'est mis en « À » que s'il est déjà destinataire ; personne n'est jamais ajouté. D'accord ?
+5. **Lot 11** : lire l'étude (`_prive\etudes\lot11-etude.md`), répondre à ses 40 questions (dont 36 : scanne-moi le verso de la feuille d'heures, mercredi à vendredi), me donner les documents de son chapitre 11, et d'abord **obtenir l'accord de la direction**.
+6. **Planning actuel** : aujourd'hui en production, le serveur met les fichiers du dossier *Planning* en partage « toute personne qui a le lien » ; le PDF du planning est lisible sans compte par quiconque a ce lien. Corriger maintenant (petit lot à part), ou avec le lot 11 ?
 
 ## 5. Essais qui restent à faire sur la copie TEST
 
