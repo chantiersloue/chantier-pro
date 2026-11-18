@@ -44,7 +44,11 @@ Si le passage n'a pas réussi (choix `3` dit « ATTENTION… », ou `auto.txt` d
 
 ## Retour arrière (2 minutes, sans rien perdre)
 
-Dans ton dossier principal : `git reset --keep <numéro noté à l'étape 3>`. Seuls les fichiers du programme reviennent à l'ancienne version ; **aucune donnée** n'est touchée (dossiers de chantier, Drive, `_prive\`). La tâche automatique n'a pas à être touchée. L'ancienne version relit le nouveau fichier « A VOIR » sans erreur (elle ignore la partie « Pour information » et réécrit le fichier au passage suivant).
+Je ne pousse `lot-5` sur GitHub **qu'après** la vérification du passage suivant.
+- **Avant** cet envoi : dans ton dossier principal, `git reset --keep <numéro noté à l'étape 3>`. Rien n'est réécrit sur GitHub.
+- **Après** cet envoi : un commit d'annulation (`git revert`), jamais de réécriture de l'historique.
+
+Dans les deux cas, seuls les fichiers du programme reviennent à l'ancienne version ; **aucune donnée** n'est touchée (dossiers de chantier, Drive, `_prive\`). La tâche automatique n'est pas à réinstaller.
 
 ## Ce qui n'est pas vérifié
 
