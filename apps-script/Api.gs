@@ -244,8 +244,8 @@ function routerV5_(corps) {
     if (corps.action === 'carnetTuiles') return carnetTuiles_(qui.compte, corps);
     // Lot 8c : points ouverts du chantier affiché dans la note de réunion (droits vérifiés dans ComptesRendus.gs)
     if (corps.action === 'compteRendu')  return crLire_(qui.compte, corps);
-    // Lot 10 : « Mes demandes » (seulement celles du compte ; Demandes.gs)
-    if (corps.action === 'demandes')     return listerDemandes_(qui.compte);
+    // Lot 10 : « Mes demandes » (seulement celles du compte ; Demandes.gs) ; lot 10a-2 : avec la liste « Articles »
+    if (corps.action === 'demandes')     return listerDemandes_(qui.compte, corps);
   } catch (err) {
     console.error('routerV5_:', err.message);
     return { ok: false, code: 'ERREUR', message: 'Erreur du serveur : ' + err.message };

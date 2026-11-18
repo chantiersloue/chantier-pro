@@ -50,6 +50,7 @@ L'accueil montre **tes chantiers**. Touche le tien : tout ce qui suit est dedans
 2. Écris **quoi** et la **quantité**. Pour un outil cassé, touche d'abord **Outil en panne**.
 3. Touche **Demander**. Un article à la fois.
 
+- **Plus vite** : tes articles habituels sont en haut, en gros boutons verts. **Un toucher, puis Demander.** Et pendant que tu écris, la page te propose des articles : touche le bon.
 - Le bureau reçoit la liste **chaque jour vers 15 h 45**. Après, ta demande part le jour suivant : la page te dit lequel.
 - **Mes demandes**, en bas : **✓ Commandé** quand le bureau a commandé.
 - Une menuiserie cassée ou manquante ? Ce n'est pas ici : utilise **Signaler**.

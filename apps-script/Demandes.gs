@@ -23,6 +23,10 @@
 // La réponse donnée au téléphone se lit sur cette MARQUE (pas sur l'horloge) : avant le passage du jour, la demande part
 // aujourd'hui ; après, dans le récapitulatif suivant, dont le jour est nommé.
 //
+// LOT 10a-2 — L'ONGLET « ARTICLES » (facultatif) : une colonne, un article par ligne, tenu par Franck. Le serveur donne
+// cette liste avec « Mes demandes » (action « demandes »), donc aux comptes connectés seulement ; le téléphone la garde et
+// s'en sert pour ses propositions pendant la frappe. Onglet vide, absent, très long ou illisible : tout marche.
+//
 // Plan : docs/lot10-plan.md. Décisions : D10-… (DECISIONS.md).
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 const SHEET_DEMANDES = 'Demandes';
@@ -36,6 +40,11 @@ const DEM_MAX_LISTE = 300;           // « Mes demandes » : lignes rendues au p
 const DEM_NOMS_JOURS = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
 const DEM_PROP_PASSAGE = 'DEMANDES_PASSAGE';   // « aaaa-mm-jj » du dernier jour dont le passage est fait
 const DEM_PROP_REPORT = 'DEMANDES_REPORT';     // { jour, ms } : récapitulatif abandonné ce jour-là, à cet instant
+// Lot 10a-2 : la liste d'articles que Franck propose à tous (facultative)
+const SHEET_ARTICLES = 'Articles';
+const ART_TITRE = 'Article';         // titre de la colonne A (posé par l'installation ; la liste marche aussi sans lui)
+const ART_MAX = 500;                 // articles donnés au téléphone, au plus (les 500 premiers)
+const ART_MAX_LIGNES = 2000;         // lignes lues dans l'onglet, au plus (un onglet très long ne ralentit pas la réponse)
 
 // ── L'heure de Paris, calculée par le code (été comme hiver) ──
 // { jour: « aaaa-mm-jj », minutes: depuis minuit, semaine: 1 (lundi) … 7 (dimanche) } de l'instant « ms »
@@ -214,7 +223,7 @@ function demObjet_(r) {
     etat: commande ? 'commande' : (recap ? 'recap' : 'attente'),
     etatTexte: commande ? '✓ Commandé' : (recap ? 'récapitulatif du ' + recap.slice(0, 5) : 'partira dans le prochain récapitulatif') };
 }
-function listerDemandes_(compte) {
+function listerDemandes_(compte, corps) {
   let sh;
   try { sh = demFeuilleLue_(); }
   catch (err) { if (err && err.occupe) return avecJeton_({ ok: false, code: 'SERVEUR_OCCUPE', message: err.message }, compte); throw err; }
@@ -223,9 +232,61 @@ function listerDemandes_(compte) {
     .filter(r => String(r[COL_DEM.compte - 1]) === compte.id && demMs_(r[COL_DEM.date - 1]) >= limite)
     .map((r, i) => ({ r: r, i: i })).sort((a, b) => (demMs_(b.r[COL_DEM.date - 1]) - demMs_(a.r[COL_DEM.date - 1])) || (b.i - a.i)).map(x => x.r);
   const prochain = demProchain_();
-  return avecJeton_({ ok: true, code: 'OK', message: miennes.length + ' demande(s)',
-    data: { demandes: miennes.slice(0, DEM_MAX_LISTE).map(demObjet_), plein: miennes.length > DEM_MAX_LISTE,
-      prochain: { aujourdhui: prochain.aujourdhui, jour: prochain.jour }, heure: maintenant } }, compte);
+  const data = { demandes: miennes.slice(0, DEM_MAX_LISTE).map(demObjet_), plein: miennes.length > DEM_MAX_LISTE,
+    prochain: { aujourdhui: prochain.aujourdhui, jour: prochain.jour }, heure: maintenant };
+  // Lot 10a-2 : la liste « Articles ». Le téléphone dit quelle liste il garde déjà (corps.articles : son empreinte, '' s'il
+  // n'en a pas) ; elle n'est renvoyée que si elle a changé. Une page d'avant le lot 10a-2 ne dit rien : rien de plus pour elle.
+  if (corps && typeof corps.articles === 'string') {
+    const articles = demArticles_();
+    if (articles) {
+      data.articlesEmpreinte = articles.empreinte;
+      if (articles.empreinte !== corps.articles) data.articles = articles.liste;
+    }
+  }
+  return avecJeton_({ ok: true, code: 'OK', message: miennes.length + ' demande(s)', data: data }, compte);
+}
+
+// ── Lot 10a-2 : la liste « Articles » ──
+// Deux textes sont « le même article » s'ils ne diffèrent que par les majuscules, les accents, « x » ou « × », les espaces.
+// (La même règle que dans le téléphone : commun/commander.js, D.cle.)
+function demCleArticle_(t) {
+  return String(t).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/×/g, 'x').replace(/œ/g, 'oe').replace(/æ/g, 'ae')
+    .replace(/(\d)\s*x\s*(?=\d)/g, '$1x').replace(/\s+/g, ' ').trim();
+}
+// Empreinte courte de la liste : le téléphone ne la retélécharge que si elle a changé
+function demEmpreinte_(liste) {
+  const t = liste.join('\n');
+  let h = 5381;
+  for (let i = 0; i < t.length; i++) h = ((h * 33) ^ t.charCodeAt(i)) >>> 0;
+  return liste.length + '-' + h.toString(36);
+}
+// { liste: [textes], empreinte, trop: vrai si l'onglet a plus d'articles que ce qui est donné } ; onglet absent ou vide :
+// liste vide ; onglet illisible : null (le téléphone garde alors la liste qu'il a déjà).
+// Un article par ligne, colonne A, lu tel qu'il est AFFICHÉ dans le Sheet (« 4×40 » reste « 4×40 ») ; une seule ligne de
+// texte, DEM_MAX_QUOI caractères au plus (le reste est coupé) ; doublons retirés ; une première ligne « Article » est un titre.
+function demArticles_() {
+  try {
+    const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_ARTICLES);
+    const derniere = sh ? sh.getLastRow() : 0, lues = Math.min(derniere, ART_MAX_LIGNES);
+    const valeurs = lues > 0 ? sh.getRange(1, 1, lues, 1).getDisplayValues() : [];
+    const vus = {}, liste = [];
+    let trop = derniere > lues;
+    for (let i = 0; i < valeurs.length; i++) {
+      const texte = noteLigne_(String(valeurs[i][0] === undefined || valeurs[i][0] === null ? '' : valeurs[i][0]))
+        .replace(/[\u0000-\u001f\u007f-\u009f]/g, '').slice(0, DEM_MAX_QUOI).trim();
+      const cle = demCleArticle_(texte);
+      if (!cle || vus[cle]) continue;
+      if (i === 0 && /^articles?$/.test(cle)) continue;                                        // la ligne de titre
+      if (/^#(REF!|N\/A|NAME\?|VALUE!|DIV\/0!|ERROR!|NUM!|NULL!)$/.test(texte)) continue;   // une formule en erreur n'est pas un article
+      if (liste.length >= ART_MAX) { trop = true; break; }
+      vus[cle] = true;
+      liste.push(texte);
+    }
+    return { liste: liste, empreinte: demEmpreinte_(liste), trop: trop };
+  } catch (err) {
+    console.error('onglet « ' + SHEET_ARTICLES + ' » :', err && err.message ? err.message : err);
+    return null;
+  }
 }
 
 // ── Le récapitulatif ──
@@ -332,6 +393,15 @@ function verifierDemandes_() {
   let report = null;
   try { report = JSON.parse(propriete_(DEM_PROP_REPORT) || 'null'); } catch (e) {}
   if (report && /^\d{4}-\d{2}-\d{2}$/.test(String(report.jour))) lignes.push('⚠ Le récapitulatif du ' + demLong_(report.jour) + ' n’a pas pu partir : ses demandes seront en tête du suivant');
+  // Lot 10a-2 : la liste « Articles » (facultative : son absence n'est pas une erreur)
+  if (!SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_ARTICLES)) {
+    lignes.push('➖ Onglet « ' + SHEET_ARTICLES + ' » : absent (facultatif ; installerLot10Test ou installerLot10Production le crée, vide)');
+  } else {
+    const articles = demArticles_();
+    lignes.push(!articles ? '❌ Onglet « ' + SHEET_ARTICLES + ' » : illisible (les téléphones gardent la liste qu’ils ont déjà)'
+      : '✅ Onglet « ' + SHEET_ARTICLES + ' » : ' + articles.liste.length + ' article(s) proposé(s) aux poseurs pendant la frappe'
+        + (articles.trop ? ' — ⚠ liste trop longue : seuls les ' + ART_MAX + ' premiers articles (lus dans les ' + ART_MAX_LIGNES + ' premières lignes) sont proposés' : ''));
+  }
   return lignes.join('\n');
 }
 
@@ -351,6 +421,15 @@ function etapesLot10_() {
       demFormats_(sh);
       return 'onglet prêt';
     } },
+  // Lot 10a-2 : la liste d'articles proposés à tous. Créé VIDE (un titre, rien d'autre) ; s'il existe déjà, il n'est jamais touché.
+  { nom: 'Onglet « ' + SHEET_ARTICLES + ' » (facultatif : ta liste d’articles proposés pendant la frappe)',
+    fait: () => !!ss.getSheetByName(SHEET_ARTICLES),
+    action: () => {
+      const sh = feuille_(SHEET_ARTICLES, [ART_TITRE]);
+      // colonne au format texte (« 12/11 » ne devient pas une date), assez large pour lire un article
+      try { sh.getRange(2, 1, Math.max(1, sh.getMaxRows() - 1), 1).setNumberFormat('@'); sh.setColumnWidth(1, 360); } catch (e) {}
+      return 'onglet créé, vide : un article par ligne, dans la colonne A';
+    } },
   // Le récapitulatif est lancé par le réveil des 10 minutes. Sur TEST, les réveils ne sont posés que pendant les essais
   // (les 90 minutes par jour sont partagées avec la production).
   { nom: 'Réveil des 10 minutes (traiterComptes), qui lance le récapitulatif', seulement: 'PRODUCTION',
@@ -363,6 +442,8 @@ function installerLot10_(attendu) {
   if (r.ok) {
     infos = '\nRécapitulatif « À commander » : du lundi au vendredi, au premier passage après ' + demHeureTexte_(DEMANDES_HEURE_LIMITE)
       + ' (heure de Paris), un mail à l’adresse du bureau. Aucun mail s’il n’y a aucune demande.'
+      + '\nOnglet « ' + SHEET_ARTICLES + ' » : facultatif. Un article par ligne dans la colonne A (' + ART_MAX + ' au plus, ' + DEM_MAX_QUOI
+      + ' caractères au plus) : ils sont proposés aux poseurs pendant la frappe. Vide, tout marche quand même.'
       + (attendu === 'TEST' ? '\nCopie TEST : pour recevoir ce mail, pose les réveils le temps de l’essai (installerDeclencheurs), puis retire-les (retirerDeclencheurs).' : '');
     Logger.log(infos);
   }

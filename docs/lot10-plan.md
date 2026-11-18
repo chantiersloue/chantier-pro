@@ -19,11 +19,24 @@
 | 8 | « Outil en panne » : autre chose que « Précision (facultatif) » ? | **non**, rien de plus |
 | 9 | Ordre de mise en production | **lot 8, puis 10a-1 et 10a-2, puis 10b, puis le mail unique** |
 
-**Ce qui est construit (17/11/2026) : le lot 10a-1 seulement** — serveur **v11.2**, appli **10.3**, branche `lot-10a1` (partie de `lot-8`).
-Testé contre le faux serveur (un faux Google qui tourne sur mon ordinateur) et dans un vrai Chrome. **Rien n'a tourné chez Google, aucun mail n'est parti.**
-Procédure : `docs/lot10-procedure.md`. Choix faits seul : `DECISIONS.md`, lignes D10-1 et suivantes.
+**Ce qui est construit**
 
-**Pas construit** : 10a-2 (gros boutons des articles appris, propositions pendant la frappe, onglet *Articles*, reprise de la dernière quantité), 10b (mail du vendredi), 10b-2 (plus tard), 10c (abandonné pour le moment).
+| Lot | Construit le | Versions | Branche | Contenu |
+|---|---|---|---|---|
+| **10a-1** | 17/11/2026 | serveur **v11.2**, appli **10.3** | `lot-10a1` (partie de `lot-8`) | la page, la tuile, l'onglet *Demandes*, le mail de 15 h 45, « Mes demandes », « ✓ Commandé » |
+| **10a-2** | 18/11/2026 | serveur **v11.3**, appli **10.4** | `lot-10a2` (partie de `lot-10a1`) | les gros boutons des articles habituels (avec la dernière quantité), les propositions pendant la frappe, l'onglet *Articles* |
+
+Testé contre le faux serveur (un faux Google qui tourne sur mon ordinateur) et dans un vrai Chrome. **Rien n'a tourné chez Google, aucun mail n'est parti.**
+Procédure : `docs/lot10-procedure.md` (une partie par lot). Choix faits seul : `DECISIONS.md`, lignes D10-1 et suivantes (10a-2 : D10-27 et suivantes).
+
+**Pas construit** : 10b (mail du vendredi), 10b-2 (plus tard), 10c (abandonné pour le moment).
+
+**Le lot 10a-2 en clair** (chapitres 3.4 et 4)
+- **Les gros boutons** : sous « À commander / Outil en panne », les **5 articles que ce compte demande le plus**, deux par ligne, avec la dernière quantité demandée écrite dessous. Un toucher remplit « Quoi ? » **et** la quantité (qu'on peut changer) ; il reste « Demander ». Rien tant qu'il n'a rien demandé. Ils ne sont pas comptés à part : ils sont **recomptés à chaque affichage** à partir de « Mes demandes » (90 jours, gardées dans le téléphone) et des demandes encore en attente d'envoi. Téléphone changé ou appli réinstallée : ils reviennent tout seuls à la connexion.
+- **Les propositions pendant la frappe** : dès 2 lettres, **3 gros boutons au plus sous le champ** (48 px au moins) : ses demandes passées d'abord, puis ta liste du Sheet. Sans majuscules ni accents, au début de chaque mot, « x » comme « × ». Aucune liste à dérouler ; le texte libre reste toujours possible.
+- **L'onglet *Articles*** : créé vide par l'installation, une colonne, un article par ligne. Le serveur le donne avec « Mes demandes », donc aux comptes connectés seulement ; le téléphone le garde pour le hors réseau. 500 articles et 80 caractères au plus, doublons retirés. Vide, absent, très long ou illisible : tout marche.
+- **Clavier ouvert** : quand il reste peu de hauteur à l'écran, la barre du haut ne reste plus collée : le champ, ses 3 propositions, puis « Quantité » et « Demander » tiennent dans 280 px. **C'est mesuré dans Chrome avec un écran réduit, pas avec un vrai clavier** : c'est ton essai, avec des gants.
+- Seulement pour « À commander » : « Outil en panne » n'a ni boutons ni propositions (D10-30).
 
 **Trois écarts avec le texte ci-dessous, pour la sécurité des données** (détail dans `DECISIONS.md`) :
 1. **Titres de l'onglet *Demandes* changés** (chapitre 5) : le plan disait « les demandes sont quand même notées ». Au vu du code, les noter dans un onglet dont les colonnes ont bougé, c'est risquer de les écrire au mauvais endroit et d'envoyer un mail faux. J'ai fait comme pour les notes de chantier : **rien n'est lu ni écrit, les demandes attendent dans les téléphones** (« ⏳ en attente d'envoi ») **et repartent toutes seules dès que les titres sont remis** ; tu reçois le mail d'alerte (un par jour au plus). Rien n'est perdu.
@@ -176,7 +189,7 @@ Ces deux dernières lignes sont pourtant les plus utiles du point de santé (voi
 | Lot | Contenu | Touche | Pour toi |
 |---|---|---|---|
 | **10a-1** | « À commander » : page, tuile, onglet *Demandes*, récapitulatif de 15 h 45, « Mes demandes », « ✓ Commandé », les deux phrases de renvoi | serveur + pages | un envoi sur TEST, 15 min d'essais téléphone, production (30 min) |
-| **10a-2** | les gros boutons appris, les propositions pendant la frappe, l'onglet *Articles* | pages surtout (le serveur donne la liste) | 10 min d'essais téléphone avec des gants, une fusion |
+| **10a-2** | les gros boutons appris, les propositions pendant la frappe, l'onglet *Articles* | pages surtout (le serveur donne la liste) | un envoi sur TEST, 10 min d'essais téléphone avec des gants, production (le serveur change : coller, relancer `installerLot10Production`, nouveau déploiement, fusion) |
 | **10b** | le mail du vendredi, avec ce que le serveur sait déjà | serveur seul | un envoi sur TEST, lire le mail, production (20 min) |
 | **10b-2** | (si tu dis oui) les téléphones déclarent leurs fiches en attente ; deux lignes de plus dans le mail du vendredi | serveur + pages | à décider |
 | **10c** | idée 7 : les points ouverts des notes de réunion, par chantier | serveur | après un mois de lot 8 en service |

@@ -4,14 +4,14 @@
 // ne pas les modifier à la main. En cas de gros problème : remplacer ce fichier par outils/sw-secours.js.
 // Les échanges avec Apps Script ne passent JAMAIS par ce cache (fiches, listes : gérés par commun/api.js).
 // ═══════════════════════════════════════════════════════════════
-const VERSION = 'loue-e6424dd075';
+const VERSION = 'loue-f3973925e4';
 const A_GARDER = [
   './', 'index.html', 'quitus.html', 'bordereau.html',
   'cotes.html', 'fiche-fabrication.html', 'note-reunion.html', 'bordereau-orga.html', 'bordereau-materiaux.html',
   'attestation.html', 'reception-support.html', 'absence.html', 'signaler.html', 'signalements.html', 'notes.html', 'carnet.html', 'commander.html',
   'manifest.json', 'logo.png', 'apple-touch-icon.png', 'icone-192.png', 'icone-512.png', 'icone-512-maskable.png',
   // Fichiers communs et modèles, avec leur numéro de version (liste fabriquée par outils/construire.js)
-  /*COMMUNS*/ 'commun/adresses.js?v=e6424dd075', 'commun/api.js?v=e6424dd075', 'commun/brouillon.js?v=e6424dd075', 'commun/carnet.js?v=e6424dd075', 'commun/commander.js?v=e6424dd075', 'commun/comptes-rendus.js?v=e6424dd075', 'commun/config.js?v=e6424dd075', 'commun/destinataires.js?v=e6424dd075', 'commun/hors-ligne.js?v=e6424dd075', 'commun/notes.js?v=e6424dd075', 'commun/photos.js?v=e6424dd075', 'commun/signature.js?v=e6424dd075', 'commun/ui.js?v=e6424dd075', 'commun/fiche.css?v=e6424dd075', 'commun/style.css?v=e6424dd075', 'modeles/absence.js?v=e6424dd075', 'modeles/attestation.js?v=e6424dd075', 'modeles/bordereau.js?v=e6424dd075', 'modeles/cotes.js?v=e6424dd075', 'modeles/fabrication.js?v=e6424dd075', 'modeles/mise-en-page.js?v=e6424dd075', 'modeles/note.js?v=e6424dd075', 'modeles/quitus.js?v=e6424dd075', 'modeles/reception.js?v=e6424dd075', 'modeles/signalement.js?v=e6424dd075',
+  /*COMMUNS*/ 'commun/adresses.js?v=f3973925e4', 'commun/api.js?v=f3973925e4', 'commun/brouillon.js?v=f3973925e4', 'commun/carnet.js?v=f3973925e4', 'commun/commander.js?v=f3973925e4', 'commun/comptes-rendus.js?v=f3973925e4', 'commun/config.js?v=f3973925e4', 'commun/destinataires.js?v=f3973925e4', 'commun/hors-ligne.js?v=f3973925e4', 'commun/notes.js?v=f3973925e4', 'commun/photos.js?v=f3973925e4', 'commun/signature.js?v=f3973925e4', 'commun/ui.js?v=f3973925e4', 'commun/fiche.css?v=f3973925e4', 'commun/style.css?v=f3973925e4', 'modeles/absence.js?v=f3973925e4', 'modeles/attestation.js?v=f3973925e4', 'modeles/bordereau.js?v=f3973925e4', 'modeles/cotes.js?v=f3973925e4', 'modeles/fabrication.js?v=f3973925e4', 'modeles/mise-en-page.js?v=f3973925e4', 'modeles/note.js?v=f3973925e4', 'modeles/quitus.js?v=f3973925e4', 'modeles/reception.js?v=f3973925e4', 'modeles/signalement.js?v=f3973925e4',
 ];
 
 // Nom du cache : version + portée. Deux sites installés sur le même téléphone ont chacun le leur,

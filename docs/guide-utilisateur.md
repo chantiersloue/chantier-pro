@@ -93,6 +93,11 @@ Sur l'accueil, sous « Hors chantier », touche **À commander**. Il n'y a pas d
 2. **Quoi ?** : l'article (« Vis 4×40 »). **Quantité** : « 2 boîtes », « 6 »… Pour un outil en panne, le second champ sert à préciser (« ne charge plus ») ; il n'est pas obligatoire.
 3. Touche **Demander**. **Un article à la fois** : la page se vide, tu peux demander le suivant.
 
+**Plus vite**
+- **Tes articles habituels** : dès que tu as fait des demandes, les articles que tu demandes le plus sont en haut de la page, en gros boutons verts (5 au plus), avec la dernière quantité. **Touche le bouton** : « Quoi ? » et la quantité sont remplis. Change la quantité si besoin, puis **Demander**.
+- **Pendant que tu écris** dans « Quoi ? » : dès 2 lettres, la page te propose jusqu'à 3 articles sous le champ. Touche celui que tu veux, ou continue d'écrire : tu peux toujours demander autre chose. Pas besoin des accents ni des majuscules ; « 4x40 » trouve « 4×40 ».
+- Ça marche aussi sans réseau.
+
 - La page te répond tout de suite :
   - « ✓ Elle part dans le récapitulatif d'aujourd'hui (vers 15 h 45). » : le bureau la reçoit aujourd'hui ;
   - « ✓ Le récapitulatif d'aujourd'hui est déjà parti : elle sera dans celui de lundi 23/11. » : tu l'as faite après 15 h 45 ;
@@ -104,6 +109,7 @@ Sur l'accueil, sous « Hors chantier », touche **À commander**. Il n'y a pas d
 - **Une menuiserie cassée ou manquante ne se demande pas ici** : utilise **Signaler**, dans le chantier.
 
 **Au bureau (Franck)** : un mail par jour, du lundi au vendredi, vers 15 h 45, avec toutes les demandes depuis le mail précédent ; aucun mail s'il n'y en a pas. Dans le Sheet, onglet *Demandes* : coche **Commandé** quand c'est fait, le poseur le voit dans son téléphone.
+Onglet *Articles* (facultatif) : écris-y les articles que tu veux proposer à tous pendant la frappe, **un par ligne, dans la colonne A** (500 au plus). Vide, tout marche quand même. Un changement arrive dans les téléphones à l'ouverture suivante de « À commander ».
 
 ## Suivre les signalements
 

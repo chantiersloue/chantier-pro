@@ -182,6 +182,23 @@ Une ligne par demande « À commander » ou « Outil en panne » d'un poseur (pe
 - 30 demandes par compte et par jour au plus.
 - Deux réglages techniques sont gardés dans les Propriétés du script (pas dans le Sheet) : `DEMANDES_PASSAGE` (le dernier jour dont le récapitulatif est fait) et `DEMANDES_REPORT` (un récapitulatif qui n'a pas pu partir avant 17 h 30).
 
+## Onglet « Articles » (lot 10a-2 — facultatif ; créé vide par `installerLot10Test` / `installerLot10Production`)
+
+La liste des articles que Franck propose à **tous** les poseurs pendant la frappe, sur la page « À commander ». **Une seule colonne, un article par ligne.**
+
+|Colonne|Titre|Contenu|Exemple fictif|
+|-|-|-|-|
+|A|Article|Le nom de l'article, comme tu veux le voir écrit dans les demandes. 80 caractères au plus (le reste est coupé)|Vis 4×40|
+
+- **Facultatif** : vide ou absent, tout marche (les poseurs ont quand même les propositions tirées de leurs propres demandes).
+- **500 articles au plus** : les 500 premiers sont proposés (lus dans les 2 000 premières lignes). `verifierConfig` le dit si la liste est trop longue.
+- **L'ordre compte** : quand plusieurs articles conviennent, ceux du haut sont proposés d'abord (3 propositions au plus).
+- **Doublons retirés tout seuls** : « Vis 4×40 », « vis 4x40 » et « VIS 4 X 40 » ne font qu'un (le premier écrit est gardé).
+- La première ligne « Article » est un titre : elle n'est pas proposée. Tu peux la retirer.
+- Lignes vides et formules en erreur : ignorées. Une formule tapée ici n'est jamais exécutée dans les téléphones : c'est du texte.
+- La liste n'est donnée qu'aux **comptes connectés**. Un téléphone la reçoit à l'ouverture de « À commander » (avec du réseau), seulement si elle a changé, et la garde pour le hors réseau.
+- Tu peux trier, vider ou supprimer l'onglet : rien ne casse.
+
 ## Onglet « Installation » (outillage)
 
 Bilan des fonctions d'installation (`installerLot7…`, `controlerInstallationLot2`) : date, lot, environnement, mode, ligne du bilan. Les 50 dernières lignes sont gardées. Peut être supprimé sans risque.

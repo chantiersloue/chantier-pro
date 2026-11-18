@@ -2,6 +2,26 @@
 
 Chaque lot : **quoi**, **pourquoi**, **comment déployer**. Procédures détaillées dans `docs/lotN-procedure.md`.
 
+## Lot 10a-2 — « À commander » : articles habituels, propositions, onglet *Articles* — serveur **v11.3**, appli **10.4** — **construit, testé contre le faux serveur seulement** (rien n'a tourné chez Google)
+
+**Quoi**
+- **Les gros boutons des articles habituels** : en haut de `commander.html`, les 5 articles que **ce compte** demande le plus, avec la dernière quantité. Un toucher remplit « Quoi ? » et la quantité (modifiable) ; il reste « Demander ». Rien tant qu'il n'a rien demandé. Recomptés à chaque affichage à partir de « Mes demandes » (90 jours) et des demandes en attente d'envoi : hors réseau aussi, et refaits tout seuls après une réinstallation.
+- **Les propositions pendant la frappe** : dès 2 lettres, 3 gros boutons au plus sous « Quoi ? » (48 px au moins) ; ses demandes passées d'abord, puis la liste du Sheet. Sans majuscules ni accents, au début de chaque mot, « x » comme « × ». **Aucune liste à dérouler** (ni `select`, ni `datalist`) ; texte libre toujours possible.
+- **L'onglet *Articles*** (facultatif, créé vide par `installerLot10Test` / `installerLot10Production`) : une colonne, un article par ligne. Donné avec « Mes demandes », aux comptes connectés seulement, et seulement s'il a changé ; gardé dans le téléphone. 500 articles et 80 caractères au plus, doublons retirés. Vide, absent, très long, illisible : tout marche.
+- **Clavier ouvert** : la barre du haut ne reste plus collée quand il reste peu de hauteur ; le champ, les 3 propositions, « Quantité » et « Demander » tiennent dans 280 px (mesuré dans Chrome, écran réduit).
+- Seulement pour « À commander » (pas « Outil en panne »).
+- Fichiers : `apps-script/Demandes.gs` (`demArticles_`, étape d'installation, `verifierConfig`), `Api.gs`, `Config.gs` ; `commander.html`, `commun/commander.js`, `commun/config.js` ; tests `tests/lot10-demandes.test.js` (44) et `tests/lot10a2-page.test.js` (31, vrai Chrome) ; `tests/faux-serveur.js` (réglage `articles`).
+
+**Pourquoi** : redemander les mêmes vis chaque semaine doit prendre un toucher, pas une saisie avec des gants (`docs/lot10-plan.md`, chapitres 3.4 et 4).
+
+**Le brouillon automatique n'est pas touché** : un bouton touché compte comme une saisie (l'article et la quantité sont gardés et restaurés). `commun/brouillon.js` et `commun/api.js` ne sont pas modifiés.
+
+**Tests existants mis à jour** : la version du serveur citée par les séries (`v11.3`) ; les numéros d'étapes de l'installation du lot 10 (3 étapes) ; `tests/lot10-page.test.js` attend que le message ait changé avant de lire une réponse (il échouait sur un PC chargé, sans rapport avec ce lot : `DECISIONS.md`, D10-41).
+
+**Pas vérifié** : rien n'a tourné chez Google (création et lecture de l'onglet *Articles*) ; **le vrai clavier, avec des gants**, sur Android et sur iPhone ; plein soleil.
+
+**Comment déployer** : `docs/lot10-procedure.md`, partie « Lot 10a-2 » (après le lot 10a-1 : coller le serveur v11.3, relancer `installerLot10Production`, `verifierConfig`, nouveau déploiement, fusion).
+
 ## Lot 10a-1 — « À commander » : le petit matériel des poseurs — serveur **v11.2**, appli **10.3** — **construit, testé contre le faux serveur seulement** (rien n'a tourné chez Google, aucun mail n'est parti)
 
 **Quoi**

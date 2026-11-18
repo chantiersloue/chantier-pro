@@ -1,4 +1,4 @@
-// Tests du lot 10a-1, côté serveur (« À commander » : demandes des poseurs, récapitulatif de 15 h 45) : node tests/lot10-demandes.test.js
+// Tests des lots 10a-1 et 10a-2, côté serveur (« À commander » : demandes des poseurs, récapitulatif de 15 h 45, liste « Articles ») : node tests/lot10-demandes.test.js
 // Faux Google (tests/gas-harness.js) avec une HORLOGE RÉGLABLE (g.now) et l'heure calculée dans le fuseau demandé
 // (option « fuseaux ») : les tests donnent le même résultat quel que soit le réglage du PC, heure d'été comprise.
 // Noms inventés (« Poseur A », « Poseur B ») : le dépôt est public.
@@ -53,6 +53,9 @@ const demande = extra => Object.assign({ type: 'demande', sorte: 'commander', qu
 const envoyer = (g, qui, donnees, id, saisiPar) => poster(g, Object.assign({ action: 'fiche', id: id || idFiche(), donnees: donnees || demande(), saisiPar: saisiPar === undefined ? qui : saisiPar },
   qui ? { jeton: jeton(g, qui) } : {}));
 const mes = (g, qui) => poster(g, Object.assign({ action: 'demandes' }, qui ? { jeton: jeton(g, qui) } : {}));
+// lot 10a-2 : la page dit quelle liste « Articles » elle garde déjà (son empreinte ; '' : aucune)
+const mesAvec = (g, qui, empreinte) => poster(g, Object.assign({ action: 'demandes', articles: empreinte || '' }, qui ? { jeton: jeton(g, qui) } : {}));
+const articles = (g, lignes) => { g.feuilles['Articles'].lignes = lignes.map(t => [t]); };
 const reveil = (g, quand) => { if (quand) g.now = quand; return g.ctx.traiterComptes(); };   // un passage du réveil des 10 minutes
 const D = g => (g.feuilles['Demandes'] ? g.feuilles['Demandes'].lignes.slice(1).filter(l => l[8]) : []);
 const E = g => (g.feuilles['Envois'] ? g.feuilles['Envois'].lignes.slice(1) : []);
@@ -528,29 +531,133 @@ test('verrou du script occupé : ni comptes ni récapitulatif à ce passage (« 
   assert.ok(o);
 });
 
+console.log('Lot 10a-2 — la liste « Articles » (onglet facultatif du Sheet)');
+test('onglet créé VIDE par l’installation (un titre, rien d’autre) : liste vide, sans erreur ; une page d’avant le lot 10a-2 ne reçoit rien de plus', () => {
+  const g = environnement();
+  assert.deepStrictEqual(j(g.feuilles['Articles'].lignes), j([['Article']]));
+  const r = mesAvec(g, 'poseura', '');
+  assert.deepStrictEqual([r.ok, j(r.data.articles), typeof r.data.articlesEmpreinte, r.data.demandes.length], [true, '[]', 'string', 0], j(r));
+  const ancien = mes(g, 'poseura');
+  assert.ok(ancien.ok && !('articles' in ancien.data) && !('articlesEmpreinte' in ancien.data), j(ancien));
+  assert.strictEqual(poster(g, { action: 'demandes', articles: 12, jeton: jeton(g, 'poseura') }).data.articles, undefined, 'une empreinte qui n’est pas un texte : comme une ancienne page');
+});
+test('liste remplie : rendue dans l’ordre du Sheet, à tous les comptes connectés ; la même empreinte renvoyée par le téléphone : la liste n’est pas retéléchargée ; liste changée : renvoyée', () => {
+  const g = environnement();
+  articles(g, ['Article', 'Vis 4×40', 'Cartouches silicone blanc', 'Embout de vissage']);
+  envoyer(g, 'poseura', demande());
+  const r = mesAvec(g, 'poseura', '');
+  assert.deepStrictEqual([j(r.data.articles), r.data.demandes.length], [j(['Vis 4×40', 'Cartouches silicone blanc', 'Embout de vissage']), 1], j(r));
+  const b = mesAvec(g, 'poseurb', ''), c = mesAvec(g, 'bureau', 'une-ancienne-empreinte');
+  assert.deepStrictEqual([j(b.data.articles), b.data.articlesEmpreinte, j(c.data.articles), b.data.demandes.length], [j(r.data.articles), r.data.articlesEmpreinte, j(r.data.articles), 0]);
+  const meme = mesAvec(g, 'poseura', r.data.articlesEmpreinte);
+  assert.ok(meme.ok && !('articles' in meme.data) && meme.data.articlesEmpreinte === r.data.articlesEmpreinte && meme.data.demandes.length === 1, j(meme));
+  g.feuilles['Articles'].lignes.push(['Mousse expansive']);
+  const change = mesAvec(g, 'poseura', r.data.articlesEmpreinte);
+  assert.deepStrictEqual([change.data.articles.length, change.data.articles[3], change.data.articlesEmpreinte !== r.data.articlesEmpreinte], [4, 'Mousse expansive', true], j(change));
+  // un article retiré, un ordre changé : l'empreinte change aussi
+  articles(g, ['Article', 'Cartouches silicone blanc', 'Vis 4×40', 'Embout de vissage']);
+  assert.ok(mesAvec(g, 'poseura', r.data.articlesEmpreinte).data.articles, 'ordre changé');
+});
+test('onglet ABSENT (retiré par Franck, ou lot 10 pas installé) : liste vide, tout marche ; onglet fait à la main SANS titre : la première ligne est un article', () => {
+  const g = environnement();
+  delete g.feuilles['Articles'];
+  let r = mesAvec(g, 'poseura', '');
+  assert.deepStrictEqual([r.ok, j(r.data.articles)], [true, '[]'], j(r));
+  assert.ok(envoyer(g, 'poseura', demande()).ok, 'les demandes ne dépendent pas de cet onglet');
+  const h = environnement({ sansInstallation: true });
+  r = mesAvec(h, 'poseura', '');
+  assert.deepStrictEqual([r.ok, j(r.data.articles), r.data.demandes.length, !!h.feuilles['Articles']], [true, '[]', 0, false], j(r));
+  const k = environnement({ feuilles: { 'Articles': [['Vis 4×40'], ['Chevilles 8 mm'], ['Article'], ['ARTICLES']] } });
+  assert.deepStrictEqual(mesAvec(k, 'poseura', '').data.articles, ['Vis 4×40', 'Chevilles 8 mm', 'Article', 'ARTICLES'], 'seule la PREMIÈRE ligne peut être un titre');
+  const m = environnement({ feuilles: { 'Articles': [['ARTICLES'], ['Vis 4×40']] } });
+  assert.deepStrictEqual(mesAvec(m, 'poseura', '').data.articles, ['Vis 4×40'], 'un titre « ARTICLES » est reconnu');
+});
+test('onglet TRÈS LONG : 500 articles au plus (les 500 premiers), 2 000 lignes lues au plus ; un article de plus de 80 caractères est coupé à 80', () => {
+  const g = environnement();
+  articles(g, ['Article'].concat(Array.from({ length: 700 }, (_, i) => 'Article numéro ' + (i + 1))));
+  let r = mesAvec(g, 'poseura', '');
+  assert.deepStrictEqual([r.data.articles.length, r.data.articles[0], r.data.articles[499]], [500, 'Article numéro 1', 'Article numéro 500'], j(r.data.articles.slice(0, 3)));
+  assert.ok(/⚠ liste trop longue : seuls les 500 premiers articles/.test(g.ctx.verifierConfig()));
+  // 3 000 lignes, dont beaucoup de doublons : seules les 2 000 premières sont lues
+  articles(g, Array.from({ length: 3000 }, (_, i) => (i < 2500 ? 'Toujours le même' : 'Trop loin ' + i)));
+  r = mesAvec(g, 'poseura', '');
+  assert.deepStrictEqual(r.data.articles, ['Toujours le même']);
+  articles(g, ['Article', 'x'.repeat(80), 'y'.repeat(81), 'Début ' + 'z'.repeat(200)]);
+  r = mesAvec(g, 'poseura', '');
+  assert.deepStrictEqual(r.data.articles.map(t => t.length), [80, 80, 80], j(r.data.articles));
+  assert.ok(JSON.stringify(r).length < 60000, 'la réponse reste légère');
+});
+test('DOUBLONS retirés (majuscules, accents, « x » et « × », espaces) ; lignes vides, formules en erreur et retours à la ligne tolérés ; un nombre est lu comme il est affiché', () => {
+  const g = environnement();
+  articles(g, ['Article', 'Vis 4×40', 'vis 4x40', 'VIS 4 X 40', '', 'Éclisse alu', 'eclisse ALU', '  Mousse   expansive ', 'Mousse expansive', '#REF!', '#N/A', 12.5, 'Cartouches\nsilicone\tblanc', '   ',
+    'Sac\u0007 à gravats', '=IMPORTDATA("http://exemple.invalid")']);
+  const r = mesAvec(g, 'poseura', '');
+  assert.deepStrictEqual(r.data.articles, ['Vis 4×40', 'Éclisse alu', 'Mousse expansive', '12,5', 'Cartouches silicone blanc', 'Sac à gravats', '=IMPORTDATA("http://exemple.invalid")'], j(r.data.articles));
+  assert.ok(/✅ Onglet « Articles » : 7 article\(s\) proposé\(s\)/.test(g.ctx.verifierConfig()));
+});
+test('SANS COMPTE (ou jeton faux) : aucune liste n’est donnée ; onglet « Demandes » aux titres changés : pas de liste non plus (le téléphone garde la sienne)', () => {
+  const g = environnement();
+  articles(g, ['Article', 'Vis 4×40']);
+  let r = mesAvec(g, '', '');
+  assert.deepStrictEqual([r.ok, r.code, /Vis 4×40|articles/.test(j(r))], [false, 'CONNEXION_REQUISE', false], j(r));
+  g.proprietes.FIN_TRANSITION = String(g.now - 1000);
+  r = mesAvec(g, '', '');
+  assert.deepStrictEqual([r.ok, r.code, /Vis 4×40/.test(j(r))], [false, 'CONNEXION_REQUISE', false], j(r));
+  r = poster(g, { action: 'demandes', articles: '', jeton: 'poseura.p.1.9999999999999.signaturefaussesignaturefausse' });
+  assert.deepStrictEqual([r.ok, r.code, /Vis 4×40/.test(j(r))], [false, 'JETON_INVALIDE', false], j(r));
+  // un compte désactivé non plus
+  g.feuilles['Utilisateurs'].lignes[2][3] = false; g.ctx.traiterComptes();
+  r = mesAvec(g, 'poseurb', '');
+  assert.deepStrictEqual([r.ok, /Vis 4×40/.test(j(r))], [false, false], j(r));
+  // la liste n'est donnée par aucune autre action (ni « listes », ni « moi », ni la lecture sans compte)
+  assert.ok(!/Vis 4×40/.test(j(poster(g, { action: 'listes', jeton: jeton(g, 'poseura') })) + j(poster(g, { action: 'moi', jeton: jeton(g, 'poseura') })) + g.ctx.doGet({ parameter: { action: 'getContacts' } }).contenu));
+  g.feuilles['Demandes'].lignes[0][0] = 'Autre titre';
+  r = mesAvec(g, 'poseura', '');
+  assert.deepStrictEqual([r.ok, r.code, /Vis 4×40/.test(j(r))], [false, 'SERVEUR_OCCUPE', false], j(r));
+});
+test('onglet « Articles » ILLISIBLE (panne de lecture) : « Mes demandes » répond quand même, sans liste ni empreinte (le téléphone garde celle qu’il a)', () => {
+  const g = environnement();
+  articles(g, ['Article', 'Vis 4×40']);
+  envoyer(g, 'poseura', demande());
+  g.feuilles['Articles'].api.getRange = () => { throw new Error('Service Spreadsheets indisponible'); };
+  const r = mesAvec(g, 'poseura', 'ancienne');
+  assert.ok(r.ok && r.data.demandes.length === 1 && !('articles' in r.data) && !('articlesEmpreinte' in r.data), j(r));
+  assert.ok(/❌ Onglet « Articles » : illisible/.test(g.ctx.verifierConfig()));
+});
+test('installation relancée : un onglet « Articles » déjà rempli n’est JAMAIS touché ; verifierConfig dit s’il est absent (ce n’est pas une erreur)', () => {
+  const g = environnement({ sansInstallation: true, feuilles: { 'Articles': [['Mes articles à moi'], ['Vis 4×40'], ['Chevilles 8 mm']] } });
+  const t = g.ctx.installerLot10Production();
+  assert.ok(/2\/3 Onglet « Articles » .* : déjà fait/.test(t) && /installation terminée/.test(t) && /Onglet « Articles » : facultatif\. Un article par ligne dans la colonne A \(500 au plus, 80 caractères au plus\)/.test(t), t);
+  assert.deepStrictEqual(j(g.feuilles['Articles'].lignes), j([['Mes articles à moi'], ['Vis 4×40'], ['Chevilles 8 mm']]));
+  const h = environnement({ sansInstallation: true });
+  assert.ok(/➖ Onglet « Articles » : absent \(facultatif/.test(h.ctx.verifierConfig()));
+  h.ctx.installerLot10Production();
+  assert.ok(/✅ Onglet « Articles » : 0 article\(s\)/.test(h.ctx.verifierConfig()));
+});
+
 console.log('Lot 10a-1 — installation, vérification, livraison');
 test('installerLot10Production : crée l’onglet avec ses titres ; relancée : « déjà fait » ; refuse sur la copie TEST ; pose le réveil des 10 minutes s’il manque', () => {
   const g = environnement({ sansInstallation: true });
   assert.ok(!g.feuilles['Demandes']);
   const t1 = g.ctx.installerLot10Production();
-  assert.ok(/✅ 1\/2 Onglet « Demandes » : fait — onglet créé/.test(t1) && /✅ 2\/2 Réveil des 10 minutes .* : fait/.test(t1) && /installation terminée/.test(t1) && /après 15 h 45/.test(t1), t1);
+  assert.ok(/✅ 1\/3 Onglet « Demandes » : fait — onglet créé/.test(t1) && /✅ 2\/3 Onglet « Articles » .* : fait — onglet créé, vide/.test(t1) && /✅ 3\/3 Réveil des 10 minutes .* : fait/.test(t1) && /installation terminée/.test(t1) && /après 15 h 45/.test(t1), t1);
   assert.deepStrictEqual(j(g.feuilles['Demandes'].lignes), j([TITRES]));
   assert.ok(g.declencheurs.indexOf('traiterComptes') > -1);
   envoyer(g, 'poseura', demande());
   const t2 = g.ctx.installerLot10Production();
-  assert.ok(/1\/2 Onglet « Demandes » : déjà fait/.test(t2) && /2\/2 .* : déjà fait/.test(t2), t2);
+  assert.ok(/1\/3 Onglet « Demandes » : déjà fait/.test(t2) && /2\/3 Onglet « Articles » .* : déjà fait/.test(t2) && /3\/3 .* : déjà fait/.test(t2), t2);
   assert.strictEqual(D(g).length, 1, 'rien n’est effacé');
   assert.ok(/Refusé : cette fonction est prévue pour TEST/.test(g.ctx.installerLot10Test()));
 });
 test('installerLot10Test : onglet créé, AUCUN réveil posé ; refuse en production ; un onglet « Demandes » aux autres titres n’est jamais réécrit', () => {
   const g = environnement({ test: true, sansInstallation: true });
   const t = g.ctx.installerLot10Test();
-  assert.ok(/✅ 1\/2 Onglet « Demandes » : fait/.test(t) && /➖ 2\/2 .* non concerné sur TEST/.test(t) && /retirerDeclencheurs/.test(t), t);
+  assert.ok(/✅ 1\/3 Onglet « Demandes » : fait/.test(t) && /✅ 2\/3 Onglet « Articles »/.test(t) && /➖ 3\/3 .* non concerné sur TEST/.test(t) && /retirerDeclencheurs/.test(t), t);
   assert.strictEqual(g.declencheurs.length, 0);
   assert.ok(/Refusé/.test(g.ctx.installerLot10Production()));
   const h = environnement({ sansInstallation: true, feuilles: { 'Demandes': [['Autre', 'Chose'], ['donnée', 'gardée']] } });
   const t2 = h.ctx.installerLot10Production();
-  assert.ok(/❌ 1\/2 Onglet « Demandes » : un onglet « Demandes » existe déjà avec d’autres titres/.test(t2), t2);
+  assert.ok(/❌ 1\/3 Onglet « Demandes » : un onglet « Demandes » existe déjà avec d’autres titres/.test(t2), t2);
   assert.deepStrictEqual(j(h.feuilles['Demandes'].lignes), j([['Autre', 'Chose'], ['donnée', 'gardée']]));
   // onglet vide créé à la main : les titres y sont écrits
   const k = environnement({ sansInstallation: true, feuilles: { 'Demandes': [] } });
@@ -583,10 +690,10 @@ test('porte de service (copie TEST) : installerLot10 ; lireDemandes ne rend ni n
   const p = environnement();
   assert.strictEqual(poster(p, { action: 'outilTest', geste: 'installerLot10', cle: CLE }).code, 'ACTION_INCONNUE');
 });
-test('livraison : le serveur à coller contient le lot 10a-1, en version v11.2, Demandes.gs à sa place, sans les outils d’essai ; chargé seul, il reçoit une demande et envoie le récapitulatif', () => {
+test('livraison : le serveur à coller contient les lots 10a-1 et 10a-2, en version v11.3, Demandes.gs à sa place, sans les outils d’essai ; chargé seul, il reçoit une demande et envoie le récapitulatif', () => {
   const code = fs.readFileSync(path.join(RACINE, 'A-COLLER-DANS-APPS-SCRIPT', 'Code.gs'), 'utf8');
-  ["const VERSION_API = 'v11.2'", "const DEMANDES_HEURE_LIMITE  = '15:45';", "const DEMANDES_FIN_ESSAIS    = '17:30';", 'const DEMANDES_MAX_PAR_JOUR  = 30;', 'function traiterDemande(', 'function demRecapituler_(',
-    'function listerDemandes_(', 'function mailBureau_(', 'function installerLot10Test(', 'function installerLot10Production(', "'demande'            : 'traiterDemande'", "corps.action === 'demandes'",
+  ["const VERSION_API = 'v11.3'", "const DEMANDES_HEURE_LIMITE  = '15:45';", "const DEMANDES_FIN_ESSAIS    = '17:30';", 'const DEMANDES_MAX_PAR_JOUR  = 30;', 'function traiterDemande(', 'function demRecapituler_(',
+    'function listerDemandes_(', 'function demArticles_(', "const SHEET_ARTICLES = 'Articles';", 'const ART_MAX = 500;', 'listerDemandes_(qui.compte, corps)', 'function mailBureau_(', 'function installerLot10Test(', 'function installerLot10Production(', "'demande'            : 'traiterDemande'", "corps.action === 'demandes'",
     '████ Demandes.gs ████'].forEach(t => assert.ok(code.indexOf(t) > -1, t));
   assert.ok(code.indexOf('████ Notes.gs ████') < code.indexOf('████ Demandes.gs ████') && code.indexOf('████ Demandes.gs ████') < code.indexOf('████ Admin.gs ████'));
   assert.ok(!/function\s+outilTest_\s*\(/.test(code));
@@ -600,7 +707,7 @@ test('livraison : le serveur à coller contient le lot 10a-1, en version v11.2, 
   g.feuilles['Utilisateurs'].lignes[1] = ['poseura', 'Poseur A', 'Poseur', true, false, '', '', false, false, ''];
   g.ctx.traiterComptes();
   assert.ok(/installation terminée/.test(g.ctx.installerLot10Production()));
-  assert.strictEqual(g.ctx.doGet({ parameter: {} }).contenu, 'Loué App API v11.2 OK');
+  assert.strictEqual(g.ctx.doGet({ parameter: {} }).contenu, 'Loué App API v11.3 OK');
   assert.ok(envoyer(g, 'poseura', demande()).ok);
   reveil(g, P(MARDI + ' 15:50'));
   assert.strictEqual(recaps(g)[0].sujet, 'À commander — mardi 17/11 (1 demande)');

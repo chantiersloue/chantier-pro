@@ -9,8 +9,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Loué App">
 <meta name="theme-color" content="#1A2B4A">
-<link rel="stylesheet" href="commun/style.css?v=e6424dd075">
-<link rel="stylesheet" href="commun/fiche.css?v=e6424dd075">
+<link rel="stylesheet" href="commun/style.css?v=f3973925e4">
+<link rel="stylesheet" href="commun/fiche.css?v=f3973925e4">
 <style>
 [hidden]{display:none!important;}   /* un élément caché le reste, même s'il a une mise en forme « flex » */
 /* Sur cette page, toutes les zones à toucher font 48 px au moins (gants) */
@@ -23,6 +23,22 @@ body.loue-test .dem-champ{scroll-margin-top:110px;}
 .dem-champ .meta-label{font-size:16px;color:var(--text);font-weight:700;}
 .dem-champ .meta-input{min-height:56px;font-size:18px;}
 .dem-bouton{width:100%;min-height:64px;margin-top:16px;font-size:20px;font-weight:800;}
+/* Lot 10a-2 — les articles habituels du compte : de gros boutons, deux par ligne (un bouton seul sur sa ligne la prend entière) */
+.dem-appris{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px;}
+.dem-appris-titre{grid-column:1/-1;font-size:15px;font-weight:700;color:var(--muted);line-height:1.3;}
+.dem-art{display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:2px;min-width:0;min-height:60px;padding:6px 10px;border:2px solid #9CCFB1;border-radius:var(--r);background:var(--green-l);color:#145A31;font-family:inherit;font-size:16px;font-weight:800;line-height:1.2;text-align:left;cursor:pointer;}
+.dem-art:last-child:nth-child(even){grid-column:1/-1;}
+.dem-art:active,.dem-prop:active{background:var(--header-bg);border-color:var(--header-bg);color:#fff;}
+.dem-art:active small,.dem-prop:active small{color:#fff;}
+.dem-art b,.dem-prop b{font-weight:800;overflow-wrap:anywhere;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;}
+.dem-art small,.dem-prop small{font-size:14px;font-weight:600;color:var(--text);overflow-wrap:anywhere;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:1;overflow:hidden;}
+/* Lot 10a-2 — les propositions pendant la frappe : 3 gros boutons au plus, sous le champ (jamais une liste à dérouler) */
+.dem-propositions{display:flex;flex-direction:column;gap:6px;}
+.dem-prop{display:flex;flex-direction:column;align-items:flex-start;justify-content:center;min-width:0;min-height:48px;padding:4px 12px;border:2px solid var(--border2);border-radius:var(--r);background:#fff;color:var(--text);font-family:inherit;font-size:16px;line-height:1.2;text-align:left;cursor:pointer;}
+/* Clavier ouvert (il reste peu de hauteur) : la barre du haut ne reste plus collée, elle remonte avec la page */
+body.dem-clavier .topbar{position:static;}
+body.dem-clavier .dem-champ{scroll-margin-top:6px;}
+body.dem-clavier.loue-test .dem-champ{scroll-margin-top:46px;}
 .dem-connexion{background:#FFF4D6;border:1px solid #E0B030;color:#5A3D00;border-radius:var(--r);padding:12px 14px;margin-bottom:12px;font-size:15px;font-weight:600;line-height:1.4;}
 .dem-connexion a{display:inline-flex;align-items:center;min-height:48px;color:#5A3D00;font-weight:800;}
 .dem-etat{margin-top:14px;padding:12px 14px;border-radius:var(--r);font-size:16px;font-weight:600;line-height:1.4;overflow-wrap:anywhere;}
@@ -68,9 +84,14 @@ body.loue-test .dem-champ{scroll-margin-top:110px;}
         <label class="choix"><input type="radio" name="sorte" id="sorte-panne" value="panne"><span>Outil en panne</span></label>
       </div>
 
+      <!-- Lot 10a-2 : les 5 articles que CE compte demande le plus (rien tant qu'il n'a rien demandé) -->
+      <div class="dem-appris" id="dem-appris" role="group" aria-label="Tes articles habituels" hidden></div>
+
       <div class="dem-champ" id="bloc-quoi">
         <label class="meta-label" for="dem-quoi">Quoi ? <span class="oblig">*</span></label>
         <input class="meta-input" id="dem-quoi" maxlength="80" autocomplete="off" autocapitalize="sentences" enterkeyhint="next" placeholder="Ex. : vis 4×40">
+        <!-- Lot 10a-2 : propositions pendant la frappe (3 gros boutons au plus ; le texte libre reste toujours possible) -->
+        <div class="dem-propositions" id="dem-propositions" role="group" aria-label="Propositions" hidden></div>
       </div>
       <div class="dem-champ">
         <label class="meta-label" for="dem-quantite" id="label-quantite">Quantité</label>
@@ -97,12 +118,12 @@ body.loue-test .dem-champ{scroll-margin-top:110px;}
 
 </div>
 
-<script src="commun/config.js?v=e6424dd075"></script>
-<script src="commun/api.js?v=e6424dd075"></script>
-<script src="commun/ui.js?v=e6424dd075"></script>
-<script src="commun/commander.js?v=e6424dd075"></script>
-<script src="commun/brouillon.js?v=e6424dd075"></script>
-<script src="commun/hors-ligne.js?v=e6424dd075"></script>
+<script src="commun/config.js?v=f3973925e4"></script>
+<script src="commun/api.js?v=f3973925e4"></script>
+<script src="commun/ui.js?v=f3973925e4"></script>
+<script src="commun/commander.js?v=f3973925e4"></script>
+<script src="commun/brouillon.js?v=f3973925e4"></script>
+<script src="commun/hors-ligne.js?v=f3973925e4"></script>
 <script>
 'use strict';
 const DEM = LOUE.demandes;
@@ -116,14 +137,103 @@ function majLibelles() {
   champ('dem-quantite').placeholder = panne ? 'Ex. : ne charge plus' : 'Ex. : 2 boîtes';
   champ('dem-quoi').placeholder = panne ? 'Ex. : visseuse à choc' : 'Ex. : vis 4×40';
 }
-document.querySelectorAll('input[name="sorte"]').forEach(el => el.addEventListener('change', majLibelles));
+document.querySelectorAll('input[name="sorte"]').forEach(el => el.addEventListener('change', () => { majLibelles(); afficherAppris(); afficherPropositions(); }));
 majLibelles();
 
 // Clavier ouvert : le champ touché remonte en haut de l'écran (les deux champs et « Demander » restent visibles) ;
 // la touche « Suivant » passe à la quantité, la touche « Envoyer » fait la demande
-champ('dem-quoi').addEventListener('focus', () => { try { champ('bloc-quoi').scrollIntoView({ block: 'start' }); } catch (e) {} });
+function remonter() { try { champ('bloc-quoi').scrollIntoView({ block: 'start' }); } catch (e) {} }
+champ('dem-quoi').addEventListener('focus', () => { remonter(); afficherPropositions(); });
 champ('dem-quoi').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); champ('dem-quantite').focus(); } });
 champ('dem-quantite').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); demander(); } });
+// Lot 10a-2 — quand il reste peu de hauteur (clavier ouvert : 250 à 300 px), la barre du haut ne reste plus collée : sa
+// place sert au champ, aux propositions et à « Demander ». « visualViewport » : la partie de la page réellement visible.
+function majClavier() {
+  const vue = window.visualViewport, petit = !!vue && vue.height < 430;
+  if (petit === document.body.classList.contains('dem-clavier')) return;
+  document.body.classList.toggle('dem-clavier', petit);
+  if (petit && (document.activeElement === champ('dem-quoi') || document.activeElement === champ('dem-quantite'))) remonter();
+}
+if (window.visualViewport) window.visualViewport.addEventListener('resize', majClavier);
+majClavier();
+
+// ── Lot 10a-2 : les articles habituels (gros boutons) et les propositions pendant la frappe ──
+// Aucune liste à dérouler : seulement des boutons. Le texte libre reste toujours possible.
+let APPRIS = [];            // articles déjà demandés par ce compte, du plus demandé au moins demandé (DEM.appris)
+let signatureAppris = '';   // ce qui est affiché (les boutons ne sont refaits que s'ils changent)
+let quantiteMise = null;    // la quantité que la page a remplie elle-même (elle peut la remplacer ; pas une saisie du poseur)
+let remplissage = false;    // vrai pendant qu'un bouton remplit les champs (ce n'est pas une frappe : pas de propositions)
+function bouton(classe, quoi, quantite) {
+  const b = document.createElement('button');
+  b.type = 'button'; b.className = classe;
+  const nom = document.createElement('b'); nom.textContent = quoi; b.appendChild(nom);
+  if (quantite) { const q = document.createElement('small'); q.textContent = quantite; b.appendChild(q); }
+  return b;
+}
+// Remplit « Quoi ? » et la quantité. La quantité déjà tapée par le poseur n'est jamais remplacée par une proposition
+// (ecraser = faux) ; celle que la page avait remplie elle-même suit l'article choisi.
+function remplir(quoi, quantite, ecraser) {
+  const q = champ('dem-quoi'), n = champ('dem-quantite');
+  q.value = quoi; q.classList.remove('error');
+  const libre = ecraser || !n.value.trim() || n.value === quantiteMise;
+  if (libre) { n.value = quantite || ''; quantiteMise = quantite || null; if (quantite) n.classList.remove('error'); }
+  // le brouillon automatique écoute « input » : ce qui vient d'être rempli est gardé comme une saisie
+  remplissage = true;
+  try { q.dispatchEvent(new Event('input', { bubbles: true })); n.dispatchEvent(new Event('input', { bubbles: true })); } catch (e) {}
+  remplissage = false;
+  return libre && !!quantite;
+}
+function afficherAppris() {
+  const boite = champ('dem-appris');
+  const liste = LOUE.compte() && sorteChoisie() === 'commander' ? APPRIS.slice(0, DEM.MAX_BOUTONS) : [];
+  const signature = JSON.stringify(liste.map(a => [a.quoi, a.quantite]));
+  if (signature === signatureAppris && boite.hidden === !liste.length) return;
+  signatureAppris = signature;
+  boite.textContent = '';
+  if (liste.length) {
+    const titre = document.createElement('div'); titre.className = 'dem-appris-titre';
+    titre.textContent = 'Tes articles habituels';
+    boite.appendChild(titre);
+  }
+  liste.forEach(a => {
+    const b = bouton('dem-art', a.quoi, a.quantite);
+    b.addEventListener('click', () => {
+      // un toucher : « Quoi ? » et la dernière quantité demandée sont remplis (modifiables) ; il reste « Demander »
+      remplir(a.quoi, a.quantite, true);
+      cacherPropositions();
+      champ('valBanner').classList.remove('show');
+      try { champ('btn-demander').scrollIntoView({ block: 'nearest', behavior: 'smooth' }); } catch (e) {}
+    });
+    boite.appendChild(b);
+  });
+  boite.hidden = !liste.length;
+}
+function cacherPropositions() { const boite = champ('dem-propositions'); boite.textContent = ''; boite.hidden = true; }
+function afficherPropositions() {
+  const boite = champ('dem-propositions'), q = champ('dem-quoi');
+  // seulement pendant la frappe dans « Quoi ? », pour « À commander »
+  const trouves = document.activeElement === q && sorteChoisie() === 'commander'
+    ? DEM.chercher(q.value, LOUE.compte() ? APPRIS : [], DEM.articles(), DEM.MAX_PROPOSITIONS) : [];
+  boite.textContent = '';
+  trouves.forEach(p => {
+    const b = bouton('dem-prop', p.quoi, p.quantite);
+    // le toucher ne retire pas le curseur du champ : le clavier reste ouvert, la page ne saute pas sous le doigt
+    b.addEventListener('mousedown', e => e.preventDefault());
+    b.addEventListener('click', () => {
+      const remplie = remplir(p.quoi, p.quantite, false);
+      cacherPropositions();
+      const n = champ('dem-quantite');
+      n.focus();
+      if (remplie) { try { n.select(); } catch (e) {} }   // quantité reprise : une frappe la remplace, « Envoyer » la garde
+      remonter();
+    });
+    boite.appendChild(b);
+  });
+  boite.hidden = !trouves.length;
+}
+champ('dem-quoi').addEventListener('input', () => { if (!remplissage) afficherPropositions(); });
+champ('dem-quoi').addEventListener('blur', () => setTimeout(() => { if (document.activeElement !== champ('dem-quoi')) cacherPropositions(); }, 200));
+champ('dem-quantite').addEventListener('input', () => { if (!remplissage) quantiteMise = null; });   // le poseur a retouché la quantité : c'est la sienne
 
 // ── Connexion : le nom du poseur est celui du compte, jamais saisi ──
 function majConnexion() { champ('dem-connexion').hidden = !!LOUE.compte(); }
@@ -180,6 +290,10 @@ function afficherListe() {
       liste.appendChild(ligne(e.etat === 'erreur' ? 'erreur' : 'attente', d.quoi || '', d.quantite || '', jourCourt(e.cree) + ' · ' + type, etat));
     });
     const recues = LOUE.compte() && LISTE ? LISTE.donnees.demandes.filter(x => !enFile[x.id]) : [];
+    // Lot 10a-2 : les articles habituels sont recomptés à partir de ce qui vient d'être lu (liste du compte + file d'envoi)
+    APPRIS = LOUE.compte() ? DEM.appris(LISTE ? LISTE.donnees.demandes : [], attente) : [];
+    afficherAppris();
+    if (document.activeElement === champ('dem-quoi')) afficherPropositions();
     recues.forEach(x => liste.appendChild(ligne(x.etat === 'commande' ? 'commande' : '', x.quoi || '', x.quantite || '', jourCourt(x.date) + ' · ' + (x.type || ''), x.etatTexte || '')));
     // La ligne d'information et le texte « rien »
     const info = champ('dem-info'), vide = champ('dem-vide');
@@ -244,7 +358,8 @@ LOUE.surEvenement(ev => {
 function viderFiche() {
   champ('dem-quoi').value = ''; champ('dem-quantite').value = '';
   champ('sorte-commander').checked = true;
-  majLibelles();
+  quantiteMise = null;
+  majLibelles(); cacherPropositions(); afficherAppris();
 }
 
 // ── « Demander » : la demande est rangée dans le téléphone, puis part (tout de suite ou au retour du réseau) ──

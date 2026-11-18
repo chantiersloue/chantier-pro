@@ -28,7 +28,7 @@
 - **Ne change pas la ligne de titres de l'onglet *Demandes*, et ne déplace pas ses colonnes.** Si tu le fais, le serveur ne devine rien : il n'écrit plus dans l'onglet, **les demandes attendent dans les téléphones** (« ⏳ en attente d'envoi »), le mail de 15 h 45 ne part pas, et tu reçois un mail d'alerte (un par jour au plus). Remets les titres : tout repart tout seul, rien n'est perdu.
 - Tu peux **trier** l'onglet et **supprimer** une ligne (une demande faite par erreur) : l'appli retrouve une demande par son numéro de fiche.
 - Jour férié : le mail part quand même s'il y a des demandes.
-- **Pas encore là (lot 10a-2)** : les gros boutons des articles habituels et les propositions pendant la frappe.
+- **Les gros boutons des articles habituels et les propositions pendant la frappe** : c'est le lot 10a-2, une livraison à part, **après** celle-ci (dernière partie de ce document).
 
 ---
 
@@ -109,3 +109,90 @@ C'est le fichier qui ira en production. Je revérifie par l'empreinte.
 - **Le clavier ouvert, avec des gants**, sur Android et sur iPhone : étape B, point 4.
 - **Plein soleil, une barre de réseau** : étape B.
 - Le temps que le récapitulatif ajoute au réveil des 10 minutes (les 90 minutes par jour) : je le lis dans le journal d'exécution de TEST pendant l'étape C.
+
+---
+
+# Lot 10a-2 — boutons des articles habituels, propositions, onglet *Articles* : procédure
+
+> Pour Franck. **Une livraison à part, après le lot 10a-1** : le **serveur v11.3** et les **pages, appli 10.4**, branche `lot-10a2` (elle contient le 10a-1).
+> **État au 18/11/2026 : construit et testé contre le faux serveur seulement** et dans un vrai Chrome. Rien n'a touché la copie TEST ni la production.
+> Si tu préfères, les deux lots peuvent partir **en une seule fois** : dans ce cas, fais seulement cette partie-ci (elle contient tout), et lis `v11.3` et `10.4` partout où la première partie dit `v11.2` et `10.3`.
+
+## Ce qui change, en clair
+
+**Pour le poseur**
+- En haut de « À commander », **ses articles habituels** : jusqu'à 5 gros boutons, les articles qu'**il** demande le plus, avec la dernière quantité écrite dessous. **Un toucher** remplit « Quoi ? » et la quantité ; il la change s'il veut ; puis **Demander**.
+- Tant qu'il n'a rien demandé : pas de boutons. Chacun a les siens, même sur un téléphone partagé.
+- **Pendant la frappe** dans « Quoi ? », dès 2 lettres : **3 gros boutons au plus** sous le champ. D'abord ce qu'il a déjà demandé, puis ta liste. Il touche, ou il continue d'écrire : **le texte libre reste toujours possible**. Il n'y a aucune liste à dérouler.
+- Tout cela marche **sans réseau** : c'est calculé dans le téléphone.
+- Téléphone changé, appli réinstallée : les boutons reviennent tout seuls à la connexion (ils sont refaits à partir de « Mes demandes », 90 jours).
+
+**Pour toi, au bureau**
+- Un nouvel onglet ***Articles*** dans le Sheet, **facultatif**, créé vide : **une colonne, un article par ligne**. Ce que tu y écris est proposé à tous les poseurs pendant la frappe. Vide : tout marche quand même.
+- 500 articles au plus (les 500 premiers), 80 caractères au plus par article (le reste est coupé). Les doublons sont retirés tout seuls (« Vis 4×40 », « vis 4x40 » : un seul).
+- Une modification de l'onglet arrive dans un téléphone **à l'ouverture suivante de la page « À commander »**, avec du réseau.
+- Tu peux trier l'onglet, le vider, le supprimer : rien ne casse. La première ligne « Article » est un titre ; laisse-la ou retire-la, peu importe.
+- Le mail de 15 h 45 et l'onglet *Demandes* ne changent pas.
+
+## Étape A — la copie TEST (toi : 2 minutes)
+
+1. Je prépare ton dossier sur la branche `lot-10a2` et je te le confirme par écrit (« dossier prêt, branche lot-10a2, serveur v11.3 »). Ouvre PowerShell **dans ce dossier** et lance :
+   ```
+   node outils\envoyer-test.js --avec-porte
+   ```
+   Attends `✅ Envoi réussi`. La version affichée doit être **v11.3**. Dis-moi « envoi fait », avec l'empreinte affichée.
+2. Je relance l'installation sur TEST par la porte de service (`installerLot10`) : elle crée l'onglet *Articles*, vide, et ne touche pas à l'onglet *Demandes*. Puis je publie la copie d'essai.
+3. Dans le Sheet « ChantierPro TEST », onglet *Articles*, écris quatre ou cinq articles sous le titre, un par ligne (par exemple : `Vis 4×40`, `Embout de vissage`, `Cartouches silicone blanc`, `Éclisse alu`).
+
+## Étape B — tes essais sur téléphone (10 minutes, **avec des gants**)
+
+Sur la copie d'essai, connecté avec un compte de poseur d'essai :
+
+1. Ouvre **À commander**. Si ce compte n'a encore rien demandé : aucun bouton en haut. C'est normal.
+2. Touche « Quoi ? » et tape `vi`. Sous le champ : « Vis 4×40 » et « Embout de vissage ». Tape `ecl` (sans accent) : « Éclisse alu ». Tape `4x40` (avec la lettre x) : « Vis 4×40 ».
+3. Touche une proposition : « Quoi ? » est rempli, le curseur est dans « Quantité ». Écris `2 boîtes`, puis la touche **Envoyer** du clavier (ou le bouton **Demander**).
+4. En haut de la page, un gros bouton vert est apparu : **Vis 4×40 — 2 boîtes**. **Touche-le** : les deux champs sont remplis. Change la quantité en `3 boîtes`, **Demander**. Le bouton dit maintenant « 3 boîtes ».
+5. Fais quatre ou cinq autres demandes d'articles différents : les boutons s'ajoutent, **5 au plus**, le plus demandé en premier.
+6. **Le clavier ouvert, avec des gants** (mes tests ne peuvent pas ouvrir un vrai clavier) :
+   - quand tu touches « Quoi ? », le champ remonte-t-il tout en haut de l'écran ?
+   - vois-tu les propositions **au-dessus du clavier**, et les touches-tu sans fermer le clavier ?
+   - après avoir touché une proposition, vois-tu « Quantité » et **Demander** ?
+   - dis-moi ce qui gêne, sur Android **et** sur iPhone si tu peux.
+7. **Mode avion.** Rouvre « À commander » : les boutons sont là, les propositions aussi. Touche un bouton, **Demander** : « ⏳ En attente… ». Remets le réseau : elle part toute seule.
+8. **Second compte** : déconnecte-toi, connecte un autre compte d'essai sur le même téléphone, ouvre « À commander » : il n'a **pas** les boutons du premier.
+9. Touche **Outil en panne** : les boutons disparaissent (ils ne servent qu'à « À commander »). Touche **À commander** : ils reviennent.
+10. Touche un bouton, puis **ferme l'appli sans toucher Demander**. Rouvre : « Brouillon retrouvé » → **Restaurer** : l'article et la quantité sont revenus.
+
+## Étape C — second envoi sur TEST, sans la porte
+
+Dans le même dossier, toujours sur la branche `lot-10a2` :
+```
+node outils\envoyer-test.js --sans-porte
+```
+C'est le fichier qui ira en production. Je revérifie par l'empreinte.
+
+## Étape D — production (toi : 15 minutes)
+
+**Seulement après le lot 10a-1 en production** (ou en même temps que lui : voir l'encadré du haut), et après l'étape B verte. **Dans cet ordre :**
+
+1. Éditeur Apps Script de production : remplace tout `Code.gs` par `A-COLLER-DANS-APPS-SCRIPT/Code.gs` **de la branche `lot-10a2`** (je te donne son empreinte ; la ligne `VERSION_API` doit dire `v11.3`). **Enregistre**.
+2. Choisis la fonction **`installerLot10Production`** et clique ▶ (oui, la même qu'au lot 10a-1 : on peut la relancer sans danger). Tu dois lire `2/3 Onglet « Articles » … : fait — onglet créé, vide` et, à la fin, `✅ Lot 10 : installation terminée.` L'onglet *Demandes* n'est pas touché (« déjà fait »).
+3. Choisis la fonction **`verifierConfig`** et clique ▶. Aucune ligne ne doit commencer par ❌. Tu dois lire `✅ Onglet « Articles » : 0 article(s) proposé(s) aux poseurs pendant la frappe`.
+4. **Déployer → Nouveau déploiement** (description « Lot 10a-2 — production »). Copie la nouvelle adresse et donne-la-moi : je la mets dans `commun/config.js`.
+5. Ouvre le lien de fusion que je te donne : **Create pull request**, **Merge pull request**, **Confirm merge**.
+6. Vérification : dans l'appli, « À propos » affiche **10.4** ; l'adresse du serveur ouverte dans un navigateur affiche `Loué App API v11.3 OK`.
+7. Quand tu veux : remplis l'onglet *Articles*.
+
+**L'ordre compte peu ici, mais garde-le** : avec les nouvelles pages et l'ancien serveur, tout marche, sauf ta liste *Articles* (les poseurs n'ont que les propositions tirées de leurs propres demandes). Avec le nouveau serveur et les anciennes pages, rien ne change pour les poseurs.
+
+## Retour arrière
+
+1. **Les pages** : une fusion inverse. Les boutons et les propositions disparaissent ; la page du lot 10a-1 revient. Aucune demande n'est touchée.
+2. **Le serveur** : l'ancien déploiement (v11.2) remis en service, son adresse dans `commun/config.js`. Les demandes continuent ; la liste *Articles* n'est plus donnée.
+3. **L'onglet *Articles*** peut rester ou être supprimé : rien d'autre ne le lit. **Aucune donnée existante n'est modifiée par ce lot : rien à sauvegarder.**
+
+## Ce qui n'a pas été vérifié
+
+- **Rien n'a tourné chez Google** : la création de l'onglet *Articles*, sa lecture « telle qu'affichée » par Google.
+- **Le vrai clavier**, sur Android et sur iPhone, avec des gants : étape B, point 6. Dans Chrome, j'ai seulement réduit la hauteur de l'écran à 280 px.
+- **Plein soleil** : le vert des boutons se lit-il ?

@@ -16,6 +16,8 @@
 //   mode=reveil : un passage du réveil des 10 minutes (traiterComptes, donc le récapitulatif « À commander ») ;
 //   mode=oublier-passage : efface la marque « passage du jour fait » (le faux serveur a pu la poser à son démarrage, à la vraie heure) ;
 //   mode=commande&quoi=<texte>&valeur=1 : coche (0 : décoche) la case « Commandé » des demandes dont « Quoi » est ce texte.
+// Lot 10a-2 — mode=articles&liste=<a|b|c> : remplit l'onglet « Articles » (sous son titre ; liste vide : onglet vidé) ;
+//   mode=articles&nombre=600 : 600 articles « Article long 001 »… ; mode=articles&absent=1 : l'onglet est retiré.
 'use strict';
 const http = require('http');
 const { creerGoogle, chargerScript } = require('./gas-harness');
@@ -119,6 +121,17 @@ http.createServer((req, res) => {
       let n = 0;
       ((google.feuilles['Demandes'] || { lignes: [] }).lignes).slice(1).forEach(l => { if (l[3] === quoi) { l[5] = valeur; n++; } });
       res.writeHead(200, entetes); return res.end(JSON.stringify({ commande: n }));
+    }
+    if (m === 'articles') {
+      if (url.searchParams.get('absent') === '1') delete google.feuilles['Articles'];
+      else {
+        if (!google.feuilles['Articles']) ctx.installerLot10Production();   // recrée l'onglet, vide
+        const nombre = Number(url.searchParams.get('nombre') || 0);
+        const liste = nombre > 0 ? Array.from({ length: nombre }, (_, i) => 'Article long ' + String(i + 1).padStart(3, '0'))
+          : (url.searchParams.get('liste') || '').split('|').filter(Boolean);
+        google.feuilles['Articles'].lignes = [['Article']].concat(liste.map(t => [t]));
+      }
+      res.writeHead(200, entetes); return res.end(JSON.stringify({ articles: google.feuilles['Articles'] ? google.feuilles['Articles'].lignes.length - 1 : 'absent' }));
     }
     if (m === 'recharger-carnet') { chargerCarnet(); viderCacheCarnet(); res.writeHead(200, entetes); return res.end('{"carnet":"relu"}'); }
     // Lot 4 : la liste carnet.json absente (en cours d'arrivée) puis revenue ; un second état du Drive (redépôt, nouvel indice) ; un compte désactivé
