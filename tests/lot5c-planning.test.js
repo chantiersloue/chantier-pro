@@ -121,13 +121,13 @@ test('un fichier HORS du dossier Planning (autre dossier, sous-dossier, inconnu,
   assert.deepStrictEqual(liste.map(d => d.nom), [], 'ni le sous-dossier, ni le fichier à la corbeille dans la liste');
 });
 
-test('plus de 10 Mo : refusé avec un message clair', () => {
+test('plus de 5 Mo : refusé avec un message clair', () => {
   const g = environnement();
   const jeton = activer(g, 'thomas27');
-  const f = deposer(g, 'Gros.pdf'); f.taille = 10 * 1024 * 1024 + 1;
+  const f = deposer(g, 'Gros.pdf'); f.taille = 5 * 1024 * 1024 + 1;
   const r = poster(g, { action: 'planningFichier', id: f.api.getId(), jeton: jeton });
   assert.deepStrictEqual([r.ok, r.code], [false, 'TROP_GROS'], JSON.stringify(r));
-  assert.ok(/10 Mo/.test(r.message));
+  assert.ok(/5 Mo/.test(r.message));
 });
 
 test('dossier Planning introuvable : réponse claire, pas d’erreur du serveur', () => {
@@ -153,6 +153,43 @@ test('aucun autre fichier du Drive n’est partagé ni rendu privé par la lectu
   const autre = deposer(g, 'partage-volontaire.pdf', { dans: g.racine, acces: 'ANYONE_WITH_LINK' });
   poster(g, { action: 'dossiers', chantier: '__PLANNING__', jeton: jeton });
   assert.strictEqual(autre.acces, 'ANYONE_WITH_LINK', 'hors du planning : on n’y touche pas');
+});
+
+test('raccourci Drive dans le planning : pas listé, refusé ; fichier Google (Sheets) : envoyé en PDF, nom en .pdf', () => {
+  const g = environnement();
+  const jeton = activer(g, 'thomas27');
+  const raccourci = deposer(g, 'Raccourci S46', { mime: 'application/vnd.google-apps.shortcut' });
+  const natif = deposer(g, 'Planning S47', { mime: 'application/vnd.google-apps.spreadsheet' });
+  natif.api.getBlob = () => ({ getBytes: () => Array.from(OCTETS).map(o => o > 127 ? o - 256 : o), getContentType: () => 'application/pdf' });
+  const liste = poster(g, { action: 'dossiers', chantier: '__PLANNING__', jeton: jeton }).data.dossiers.planning;
+  assert.deepStrictEqual(liste.map(d => d.nom), ['Planning S47']);
+  const r1 = poster(g, { action: 'planningFichier', id: raccourci.api.getId(), jeton: jeton });
+  assert.deepStrictEqual([r1.ok, r1.code], [false, 'INTROUVABLE'], JSON.stringify(r1));
+  const r2 = poster(g, { action: 'planningFichier', id: natif.api.getId(), jeton: jeton });
+  assert.deepStrictEqual([r2.ok, r2.data.mime, r2.data.nom], [true, 'application/pdf', 'Planning S47.pdf'], JSON.stringify(r2).slice(0, 200));
+});
+
+test('partage impossible à retirer : Franck est prévenu par mail (une fois par jour), la liste est donnée quand même', () => {
+  const g = environnement();
+  const jeton = activer(g, 'thomas27');
+  const tetu = deposer(g, 'S46.pdf', { acces: 'ANYONE_WITH_LINK' });
+  tetu.api.setSharing = () => { throw new Error('Accès refusé : fichier d’un autre propriétaire'); };
+  const avant = g.mails.length;
+  const r = poster(g, { action: 'dossiers', chantier: '__PLANNING__', jeton: jeton });
+  assert.strictEqual(r.data.dossiers.planning.length, 1);
+  poster(g, { action: 'dossiers', chantier: '__PLANNING__', jeton: jeton });
+  const alertes = g.mails.slice(avant).filter(m => /Planning encore lisible par lien/.test(m.sujet));
+  assert.strictEqual(alertes.length, 1, JSON.stringify(g.mails.slice(avant).map(m => m.sujet)));
+  assert.ok(/S46\.pdf/.test(alertes[0].texte), alertes[0].texte);
+});
+
+test('fermerPartagesPlanning (à lancer une fois dans l’éditeur) : remet tout en privé et le dit', () => {
+  const g = environnement();
+  const a = deposer(g, 'S45.pdf', { acces: 'ANYONE_WITH_LINK' });
+  g.planning.acces = 'ANYONE'; g.planning.permission = 'VIEW';
+  const m = g.ctx.fermerPartagesPlanning();
+  assert.ok(/^✅ Planning : 1 document\(s\), aucun partagé par lien\./.test(m), m);
+  assert.deepStrictEqual([a.acces, g.planning.acces], ['PRIVATE', 'PRIVATE']);
 });
 
 console.log(reussis + ' test(s) réussi(s)' + (echecs ? ' — DES TESTS ÉCHOUENT' : ''));

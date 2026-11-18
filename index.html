@@ -100,13 +100,13 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .doc-item:active{background:#EEF3FF;border-color:var(--blue);}
 .doc-ic{width:36px;height:36px;border-radius:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
 .doc-ic svg{width:17px;height:17px;}
-.doc-info{flex:1;min-width:0;}
-.doc-name{font-size:13px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.doc-info{display:block;flex:1;min-width:0;}
+.doc-name{display:block;font-size:13px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .doc-meta{font-size:11px;color:var(--muted);margin-top:2px;display:flex;align-items:center;gap:6px;}
 .doc-ext{flex-shrink:0;color:var(--border2);}
 /* Lot 5c : document du planning demandé au serveur (bouton, puis lien « prêt ») */
 button.doc-item{width:100%;text-align:left;font:inherit;color:inherit;cursor:pointer;min-height:56px;}
-.doc-etat{font-size:13px;font-weight:600;margin-top:4px;color:var(--muted);}
+.doc-etat{display:block;font-size:13px;font-weight:600;margin-top:4px;color:var(--muted);}
 .doc-etat.doc-pret{color:#196B3B;}
 .doc-etat.doc-erreur{color:#B32E2E;}
 .doc-planning-pret{border-color:#196B3B;}
@@ -793,20 +793,32 @@ function ouvrirSignalements(tous) {
 }
 
 // ── Planning ──
-let planningCharge = false;
+// Lot 5c : la liste est relue à CHAQUE ouverture (un document retiré disparaît, le compte connecté peut avoir changé),
+// et tout ce qui a été reçu pour le compte précédent est effacé de la page.
+let planningTour = 0;
+function viderPlanning() {
+  planningTour++;
+  Object.keys(planningOuverts).forEach(id => { try { URL.revokeObjectURL(planningOuverts[id]); } catch (e) {} delete planningOuverts[id]; });
+  const el = $('planning-container');
+  if (el) el.innerHTML = '';
+}
 function loadPlanning() {
-  if (planningCharge) return;
+  viderPlanning();
+  const tour = planningTour;
   const el = $('planning-container');
   el.innerHTML = CHARGEMENT;
   LOUE.lireDossiers('__PLANNING__').then(d => {
-    planningCharge = true;
+    if (tour !== planningTour) return;   // une lecture plus récente (ou une déconnexion) est passée entre-temps
     const docs = (d && d.planning) || [];
     el.innerHTML = docs.length ? '<div class="list-wrap">' + docs.map(docHTML).join('') + '</div>'
       : vide('Aucun planning', 'Déposez les PDF dans le dossier<br><strong>Planning</strong> à la racine de votre Drive Loué Menuiserie.', ICONE_CALENDRIER);
   }).catch(err => {
+    if (tour !== planningTour) return;
     el.innerHTML = vide('Impossible de charger', esc(err && /Connectez-vous/.test(err.message || '') ? err.message : 'Vérifiez le réseau, puis rouvrez le planning.'), ICONE_CALENDRIER);
   });
 }
+// Changement de compte (connexion, déconnexion, session terminée) : le planning du compte précédent est effacé
+LOUE.surEvenement(ev => { if (ev.type === 'compte') viderPlanning(); });
 
 // ── Une ligne de document ──
 const TYPES_DOC = {
@@ -825,14 +837,16 @@ function docHTML(d) {
   const t = TYPES_DOC[d.type || ''] || { bg: '#F2F0EC', clr: '#6A6460', label: '' };
   const badge = t.label ? '<span style="background:' + t.bg + ';color:' + t.clr + ';padding:1px 6px;border-radius:4px;font-size:11px;font-weight:700">' + t.label + '</span>' : '';
   const taille = tailleTexte(d.taille);
-  const corps = '<div class="doc-ic" style="background:' + t.bg + '"><svg viewBox="0 0 24 24" fill="none" stroke="' + t.clr + '" stroke-width="2">'
-    + '<path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>'
-    + '<div class="doc-info"><div class="doc-name">' + esc(d.nom || 'Document') + '</div>'
-    + '<div class="doc-meta">' + badge + '<span>' + esc(d.date || '') + '</span>' + (taille ? '<span>' + esc(taille) + '</span>' : '') + '</div>'
-    + '<div class="doc-etat" hidden></div></div>'
+  // (des <span>, pas des <div> : le tout peut être dans un bouton)
+  const corps = '<span class="doc-ic" style="background:' + t.bg + '"><svg viewBox="0 0 24 24" fill="none" stroke="' + t.clr + '" stroke-width="2">'
+    + '<path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></span>'
+    + '<span class="doc-info"><span class="doc-name">' + esc(d.nom || 'Document') + '</span>'
+    + '<span class="doc-meta">' + badge + '<span>' + esc(d.date || '') + '</span>' + (taille ? '<span>' + esc(taille) + '</span>' : '') + '</span>'
+    + '<span class="doc-etat" hidden></span></span>'
     + '<svg class="doc-ext" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>';
   // Lot 5c : le serveur donne un numéro, jamais un lien ; le document est demandé au serveur avec le compte
-  if (d.id) return '<button type="button" class="doc-item doc-planning" data-planning-id="' + esc(String(d.id)) + '" data-nom="' + esc(d.nom || 'Document') + '">' + corps + '</button>';
+  if (d.id) return '<button type="button" class="doc-item doc-planning" data-planning-id="' + esc(String(d.id)) + '" data-nom="' + esc(d.nom || 'Document')
+    + '" data-taille="' + esc(String(Number(d.taille) || 0)) + '">' + corps + '</button>';
   // Ancien serveur (avant le lot 5c) : son lien Google Drive, comme avant (seuls les liens Drive / Docs sont ouverts)
   const url = /^https:\/\/(drive|docs)\.google\.com\//.test(String(d.url || '')) ? d.url : '#';
   return '<a class="doc-item" href="' + esc(url) + '" target="_blank" rel="noopener">' + corps + '</a>';
@@ -848,30 +862,54 @@ function ouvrirPlanning(bouton) {
   const dire = (texte, classe) => { etat.hidden = false; etat.className = 'doc-etat' + (classe ? ' ' + classe : ''); etat.textContent = texte; };
   if (bouton.dataset.charge === '1') return;
   bouton.dataset.charge = '1';
+  const tour = planningTour;
   dire('⏳ Téléchargement…');
-  LOUE.appeler({ action: 'planningFichier', id: id }, 60000).then(rep => {
+  // Délai d'après le poids : une barre de réseau fait environ 10 Ko par seconde (le document voyage en base64, +35 %)
+  const taille = Number(bouton.getAttribute('data-taille')) || 0;
+  const delai = Math.min(600000, 30000 + Math.round(taille * 1.4 / 10));
+  LOUE.appeler({ action: 'planningFichier', id: id }, delai).then(rep => {
+    if (tour !== planningTour) return;   // le compte a changé pendant le téléchargement : rien n'est montré
     if (!rep || !rep.ok || !rep.data || typeof rep.data.b64 !== 'string') throw new Error((rep && rep.message) || 'Document indisponible');
     const bin = atob(rep.data.b64), octets = new Uint8Array(bin.length);
     for (let i = 0; i < bin.length; i++) octets[i] = bin.charCodeAt(i);
     const mime = String(rep.data.mime || 'application/pdf');
-    const adresse = URL.createObjectURL(new Blob([octets], { type: mime }));
+    const nomRecu = String(rep.data.nom || nom);
+    const contenu = new Blob([octets], { type: mime });
+    const texte = /pdf/.test(mime) ? '✓ Prêt : touchez pour ouvrir le PDF' : '✓ Prêt : touchez pour l’ouvrir';
+    // iPhone, appli installée : un document ouvert dans une nouvelle fenêtre y arrive vide. On passe par le menu
+    // « Partager » du téléphone, qui sait l'afficher et l'enregistrer.
+    let fichier = null;
+    try { fichier = new File([contenu], nomRecu, { type: mime }); } catch (e) {}
+    const parPartage = LOUE.estIPhone && LOUE.estIPhone() && LOUE.estInstalle && LOUE.estInstalle()
+      && fichier && navigator.canShare && navigator.canShare({ files: [fichier] });
+    if (parPartage) {
+      bouton.dataset.charge = '';
+      bouton.classList.remove('doc-planning');
+      bouton.classList.add('doc-planning-pret');
+      dire(texte, 'doc-pret');
+      bouton.onclick = () => { navigator.share({ files: [fichier], title: nomRecu }).catch(() => {}); };
+      return;
+    }
+    const adresse = URL.createObjectURL(contenu);
     planningOuverts[id] = adresse;
     const lien = document.createElement('a');
     lien.className = 'doc-item doc-planning-pret';
     lien.href = adresse;
     lien.target = '_blank';
     lien.rel = 'noopener';
-    if (!/pdf|image/.test(mime)) lien.download = nom;   // un tableur ou autre : enregistré, puis ouvert par l'appli du téléphone
+    if (!/pdf|image/.test(mime)) lien.download = nomRecu;   // un tableur ou autre : enregistré, puis ouvert par l'appli du téléphone
     lien.innerHTML = bouton.innerHTML;
-    lien.querySelector('.doc-etat').hidden = false;
-    lien.querySelector('.doc-etat').className = 'doc-etat doc-pret';
-    lien.querySelector('.doc-etat').textContent = /pdf/.test(mime) ? '✓ Prêt : touchez pour ouvrir le PDF' : '✓ Prêt : touchez pour l’ouvrir';
+    const etatLien = lien.querySelector('.doc-etat');
+    etatLien.hidden = false;
+    etatLien.className = 'doc-etat doc-pret';
+    etatLien.textContent = texte;
     bouton.replaceWith(lien);
   }).catch(err => {
+    if (tour !== planningTour) return;
     bouton.dataset.charge = '';
-    const m = String((err && err.message) || '');
-    dire(/Connectez-vous|connexion/i.test(m) ? m : (/réseau|Failed to fetch|NetworkError|délai/i.test(m) || navigator.onLine === false
-      ? 'Pas de réseau : réessayez quand le réseau revient.' : m || 'Document indisponible'), 'doc-erreur');
+    // Message en français, quelle que soit l'erreur (Safari : « Load failed », délai dépassé…) ; ici, rien ne réessaie tout seul
+    const m = LOUE.messageClair ? String(LOUE.messageClair(err) || '') : String((err && err.message) || '');
+    dire((m || 'Document indisponible').replace(/, nouvel essai automatique$/, ' : touchez pour réessayer'), 'doc-erreur');
   });
 }
 document.addEventListener('click', ev => {

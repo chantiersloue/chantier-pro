@@ -81,6 +81,10 @@ function scenario() {
       return fetch(a.href).then(rep => rep.blob()).then(b => b.text().then(t => ({ lien: a.getAttribute('href'), cible: a.target, telecharger: a.hasAttribute('download'),
         etat: a.querySelector('.doc-etat').textContent, type: b.type, debut: t.slice(0, 8), hauteur: Math.round(a.getBoundingClientRect().height) }))); });
   }
+  // … déconnexion SANS recharger la page : la liste et le document reçu du compte précédent disparaissent
+  r.apresDeco = await page.evaluate(a => { const c = document.getElementById('planning-container'); LOUE.deconnecter();
+    const res = { vide: c.innerHTML === '', prets: c.querySelectorAll('.doc-planning-pret').length };
+    return LOUE.connexion(a[0], a[1]).then(() => res); }, ['poseur1', MDP]);
   // une ancienne page gardée dans un téléphone demande encore les plans du chantier
   r.anciennePageCompte = await page.evaluate(() => LOUE.lireDossiers('CHANTIER TEST 1').then(d => JSON.stringify(d), e => 'ERREUR ' + e.message));
   r.autreChantier = await page.evaluate(() => LOUE.lireDossiers('CHANTIER TEST 2').then(d => JSON.stringify(d), e => 'ERREUR ' + e.message));
@@ -150,6 +154,7 @@ setTimeout(() => {
     verifier('lot 5c : toucher le document le télécharge par le serveur ; il devient « ✓ Prêt : touchez pour ouvrir le PDF », un lien interne à la page (PDF, octets du fichier)',
       !!r.ouverture && /^blob:/.test(r.ouverture.lien) && r.ouverture.cible === '_blank' && r.ouverture.telecharger === false && /✓ Prêt : touchez pour ouvrir le PDF/.test(r.ouverture.etat)
       && r.ouverture.type === 'application/pdf' && r.ouverture.debut === '%PDF-1.4' && r.ouverture.hauteur >= 48, j(r.ouverture));
+    verifier('lot 5c : déconnexion sans recharger la page : la liste du planning et le document reçu sont effacés', !!r.apresDeco && r.apresDeco.vide === true && r.apresDeco.prets === 0, j(r.apresDeco));
     verifier('ancienne page (avec compte) qui demande encore les plans : liste vide, sans erreur ; chantier d’un autre : refus comme avant',
       r.anciennePageCompte === '{"plans":[]}' && /^ERREUR .*ne fait pas partie de vos chantiers/.test(r.autreChantier), j([r.anciennePageCompte, r.autreChantier]));
     verifier('hors réseau : la page du chantier s’ouvre pareil (rien ne manque, rien ne casse)', sansRestes(r.horsReseau) && j(r.horsReseau.titres) === j(['Carnet', 'Signalements', 'Notes']), j(r.horsReseau));

@@ -1,6 +1,6 @@
 # Lot 5c — Le planning lisible par les seuls comptes de l'appli — PLAN COURT
 
-> Plan du 18/11/2026, version 1. Demandé par toi le 18/11 : « Seuls les comptes de l'appli doivent pouvoir lire le PDF du planning. »
+> Plan du 18/11/2026, version 2 (corrigée après une relecture indépendante : anciens déploiements, déconnexion, réseau faible, fichiers Google). Demandé par toi le 18/11 : « Seuls les comptes de l'appli doivent pouvoir lire le PDF du planning. »
 > Branche `lot-5c`, partie de `main` (la production, lot 5). **Petit lot à part, à mettre en production avant le lot 8.**
 
 ## 1. Le problème (constaté dans le code de production)
@@ -25,12 +25,15 @@ Conséquences :
 **Serveur (v10.1)**
 - La liste du planning ne met **plus rien en partage**. Mieux : tout fichier du dossier *Planning* trouvé partagé (par lien ou public) est **remis en privé** à la lecture suivante. Tu n'as rien à faire dans Drive.
 - La liste ne donne plus le lien Drive, seulement : nom, sorte (PDF…), date, taille, et un numéro interne.
-- **Nouvelle action « planningFichier »** : un compte connecté et actif demande un fichier par son numéro ; le serveur vérifie que ce fichier est **bien dans le dossier *Planning*** (rien d'autre du Drive ne peut sortir par là), qu'il pèse moins de 10 Mo, puis renvoie son contenu.
+- **Nouvelle action « planningFichier »** : un compte connecté et actif demande un fichier par son numéro ; le serveur vérifie que ce fichier est **bien dans le dossier *Planning*** (rien d'autre du Drive ne peut sortir par là), qu'il pèse moins de **5 Mo**, puis renvoie son contenu. Un fichier Google (Sheets, Docs) part en PDF ; un raccourci Drive n'est pas listé.
+- Si un partage ne peut pas être retiré (fichier d'un autre propriétaire, partage hérité d'un dossier au-dessus), **tu reçois un mail** (une fois par jour au plus).
+- Une fonction **`fermerPartagesPlanning`**, à lancer une fois dans l'éditeur juste après la mise en production : elle remet tout en privé tout de suite et dit ce qui reste ouvert.
 - **Sans compte** (ancienne lecture `getDossiers`), le planning n'est plus servi : réponse « Connectez-vous pour voir le planning », la même que celle de la fin de la période sans compte, que la page sait déjà afficher. Les autres lectures sans compte (listes) ne changent pas.
 
 **Page d'accueil (appli 9.1)**
 - La liste du planning est la même (nom, date, marque PDF).
-- Toucher un document : « ⏳ Téléchargement… », puis le bouton devient **« Ouvrir le PDF »** ; un second toucher l'ouvre avec le lecteur du téléphone. (Deux touchers, parce qu'un téléphone bloque l'ouverture d'un document qui n'arrive pas tout de suite après le toucher.)
+- Toucher un document : « ⏳ Téléchargement… », puis « **✓ Prêt : touchez pour ouvrir le PDF** » ; un second toucher l'ouvre avec le lecteur du téléphone. (Deux touchers, parce qu'un téléphone bloque l'ouverture d'un document qui n'arrive pas tout de suite après le toucher.) Sur iPhone, appli installée, le second toucher ouvre le menu « Partager » du téléphone, qui montre le PDF.
+- La liste est relue à chaque ouverture ; à la déconnexion, la liste et les documents reçus sont effacés de la page.
 - Un fichier qui n'est pas un PDF (Excel, image) : même chose, il s'ouvre avec l'appli du téléphone qui sait le lire.
 - Hors réseau : message clair, comme aujourd'hui.
 
@@ -41,14 +44,15 @@ Conséquences :
 | Risque | Parade |
 |---|---|
 | Un téléphone n'affiche pas le PDF reçu | essai sur Android et iPhone (procédure) ; sur PC, le navigateur l'affiche |
-| Un gros fichier sur une barre de réseau | 10 Mo au plus ; la taille est affichée dans la liste |
+| Un gros fichier sur une barre de réseau | 5 Mo au plus ; le poids est affiché ; le téléphone attend d'autant plus longtemps que le document est lourd |
 | Un compte demande un autre fichier du Drive | le serveur ne sert que les fichiers **directement** dans le dossier *Planning* |
 | Des poseurs sans compte ne voient plus le planning | c'est ta demande ; dis-le-leur, ou crée-leur un compte avant la mise en production |
-| Ancienne page restée dans un téléphone (sans la mise à jour) | elle ne trouve plus de lien : elle affiche « Aucun lien » ; la mise à jour se propose d'elle-même |
+| Ancienne page restée dans un téléphone (sans la mise à jour) | elle ne trouve plus de lien : toucher un document n'ouvre rien d'utile ; la mise à jour se propose d'elle-même |
+| **Les anciens déploiements tournent encore** | **Les anciens déploiements doivent être archivés.** Chaque ancien déploiement de production (« Lot 3 », « Lot 4 », « Lot 7 — production »…) fait encore tourner l'ancien serveur, à une adresse qui figure dans l'historique public du dépôt. Tant qu'il tourne, n'importe qui peut lui demander le planning sans compte, et il remet les fichiers en partage par lien. **Le planning n'est protégé qu'une fois tous les anciens déploiements archivés.** Archivage à l'étape C de la procédure |
 
 ## 5. Tests
 
-Faux serveur : partage remis en privé ; aucun lien dans la liste ; fichier servi à un compte, refusé sans compte, refusé hors du dossier *Planning*, refusé au-delà de 10 Mo ; compte désactivé ; ancienne lecture sans compte. Page (vrai Chrome, 375 px et PC) : liste, téléchargement puis « Ouvrir le PDF », hors réseau, sans compte. Les séries existantes qui attendaient le partage par lien sont mises à jour.
+Faux serveur : partage remis en privé ; aucun lien dans la liste ; fichier servi à un compte, refusé sans compte, refusé hors du dossier *Planning*, refusé au-delà de 5 Mo ; raccourci, fichier Google, partage impossible à retirer ; compte désactivé ; ancienne lecture sans compte. Page (vrai Chrome, 375 px et PC) : liste, téléchargement puis « Ouvrir le PDF », hors réseau, sans compte. Les séries existantes qui attendaient le partage par lien sont mises à jour.
 
 ## 6. Ce que tu auras à faire (30 min)
 

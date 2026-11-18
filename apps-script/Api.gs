@@ -97,21 +97,17 @@ function lireDossiers_(chantierNom) {
   const result = {};
   try {
     const planningFolder = DriveApp.getFolderById(drivePlanningId_());
+    const restes = [];
     // Le dossier lui-même partagé par lien ouvrirait tous ses fichiers : il est remis en privé aussi
-    try {
-      const accesDossier = planningFolder.getSharingAccess();
-      if (accesDossier === DriveApp.Access.ANYONE_WITH_LINK || accesDossier === DriveApp.Access.ANYONE) planningFolder.setSharing(DriveApp.Access.PRIVATE, DriveApp.Permission.NONE);
-    } catch(e){ console.error('Planning, partage du dossier :', e.message); }
+    if (!planningPrive_(planningFolder)) restes.push('le dossier « ' + planningFolder.getName() + ' »');
     const files = planningFolder.getFiles();
     const docs = [];
     while(files.hasNext()) {
       const f = files.next();
       try { if (f.isTrashed()) continue; } catch(e){}
-      try {
-        const acces = f.getSharingAccess();
-        if (acces === DriveApp.Access.ANYONE_WITH_LINK || acces === DriveApp.Access.ANYONE) f.setSharing(DriveApp.Access.PRIVATE, DriveApp.Permission.NONE);
-      } catch(e){ console.error('Planning, partage :', e.message); }
       const mime = f.getMimeType();
+      if (mime === PLANNING_RACCOURCI) continue;   // un raccourci Drive n'a pas de contenu à envoyer : pas listé
+      if (!planningPrive_(f)) restes.push('« ' + f.getName() + ' »');
       let type = 'link';
       if(mime.includes('pdf'))   type='pdf';
       else if(mime.includes('image')) type='image';
@@ -124,12 +120,42 @@ function lireDossiers_(chantierNom) {
     }
     docs.sort(parDateDecroissante_);
     result.planning = docs;
+    // Partage impossible à retirer (fichier d'un autre propriétaire, partage hérité d'un dossier au-dessus) : Franck est prévenu
+    if (restes.length) alerte_('Le planning est encore lisible par lien : ' + restes.join(', ') + '. Le serveur n’a pas pu retirer ce partage. '
+      + 'Dans Drive : clic droit → Partager → « Accès limité », sur ces éléments ET sur les dossiers au-dessus du dossier Planning.', 'planning');
   } catch(err){ console.error('Planning:', err.message); result.planning=[]; }
   return result;
 }
+// Remet en privé un fichier ou un dossier partagé par lien (ou public). Rend true s'il est privé ensuite.
+function planningPrive_(el) {
+  const ouvert = () => { const a = el.getSharingAccess(); return a === DriveApp.Access.ANYONE_WITH_LINK || a === DriveApp.Access.ANYONE; };
+  try {
+    if (!ouvert()) return true;
+    el.setSharing(DriveApp.Access.PRIVATE, DriveApp.Permission.NONE);
+    return !ouvert();   // relu : un partage hérité d'un dossier au-dessus ne se retire pas ici
+  } catch (e) { console.error('Planning, partage :', e.message); return false; }
+}
+// À lancer une fois dans l'éditeur, juste après la mise en production : retire tout de suite les partages du planning
+// (sans attendre qu'un poseur ouvre le planning) et dit ce qui reste ouvert.
+function fermerPartagesPlanning() {
+  const n = (lireDossiers_('__PLANNING__').planning || []).length;
+  const dossier = DriveApp.getFolderById(drivePlanningId_());
+  const encore = [];
+  if (!planningPrive_(dossier)) encore.push('le dossier');
+  const it = dossier.getFiles();
+  while (it.hasNext()) { const f = it.next(); if (!f.isTrashed() && f.getMimeType() !== PLANNING_RACCOURCI && !planningPrive_(f)) encore.push('« ' + f.getName() + ' »'); }
+  let parent = '';
+  try { const p = dossier.getParents(); if (p.hasNext()) { const d = p.next(); if (d.getSharingAccess() !== DriveApp.Access.PRIVATE) parent = d.getName(); } } catch (e) {}
+  const m = (encore.length ? '❌ Encore partagé par lien : ' + encore.join(', ') + '. Retire le partage à la main dans Drive.'
+    : '✅ Planning : ' + n + ' document(s), aucun partagé par lien.')
+    + (parent ? ' ⚠ Le dossier au-dessus (« ' + parent + ' ») est partagé : vérifie qu’il ne donne pas accès au planning.' : '');
+  Logger.log(m);
+  return m;
+}
 
 // ── Lot 5c : un fichier du planning, envoyé au compte connecté (jamais par un lien) ──
-const MAX_PLANNING_OCTETS = 10 * 1024 * 1024;   // 10 Mo au plus par fichier
+const PLANNING_RACCOURCI = 'application/vnd.google-apps.shortcut';
+const MAX_PLANNING_OCTETS = 5 * 1024 * 1024;   // 5 Mo au plus par fichier (une barre de réseau)
 function planningFichier_(compte, corps) {
   const id = String(corps.id || '');
   const refus = (code, message) => avecJeton_({ ok: false, code: code, message: message }, compte);
@@ -143,15 +169,20 @@ function planningFichier_(compte, corps) {
   while (it.hasNext()) { const f = it.next(); if (f.getId() === id) { fichier = f; break; } }
   let jete = false;
   try { jete = !!fichier && fichier.isTrashed(); } catch (e) {}
-  if (!fichier || jete) return refus('INTROUVABLE', 'Ce document n’est plus dans le planning : rouvrez le planning.');
-  const tropGros = refus.bind(null, 'TROP_GROS', 'Document trop lourd pour le téléphone (plus de 10 Mo) : voyez avec le bureau.');
+  if (!fichier || jete || fichier.getMimeType() === PLANNING_RACCOURCI) return refus('INTROUVABLE', 'Ce document n’est plus dans le planning : rouvrez le planning.');
+  const tropGros = refus.bind(null, 'TROP_GROS', 'Document trop lourd pour le téléphone (plus de 5 Mo) : voyez avec le bureau.');
   let taille = 0;
   try { taille = fichier.getSize(); } catch (e) {}
   if (taille > MAX_PLANNING_OCTETS) return tropGros();
-  const octets = fichier.getBlob().getBytes();
+  // Un fichier Google (Sheets, Docs, Slides) est converti en PDF par getBlob : le type et le nom suivent le contenu réel
+  const blob = fichier.getBlob();
+  const octets = blob.getBytes();
   if (octets.length > MAX_PLANNING_OCTETS) return tropGros();
+  const mime = String(blob.getContentType() || fichier.getMimeType() || 'application/octet-stream');
+  let nom = fichier.getName();
+  if (mime === 'application/pdf' && !/\.pdf$/i.test(nom)) nom += '.pdf';
   return avecJeton_({ ok: true, code: 'OK', message: 'Document du planning',
-    data: { id: id, nom: fichier.getName(), mime: fichier.getMimeType() || 'application/octet-stream', b64: Utilities.base64Encode(octets) } }, compte);
+    data: { id: id, nom: nom, mime: mime, b64: Utilities.base64Encode(octets) } }, compte);
 }
 
 // Tri des documents par date « jj/mm/aaaa », la plus récente en premier
