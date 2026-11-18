@@ -7,7 +7,7 @@
 | Lot | Branche | État au 18/11 |
 |---|---|---|
 | **5** (stockage, purges) | `main` | **en production** (pages fusionnées le 17/11) |
-| **4c** (programme du PC) + retouche « ignorer » | `lot-5` (ton dossier) | prêt pour tes étapes 3 à 5 aujourd'hui |
+| **4c** (programme du PC) + retouche « ignorer » | `lot-5` (ton dossier) | **en service depuis le 18/11** : premier chantier (403) recopié, tâche automatique installée, passage de 17 h 42 réussi |
 | **5c** planning lisible par les seuls comptes, serveur v10.1, appli 9.1 | `lot-5c` (part de la production) | **nouveau (18/11)**, construit et testé, en relecture indépendante. **À mettre en production avant le lot 8** |
 | **8** (note de réunion en points), serveur v11.1, appli 10.2 | `lot-8` | construit, relu, corrigé. **À essayer sur la copie TEST** |
 | **10a-1** « À commander », serveur v11.2, appli 10.3 | `lot-10a1` (contient le lot 8) | construit, relu une fois (rien de bloquant), corrigé ; « Précision (facultative) ». Testé contre le faux serveur et dans Chrome à 375 px |
@@ -26,16 +26,11 @@ Pourquoi cet ordre évite les conflits dans `Code.gs` : chaque branche part de l
 
 La copie TEST ne porte **qu'un lot à la fois** : on les essaie dans le même ordre.
 
-## 1. Le 4c sur un vrai chantier (45 min, quand tu veux)
+## 1. Le 4c — en service depuis le 18/11
 
-Depuis ton dossier principal, comme prévu (`docs/lot4c-procedure.md`, étapes 3 à 5). La ligne `"ignorer"` est déjà dans ton `depot.json`.
+Fait le 18/11 : essais 6 et 7 sur le 403, premier passage (13 fiches), numérotation déclarée (ancienne : 009 → 152), plan de signalétique au carnet, tâche automatique installée, passage automatique de 17 h 42 réussi. `ignorer` : 345, TEST CHANTIER, essai, 000, 100.
 
-- **Nouveau** : pour que le 345, « TEST CHANTIER » et « essai » ne reviennent plus dans « A VOIR », ajoute dans `_prive\depot.json` la ligne :
-  ```
-  "ignorer": ["345", "TEST CHANTIER", "essai"],
-  ```
-  Attention à la virgule en fin de ligne, sauf si c'est la dernière avant `}`. Le mode d'emploi est dans la procédure (paragraphe « Un dossier du Drive à laisser de côté »).
-- Un chantier ignoré n'a plus de relevé du PC : la purge « Chantier terminé » ne lui sera donc pas proposée.
+**À faire, pour toi** : au **prochain bordereau du 403** (plans BAL, n° 108), refaire le **choix 6** du menu de `appli-pc` et **ajouter 108 → 108** à sa table.
 
 ## 2. Le lot 8 sur la copie TEST (30 min pour toi, en deux fois)
 

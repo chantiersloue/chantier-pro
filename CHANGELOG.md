@@ -2,6 +2,16 @@
 
 Chaque lot : **quoi**, **pourquoi**, **comment déployer**. Procédures détaillées dans `docs/lotN-procedure.md`.
 
+## Lot 4c — EN SERVICE depuis le 18/11/2026 (programme du PC)
+
+Mis en service par Franck le 18/11/2026 :
+- skill `gestion-documentaire` et ses scripts adaptés (essais 6 et 7 de `docs/lot4c-procedure.md` réussis sur un premier chantier) ;
+- premier passage réel sur ce chantier : 13 fiches recopiées dans son dossier du PC ;
+- numérotation de ses bordereaux déclarée (ancienne numérotation, table de passage) ; un plan déposé au carnet et vu sur téléphone ;
+- tâche automatique installée (acceptée par Windows) ; premier passage automatique réussi à 17 h 42 ;
+- fiches d'essai d'avril supprimées du Drive par Franck ;
+- clé `ignorer` de `_prive\depot.json` : 5 dossiers du Drive laissés de côté (un chantier archivé, des dossiers d'essai).
+
 ## Lot 4c — retouche du 17/11/2026 : dossiers du Drive à ignorer (programme du PC seulement)
 
 **Quoi** : une ligne facultative `"ignorer"` dans `_prive\depot.json` (numéros de chantier ou noms exacts de dossiers du Drive). Ces dossiers ne sont plus copiés, plus déposés, et ne reviennent plus dans « A VOIR ».
