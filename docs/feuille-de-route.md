@@ -24,7 +24,8 @@ Avant l'étape 7 : chaque poseur qui lit le planning doit avoir un compte (sans 
 |---|---|---|
 | **5** (stockage, purges) | `main` | **en production** depuis le 17/11 |
 | **4c** (programme du PC) | `lot-5` (ton dossier) | **en service depuis le 18/11** |
-| **4d** retouches du programme du PC | `lot-4d` (dossier `chantier-pro-lot4d`) | prêt, 83 + 29 tests verts ; **pas encore dans ton dossier principal** (partie 2) |
+| **4d** retouches du programme du PC | `lot-5` (ton dossier) | **en service depuis le 18/11 à 21 h 18** ; premier passage automatique réussi à 21 h 39 : 46 points → **1 point et 7 lignes « pour information »** |
+| **4e** images du carnet un peu plus compressées | `lot-4e` (dossier `chantier-pro-lot4e`) | construit, 33 + 83 tests verts ; **attend ton essai sur la copie TEST** (partie 2) |
 | **5c** planning lisible par les seuls comptes, serveur v10.1, appli 9.1 | `lot-5c` | construit, relu, corrigé, 19 séries vertes. **Sur TEST aujourd'hui, puis en production avant le lot 8** |
 | **8** note de réunion en points, serveur v11.1, appli 10.2 | `lot-8` | sur la copie TEST depuis le 18/11 (empreinte 313ebbda57) ; installé ; essais réels faits : 18 sur 19, **et le 19e est levé** (tu as bien reçu exactement 3 mails : l'écart du compteur venait de la production). Restent tes 13 essais |
 | **10a-1**, **10a-2**, **10b** | `lot-10a1` → `lot-10a2` → `lot-10b` | construits et testés ; 10a-1 relu. Sur TEST après le lot 8 en production |
@@ -33,34 +34,30 @@ Avant l'étape 7 : chaque poseur qui lit le planning doit avoir un compte (sans 
 
 **Ordre de mise en production** : 5c → lot 8 → 10a-1 → 10a-2 → 10b → mail unique, une à la fois, un jour d'écart au moins. Chaque branche contient les précédentes ; le 5c, parti de la production, est reporté dans les autres après sa mise en production.
 
-## 2. Les retouches du programme du PC (lot 4d) : comment les reprendre
+## 2. Le programme du PC : les retouches sont en service, reste l'essai des images (lot 4e)
 
-Elles sont prêtes sur la branche `lot-4d` : « A VOIR » regroupé (48 points → 3 points d'action et 7 lignes « pour information ») et poids du carnet estimé à 20 % près.
+**Lot 4d : fait le 18/11 au soir**, sur ton « vas-y ». Ta branche `lot-5` a avancé sans changer ; la tâche automatique n'a pas été touchée. Le passage de 21 h 39 a tourné avec la nouvelle version et a réussi : `CHANTIERPRO - A VOIR.txt` ne compte plus qu'**1 point**, suivi de 7 lignes « pour information ». Si quelque chose te gêne dans ce fichier, dis-le-moi : le retour arrière prend 2 minutes et ne touche aucune donnée.
 
-**La façon la plus sûre : tu me dis « vas-y », et je le fais** (5 minutes). Ta tâche automatique n'est pas à réinstaller : elle lance le fichier `outils\appli_pc.py` de ton dossier principal, et c'est ce fichier qui change.
-1. Je choisis le moment : juste après un passage automatique, en vérifiant qu'aucun passage ne tourne.
-2. Je note la version actuelle (le point de retour), puis je fais avancer ta branche `lot-5` jusqu'à `lot-4d`, sans changer de branche.
-3. Je vérifie que le programme se lit et qu'il relit ton fichier « A VOIR » actuel.
-4. **Toi** : au passage automatique suivant (une heure au plus), ouvre `CHANTIERPRO - A VOIR.txt` : le compteur a baissé et une partie « Pour information » est apparue.
-5. Retour arrière en 2 minutes si besoin ; aucune donnée n'est touchée.
+**Lot 4e : images du carnet un peu plus compressées** (ton accord du 18/11). Construit sur la branche `lot-4e`, pas dans ton dossier principal. Avant de le mettre en service, **un essai de 10 minutes sur la copie TEST** (`docs/lot4e-procedure.md`, branche `lot-4e`) :
+1. **Toi** : copie le PDF d'un plan chargé (beaucoup de cotes) dans un dossier à part, donne-moi son chemin et dis « essai qualité ».
+2. **Moi** : je le dépose deux fois dans le carnet du chantier d'essai de la copie TEST, une fois avec l'ancien réglage, une fois avec le nouveau, et je te donne les deux poids.
+3. **Toi**, sur le téléphone (« Loué ESSAI ») : zoome au maximum sur la même petite cote dans les deux documents, dehors si possible. Pas de différence : on met en service, comme pour le lot 4d.
 
-Pendant ces 5 minutes, ne laisse pas de fenêtre `appli-pc` ouverte. Détail : `docs/lot4d-procedure.md` (branche `lot-4d`).
-
-**Poids du carnet** (étude `docs/lot4d-poids-carnet.md`, rien n'est construit) : 4,1 Mo par page en moyenne. Pour 35 à 40 chantiers et 6 à 8 plans chacun, le carnet seul pèserait **2,5 Go (cas bas), 5,3 Go (cas moyen), 9 Go (cas haut)** sur les 15 Go. Je propose des images un peu plus compressées pour les nouveaux dépôts (gain de 11 à 15 %, cotes aussi lisibles à l'œil), après un essai sur le carnet de la copie TEST, et la purge des anciens indices une fois par mois. D'accord pour que je prépare ce petit lot ?
+**Purge des anciens indices, une fois par mois** : la case existe déjà (onglet *Purges*). Son essai sur la copie TEST reste à faire avant de la cocher en production (partie 4). Pour le rappel mensuel, je propose une ligne dans le mail du vendredi (lot 10b), le premier vendredi du mois : à décider quand le 10b sera en production.
 
 ## 3. Le lot 11 (planning, atelier) : quand tu as 30 minutes
 
 Rien n'est construit ; tout est avec de faux noms, sans lien avec l'appli.
 
 1. **Installer la maquette Google Sheets** : `_prive\planning\maquette\google-sheets\PROCEDURE.md` (créer un Sheet vide, coller `Code-maquette.gs`, lancer `installerMaquette`, autoriser). 10 minutes. Le programme ne peut toucher que ce fichier-là.
-   **À savoir** : il a passé 34 essais contre un faux Google écrit pour l'occasion, mais **il n'a jamais tourné chez le vrai Google**. Si un message d'erreur apparaît, copie-le-moi : je corrige.
-2. **Faire ses essais** (fin de la procédure), surtout : les propositions pendant la frappe ; maltraiter les cases collées ; le lien de l'affiche A3 ; l'atelier (fabrication → commandes en attente → commandes → reçu).
+   **À savoir** : il a passé 42 essais contre un faux Google écrit pour l'occasion, mais **il n'a jamais tourné chez le vrai Google**. Si un message d'erreur apparaît, copie-le-moi : je corrige.
+2. **Faire ses essais** (fin de la procédure), surtout : les propositions pendant la frappe ; maltraiter les cases collées ; **l'affiche A3** (cocher « Préparer l'affiche A3 », ouvrir le lien, imprimer en A3 paysage, mesurer une majuscule) ; l'atelier (fabrication → commandes en attente → commandes → reçu).
 3. **Répondre aux 11 points** du chapitre 12 de `docs/lot11-1-plan.md` (version 3, corrigée après une critique indépendante).
 
 Trois choses que la critique a changées, à connaître avant de lire le plan :
 - **Aucune méthode officielle de Google n'exporte un onglet en PDF A3.** Le lien utilisé par tout le monde marche aujourd'hui, sans garantie. Repli sûr : Fichier → Imprimer.
 - **« Publier »** : tu coches, et le PDF est dans l'appli dans les 10 minutes, sans fenêtre de confirmation. C'est le prix à payer pour que personne ne puisse, depuis un compte personnel, agir avec les droits du compte de Loué.
-- **92 lignes ne tiennent pas sur une A3 en largeur** à la taille d'écriture du planning : une A3 en hauteur, ou deux A3 (pose, atelier).
+- **L'affiche tient sur une seule A3 en paysage** (ta demande du 18/11 au soir) : un onglet d'impression à part, une ligne par gars, ton planning de travail inchangé. Texte d'environ 16 points pour 12 poseurs et 4 gars d'atelier, 12 points dans le pire cas (20 + 7). Deux aperçus PDF sont dans le dossier de la maquette ; ces tailles restent à mesurer sur une vraie impression sortie de Google.
 
 La première maquette (Excel) est rangée dans `_prive\planning\maquette\ancienne maquette Excel (dépassée)\`.
 
@@ -76,4 +73,3 @@ La première maquette (Excel) est rangée dans `_prive\planning\maquette\ancienn
 - `listerPartagesPlans` en production (lecture seule), puis le ménage des partages dans Drive : c'est toi qui les retires.
 - Lot 2 : `demarrerTransition` n'a pas été lancé en production.
 - Copie TEST : supprimer les quatre onglets « … (ancienne version …) » ; CHANTIER TEST AUTO est resté à « Terminé ».
-- Lot 11 : il me manque le **verso** de la feuille d'heures (mercredi à vendredi).

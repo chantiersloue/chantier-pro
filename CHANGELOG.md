@@ -2,7 +2,7 @@
 
 Chaque lot : **quoi**, **pourquoi**, **comment déployer**. Procédures détaillées dans `docs/lotN-procedure.md`.
 
-## Lot 4d — retouches du programme du PC (« A VOIR » moins bavard, poids du carnet) — branche `lot-4d`, **construit et testé sur de faux dossiers, pas encore en service**
+## Lot 4d — retouches du programme du PC (« A VOIR » moins bavard, poids du carnet) — **EN SERVICE depuis le 18/11/2026 à 21 h 18** (dossier principal de Franck ; premier passage automatique réussi à 21 h 39 : 46 points → 1 point et 7 lignes « pour information »)
 
 **Quoi**
 - **« A VOIR » ne garde en clair que ce qui demande une action.** Les fichiers hors des dossiers de fiches, les doublons fabriqués par Drive, les raccourcis Google, les fiches déplacées par Franck et les PDF encore en cours d'écriture passent sous un titre « Pour information », **une ligne par chantier avec les nombres**, après les points d'action ; le compteur « N point(s) demandent ton attention » ne compte que les points d'action. Les bordereaux à déclarer : **une seule ligne** qui cite tous les chantiers concernés. Le détail, fichier par fichier, reste dans « Voir seulement » (choix 2). L'écran du double-clic et le journal `auto.txt` suivent la même règle.

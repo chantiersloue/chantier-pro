@@ -22,7 +22,7 @@ Ce plan couvre le planning (lots 11.1). Les onglets de l'atelier sont le lot 11.
 | Véhicule | il reste dans le planning ; **il peut changer dans la semaine** |
 | Atelier | **jusqu'à 4 tâches par jour et par gars**, chacune avec ses chantiers |
 | Effectif | pose : 12 gars, 8 places libres ; atelier : 4 gars, 3 places libres ; jamais de samedi |
-| Affiche de l'atelier | **A3**, même taille d'écriture que le planning |
+| Affiche de l'atelier | **une seule A3 en paysage**, pose et atelier ensemble (impératif) : un onglet d'impression à part, compact, avec le texte le plus gros possible (4.5) |
 | PDF publié | **la semaine en cours et la suivante** dès qu'elle est prête ; tous les poseurs voient tout |
 | Qui fait quoi | toi et le chef d'atelier modifiez ; la direction lit |
 | Semaines passées | deux mois dans le Sheet, puis un onglet « Historique » |
@@ -51,7 +51,7 @@ Ce plan couvre le planning (lots 11.1). Les onglets de l'atelier sont le lot 11.
 | **Créer la semaine suivante** | recopie la semaine dans un nouvel onglet (gars, véhicules, couleurs), dates mises à jour | — |
 | **Ajouter un gars / Retirer un gars** | garde l'ordre alphabétique sans dérégler les blocs | — |
 | **Vérifier la semaine** | répare les cases déréglées, liste les valeurs hors liste et les mots à éviter | ne bloque jamais ta saisie |
-| **Imprimer l'affiche** | donne un lien qui ouvre le PDF A3 de la semaine | ne lance pas l'imprimante : un clic ouvre le PDF, un second l'imprime |
+| **Préparer l'affiche A3** | fabrique l'onglet « AFFICHE A3 » (une ligne par gars) et donne le lien qui ouvre son PDF | ne lance pas l'imprimante : un clic ouvre le PDF, un second l'imprime ; à refaire après un changement du planning |
 | **Publier pour les gars** | tu coches « Publier » ; dans les 10 minutes, le PDF de cette semaine est dans l'appli ; la case d'état l'écrit (« Publié le 20/11 à 16 h 10 ») | pas de fenêtre de confirmation : pour annuler, tu décoches avant |
 
 ## 4. Les choix techniques
@@ -100,7 +100,7 @@ La critique l'a vérifié : la seule méthode officielle (`getAs`) exporte **tou
 
 **Ces deux exports sont le tout premier essai à faire chez Google, avant de construire** (lot 11.1-0).
 
-**Nombre de lignes de l'affiche** : 12 poseurs × 5 lignes + 4 gars d'atelier × 8 lignes = 92 lignes. À la taille d'écriture du planning, elles ne tiennent pas sur une A3 en largeur. Deux possibilités, à choisir sur la maquette (ta question 3) : **une A3 en hauteur**, ou **deux A3 en largeur** (pose, atelier).
+**L'affiche : une seule A3 en paysage, pose et atelier ensemble** (décision de Franck du 18/11/2026 au soir, impérative). Le planning où tu travailles ne change pas : la commande « Préparer l'affiche A3 » fabrique un **onglet d'impression à part**, « AFFICHE A3 », refait à chaque fois. Une ligne par gars, les places libres absentes ; chantier en « N° + nom court » (colonne facultative « Nom court » dans LISTES) ; quarts de journée dans la même case (« ½ 901 Tilleuls / ½ 903 Lilas ») ; case de la couleur du véhicule du jour, avec une marque courte quand il diffère de celui de la semaine (« [Pla.] ») ; atelier : « Huisseries 901, 903 ». Le programme règle seul largeurs, hauteurs et taille du texte pour remplir la feuille : **environ 16 points (majuscule de 4,1 mm) pour 12 poseurs et 4 gars d'atelier ; environ 12 points (3,1 mm) dans le pire cas, 20 + 7**. Ces tailles sont calculées (largeur des lettres estimée) et vues sur deux aperçus dessinés sur le PC ; **elles restent à mesurer sur une vraie A3 sortie de Google** (essai du lot 11.1-0). À savoir : l'affiche n'est pas reliée au planning par des formules, il faut la préparer de nouveau après un changement ; une journée coupée en quatre ou un nom court trop long font baisser la taille pour tout le monde.
 
 **4.6 « Publier » et l'appli**
 
@@ -178,7 +178,7 @@ Tests sans Google : découpages, complétion, semaine suivante (S53 puis 2027-S0
 1. Des propositions s'affichent-elles pendant la frappe ? Que valide Entrée ?
 2. Une liste de choix sur une case collée, puis décollée.
 3. Ce que garde la copie d'un onglet (listes, cases collées, couleurs, cases à cocher).
-4. Le lien d'export : un seul onglet, A3, la bonne zone, les lignes masquées absentes, pas de bloc coupé entre deux pages.
+4. Le lien d'export : l'onglet « AFFICHE A3 » seul, sur **une** A3 en paysage, ajusté à la page ; la hauteur d'une majuscule mesurée sur le papier (attendu : 4 mm pour une semaine ordinaire).
 5. Copier-coller et glisser-déposer d'une case collée sur une autre découpée autrement.
 6. Deux personnes dans le même onglet.
 7. Le menu et les cases à cocher depuis un téléphone.
@@ -194,7 +194,7 @@ Tests sans Google : découpages, complétion, semaine suivante (S53 puis 2027-S0
 | Ma première solution donnait aux comptes personnels la main sur le compte de Loué | deux programmes séparés (4.1) |
 | Un réveil lancé à chaque frappe aurait mangé le quota de Loué | un passage toutes les 10 minutes, chiffré |
 | Les cases collées sont fragiles, et je n'avais comparé qu'une solution faible | solution C ajoutée, à comparer sur la maquette |
-| 92 lignes ne tiennent pas sur une A3 en largeur | A3 en hauteur, ou deux pages |
+| Tout doit tenir sur une A3 en paysage | onglet d'impression à part, une ligne par gars, taille du texte calculée ; à mesurer sur une vraie impression |
 | La publication pouvait jeter un fichier posé à la main, et montrer la sauvegarde Excel aux poseurs | 4.6 |
 | Rien sur les données personnelles | chapitre 6 |
 | L'atelier n'était pas spécifié | chapitre 8, trois lots |
@@ -204,7 +204,7 @@ Tests sans Google : découpages, complétion, semaine suivante (S53 puis 2027-S0
 
 1. **Installer la maquette et faire ses essais** (procédure dans `_prive\planning\maquette\google-sheets\`), en particulier : les propositions pendant la frappe, et le lien de l'affiche.
 2. **Cases collées (A) ou une case par jour (C)** : après avoir maltraité la maquette.
-3. **Affiche** : une A3 en hauteur, ou deux A3 en largeur (pose, atelier) ?
+3. **Affiche** : *tranché le 18/11 au soir — une seule A3 en paysage.* Il reste à choisir, sur les deux aperçus PDF de la maquette : la notation des quarts et du véhicule du jour te convient-elle ? Et **le PDF des gars dans l'appli** : cette même affiche compacte (une page, lisible sur téléphone), ou le planning complet ?
 4. **Semaine suivante** : recopie-t-on aussi les chantiers de chacun (tu ne changes que ce qui bouge), ou seulement les gars, les véhicules et les couleurs ? Les absences recopiées : vidées, ou gardées en couleur ?
 5. **Publication en 10 minutes au plus**, sans fenêtre de confirmation : d'accord ?
 6. **Historique** : 12 mois, puis effacement : d'accord ?
