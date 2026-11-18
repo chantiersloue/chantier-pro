@@ -14,7 +14,7 @@
 | **10a-2** boutons appris, propositions, onglet *Articles*, serveur v11.3, appli 10.4 | `lot-10a2` (contient 10a-1) | construit, testé contre le faux serveur et dans Chrome (25 séries vertes). Pas de relecture indépendante (ta règle) |
 | **10b** mail du vendredi, serveur v11.4 | `lot-10b` (contient 10a-2) | construit, testé (26 séries vertes). Pas de relecture indépendante. **Le mail ne part qu'après `demarrerPointDuVendredi()`**, lancé une fois par toi dans l'éditeur (`arreterPointDuVendredi()` pour l'arrêter) |
 | **Mail unique** (lot 5b), serveur v11.2, appli 10.3 | `lot-5b` | construit sur l'ancien `lot-8`, **pas encore relu** ; livré éteint. À remettre à la suite du lot 10 |
-| **11** planning, heures, atelier | — | étude écrite : `_prive\etudes\lot11-etude.md` (hors du dépôt public) |
+| **11** planning, heures, atelier | — | accord de la direction et du chef d'atelier donné (18/11). **Maquette de démonstration** dans `_prive\planning\maquette\` (faux noms). Étude à jour (`_prive\etudes\lot11-etude.md`). **Plan du lot 11.1 proposé** : `docs/lot11-1-plan.md`, 10 questions pour toi |
 
 ## L'ordre de mise en production (le tien)
 
@@ -63,7 +63,7 @@ Détail dans `docs/lot10-procedure.md` (branche `lot-10a1`).
 
 Toutes prises le 18/11 : lot 8 envoyé depuis `chantier-pro-lot8` ; les trois écarts du 10a-1 et « Précision (facultative) » ; les deux choix du 10b ; mode `conducteur` du mail unique ; planning corrigé tout de suite (lot 5c). Il reste :
 
-1. **Lot 11**, quand tu veux : lire l'étude (`_prive\etudes\lot11-etude.md`), répondre à ses 40 questions (dont la 36 : scanne-moi le **verso** de la feuille d'heures, mercredi à vendredi), me donner les documents de son chapitre 11, et d'abord **obtenir l'accord de la direction**.
+1. **Lot 11** : regarder la maquette (importe le fichier Excel dans Google Sheets, ou ouvre-le dans ton Excel), puis répondre aux **10 questions** de `docs/lot11-1-plan.md`. La première compte le plus : qui peut lire « Arrêt » dans le Sheet. Il me manque toujours le **verso** de la feuille d'heures (mercredi à vendredi).
 
 ## 5. Essais qui restent à faire sur la copie TEST
 
