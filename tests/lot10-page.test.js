@@ -64,7 +64,11 @@ const OUTILS = `
   const demander = async (quoi, quantite, panne) => {
     if (panne) await page.check('#sorte-panne');
     await page.fill('#dem-quoi', quoi); await page.fill('#dem-quantite', quantite || '');
+    const avant = (await ecran()).etat;
     await page.click('#btn-demander');
+    // la réponse à la demande PRÉCÉDENTE est encore à l'écran quelques millisecondes : on attend qu'elle ait changé
+    // (sinon « attendreEtat(/✓/) » la prend pour la nouvelle, selon la vitesse du PC)
+    for (let i = 0; i < 60 && (await ecran()).etat === avant; i++) await page.waitForTimeout(50);
   };
   const attendreEtat = async (motif, max) => { let e = ''; for (let i = 0; i < (max || 20) * 4; i++) { e = (await ecran()).etat; if (motif.test(e)) return e; await page.waitForTimeout(250); } return 'PAS ARRIVÉ : ' + e; };
   const ouvrir = async () => { await page.goto(BASE + 'commander.html?' + q); await page.waitForTimeout(2500); };
@@ -322,7 +326,7 @@ const AUJOURDHUI = '✓ Elle part dans le récapitulatif d’aujourd’hui (vers
       && a.brouillon.quoi === 'Scie circulaire' && a.brouillon.quantite === 'lame voilée' && a.brouillon.label === 'Précision (facultatif)' && /✓/.test(a.brouillonEnvoye) && a.plusDeBrouillon, j([a.bandeauBrouillon, a.brouillon]));
     verifier('largeur PC (1280 px) : pas de défilement horizontal, mêmes zones de 48 px, la liste est là', a.pc.largeurEcran === 1280 && a.pc.largeur && a.pc.petits.length === 0 && a.pc.listes === 0 && a.pcLignes >= 6, j(a.pc));
     verifier('au bureau : le nom du poseur est celui du COMPTE ; serveur v11.2 ; chaque demande « traité » dans Envois ; aucune erreur dans la page',
-      a.lignesServeur.length === 7 && a.lignesServeur.every(l => /^Thomas TEST \| /.test(l) && / \| poseur1$/.test(l)) && /v11\.2/.test(a.version)
+      a.lignesServeur.length === 7 && a.lignesServeur.every(l => /^Thomas TEST \| /.test(l) && / \| poseur1$/.test(l)) && /v11.2/.test(a.version)
       && a.envois.length === 7 && a.envois.every(s => s === 'traité') && a.erreursJs.length === 0, j([a.lignesServeur, a.version, a.envois, a.erreursJs]));
 
     console.log('Lot 10a-1 — hors réseau, second compte sur le même téléphone, sans compte');
