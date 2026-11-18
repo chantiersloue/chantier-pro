@@ -8,8 +8,9 @@
 |---|---|---|
 | **5** (stockage, purges) | `main` | **en production** (pages fusionnées le 17/11) |
 | **4c** (programme du PC) + retouche « ignorer » | `lot-5` (ton dossier) | prêt pour tes étapes 3 à 5 aujourd'hui |
+| **5c** planning lisible par les seuls comptes, serveur v10.1, appli 9.1 | `lot-5c` (part de la production) | **nouveau (18/11)**, construit et testé, en relecture indépendante. **À mettre en production avant le lot 8** |
 | **8** (note de réunion en points), serveur v11.1, appli 10.2 | `lot-8` | construit, relu, corrigé. **À essayer sur la copie TEST** |
-| **10a-1** « À commander », serveur v11.2, appli 10.3 | `lot-10a1` (contient le lot 8) | construit, relu une fois (rien de bloquant), corrigé. Testé contre le faux serveur et dans Chrome à 375 px |
+| **10a-1** « À commander », serveur v11.2, appli 10.3 | `lot-10a1` (contient le lot 8) | construit, relu une fois (rien de bloquant), corrigé ; « Précision (facultative) ». Testé contre le faux serveur et dans Chrome à 375 px |
 | **10a-2** boutons appris, propositions, onglet *Articles*, serveur v11.3, appli 10.4 | `lot-10a2` (contient 10a-1) | construit, testé contre le faux serveur et dans Chrome (25 séries vertes). Pas de relecture indépendante (ta règle) |
 | **10b** mail du vendredi, serveur v11.4 | `lot-10b` (contient 10a-2) | construit, testé (26 séries vertes). Pas de relecture indépendante. **Le mail ne part qu'après `demarrerPointDuVendredi()`**, lancé une fois par toi dans l'éditeur (`arreterPointDuVendredi()` pour l'arrêter) |
 | **Mail unique** (lot 5b), serveur v11.2, appli 10.3 | `lot-5b` | construit sur l'ancien `lot-8`, **pas encore relu** ; livré éteint. À remettre à la suite du lot 10 |
@@ -17,7 +18,9 @@
 
 ## L'ordre de mise en production (le tien)
 
-**lot 8 → 10a-1 → 10a-2 → 10b → mail unique**, une mise en production à la fois, un jour d'écart au moins.
+**5c → lot 8 → 10a-1 → 10a-2 → 10b → mail unique**, une mise en production à la fois, un jour d'écart au moins.
+
+Le 5c part de la production : une fois en production, **je le reporte dans `lot-8`, `lot-10a1`, `lot-10a2`, `lot-10b` et `lot-5b`** avant leurs propres mises en production, pour qu'aucune ne remette l'ancien partage par lien.
 
 Pourquoi cet ordre évite les conflits dans `Code.gs` : chaque branche part de la précédente (`lot-8` → `lot-10a1` → `lot-10a2` → `lot-10b`), donc chaque `Code.gs` contient tout ce qui a été mis en production avant lui. Le mail unique est parti de l'ancien `lot-8` : **avant sa mise en service, je le remets à jour sur `lot-10b`** et je le fais relire (changement sur l'envoi des mails).
 
@@ -25,7 +28,7 @@ La copie TEST ne porte **qu'un lot à la fois** : on les essaie dans le même or
 
 ## 1. Le 4c sur un vrai chantier (45 min, quand tu veux)
 
-Depuis ton dossier principal, comme prévu (`docs/lot4c-procedure.md`, étapes 3 à 5).
+Depuis ton dossier principal, comme prévu (`docs/lot4c-procedure.md`, étapes 3 à 5). La ligne `"ignorer"` est déjà dans ton `depot.json`.
 
 - **Nouveau** : pour que le 345, « TEST CHANTIER » et « essai » ne reviennent plus dans « A VOIR », ajoute dans `_prive\depot.json` la ligne :
   ```
