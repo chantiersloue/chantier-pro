@@ -25,7 +25,7 @@ Chaque lot : **quoi**, **pourquoi**, **comment déployer**. Procédures détaill
 ## Lot 10a-1 — « À commander » : le petit matériel des poseurs — serveur **v11.2**, appli **10.3** — **construit, testé contre le faux serveur seulement** (rien n'a tourné chez Google, aucun mail n'est parti)
 
 **Quoi**
-- **Une tuile « À commander » sur l'accueil**, sous « Hors chantier » : aucun chantier à choisir. Page `commander.html` : deux gros boutons **À commander** (choisi d'avance) / **Outil en panne**, deux champs **Quoi ?** (80 caractères) et **Quantité** (30 ; « Précision (facultatif) » pour un outil en panne), bouton **Demander**. Aucune liste à dérouler.
+- **Une tuile « À commander » sur l'accueil**, sous « Hors chantier » : aucun chantier à choisir. Page `commander.html` : deux gros boutons **À commander** (choisi d'avance) / **Outil en panne**, deux champs **Quoi ?** (80 caractères) et **Quantité** (30 ; « Précision (facultative) » pour un outil en panne), bouton **Demander**. Aucune liste à dérouler.
 - **Une demande = un article**, envoyé tout de suite ; la page est prête pour le suivant. Le nom du poseur est celui de son **compte**, jamais saisi.
 - **Chemin** : la file d'attente commune, nouveau type de fiche « demande », traité comme une note de chantier : compte obligatoire (sans compte, la demande attend dans le téléphone), contrôle du téléphone partagé, ni PDF, ni mail à l'envoi, renvoi sans doublon.
 - **Un mail par jour à Franck, du lundi au vendredi, vers 15 h 45** : « À commander — mardi 17/11 (3 demandes) », « À COMMANDER » puis « OUTIL EN PANNE », une ligne par demande (poseur, quoi, quantité). Aucun mail s'il n'y a rien. Il est lancé par le « réveil » des 10 minutes qui existe déjà (aucun réveil en plus), à l'heure de Paris été comme hiver.
