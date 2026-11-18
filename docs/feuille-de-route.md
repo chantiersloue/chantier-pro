@@ -14,7 +14,7 @@
 | **10a-2** boutons appris, propositions, onglet *Articles*, serveur v11.3, appli 10.4 | `lot-10a2` (contient 10a-1) | construit, testé contre le faux serveur et dans Chrome (25 séries vertes). Pas de relecture indépendante (ta règle) |
 | **10b** mail du vendredi, serveur v11.4 | `lot-10b` (contient 10a-2) | construit, testé (26 séries vertes). Pas de relecture indépendante. **Le mail ne part qu'après `demarrerPointDuVendredi()`**, lancé une fois par toi dans l'éditeur (`arreterPointDuVendredi()` pour l'arrêter) |
 | **Mail unique** (lot 5b), serveur v11.2, appli 10.3 | `lot-5b` | construit sur l'ancien `lot-8`, **pas encore relu** ; livré éteint. À remettre à la suite du lot 10 |
-| **11** planning, heures, atelier | — | étude écrite : `_prive\etudes\lot11-etude.md` (hors du dépôt public) |
+| **11** planning, heures, atelier | — | accord de la direction et du chef d'atelier donné (18/11). **Maquette de démonstration** dans `_prive\planning\maquette\` (faux noms). Étude à jour (`_prive\etudes\lot11-etude.md`). **Plan du lot 11.1 proposé** : `docs/lot11-1-plan.md`, 10 questions pour toi |
 
 ## L'ordre de mise en production (le tien)
 
@@ -32,24 +32,25 @@ Fait le 18/11 : essais 6 et 7 sur le 403, premier passage (13 fiches), numérota
 
 **À faire, pour toi** : au **prochain bordereau du 403** (plans BAL, n° 108), refaire le **choix 6** du menu de `appli-pc` et **ajouter 108 → 108** à sa table.
 
-## 2. Le lot 8 sur la copie TEST (30 min pour toi, en deux fois)
+## 2. Lot 8 et lot 5c : l'ordre des essais et des mises en production
 
-| # | Qui | Quoi | Temps |
+Le 5c doit passer en production **avant** le lot 8, mais le lot 8 est déjà sur la copie TEST (envoi du 18/11, v11.1, empreinte 313ebbda57 ; installation et essais réels faits : 18 sur 19, voir plus bas). La copie TEST ne porte qu'un lot à la fois. D'où cet ordre, qui ne refait aucun envoi pour rien :
+
+| # | Quand | Qui | Quoi |
 |---|---|---|---|
-| 1 | moi | préparer le dossier pour l'envoi et te le **confirmer par écrit** (« dossier prêt, branche lot-8, serveur v11.1 ») | 5 min |
-| 2 | toi | **seulement après ma confirmation** : `node outils\envoyer-test.js --avec-porte` ; version affichée **v11.1** ; me dire « envoi fait » | 2 min |
-| 3 | moi | installation sur TEST, essais réels (deux notes au même instant ; **3 mails, tous à ton adresse**) | 30 min, sans toi |
-| 4 | toi, téléphone | les 13 essais de l'étape B de `docs/lot8-procedure.md` | 20 min |
+| 1 | 19/11 matin | toi, téléphone | sur la copie d'essai (icône « Loué ESSAI », **encore l'ancienne version**) : commence une note de réunion sans l'envoyer, et mets une note **en attente** (mode avion, Envoyer). Dis-moi « prêt » |
+| 2 | aussitôt | moi | je publie la copie d'essai avec les pages du lot 8 |
+| 3 | 19/11 | toi, téléphone | les 13 essais de l'étape B de `docs/lot8-procedure.md` (20 min) |
+| 4 | 19/11, après tes essais | moi, puis toi | je te confirme « dossier prêt, branche lot-5c, serveur v10.1 » ; tu lances `node outils\envoyer-test.js --avec-porte` **depuis le dossier `chantier-pro-lot5c`** (le serveur du lot 8 est alors remplacé sur TEST : c'est voulu) |
+| 5 | aussitôt | moi | je publie la copie d'essai avec les pages du 5c ; je vérifie que les fichiers du planning de TEST sont redevenus privés |
+| 6 | 19/11 | toi | tes essais du 5c (étape B de `docs/lot5c-procedure.md`, 10 min : Android **et** iPhone) |
+| 7 | 19/11 ou 20/11 | toi | production du 5c (étape C) : `--sans-porte`, coller `Code.gs` v10.1, `fermerPartagesPlanning`, nouveau déploiement, me donner l'adresse, fusion, **archiver les anciens déploiements** |
+| 8 | aussitôt | moi | je reporte le 5c dans `lot-8` (puis `lot-10a1`, `lot-10a2`, `lot-10b`, `lot-5b`), je relance les séries de tests, je te confirme le dossier |
+| 9 | le lendemain | toi | production du lot 8 (étape C puis D de `docs/lot8-procedure.md`) : `--sans-porte` depuis `chantier-pro-lot8`, coller `Code.gs`, `installerLot8Production`, nouveau déploiement, fusion |
 
-Envoi depuis le dossier `C:\Users\pavageauf\Documents\GitHub\chantier-pro-lot8` (ta décision du 18/11) : **dossier prêt, confirmé le 18/11**.
+Les essais réels du lot 8 ne sont pas à refaire après le report du 5c : le 5c ne touche que la lecture du planning.
 
-## 2 bis. Le lot 5c sur la copie TEST, puis en production (30 min pour toi)
-
-Après tes essais du lot 8 sur la copie TEST (elle ne porte qu'un lot à la fois). Détail : `docs/lot5c-procedure.md` (branche `lot-5c`).
-- Envoi `--avec-porte` depuis le dossier `chantier-pro-lot5c`, **après ma confirmation écrite** ;
-- tes essais : ouvrir un planning sur **Android et iPhone** (deux touchers) ; déconnecté, il ne s'affiche plus ; dans Drive, « Accès limité » ;
-- production : `--sans-porte`, coller `Code.gs` (v10.1), nouveau déploiement, me donner l'adresse, fusion ;
-- avant la production : que chaque poseur qui lit le planning ait un compte (sans compte, il ne le voit plus).
+**Essais réels du lot 8 (18/11, faits sans toi)** : 18 vérifications sur 19. Le vrai verrou de Google marche (deux notes au même instant : aucune n'écrase l'autre) ; renvoi sans doublon ; gestes appliqués une fois ; onglet *Comptes rendus* propre à la fin. **Le seul écart** : le compteur de mails du compte a baissé de 6 au lieu de 3. Chaque note n'a qu'un destinataire (toi) ; le compteur est partagé avec la production, qui a pu envoyer des fiches pendant ces 2 minutes (vers 18 h). **Vérifie** : tu dois avoir reçu **exactement 3 mails** « compte rendu » du CHANTIER TEST AUTO le 18/11 vers 18 h. Dans un de leurs PDF, regarde le tableau des points (hauteur, rien ne déborde), puis supprime les 3 PDF du Drive de TEST.
 
 ## 3. Les lots 10a-1 et 10a-2 sur la copie TEST (après le lot 8 en production)
 
@@ -62,7 +63,7 @@ Détail dans `docs/lot10-procedure.md` (branche `lot-10a1`).
 
 Toutes prises le 18/11 : lot 8 envoyé depuis `chantier-pro-lot8` ; les trois écarts du 10a-1 et « Précision (facultative) » ; les deux choix du 10b ; mode `conducteur` du mail unique ; planning corrigé tout de suite (lot 5c). Il reste :
 
-1. **Lot 11**, quand tu veux : lire l'étude (`_prive\etudes\lot11-etude.md`), répondre à ses 40 questions (dont la 36 : scanne-moi le **verso** de la feuille d'heures, mercredi à vendredi), me donner les documents de son chapitre 11, et d'abord **obtenir l'accord de la direction**.
+1. **Lot 11** : regarder la maquette (importe le fichier Excel dans Google Sheets, ou ouvre-le dans ton Excel), puis répondre aux **10 questions** de `docs/lot11-1-plan.md`. La première compte le plus : qui peut lire « Arrêt » dans le Sheet. Il me manque toujours le **verso** de la feuille d'heures (mercredi à vendredi).
 
 ## 5. Essais qui restent à faire sur la copie TEST
 
