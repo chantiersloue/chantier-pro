@@ -294,8 +294,8 @@ const AUJOURDHUI = '✓ Elle part dans le récapitulatif d’aujourd’hui (vers
     verifier('375 px : pas de défilement horizontal, toutes les zones à toucher font 48 px au moins, « Demander » sur toute la largeur', a.mesures.largeurEcran === 375 && a.mesures.largeur
       && a.mesures.zones >= 7 && a.mesures.petits.length === 0 && a.mesures.demanderLarge > 0.8, j(a.mesures));
     verifier('AUCUNE liste à dérouler ; deux champs seulement : « Quoi ? » (80 caractères) et « Quantité » (30)', a.mesures.listes === 0 && a.mesures.champs === 2 && j(a.mesures.max) === '[80,30]', j(a.mesures));
-    verifier('« À commander » est choisi d’avance ; « Outil en panne » : le second champ devient « Précision (facultatif) »', a.depart.sorte === 'commander' && a.depart.label === 'Quantité'
-      && a.panneLabel === 'Précision (facultatif)' && a.commanderLabel === 'Quantité' && a.depart.etat === '' && !a.depart.nonConnecte, j([a.depart, a.panneLabel]));
+    verifier('« À commander » est choisi d’avance ; « Outil en panne » : le second champ devient « Précision (facultative) »', a.depart.sorte === 'commander' && a.depart.label === 'Quantité'
+      && a.panneLabel === 'Précision (facultative)' && a.commanderLabel === 'Quantité' && a.depart.etat === '' && !a.depart.nonConnecte, j([a.depart, a.panneLabel]));
     verifier('phrase de renvoi vers « Signaler » (et, sur « Signaler », vers « À commander »)', a.mesures.renvoi === 'Menuiserie cassée ou manquante ? Utilise Signaler.' && a.mesures.lienRenvoi === 'signaler.html'
       && a.signaler === 'Vis, consommables, outil en panne ? Utilise À commander (sur l’accueil).', j([a.mesures.renvoi, a.signaler]));
     verifier('rien de saisi, ou quantité oubliée : message clair, rien ne part', /^À compléter : écris ce qu’il faut commander, indique la quantité/.test(a.vide.erreur) && a.videFile === 0
@@ -323,7 +323,7 @@ const AUJOURDHUI = '✓ Elle part dans le récapitulatif d’aujourd’hui (vers
     verifier('case « Commandé » cochée au bureau : « ✓ Commandé » ; décochée : la mention disparaît', a.commande.length === 1 && /✓ Commandé$/.test(a.commande[0]) && a.classeCommande === 1
       && a.decommande.length === 1 && /récapitulatif du 17\/11$/.test(a.decommande[0]), j([a.commande, a.decommande]));
     verifier('brouillon : page fermée en cours de saisie, le choix et les deux champs sont restaurés ; envoyé, il n’est plus proposé', a.bandeauBrouillon && a.brouillon.sorte === 'panne'
-      && a.brouillon.quoi === 'Scie circulaire' && a.brouillon.quantite === 'lame voilée' && a.brouillon.label === 'Précision (facultatif)' && /✓/.test(a.brouillonEnvoye) && a.plusDeBrouillon, j([a.bandeauBrouillon, a.brouillon]));
+      && a.brouillon.quoi === 'Scie circulaire' && a.brouillon.quantite === 'lame voilée' && a.brouillon.label === 'Précision (facultative)' && /✓/.test(a.brouillonEnvoye) && a.plusDeBrouillon, j([a.bandeauBrouillon, a.brouillon]));
     verifier('largeur PC (1280 px) : pas de défilement horizontal, mêmes zones de 48 px, la liste est là', a.pc.largeurEcran === 1280 && a.pc.largeur && a.pc.petits.length === 0 && a.pc.listes === 0 && a.pcLignes >= 6, j(a.pc));
     verifier('au bureau : le nom du poseur est celui du COMPTE ; serveur v11.2 ; chaque demande « traité » dans Envois ; aucune erreur dans la page',
       a.lignesServeur.length === 7 && a.lignesServeur.every(l => /^Thomas TEST \| /.test(l) && / \| poseur1$/.test(l)) && /v11.2/.test(a.version)

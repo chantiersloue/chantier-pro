@@ -9,7 +9,7 @@
 
 **Pour le poseur**
 - Sur l'accueil, sous « Hors chantier », une tuile **« À commander »** (aucun chantier à choisir).
-- Deux gros boutons : **À commander** (choisi d'avance) ou **Outil en panne**. Deux champs : **Quoi ?** et **Quantité** (pour un outil en panne, le second champ s'appelle « Précision (facultatif) »). Bouton **Demander**.
+- Deux gros boutons : **À commander** (choisi d'avance) ou **Outil en panne**. Deux champs : **Quoi ?** et **Quantité** (pour un outil en panne, le second champ s'appelle « Précision (facultative) »). Bouton **Demander**.
 - **Une demande = un article.** Elle part tout de suite, la page est prête pour le suivant.
 - Son nom n'est jamais tapé : c'est celui de son compte. **Il faut donc être connecté** ; une demande écrite sans être connecté attend dans le téléphone et part après la connexion.
 - La page répond : « ✓ Elle part dans le récapitulatif d'aujourd'hui (vers 15 h 45). », ou « ✓ Le récapitulatif d'aujourd'hui est déjà parti : elle sera dans celui de lundi 23/11. », ou, sans réseau, « ⏳ En attente : elle partira au retour du réseau, dans le récapitulatif qui suivra. »
@@ -53,7 +53,7 @@ Sur la copie d'essai, connecté avec un compte de poseur d'essai :
 
 1. Accueil → **À commander**. « À commander » est déjà choisi.
 2. Écris « Vis 4×40 » et « 2 boîtes », touche **Demander**. Tu lis « ⏳ Demande notée », puis « ✓ Elle part dans le récapitulatif d'aujourd'hui (vers 15 h 45). » (ou « … déjà parti : elle sera dans celui de … » si tu fais l'essai après 15 h 45). La page s'est vidée. La demande est dans « Mes demandes ».
-3. Touche **Outil en panne** : le second champ s'appelle « Précision (facultatif) ». Écris « Visseuse à choc », laisse la précision vide, **Demander**.
+3. Touche **Outil en panne** : le second champ s'appelle « Précision (facultative) ». Écris « Visseuse à choc », laisse la précision vide, **Demander**.
 4. **Avec des gants, le clavier ouvert** (c'est le seul essai que mes tests ne peuvent pas faire) : touche « Quoi ? ». Le champ remonte-t-il en haut de l'écran ? Vois-tu encore « Quantité » et **Demander** au-dessus du clavier ? La touche « Suivant » du clavier passe-t-elle à la quantité, et la touche « Envoyer » fait-elle la demande ? Les deux gros boutons se touchent-ils bien ? Dis-moi ce qui gêne, sur Android **et** sur iPhone si tu peux.
 5. **Mode avion.** Écris une demande, **Demander** : « ⏳ En attente : elle partira au retour du réseau… ». Ferme l'appli, rouvre « À commander » : elle est en tête de « Mes demandes », « ⏳ en attente d'envoi », et les anciennes sont toujours là (« Pas de réseau : liste du … gardée dans le téléphone. »).
 6. Remets le réseau : elle part toute seule. Dans le Sheet TEST, onglet *Demandes* : **une seule** ligne pour elle.

@@ -16,7 +16,7 @@
 | 5 | Idée 7 (points ouverts des notes de réunion) | **ni l'un ni l'autre pour l'instant** : le lot 10c est abandonné pour le moment |
 | 6 | Lot 10b-2 (les téléphones disent ce qu'ils gardent en attente) | **oui, mais plus tard** : pas maintenant |
 | 7 | Rappel des signalements « Bloquant » restés « À traiter » | **oui** |
-| 8 | « Outil en panne » : autre chose que « Précision (facultatif) » ? | **non**, rien de plus |
+| 8 | « Outil en panne » : autre chose que « Précision (facultatif) » ? | **non**, rien de plus ; écrire « Précision (facultative) » (18/11) |
 | 9 | Ordre de mise en production | **lot 8, puis 10a-1 et 10a-2, puis 10b, puis le mail unique** |
 
 **Ce qui est construit (17/11/2026) : le lot 10a-1 seulement** — serveur **v11.2**, appli **10.3**, branche `lot-10a1` (partie de `lot-8`).
@@ -116,7 +116,7 @@ Page `commander.html`, ouverte par la tuile « À commander » de l'accueil :
 1. Deux gros boutons en haut : **À commander** (choisi d'avance) · **Outil en panne**.
 2. Ses 4 ou 5 articles habituels, en gros boutons.
 3. **Quoi ?** (80 caractères au plus), avec les propositions en dessous dès 2 lettres.
-4. **Quantité** (texte court : « 2 boîtes », « 1 ») ; pour « Outil en panne », ce champ devient « Précision (facultatif) ».
+4. **Quantité** (texte court : « 2 boîtes », « 1 ») ; pour « Outil en panne », ce champ devient « Précision (facultative) ».
 5. Bouton **Demander**. La page affiche tout de suite « ⏳ Demande notée », puis, à la réponse du serveur :
    - passage du jour pas encore fait : « ✓ Elle part dans le récapitulatif d'aujourd'hui (vers 15 h 45). »
    - passage déjà fait : « ✓ Le récapitulatif d'aujourd'hui est déjà parti : elle sera dans celui de lundi 23/11. » (le serveur nomme le jour)

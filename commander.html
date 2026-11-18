@@ -113,7 +113,7 @@ const sorteChoisie = () => { const el = document.querySelector('input[name="sort
 // ── « À commander » ou « Outil en panne » : le second champ change de nom ──
 function majLibelles() {
   const panne = sorteChoisie() === 'panne';
-  champ('label-quantite').textContent = panne ? 'Précision (facultatif)' : 'Quantité';
+  champ('label-quantite').textContent = panne ? 'Précision (facultative)' : 'Quantité';
   champ('dem-quantite').placeholder = panne ? 'Ex. : ne charge plus' : 'Ex. : 2 boîtes';
   champ('dem-quoi').placeholder = panne ? 'Ex. : visseuse à choc' : 'Ex. : vis 4×40';
 }
