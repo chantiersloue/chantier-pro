@@ -23,7 +23,7 @@ Ce plan couvre le planning (lots 11.1). Les onglets de l'atelier sont le lot 11.
 | Atelier | **jusqu'à 4 tâches par jour et par gars**, chacune avec ses chantiers |
 | Effectif | pose : 12 gars, 8 places libres ; atelier : 4 gars, 3 places libres ; jamais de samedi |
 | Affiche de l'atelier | **une seule A3 en paysage**, pose et atelier ensemble (impératif) : un onglet d'impression à part, compact, avec le texte le plus gros possible (4.5) |
-| PDF publié | **la semaine en cours et la suivante** dès qu'elle est prête ; tous les poseurs voient tout |
+| PDF publié | **la semaine en cours et la suivante** dès qu'elle est prête ; tous les poseurs voient tout ; **même présentation que l'affiche compacte** (une page par semaine, décision du 18/11 au soir) |
 | Qui fait quoi | toi et le chef d'atelier modifiez ; la direction lit |
 | Semaines passées | deux mois dans le Sheet, puis un onglet « Historique » |
 | Mails | aucun en plus |
@@ -96,7 +96,7 @@ La critique l'a vérifié : la seule méthode officielle (`getAs`) exporte **tou
 | Sortie | Solution retenue | Repli garanti |
 |---|---|---|
 | Affiche | un **lien** vers cette adresse d'export, ouvert par ton navigateur (aucun programme, aucune autorisation) | Fichier → Imprimer → « Feuille active », A3 : documenté par Google |
-| PDF publié | le programme de publication recopie la semaine dans un classeur provisoire et l'exporte | tu télécharges le PDF (Fichier → Télécharger) et tu le déposes dans le dossier *Planning*, comme aujourd'hui |
+| PDF publié | le programme de publication fabrique lui-même l'affiche compacte de chaque semaine publiée dans un classeur provisoire (il ne dépend pas de l'onglet « AFFICHE A3 », qui peut être en retard sur le planning) et l'exporte | tu télécharges le PDF (Fichier → Télécharger) et tu le déposes dans le dossier *Planning*, comme aujourd'hui |
 
 **Ces deux exports sont le tout premier essai à faire chez Google, avant de construire** (lot 11.1-0).
 
@@ -204,7 +204,7 @@ Tests sans Google : découpages, complétion, semaine suivante (S53 puis 2027-S0
 
 1. **Installer la maquette et faire ses essais** (procédure dans `_prive\planning\maquette\google-sheets\`), en particulier : les propositions pendant la frappe, et le lien de l'affiche.
 2. **Cases collées (A) ou une case par jour (C)** : après avoir maltraité la maquette.
-3. **Affiche** : *tranché le 18/11 au soir — une seule A3 en paysage.* Il reste à choisir, sur les deux aperçus PDF de la maquette : la notation des quarts et du véhicule du jour te convient-elle ? Et **le PDF des gars dans l'appli** : cette même affiche compacte (une page, lisible sur téléphone), ou le planning complet ?
+3. **Affiche** : *tranché le 18/11 au soir — une seule A3 en paysage.* Il reste à choisir, sur les deux aperçus PDF de la maquette : la notation des quarts et du véhicule du jour te convient-elle ? **Le PDF des gars dans l'appli : la même affiche compacte** (réponse de Franck du 18/11 au soir).
 4. **Semaine suivante** : recopie-t-on aussi les chantiers de chacun (tu ne changes que ce qui bouge), ou seulement les gars, les véhicules et les couleurs ? Les absences recopiées : vidées, ou gardées en couleur ?
 5. **Publication en 10 minutes au plus**, sans fenêtre de confirmation : d'accord ?
 6. **Historique** : 12 mois, puis effacement : d'accord ?
