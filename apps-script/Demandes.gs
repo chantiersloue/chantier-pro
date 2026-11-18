@@ -39,7 +39,8 @@ const DEM_MAX_QUOI = 80, DEM_MAX_QUANTITE = 30;
 const DEM_MAX_LISTE = 300;           // « Mes demandes » : lignes rendues au plus
 const DEM_NOMS_JOURS = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
 const DEM_PROP_PASSAGE = 'DEMANDES_PASSAGE';   // « aaaa-mm-jj » du dernier jour dont le passage est fait
-const DEM_PROP_REPORT = 'DEMANDES_REPORT';     // { jour, ms } : récapitulatif abandonné ce jour-là, à cet instant
+const DEM_PROP_ENVOI = 'DEMANDES_ENVOI';       // { jour, ms } : le mail de ce jour-là est parti à cet instant (même si les dates n'ont pas pu être écrites)
+const DEM_PROP_REPORT = 'DEMANDES_REPORT';    // { jour, ms } : récapitulatif abandonné ce jour-là, à cet instant
 // Lot 10a-2 : la liste d'articles que Franck propose à tous (facultative)
 const SHEET_ARTICLES = 'Articles';
 const ART_TITRE = 'Article';         // titre de la colonne A (posé par l'installation ; la liste marche aussi sans lui)
@@ -88,7 +89,7 @@ function demOngletVerifie_(sh) {
   try { if (environnementReel_().env === 'TEST') fonction = 'installerLot10Test'; } catch (e) {}
   alerte_('Les demandes « À commander » des poseurs sont bloquées : la ligne de titres de l’onglet « ' + SHEET_DEMANDES + ' » n’est plus celle attendue ('
     + DEM_ENTETES.join(' | ') + '). Remets ces titres, dans cet ordre ; ou renomme l’onglet, puis lance ' + fonction + ' (un onglet neuf sera créé). '
-    + 'Rien n’est perdu : les demandes attendent dans les téléphones et repartent toutes seules. Tant que ce n’est pas réparé, le récapitulatif de '
+    + 'Rien n’est perdu : les demandes attendent dans les téléphones et repartent une fois les titres remis (si un téléphone affiche « à vérifier », le poseur touche « Réessayer »). Tant que ce n’est pas réparé, le récapitulatif de '
     + demHeureTexte_(DEMANDES_HEURE_LIMITE) + ' ne part pas.', 'demandes');
   throw Object.assign(new Error('L’onglet des demandes n’est pas à jour sur le serveur (titres changés, ou installation du lot 10 à faire) : le bureau est prévenu.'), { occupe: true });
 }
@@ -211,7 +212,13 @@ function traiterDemande(data, brut, contexte) {
     // La case « Commandé », posée sur CETTE ligne seulement. Si elle ne peut pas l'être, la demande est notée quand même
     // (la lecture accepte une cellule sans case).
     try { sh.getRange(numero, COL_DEM.commande).insertCheckboxes(); } catch (e) { console.error('case Commandé :', e.message); }
-    return { recap: demProchain_() };
+    // L'écriture est POUSSÉE dans le Sheet avant de rendre le verrou : sans cela, la demande suivante (un autre téléphone,
+    // au même instant) pourrait lire « dernière ligne » avant que celle-ci y soit, et s'écrire par-dessus.
+    SpreadsheetApp.flush();
+    // La demande est notée : si le calcul du prochain récapitulatif échoue, elle n'est pas refusée pour autant
+    let recap = null;
+    try { recap = demProchain_(); } catch (e) { console.error('prochain récapitulatif :', e.message); }
+    return { recap: recap };
   } finally { verrou.releaseLock(); }
 }
 
@@ -360,6 +367,19 @@ function demRecapituler_() {
     return 'abandonné';
   };
   if (illisible) return tropTard ? abandonner('onglet « ' + SHEET_DEMANDES + ' » illisible') : 'onglet illisible';
+  // Le mail d'aujourd'hui est DÉJÀ parti, mais la date n'a pas pu être écrite sur ses lignes (panne entre les deux) :
+  // on refait seulement l'écriture, sans renvoyer de mail. Seules les demandes arrivées avant l'envoi sont datées ;
+  // celles arrivées depuis partiront dans le récapitulatif suivant.
+  let envoi = null;
+  try { envoi = JSON.parse(props.getProperty(DEM_PROP_ENVOI) || 'null'); } catch (e) {}
+  if (envoi && envoi.jour === t.jour && Number(envoi.ms) > 0) {
+    const parties = lignes.filter(x => demMs_(x.r[COL_DEM.date - 1]) <= Number(envoi.ms));
+    demMarquer_(sh, parties.map(x => String(x.r[COL_DEM.fiche - 1])), demLong_(t.jour));
+    SpreadsheetApp.flush();
+    props.deleteProperty(DEM_PROP_REPORT);
+    props.setProperty(DEM_PROP_PASSAGE, t.jour);
+    return 'dates écrites (' + parties.length + '), mail déjà parti';
+  }
   if (!lignes.length) {   // aucune demande : aucun mail, mais le passage du jour est fait
     props.deleteProperty(DEM_PROP_REPORT);
     props.setProperty(DEM_PROP_PASSAGE, t.jour);
@@ -372,8 +392,11 @@ function demRecapituler_() {
   const mail = demMail_(lignes, t.jour, report);
   const echec = mailBureau_(mail.sujet, mail.texte, mail.html);
   if (echec) return 'mail non parti (' + echec + ')';   // la marque n'est PAS posée : nouvel essai au passage suivant
-  // Le mail est parti : la date d'abord, la marque ensuite (une panne entre les deux fait repartir le mail, jamais l'oublier)
+  // Le mail est parti. On le note tout de suite (une panne pendant l'écriture des dates ne le fera pas repartir : le passage
+  // suivant ne refera que l'écriture), puis la date sur les lignes, POUSSÉE dans le Sheet, et enfin la marque du jour.
+  props.setProperty(DEM_PROP_ENVOI, JSON.stringify({ jour: t.jour, ms: maintenant }));
   demMarquer_(sh, lignes.map(x => String(x.r[COL_DEM.fiche - 1])), demLong_(t.jour));
+  SpreadsheetApp.flush();
   props.deleteProperty(DEM_PROP_REPORT);
   props.setProperty(DEM_PROP_PASSAGE, t.jour);
   return 'envoyé (' + lignes.length + ')';

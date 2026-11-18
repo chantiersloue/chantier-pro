@@ -10,7 +10,7 @@ Chaque lot : **quoi**, **pourquoi**, **comment déployer**. Procédures détaill
 - **L'onglet *Articles*** (facultatif, créé vide par `installerLot10Test` / `installerLot10Production`) : une colonne, un article par ligne. Donné avec « Mes demandes », aux comptes connectés seulement, et seulement s'il a changé ; gardé dans le téléphone. 500 articles et 80 caractères au plus, doublons retirés. Vide, absent, très long, illisible : tout marche.
 - **Clavier ouvert** : la barre du haut ne reste plus collée quand il reste peu de hauteur ; le champ, les 3 propositions, « Quantité » et « Demander » tiennent dans 280 px (mesuré dans Chrome, écran réduit).
 - Seulement pour « À commander » (pas « Outil en panne »).
-- Fichiers : `apps-script/Demandes.gs` (`demArticles_`, étape d'installation, `verifierConfig`), `Api.gs`, `Config.gs` ; `commander.html`, `commun/commander.js`, `commun/config.js` ; tests `tests/lot10-demandes.test.js` (44) et `tests/lot10a2-page.test.js` (31, vrai Chrome) ; `tests/faux-serveur.js` (réglage `articles`).
+- Fichiers : `apps-script/Demandes.gs` (`demArticles_`, étape d'installation, `verifierConfig`), `Api.gs`, `Config.gs` ; `commander.html`, `commun/commander.js`, `commun/config.js` ; tests `tests/lot10-demandes.test.js` (46, dont les 2 des corrections du 10a-1) et `tests/lot10a2-page.test.js` (31, vrai Chrome) ; `tests/faux-serveur.js` (réglage `articles`).
 
 **Pourquoi** : redemander les mêmes vis chaque semaine doit prendre un toucher, pas une saisie avec des gants (`docs/lot10-plan.md`, chapitres 3.4 et 4).
 
@@ -48,6 +48,8 @@ Chaque lot : **quoi**, **pourquoi**, **comment déployer**. Procédures détaill
 **Pas vérifié** : tout ce qui se passe chez Google (la case à cocher posée par le serveur, l'heure de Paris, l'envoi et l'heure réelle du mail, son affichage dans Outlook) ; le clavier ouvert avec des gants ; plein soleil ; une barre de réseau. Ce sont les étapes B et C de la procédure.
 
 **Comment déployer** : `docs/lot10-procedure.md` (après le lot 8 ; le serveur d'abord, puis `installerLot10Production`, `verifierConfig`, nouveau déploiement, fusion).
+
+**Relecture indépendante (17/11/2026, un tour) : rien de bloquant.** Corrigé : deux demandes envoyées à la même seconde par deux téléphones ne peuvent plus s'écrire l'une sur l'autre ; une panne du Sheet juste après l'envoi du récapitulatif ne fait plus repartir le mail ; boutons du panneau de la file à 48 px.
 
 ## Lot 4c — retouche du 17/11/2026 : dossiers du Drive à ignorer (programme du PC seulement)
 

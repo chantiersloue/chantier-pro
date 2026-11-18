@@ -300,6 +300,34 @@ test('deux passages au même instant : un seul mail', () => {
   g.ctx.surModificationSheet({ range: { getSheet: () => ({ getName: () => 'Utilisateurs' }), getColumn: () => 4 } });   // le réveil « à la modification » lance le même traitement
   assert.strictEqual(recaps(g).length, 1);
 });
+test('panne pendant l’écriture des dates, après l’envoi du mail : le passage suivant écrit les dates SANS renvoyer le mail', () => {
+  const g = environnement();
+  g.now = P(MARDI + ' 10:00'); envoyer(g, 'poseura', demande());
+  const vraie = g.ctx.demMarquer_;
+  g.ctx.demMarquer_ = () => { throw new Error('panne du Sheet'); };
+  reveil(g, P(MARDI + ' 15:50'));
+  assert.strictEqual(recaps(g).length, 1, 'le mail est parti');
+  assert.strictEqual(D(g)[0][C.recap], '', 'la date n’a pas pu être écrite');
+  reveil(g, P(MARDI + ' 16:00'));
+  assert.strictEqual(recaps(g).length, 1, 'panne qui dure : toujours un seul mail');
+  // une demande arrive après l'envoi du mail : elle ne doit PAS être datée d'aujourd'hui
+  g.now = P(MARDI + ' 16:05'); envoyer(g, 'poseurb', demande({ quoi: 'Cales' }));
+  g.ctx.demMarquer_ = vraie;
+  reveil(g, P(MARDI + ' 16:10'));
+  assert.strictEqual(recaps(g).length, 1, 'réparé : les dates sont écrites, aucun second mail');
+  assert.deepStrictEqual(D(g).map(l => [l[C.quoi], l[C.recap]]), [['Vis 4×40', '17/11/2026'], ['Cales', '']]);
+  reveil(g, P(MERCREDI + ' 15:50'));
+  assert.strictEqual(recaps(g).length, 2);
+  assert.ok(/Cales/.test(recaps(g)[1].texte || recaps(g)[1].corps || j(recaps(g)[1])) && !/Vis 4×40/.test(j(recaps(g)[1])), 'le mail du lendemain ne porte que la demande arrivée après');
+});
+test('texte hostile : échappé dans le HTML du mail', () => {
+  const g = environnement();
+  g.now = P(MARDI + ' 10:00'); envoyer(g, 'poseura', demande({ quoi: '<img src=x onerror=alert(1)>', quantite: '<b>2</b>' }));
+  reveil(g, P(MARDI + ' 15:50'));
+  const m = String(recaps(g)[0].opts.htmlBody);
+  assert.ok(!/<img src=x/.test(m) && !/<b>2<\/b>/.test(m), m);
+  assert.ok(/&lt;img src=x onerror=alert\(1\)&gt;/.test(m) && /&lt;b&gt;2&lt;\/b&gt;/.test(m), m);
+});
 test('quota de mails presque épuisé (5 restants, sous la réserve du bureau) : le récapitulatif part quand même, il est pris sur cette réserve', () => {
   const g = environnement({ quota: 5 });
   envoyer(g, 'poseura', demande());
