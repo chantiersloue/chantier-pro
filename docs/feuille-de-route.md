@@ -8,6 +8,7 @@
 |---|---|---|
 | **5** (stockage, purges) | `main` | **en production** (pages fusionnées le 17/11) |
 | **4c** (programme du PC) + retouche « ignorer » | `lot-5` (ton dossier) | **en service depuis le 18/11** : premier chantier (403) recopié, tâche automatique installée, passage de 17 h 42 réussi |
+| **4d** retouches du programme du PC | `lot-4d` (dossier `chantier-pro-lot4d`) | construit, 83 + 29 tests verts. « A VOIR » : 48 points → 3 points d'action + 7 lignes « pour information ». Poids du carnet estimé à ±20 %. **Pas encore dans ton dossier principal** : je le fais quand tu dis « vas-y » (`docs/lot4d-procedure.md` sur la branche `lot-4d`) |
 | **5c** planning lisible par les seuls comptes, serveur v10.1, appli 9.1 | `lot-5c` (part de la production) | **nouveau (18/11)**, construit et testé, en relecture indépendante. **À mettre en production avant le lot 8** |
 | **8** (note de réunion en points), serveur v11.1, appli 10.2 | `lot-8` | construit, relu, corrigé. **À essayer sur la copie TEST** |
 | **10a-1** « À commander », serveur v11.2, appli 10.3 | `lot-10a1` (contient le lot 8) | construit, relu une fois (rien de bloquant), corrigé ; « Précision (facultative) ». Testé contre le faux serveur et dans Chrome à 375 px |
@@ -64,6 +65,8 @@ Détail dans `docs/lot10-procedure.md` (branche `lot-10a1`).
 Toutes prises le 18/11 : lot 8 envoyé depuis `chantier-pro-lot8` ; les trois écarts du 10a-1 et « Précision (facultative) » ; les deux choix du 10b ; mode `conducteur` du mail unique ; planning corrigé tout de suite (lot 5c). Il reste :
 
 1. **Lot 11** : regarder la maquette (importe le fichier Excel dans Google Sheets, ou ouvre-le dans ton Excel), puis répondre aux **10 questions** de `docs/lot11-1-plan.md`. La première compte le plus : qui peut lire « Arrêt » dans le Sheet. Il me manque toujours le **verso** de la feuille d'heures (mercredi à vendredi).
+
+2. **Poids du carnet** (étude `docs/lot4d-poids-carnet.md`, branche `lot-4d` ; rien n'est construit). Mesuré : 4,1 Mo par page en moyenne. Pour 35 à 40 chantiers et 6 à 8 plans chacun, le carnet seul pèserait **2,5 Go (cas bas), 5,3 Go (cas moyen), 9 Go (cas haut)** sur les 15 Go du compte ; le budget du lot 5 comptait moins. Je propose : (a) des images un peu plus compressées pour les nouveaux dépôts (gain 11 à 15 %, cotes aussi lisibles à l'œil), après un essai sur le carnet de la copie TEST ; (b) cocher la purge des anciens indices une fois par mois. D'accord pour préparer (a) en petit lot ?
 
 ## 5. Essais qui restent à faire sur la copie TEST
 
