@@ -1,24 +1,24 @@
 # Lot 11.1 — Le Sheet « Planning Loué » — PLAN
 
-> Plan du 18/11/2026, **version 2** : tes réponses du 18/11 au soir sont intégrées (chapitre 2). **Rien n'est construit**, sauf une maquette de démonstration avec de faux noms, sans lien avec l'appli.
+> Plan du 18/11/2026, **version 3** : tes décisions du 18/11 au soir (chapitre 2), puis **corrigé après une critique indépendante** (un tour ; ce qu'elle a changé : chapitre 11). **Rien n'est construit**, sauf une maquette de démonstration avec de faux noms, sans lien avec l'appli.
 > L'étude et la maquette sont dans `_prive\` (hors du dépôt public). Tous les exemples d'ici sont inventés.
 
 ## 1. Le but
 
-Remplacer l'onglet de planning de ton fichier Excel par un **Google Sheets à part, « Planning Loué »**, tenu par toi et par le chef d'atelier, lu par la direction, et d'où sortent en un geste **l'affiche de l'atelier** (A3) et **le PDF des gars** dans l'appli.
+Remplacer l'onglet de planning de ton fichier Excel par un **Google Sheets à part, « Planning Loué »**, tenu par toi et par le chef d'atelier, lu par la direction, et d'où sortent **l'affiche de l'atelier** (A3) et **le PDF des gars** dans l'appli.
 
-Ce plan couvre le planning (lots 11.1a et 11.1b). Les onglets de l'atelier (fabrication, commandes) sont le lot 11.3 : ce que tes réponses fixent déjà est au chapitre 8. La feuille d'heures (lots 11.4 à 11.6) n'est pas dans ce plan.
+Ce plan couvre le planning (lots 11.1). Les onglets de l'atelier sont le lot 11.3 (chapitre 8). La feuille d'heures (lots 11.4 à 11.6) n'est pas dans ce plan.
 
 ## 2. Tes décisions (18/11/2026)
 
 | Sujet | Ta décision |
 |---|---|
-| Absences | **« Absent » pour tout le monde dans le planning.** Le motif (arrêt de travail) reste au bureau, sur papier. Aucun mot de santé dans le Sheet |
+| Absences | **« Absent » pour tout le monde dans le planning.** Le motif reste au bureau, sur papier. Aucun mot de santé dans le Sheet |
 | Autres cas | les vraies appellations : Congés, École, Formation, Férié, Atelier, Bureau, SAV / divers |
-| Saisie | liste « N° NOM » avec propositions, **et saisie libre acceptée** (« Mr DUPONT ») : au plus un avertissement, jamais un refus |
+| Saisie | liste « N° NOM » avec propositions, **et saisie libre acceptée** : au plus un avertissement, jamais un refus |
 | Journée | quarts de journée ; **un seul chantier dans la journée prend toute la case** |
 | Noms | **prénom et initiale du nom**, par ordre alphabétique |
-| Couleurs | **par véhicule** (pastel) : les gars d'un même véhicule ont la même couleur |
+| Couleurs | **par véhicule** (pastel) |
 | Véhicule | il reste dans le planning ; **il peut changer dans la semaine** |
 | Atelier | **jusqu'à 4 tâches par jour et par gars**, chacune avec ses chantiers |
 | Effectif | pose : 12 gars, 8 places libres ; atelier : 4 gars, 3 places libres ; jamais de samedi |
@@ -26,7 +26,7 @@ Ce plan couvre le planning (lots 11.1a et 11.1b). Les onglets de l'atelier (fabr
 | PDF publié | **la semaine en cours et la suivante** dès qu'elle est prête ; tous les poseurs voient tout |
 | Qui fait quoi | toi et le chef d'atelier modifiez ; la direction lit |
 | Semaines passées | deux mois dans le Sheet, puis un onglet « Historique » |
-| Mails | aucun en plus : tout se voit dans le Sheet |
+| Mails | aucun en plus |
 
 ## 3. Ce que tu verras
 
@@ -36,147 +36,180 @@ Ce plan couvre le planning (lots 11.1a et 11.1b). Les onglets de l'atelier (fabr
 
 | Tu veux | Tu fais | Résultat |
 |---|---|---|
-| un chantier toute la journée | tu tapes « 901 » dans la case, Entrée | la case devient « 901 LES TILLEULS », en gros, sur toute la hauteur |
+| un chantier toute la journée | tu tapes « 901 » dans la case, Entrée | « 901 LES TILLEULS », en gros, sur toute la hauteur |
 | autre chose que la liste | tu tapes « Mr DUPONT » | accepté tel quel (petit triangle d'avertissement de Google) |
-| couper la journée | menu *Couper la journée* : en 2, ¼ + ¾, ¾ + ¼, en 3, en 4 | 2 à 4 cases, chacune avec sa liste |
+| couper la journée | menu *Couper la journée* : en 2, ¼ + ¾, ¾ + ¼, en 3 (½ + ¼ + ¼), en 4 | 2 à 4 cases, chacune avec sa liste |
 | revenir à la journée entière | menu *Journée entière* | une grande case |
 | changer de véhicule un jour | tu choisis le véhicule dans la ligne fine de ce jour-là | la case de ce jour prend la couleur de ce véhicule |
 
-**Un gars de l'atelier** = 4 tâches possibles par jour ; pour chacune, une ligne « tâche » (liste : Huisseries, Préparation…) et une ligne « chantiers ».
+**Un gars de l'atelier** = 4 tâches possibles par jour ; pour chacune, une ligne « tâche » et une ligne « chantiers ».
 
-**En bas** : qui a quel véhicule chaque jour, avec une alerte si un véhicule a plus de 3 gars.
+**Les commandes** (menu « Planning Loué », et boutons en haut de l'onglet) :
 
-**Trois boutons** en haut de l'onglet, et les mêmes commandes dans un menu « Planning Loué » :
+| Commande | Ce qu'elle fait | Ce qu'elle ne fait pas |
+|---|---|---|
+| **Créer la semaine suivante** | recopie la semaine dans un nouvel onglet (gars, véhicules, couleurs), dates mises à jour | — |
+| **Ajouter un gars / Retirer un gars** | garde l'ordre alphabétique sans dérégler les blocs | — |
+| **Vérifier la semaine** | répare les cases déréglées, liste les valeurs hors liste et les mots à éviter | ne bloque jamais ta saisie |
+| **Imprimer l'affiche** | donne un lien qui ouvre le PDF A3 de la semaine | ne lance pas l'imprimante : un clic ouvre le PDF, un second l'imprime |
+| **Publier pour les gars** | tu coches « Publier » ; dans les 10 minutes, le PDF de cette semaine est dans l'appli ; la case d'état l'écrit (« Publié le 20/11 à 16 h 10 ») | pas de fenêtre de confirmation : pour annuler, tu décoches avant |
 
-| Bouton | Ce qu'il fait |
-|---|---|
-| **Créer la semaine suivante** | recopie la semaine dans un nouvel onglet : gars, véhicules, couleurs, répartition (tu ne changes que ce qui bouge) ; dates mises à jour |
-| **Imprimer l'affiche de l'atelier** | ouvre le PDF A3 de la semaine (les lignes libres n'y sont pas) ; il reste à cliquer sur Imprimer |
-| **Publier pour les gars** | dépose le PDF de la semaine en cours, et celui de la suivante s'il existe, dans le dossier *Planning* de l'appli |
+## 4. Les choix techniques
 
-Puisque « Absent » est écrit tel quel dans le planning, **l'affiche et le PDF sont le planning lui-même** : plus de copie à fabriquer, plus de mot à remplacer.
+**4.1 Où vivent les programmes**
 
-## 4. Les choix techniques (deux solutions au moins à chaque fois)
-
-**4.1 Où vit le programme du planning**
-
-| Solution | Pour | Contre | Retenue ? |
+| Programme | Où | Il fait | Qui peut le modifier |
 |---|---|---|---|
-| **Un programme attaché au Sheet du planning** (Extensions → Apps Script, depuis le Sheet) | un menu et des boutons dans le Sheet ; aucune adresse de déploiement ; le serveur de l'appli n'est pas touché | un second programme à coller à chaque mise à jour | **oui** |
-| Dans le serveur de l'appli | un seul programme | pas de menu dans le Sheet ; chaque retouche du planning obligerait à redéployer l'appli | non |
+| **Le programme du planning** | attaché au Sheet (Extensions → Apps Script) | le menu, les découpages, la complétion, la semaine suivante, les vérifications. **Il ne touche que ce Sheet** | toute personne qui peut modifier le Sheet (c'est une règle de Google) |
+| **Le programme de publication** | à part, dans le compte Google de Loué, invisible depuis le Sheet | toutes les 10 minutes : si « Publier » est coché, il dépose le PDF dans le dossier *Planning* de l'appli ; chaque nuit, il recopie la liste des chantiers | le compte de Loué seulement |
 
-**4.2 Qui fait tourner le programme**
+Pourquoi deux programmes : la critique a montré qu'un programme attaché au Sheet et lancé avec les droits du compte de Loué pourrait être modifié depuis un compte personnel (le tien, celui du chef d'atelier, ou celui d'un pirate), et agirait alors **avec les droits de Loué sur tout le Drive de l'appli**. Séparés, le programme que vous pouvez modifier n'a aucun droit hors du Sheet.
 
-Un geste dans le Sheet tourne au nom de **celui qui le fait**. Or « Publier » doit écrire dans le dossier *Planning* du Drive de l'appli, et la liste des chantiers doit lire le Sheet de l'appli : seul le **compte Google de Loué** y a accès.
+Solutions écartées : tout dans le serveur de l'appli (chaque retouche du planning obligerait à redéployer l'appli) ; partager le Drive de l'appli avec vos comptes personnels.
 
-| Solution | Pour | Contre | Retenue ? |
-|---|---|---|---|
-| **Le Sheet appartient au compte de Loué, qui y installe deux « réveils »** : l'un guette la case « Publier », l'autre recopie la liste des chantiers chaque nuit. Ils tournent au nom du compte de Loué, quel que soit celui qui coche | marche pour toi et pour le chef d'atelier avec vos propres comptes ; aucun partage du Drive de l'appli | une installation à faire une fois, avec le compte de Loué | **oui** |
-| Partager le dossier *Planning* et le Sheet de l'appli avec vos comptes personnels | pas de réveil | ouvre les données de l'appli à des comptes personnels | non |
+**Coût sur les 90 minutes par jour du compte de Loué** (partagées avec l'appli) : 144 passages par jour d'une à deux secondes quand rien n'est coché, soit **2 à 5 minutes par jour**. À mesurer sur la copie TEST ; si c'est trop, un passage toutes les 30 minutes.
 
-Coût sur les 90 minutes par jour de réveils du compte de Loué (partagées avec l'appli) : la recopie de la liste, quelques secondes par nuit ; la publication, quelques secondes par clic. À mesurer sur la copie TEST.
+**4.2 « Un seul chantier = toute la case »**
 
-**4.3 « Un seul chantier = toute la case »**
+| Solution | Pour | Contre |
+|---|---|---|
+| **A. Des cases collées et décollées par le menu** (celle de la maquette) | exactement ta demande ; les quarts se voient à la hauteur ; une liste par morceau | Google ne garantit rien sur les cases collées : un copier-coller, un tri ou deux personnes en même temps peuvent dérégler un bloc. Il faut *Vérifier la semaine*, *Ajouter / Retirer un gars*, et une liste fermée de découpages |
+| **C. Une seule case par jour, jamais collée** ; pour une journée coupée, les chantiers sont écrits l'un sous l'autre dans la même case | rien ne peut se dérégler ; copier-coller sans risque ; programme trois fois plus court | la liste et ses propositions ne valent que pour le premier chantier de la case ; les parts (¼, ½) s'écrivent en clair au lieu de se voir |
+| B. Quatre lignes jamais collées | simple | un chantier seul reste écrit en petit : pas ta demande |
 
-| Solution | Pour | Contre | Retenue ? |
-|---|---|---|---|
-| **Des cases collées et décollées par le menu** | exactement ta demande ; l'affiche est le même dessin | un copier-coller fait de travers peut dérégler un bloc : commande *Vérifier la semaine*, lancée aussi avant chaque publication | **oui** |
-| Quatre lignes jamais collées | rien ne se dérègle | un chantier seul reste écrit en petit sur la première ligne | non |
+**Je recommande d'essayer A sur la maquette**, en la maltraitant exprès (copier-coller, glisser une case sur une autre). Si elle se dérègle trop facilement, on construit C. C'est ta question 2.
 
-**4.4 La saisie : liste, propositions, saisie libre**
+**4.3 La saisie**
 
-| Solution | Pour | Contre | Retenue ? |
-|---|---|---|---|
-| **Liste déroulante de Google réglée sur « afficher un avertissement »**, plus une complétion par le programme : « 901 » + Entrée → « 901 LES TILLEULS » quand un seul chantier commence ainsi | la saisie libre est acceptée (réglage prévu par Google) ; la complétion ne dépend pas de l'affichage de Google | la page d'aide de Google ne dit pas si des propositions s'affichent **pendant** la frappe : **à vérifier par ton essai sur la maquette** | **oui** |
-| Un panneau de recherche sur le côté | propositions garanties | un clic de plus à chaque case | en secours seulement |
+- Liste déroulante de Google « depuis une plage », réglée sur « afficher un avertissement » : la saisie libre est acceptée. C'est un réglage documenté par Google.
+- **Propositions pendant la frappe** : la page d'aide de Google n'en dit rien. **Seul ton essai sur la maquette le dira.**
+- En plus, complétion par le programme : « 901 » + Entrée → « 901 LES TILLEULS » (le numéro exact d'abord, sinon le seul chantier qui commence ainsi).
+- Limite à connaître : Google ne garde que les deux dernières modifications en attente. En saisie très rapide ou sur un collage, une complétion peut sauter : *Vérifier la semaine* la rattrape.
+- En secours, si les propositions de Google ne te conviennent pas : un panneau de recherche sur le côté.
 
-**4.5 La liste « N° NOM »**
+**4.4 La liste « N° NOM »** : recopiée chaque nuit par le programme de publication depuis l'onglet *Chantiers* de l'appli (une formule `IMPORTRANGE` casserait sans prévenir). La liste affiche « à jour du … ». Condition : un numéro pour chaque chantier en cours (colonne E).
 
-| Solution | Pour | Contre | Retenue ? |
-|---|---|---|---|
-| **Recopie par le programme** depuis l'onglet *Chantiers* de l'appli (chaque nuit, et par le menu) | pas de panne silencieuse ; un chantier terminé sort de la liste mais reste écrit dans les semaines passées | une autorisation de plus | **oui** |
-| Une formule `IMPORTRANGE` | une ligne à écrire | casse sans prévenir si une autorisation saute | non |
+**4.5 L'affiche A3 et le PDF : aucune méthode garantie par Google**
 
-Condition : chaque chantier en cours a son **numéro** dans l'onglet *Chantiers* (colonne E).
+La critique l'a vérifié : la seule méthode officielle (`getAs`) exporte **tout le classeur**, sans choix de l'onglet, du papier ni du sens. L'adresse d'export « onglet par onglet » que tout le monde utilise **n'est décrite sur aucune page officielle** : elle marche aujourd'hui, Google peut la changer sans prévenir.
 
-**4.6 L'affiche et le PDF**
+| Sortie | Solution retenue | Repli garanti |
+|---|---|---|
+| Affiche | un **lien** vers cette adresse d'export, ouvert par ton navigateur (aucun programme, aucune autorisation) | Fichier → Imprimer → « Feuille active », A3 : documenté par Google |
+| PDF publié | le programme de publication recopie la semaine dans un classeur provisoire et l'exporte | tu télécharges le PDF (Fichier → Télécharger) et tu le déposes dans le dossier *Planning*, comme aujourd'hui |
 
-| Solution | Pour | Contre | Retenue ? |
-|---|---|---|---|
-| **Le PDF est l'onglet de la semaine, exporté par Google** (A3 en largeur pour l'affiche, A4 pour les gars), sans les boutons ni les lignes libres | rien à redessiner ; ce que tu vois est ce qui sort | réglages d'export à vérifier dans la documentation de Google avant de construire | **oui, sous réserve** |
-| Une page redessinée par le programme | mise en page libre | un second dessin à tenir à jour | non |
+**Ces deux exports sont le tout premier essai à faire chez Google, avant de construire** (lot 11.1-0).
 
-Un programme Google **ne peut pas lancer l'imprimante** : un clic ouvre le PDF, un second l'imprime.
+**Nombre de lignes de l'affiche** : 12 poseurs × 5 lignes + 4 gars d'atelier × 8 lignes = 92 lignes. À la taille d'écriture du planning, elles ne tiennent pas sur une A3 en largeur. Deux possibilités, à choisir sur la maquette (ta question 3) : **une A3 en hauteur**, ou **deux A3 en largeur** (pose, atelier).
 
-**4.7 « Publier » et l'appli**
+**4.6 « Publier » et l'appli**
 
-Le PDF est déposé dans le dossier *Planning* du Drive de l'appli (un fichier par semaine, remplacé à chaque publication ; les semaines passées sont retirées). **Il faut le lot 5c en production** : c'est lui qui réserve la lecture du planning aux comptes de l'appli. Aucune page de l'appli ne change.
+- Il faut le **lot 5c en production** (lecture du planning réservée aux comptes).
+- Un fichier par semaine, au nom clair : « Planning S48 du 23 au 27-11 ». Republier remplace le fichier (l'ancien part à la corbeille).
+- Le programme ne retire que **les fichiers qu'il a lui-même déposés** (il les marque), jamais un fichier que tu as mis à la main ; il les met à la corbeille, il ne supprime rien.
+- La semaine suivante n'apparaît que si tu l'as publiée. Les semaines terminées sont retirées le lundi.
+- La copie de sauvegarde (Excel) va dans un **autre dossier** du Drive, pas dans *Planning* (elle y serait montrée aux poseurs).
 
 ## 5. Les endroits touchés
 
 | Où | Quoi |
 |---|---|
-| Un nouveau Google Sheets « Planning Loué », et sa copie « Planning Loué TEST » avec de faux gars | onglets *Listes*, *Salariés*, semaines, *Historique* |
-| `planning/` dans le dépôt (nouveau dossier) | le programme attaché au Sheet, sans aucun nom ni identifiant |
-| `tests/` | les règles testées sans Google : découpage d'une journée, complétion, semaine suivante, nom des fichiers publiés |
+| Un nouveau Google Sheets « Planning Loué », et « Planning Loué TEST » avec de faux gars | onglets *Listes*, *Salariés*, semaines, *Historique* |
+| `planning/` dans le dépôt (nouveau dossier) | les deux programmes, sans aucun nom ni identifiant |
+| `tests/` | les règles testées sans Google : découpages, complétion, semaine suivante (2026 a 53 semaines), noms des fichiers publiés |
 | `docs/` | procédure pas à pas, guide d'une page pour toi et le chef d'atelier, journal |
 | Serveur et pages de l'appli | **rien** |
 
-## 6. Risques et parades
+## 6. Données personnelles (prénoms, initiales, absences)
+
+- **Partage nominatif à trois personnes** ; jamais par lien. À décocher dans le partage : « les éditeurs peuvent modifier les autorisations » et « les lecteurs peuvent télécharger, imprimer, copier ».
+- **Information des salariés** : une note courte (ce qui est noté, qui le lit, combien de temps). À faire valider par la direction.
+- **Durée de l'« Historique »** : je propose **12 mois**, puis effacement par le programme de publication. C'est ta question 6.
+- **Mots de santé** : ils ne sont pas dans la liste, mais la saisie libre les permet. Le programme colore en rouge, dès la saisie, une case qui contient un mot à éviter (arrêt, malade, maladie, accident, hôpital, médecin…), sauf si c'est un nom de la liste. **C'est un filet, pas une garantie** : la vraie règle est de ne jamais l'écrire. À savoir : l'historique des versions de Google garde ce qui a été tapé, même effacé.
+- **Autorisation** : toi et le chef d'atelier verrez chacun, une fois, l'écran « Google n'a pas validé cette application » pour vous servir du menu. C'est normal pour un programme maison.
+- Les messages d'échec du programme de publication arrivent dans la boîte du compte de Loué : il faut que quelqu'un la lise.
+
+## 7. Risques et parades
 
 | Risque | Parade |
 |---|---|
-| Un mot de santé réapparaît dans le planning (saisie libre) | il n'est pas dans la liste ; *Vérifier la semaine* signale les mots « arrêt », « maladie », « accident » avant toute publication, et refuse de publier |
-| Cases déréglées par un copier-coller | *Vérifier la semaine* répare ce qui se répare, liste le reste |
-| Saisie libre : un chantier mal écrit ne sera pas reconnu plus tard (feuille d'heures) | l'avertissement de Google ; *Vérifier la semaine* liste les valeurs hors liste, sans les refuser |
-| Une semaine publiée par erreur | la publication demande confirmation ; republier remplace le fichier |
-| Le Sheet ouvert à trop de monde | partage nominatif seulement (toi, le chef d'atelier, la direction en lecture) ; jamais « toute personne qui a le lien » |
+| L'adresse d'export de Google change | les replis du 4.5 ; l'essai du lot 11.1-0 |
+| Cases déréglées (solution A) | *Vérifier la semaine* ; liste fermée de découpages ; sinon solution C |
+| Deux personnes en même temps | chacun ses lignes (pose, atelier) ; les commandes qui déplacent des lignes passent par un verrou |
+| Une absence recopiée par erreur dans la semaine suivante | à la création, les cases « Absent », « Congés », « École », « Formation », « Férié » sont vidées ou mises en couleur (ta question 4) |
+| Une semaine publiée par erreur | décocher dans les 10 minutes ; republier remplace |
+| Liste des chantiers pas à jour | la liste dit « à jour du … » ; commande *Mettre à jour la liste* |
 | Double saisie pendant le passage | deux semaines en double avec ton Excel, puis une seule source |
-| Perte du planning | historique des versions de Google ; à chaque publication, une copie Excel de la semaine dans le Drive (donc sur ton PC) |
-| Programme collé au mauvais endroit | la procédure montre chaque clic ; le menu affiche la version du programme |
+| Perte du planning | historique des versions de Google ; une copie Excel par semaine publiée |
 
-## 7. Tests, essais, découpage
-
-- **Sans Google** : découpage et recollage d'une journée, complétion, semaine suivante (dates, passage d'année), liste des chantiers.
-- **Sur « Planning Loué TEST »** : chaque commande ; l'affiche imprimée en A3 ; le PDF publié dans le dossier *Planning* de la copie TEST et ouvert dans l'appli d'essai, avec un compte puis sans.
-- **Avec toi** : deux semaines saisies en double ; l'affiche à l'atelier ; le chef d'atelier saisit ses lignes.
-- Relecture par un agent indépendant : oui (données de salariés, publication).
-
-| Lot | Contenu | Dépend de |
-|---|---|---|
-| **11.1a** | le Sheet, les listes, la semaine, *Créer la semaine suivante*, *Couper la journée*, *Vérifier la semaine*, l'affiche A3 | rien |
-| **11.1b** | *Publier pour les gars* (semaine en cours et suivante) | le lot 5c en production |
-| **11.3** | les onglets de l'atelier (chapitre 8) | le 11.1a |
-
-## 8. L'atelier (lot 11.3) : ce que tes réponses fixent déjà
+## 8. L'atelier (lot 11.3) : ce que tes réponses fixent, et ce que la critique ajoute
 
 Quatre onglets, dans le même Sheet : **PRÉVISION ATELIER**, **CDE EN ATTENTE**, **COMMANDES**, **CDE REÇUES**.
 
-- **Commandes** : un seul tableau, trié tout seul par date ; une colonne « N° BL » ; « Reçu » est une case à cocher, qui grise la ligne et remplit seule la date ; la semaine de livraison est celle de l'ARC du fournisseur, tapée à la main ; la ligne passe en rouge une fois cette semaine dépassée sans « Reçu ».
-- **Tous les 15 jours**, les lignes reçues partent dans « CDE REÇUES ».
-- **Commandes en attente** : une case « Commandé » fait passer la ligne dans les commandes, avec la date du jour, sans ressaisie.
-- **La fabrication déclenche les commandes** : une ligne de la prévision crée toute seule la ou les lignes à commander, selon une table de règles que tu modifies (huisseries → portes ; châssis fixe → vitrages ; portes vitrées → vitrages). Le programme propose, il ne commande jamais ; pas de doublon si la ligne de fabrication change.
-- **En retour**, chaque ligne de la prévision affiche l'état de ses commandes.
-- **En option**, à valider sur la maquette : « à commander avant le … », d'après la semaine de fabrication et le délai habituel de chaque fournisseur.
-
-**Ce que ça coûte sur les 90 minutes par jour** : le rangement tous les 15 jours est un réveil du compte de Loué, d'une dizaine de secondes par quinzaine : négligeable. Les gestes du chef d'atelier (cocher, trier) tournent à son nom, pendant une à deux secondes chacun. Je n'ai pas trouvé dans la documentation si ces gestes sont comptés dans les 90 minutes de **son** compte : même s'ils le sont, 150 gestes par jour font moins de 5 minutes. À mesurer pendant les essais.
-
-## 9. Ce qu'il te reste à décider avant la construction
-
-1. **La maquette Google Sheets** (procédure dans `_prive\planning\maquette\google-sheets\`) : des propositions s'affichent-elles pendant la frappe ? Les « boutons » de la maquette sont des cases à cocher à côté d'un libellé bleu : cela te va-t-il, ou veux-tu de vrais boutons dessinés (une manipulation de plus à l'installation) ?
-2. **Le véhicule du jour** : la ligne fine sous chaque gars te convient-elle ?
-3. **L'atelier** : 4 tâches par jour, chacune avec sa ligne de chantiers : est-ce la bonne forme pour le chef d'atelier ?
-4. **Les comptes Google** : le Sheet appartiendra au compte de Loué. Avec quel compte l'ouvres-tu au bureau : celui de Loué, ou le tien ?
-5. **Feuille d'heures, le vendredi** : lieu d'embauche et de débauche, si les gars travaillent ce jour-là.
-6. **Règles de l'atelier** : la liste des types de fabrication et de ce que chacun fait commander ; les délais habituels de tes fournisseurs ; l'option « à commander avant le … » : oui ou non.
-7. **Jours fériés** : pré-remplis « Férié » à la création de la semaine : oui ou non ?
-8. **Avant de commencer** : un numéro pour chaque chantier en cours dans l'onglet *Chantiers* (colonne E) ; retirer le mot de santé de ton fichier Excel actuel.
-
-## 10. Ce que tu auras à faire
-
-| Quand | Quoi | Durée |
+| Ta demande | Comment | Précaution ajoutée par la critique |
 |---|---|---|
-| Maintenant | installer la maquette, faire ses essais, répondre au chapitre 9 | 30 min |
-| 11.1a | créer le Sheet avec le compte de Loué, coller le programme, l'autoriser, saisir tes gars ; deux semaines en double | 45 min, puis 10 min par semaine |
-| 11.1b | publier une semaine ; l'ouvrir sur Android et iPhone | 15 min |
-| 11.3 | une heure avec le chef d'atelier ; reprise de ses lignes en cours | 1 h 30 |
+| Commandes triées par date | tri par le programme | **pas pendant la frappe** : la ligne partirait sous le curseur. Tri quand la date change, à l'ouverture, et la nuit |
+| « N° BL » ; « Reçu » en case à cocher qui grise la ligne et date toute seule | case à cocher + programme | sur un collage de plusieurs lignes, toutes sont traitées |
+| Livraison = semaine de l'ARC, tapée à la main ; rouge une fois dépassée | calcul du retard seulement | l'année de la semaine est déduite de la date de commande (passage d'année) |
+| Rangement des reçues tous les 15 jours | programme de publication, **la nuit** | seulement les lignes reçues depuis 15 jours, sans reliquat |
+| « Commandé » fait passer la ligne dans les commandes | programme | déplacement sous verrou |
+| La fabrication propose les commandes, sans doublon | table de règles dans *Listes* | un **numéro de fabrication visible**, donné sous verrou ; la proposition est créée quand la ligne a son chantier, son type et sa quantité ; une proposition corrigée à la main n'est plus écrasée ; commande *Vérifier l'atelier* (doublons, commandes sans ligne de fabrication) |
+| État des commandes sur la ligne de fabrication | écrit par le programme | — |
+| Option « à commander avant le … » | semaine de fabrication − délai du fournisseur | à valider sur la maquette |
+
+**Ce que ça coûte sur les 90 minutes** : le rangement de quinzaine, une dizaine de secondes toutes les deux semaines, sur le compte de Loué : négligeable. Les gestes du chef d'atelier (cocher, trier) sont comptés par Google, sur le compte de celui qui les fait d'après ce que j'ai pu lire (la page ne le dit pas clairement) : 150 gestes d'une à deux secondes font moins de 5 minutes par jour. À mesurer.
+
+Le lot 11.3 est trop gros pour une seule livraison : **11.3a** les commandes ; **11.3b** les commandes en attente et « la fabrication propose » ; **11.3c** le retour d'état et l'option.
+
+## 9. Tests, essais, découpage
+
+| Lot | Contenu | Dépend de |
+|---|---|---|
+| **11.1-0** | **les essais chez Google, sur la maquette** (chapitre 10) : aucune construction | rien |
+| **11.1a** | le Sheet, les listes, la semaine, *Couper la journée*, *Créer la semaine suivante*, *Ajouter / Retirer un gars*, *Vérifier la semaine* | 11.1-0 |
+| **11.1b** | l'affiche A3 | 11.1a |
+| **11.1c** | le programme de publication : *Publier*, liste des chantiers chaque nuit, *Historique* | le lot 5c en production |
+| **11.3a, b, c** | l'atelier | 11.1a |
+
+Tests sans Google : découpages, complétion, semaine suivante (S53 puis 2027-S01), noms de fichiers, règles de l'atelier. Sur « Planning Loué TEST » : chaque commande ; deux personnes en même temps ; collage de plusieurs cases ; saisie rapide ; une case cochée depuis l'appli Sheets du téléphone ; publication demandée par le compte du chef d'atelier ; panne de la recopie de nuit. Relecture par un agent indépendant : oui.
+
+## 10. Les essais que seul Google peut trancher (lot 11.1-0, sur la maquette)
+
+1. Des propositions s'affichent-elles pendant la frappe ? Que valide Entrée ?
+2. Une liste de choix sur une case collée, puis décollée.
+3. Ce que garde la copie d'un onglet (listes, cases collées, couleurs, cases à cocher).
+4. Le lien d'export : un seul onglet, A3, la bonne zone, les lignes masquées absentes, pas de bloc coupé entre deux pages.
+5. Copier-coller et glisser-déposer d'une case collée sur une autre découpée autrement.
+6. Deux personnes dans le même onglet.
+7. Le menu et les cases à cocher depuis un téléphone.
+8. Le temps d'un passage du programme, et le total d'une journée de saisie.
+9. Le PDF A4 lu sur Android et sur iPhone.
+
+## 11. Ce que la critique indépendante a changé (18/11)
+
+| Constat | Correction |
+|---|---|
+| Aucune méthode officielle n'exporte un onglet en A3 | dit clairement (4.5) ; replis garantis ; premier essai avant toute construction |
+| Une case cochée ne peut ni ouvrir un PDF ni demander confirmation | l'affiche est un lien ; « Publier » écrit son résultat dans une case d'état |
+| Ma première solution donnait aux comptes personnels la main sur le compte de Loué | deux programmes séparés (4.1) |
+| Un réveil lancé à chaque frappe aurait mangé le quota de Loué | un passage toutes les 10 minutes, chiffré |
+| Les cases collées sont fragiles, et je n'avais comparé qu'une solution faible | solution C ajoutée, à comparer sur la maquette |
+| 92 lignes ne tiennent pas sur une A3 en largeur | A3 en hauteur, ou deux pages |
+| La publication pouvait jeter un fichier posé à la main, et montrer la sauvegarde Excel aux poseurs | 4.6 |
+| Rien sur les données personnelles | chapitre 6 |
+| L'atelier n'était pas spécifié | chapitre 8, trois lots |
+| Le lot 11.1a était trop gros | découpage du chapitre 9 |
+
+## 12. Ce qu'il te reste à décider avant la construction
+
+1. **Installer la maquette et faire ses essais** (procédure dans `_prive\planning\maquette\google-sheets\`), en particulier : les propositions pendant la frappe, et le lien de l'affiche.
+2. **Cases collées (A) ou une case par jour (C)** : après avoir maltraité la maquette.
+3. **Affiche** : une A3 en hauteur, ou deux A3 en largeur (pose, atelier) ?
+4. **Semaine suivante** : recopie-t-on aussi les chantiers de chacun (tu ne changes que ce qui bouge), ou seulement les gars, les véhicules et les couleurs ? Les absences recopiées : vidées, ou gardées en couleur ?
+5. **Publication en 10 minutes au plus**, sans fenêtre de confirmation : d'accord ?
+6. **Historique** : 12 mois, puis effacement : d'accord ?
+7. **Le véhicule du jour** (ligne fine) et **l'atelier** (4 tâches, chacune avec sa ligne de chantiers) : la forme te convient-elle, et au chef d'atelier ?
+8. **Les comptes Google** : le Sheet et le programme de publication appartiendront au compte de Loué. Avec quel compte ouvres-tu le Sheet au bureau ? Qui lit la boîte du compte de Loué ?
+9. **Atelier** : la liste des types de fabrication et de ce que chacun fait commander ; les délais de tes fournisseurs ; l'option « à commander avant le … ».
+10. **Feuille d'heures, le vendredi** : lieu d'embauche et de débauche.
+11. **Avant de commencer** : un numéro pour chaque chantier en cours (colonne E de l'onglet *Chantiers*) ; retirer le mot de santé de ton fichier Excel actuel ; la note d'information aux salariés, avec la direction.
