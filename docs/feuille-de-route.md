@@ -46,9 +46,15 @@ Depuis ton dossier principal, comme prévu (`docs/lot4c-procedure.md`, étapes 3
 | 3 | moi | installation sur TEST, essais réels (deux notes au même instant ; **3 mails, tous à ton adresse**) | 30 min, sans toi |
 | 4 | toi, téléphone | les 13 essais de l'étape B de `docs/lot8-procedure.md` | 20 min |
 
-**Point à régler avec toi avant l'étape 1** : l'envoi part du dossier d'où il est lancé, et tu ne veux pas que je change la branche de ton dossier principal (tu y fais le 4c). Deux possibilités :
-- **(recommandé)** tu lances l'envoi depuis le dossier `C:\Users\pavageauf\Documents\GitHub\chantier-pro-lot8`, déjà sur la bonne branche : même commande, autre dossier ;
-- ou je bascule ton dossier principal sur `lot-8` une fois ton 4c terminé.
+Envoi depuis le dossier `C:\Users\pavageauf\Documents\GitHub\chantier-pro-lot8` (ta décision du 18/11) : **dossier prêt, confirmé le 18/11**.
+
+## 2 bis. Le lot 5c sur la copie TEST, puis en production (30 min pour toi)
+
+Après tes essais du lot 8 sur la copie TEST (elle ne porte qu'un lot à la fois). Détail : `docs/lot5c-procedure.md` (branche `lot-5c`).
+- Envoi `--avec-porte` depuis le dossier `chantier-pro-lot5c`, **après ma confirmation écrite** ;
+- tes essais : ouvrir un planning sur **Android et iPhone** (deux touchers) ; déconnecté, il ne s'affiche plus ; dans Drive, « Accès limité » ;
+- production : `--sans-porte`, coller `Code.gs` (v10.1), nouveau déploiement, me donner l'adresse, fusion ;
+- avant la production : que chaque poseur qui lit le planning ait un compte (sans compte, il ne le voit plus).
 
 ## 3. Les lots 10a-1 et 10a-2 sur la copie TEST (après le lot 8 en production)
 
@@ -57,19 +63,11 @@ Détail dans `docs/lot10-procedure.md` (branche `lot-10a1`).
 - Attendre **un vrai mail de 15 h 45** sur la copie TEST : il faut y poser les réveils automatiques pendant l'essai (je les retire ensuite : ils partagent les 90 minutes par jour avec la production).
 - Production : coller `Code.gs`, `installerLot10Production`, `verifierConfig`, nouveau déploiement, me donner l'adresse, fusion.
 
-## 4. Tes décisions (10 min, quand tu veux)
+## 4. Tes décisions
 
-1. **Lot 8** : d'où lances-tu l'envoi sur TEST ? (partie 2 ; je recommande le dossier `chantier-pro-lot8`)
-2. **Lot 10a-1**, trois écarts avec le plan, pris par moi pour la sûreté des données (chapitre 0 de `docs/lot10-plan.md`) :
-   - titres de l'onglet *Demandes* changés : rien n'est écrit, les demandes attendent dans les téléphones (après 12 essais, le poseur touche « Réessayer ») ;
-   - premier passage du réveil après 17 h 30 : pas de mail ce jour-là, les demandes partent en tête du suivant ;
-   - « Précision (facultatif) » : faut-il écrire « facultative » ? (accord grammatical)
-3. **Lot 10b**, deux choix pris par moi :
-   - le mail du vendredi ne part qu'une fois `demarrerPointDuVendredi()` lancé à la main (pas d'envoi surprise sur la copie TEST, arrêt en un clic) ;
-   - `essaiPointDuVendredi()` fabrique le mail à la demande, à toi seul, avec « [ESSAI] » dans l'objet, aussi en production.
-4. **Mail unique**, mode `conducteur` (si le « À » vide échoue à l'essai) : le conducteur n'est mis en « À » que s'il est déjà destinataire ; personne n'est jamais ajouté. D'accord ?
-5. **Lot 11** : lire l'étude (`_prive\etudes\lot11-etude.md`), répondre à ses 40 questions (dont 36 : scanne-moi le verso de la feuille d'heures, mercredi à vendredi), me donner les documents de son chapitre 11, et d'abord **obtenir l'accord de la direction**.
-6. **Planning actuel** : aujourd'hui en production, le serveur met les fichiers du dossier *Planning* en partage « toute personne qui a le lien » ; le PDF du planning est lisible sans compte par quiconque a ce lien. Corriger maintenant (petit lot à part), ou avec le lot 11 ?
+Toutes prises le 18/11 : lot 8 envoyé depuis `chantier-pro-lot8` ; les trois écarts du 10a-1 et « Précision (facultative) » ; les deux choix du 10b ; mode `conducteur` du mail unique ; planning corrigé tout de suite (lot 5c). Il reste :
+
+1. **Lot 11**, quand tu veux : lire l'étude (`_prive\etudes\lot11-etude.md`), répondre à ses 40 questions (dont la 36 : scanne-moi le **verso** de la feuille d'heures, mercredi à vendredi), me donner les documents de son chapitre 11, et d'abord **obtenir l'accord de la direction**.
 
 ## 5. Essais qui restent à faire sur la copie TEST
 
