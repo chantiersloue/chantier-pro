@@ -2,6 +2,13 @@
 
 Chaque lot : **quoi**, **pourquoi**, **comment déployer**. Procédures détaillées dans `docs/lotN-procedure.md`.
 
+## Lot 5c — Le planning lisible par les seuls comptes de l'appli — serveur **v10.1**, appli **9.1** — **construit, testé contre le faux serveur et dans Chrome seulement**
+
+**Quoi** : le serveur ne met plus aucun fichier du dossier *Planning* en partage par lien, et remet en privé ceux qui le sont (le dossier compris). Le téléphone demande le document au serveur avec son compte (nouvelle action `planningFichier`) ; un premier toucher le télécharge, un second l'ouvre. Sans compte, le planning n'est plus servi, même pendant la période sans compte. 10 Mo au plus par document. La liste montre le poids du document.
+**Pourquoi** : demande de Franck du 18/11/2026 : « Seuls les comptes de l'appli doivent pouvoir lire le PDF du planning. » Avant, quiconque avait le lien d'un PDF du planning pouvait le lire sans compte.
+**Déployer** : `docs/lot5c-procedure.md` (copie TEST, essais Android et iPhone, production : serveur d'abord, pages ensuite).
+**Tests** : nouvelle série `tests/lot5c-planning.test.js` (9 tests) ; `lot0`, `lot2-comptes` et `accueil-page` adaptés (planning privé, plus de lien Drive).
+
 ## Lot 5 — Suivi du stockage, alertes et purge sur case cochée — serveur **v10.0**, aucune page ne change — **construit, testé contre le faux serveur seulement** (rien n'a tourné chez Google)
 
 **Quoi**

@@ -122,7 +122,7 @@ Les plans et les documents d'un chantier se lisent dans le **Carnet** : Accueil 
 - Le Carnet demande d'être **connecté** avec ton compte.
 - Un plan manque dans le Carnet ? Demande-le au bureau : c'est le bureau qui dépose les plans validés.
 - La liste de tes chantiers s'affiche aussi sans réseau.
-- Le **planning de l'équipe** ne change pas : Accueil → **Planning** → touche le document (il faut du réseau).
+- Le **planning de l'équipe** : Accueil → **Planning** → touche le document : « ⏳ Téléchargement… », puis « ✓ Prêt ». **Touche encore** : il s'ouvre. Il faut du réseau et **être connecté** (le planning n'est plus lisible sans compte, ni par un lien transféré).
 
 ## Mise à jour de l'appli
 
