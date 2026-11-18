@@ -591,6 +591,9 @@ function traiterComptes() {
     // rendu là-bas) et dans son propre try/catch : s'il plante, les comptes ont déjà été traités et le verrou est rendu ;
     // si le traitement des comptes a planté plus haut, le récapitulatif est lancé quand même.
     try { demRecapituler_(); } catch (err) { console.error('récapitulatif « À commander » :', err && err.message ? err.message : err); }
+    // Lot 10b : le point du vendredi (PointVendredi.gs), même règle : sous le même verrou, dans son propre try/catch, après le
+    // récapitulatif (l'un qui plante n'empêche ni l'autre, ni les comptes). Hors du vendredi après 14 h, il ne lit rien.
+    try { venPasser_(); } catch (err) { console.error('point du vendredi :', err && err.message ? err.message : err); }
     verrou.releaseLock();
   }
 }

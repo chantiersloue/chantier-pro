@@ -718,9 +718,9 @@ test('porte de service (copie TEST) : installerLot10 ; lireDemandes ne rend ni n
   const p = environnement();
   assert.strictEqual(poster(p, { action: 'outilTest', geste: 'installerLot10', cle: CLE }).code, 'ACTION_INCONNUE');
 });
-test('livraison : le serveur à coller contient les lots 10a-1 et 10a-2, en version v11.3, Demandes.gs à sa place, sans les outils d’essai ; chargé seul, il reçoit une demande et envoie le récapitulatif', () => {
+test('livraison : le serveur à coller contient les lots 10a-1 et 10a-2, en version v11.4, Demandes.gs à sa place, sans les outils d’essai ; chargé seul, il reçoit une demande et envoie le récapitulatif', () => {
   const code = fs.readFileSync(path.join(RACINE, 'A-COLLER-DANS-APPS-SCRIPT', 'Code.gs'), 'utf8');
-  ["const VERSION_API = 'v11.3'", "const DEMANDES_HEURE_LIMITE  = '15:45';", "const DEMANDES_FIN_ESSAIS    = '17:30';", 'const DEMANDES_MAX_PAR_JOUR  = 30;', 'function traiterDemande(', 'function demRecapituler_(',
+  ["const VERSION_API = 'v11.4'", "const DEMANDES_HEURE_LIMITE  = '15:45';", "const DEMANDES_FIN_ESSAIS    = '17:30';", 'const DEMANDES_MAX_PAR_JOUR  = 30;', 'function traiterDemande(', 'function demRecapituler_(',
     'function listerDemandes_(', 'function demArticles_(', "const SHEET_ARTICLES = 'Articles';", 'const ART_MAX = 500;', 'listerDemandes_(qui.compte, corps)', 'function mailBureau_(', 'function installerLot10Test(', 'function installerLot10Production(', "'demande'            : 'traiterDemande'", "corps.action === 'demandes'",
     '████ Demandes.gs ████'].forEach(t => assert.ok(code.indexOf(t) > -1, t));
   assert.ok(code.indexOf('████ Notes.gs ████') < code.indexOf('████ Demandes.gs ████') && code.indexOf('████ Demandes.gs ████') < code.indexOf('████ Admin.gs ████'));
@@ -735,7 +735,7 @@ test('livraison : le serveur à coller contient les lots 10a-1 et 10a-2, en vers
   g.feuilles['Utilisateurs'].lignes[1] = ['poseura', 'Poseur A', 'Poseur', true, false, '', '', false, false, ''];
   g.ctx.traiterComptes();
   assert.ok(/installation terminée/.test(g.ctx.installerLot10Production()));
-  assert.strictEqual(g.ctx.doGet({ parameter: {} }).contenu, 'Loué App API v11.3 OK');
+  assert.strictEqual(g.ctx.doGet({ parameter: {} }).contenu, 'Loué App API v11.4 OK');
   assert.ok(envoyer(g, 'poseura', demande()).ok);
   reveil(g, P(MARDI + ' 15:50'));
   assert.strictEqual(recaps(g)[0].sujet, 'À commander — mardi 17/11 (1 demande)');

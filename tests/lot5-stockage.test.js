@@ -885,9 +885,9 @@ test('porte de service (copie TEST) : installerLot5 et des lectures seulement �
   assert.ok(!corbeille(x.f1) && !corbeille(reel.f1));
   ['traiterPurges', 'purger', 'annulerPurge', 'viderCorbeille'].forEach(n => assert.strictEqual(geste(n).code, 'REFUSE', n));
 });
-test('livraison : le serveur à coller contient le lot 5 en version v11.3, dans le bon ordre, sans les outils d’essai', () => {
+test('livraison : le serveur à coller contient le lot 5 en version v11.4, dans le bon ordre, sans les outils d’essai', () => {
   const code = fs.readFileSync(path.join(RACINE, 'A-COLLER-DANS-APPS-SCRIPT', 'Code.gs'), 'utf8');
-  ["const VERSION_API = 'v11.3'", 'const STK_SEUIL_ALERTE = 80;', 'const STK_SEUIL_CRITIQUE = 95;', 'const PRG_JOURS_APRES_TERMINE = 30;', 'const PRG_RELEVE_PROPOSITION_JOURS = 7;', 'const PRG_RELEVE_PURGE_HEURES = 48;', 'function mesurerStockage(', 'function poursuivreMesureStockage(', 'function traiterPurges(', 'function installerLot5Test(', 'function installerLot5Production(',
+  ["const VERSION_API = 'v11.4'", 'const STK_SEUIL_ALERTE = 80;', 'const STK_SEUIL_CRITIQUE = 95;', 'const PRG_JOURS_APRES_TERMINE = 30;', 'const PRG_RELEVE_PROPOSITION_JOURS = 7;', 'const PRG_RELEVE_PURGE_HEURES = 48;', 'function mesurerStockage(', 'function poursuivreMesureStockage(', 'function traiterPurges(', 'function installerLot5Test(', 'function installerLot5Production(',
     "const PRG_RELEVE = 'releve-pc.json'", '████ Stockage.gs ████', '████ Purges.gs ████'].forEach(t => assert.ok(code.indexOf(t) > -1, t));
   assert.ok(code.indexOf('████ Carnet.gs ████') < code.indexOf('████ Stockage.gs ████') && code.indexOf('████ Purges.gs ████') < code.indexOf('████ Admin.gs ████'));
   assert.ok(!/mega-index/.test(code), 'l’ancien nom du relevé n’est plus dans le serveur');

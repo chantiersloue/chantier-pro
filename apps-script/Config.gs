@@ -3,7 +3,7 @@
 // Loué Menuiserie
 // ═══════════════════════════════════════════════════════════════
 
-const VERSION_API = 'v11.3';   // 11.3 : lot 10a-2 (onglet « Articles » : la liste d'articles proposés pendant la frappe) ; 11.2 : lot 10a-1 (« À commander » : onglet « Demandes », récapitulatif de 15 h 45) ; 11.1 : lot 8c (note de réunion en points, reprise des points ouverts) ; 11.0 : lot 8b (onglet « Comptes rendus », une ligne par note de réunion) ; 10.0 : lot 5 (suivi du stockage, purge sur case cochée) ; 9.1 : retrait de la lecture du dossier Plans (lot 4b) ; 9.0 : lot 4a (carnet de chantier) ; 8.0 : lot 3 (notes de chantier) ; 7.0 : lot 7 (signalements) ; 6.0 : lot 2 (comptes)
+const VERSION_API = 'v11.4';   // 11.4 : lot 10b (le point du vendredi : un mail par semaine à Franck) ; 11.3 : lot 10a-2 (onglet « Articles » : la liste d'articles proposés pendant la frappe) ; 11.2 : lot 10a-1 (« À commander » : onglet « Demandes », récapitulatif de 15 h 45) ; 11.1 : lot 8c (note de réunion en points, reprise des points ouverts) ; 11.0 : lot 8b (onglet « Comptes rendus », une ligne par note de réunion) ; 10.0 : lot 5 (suivi du stockage, purge sur case cochée) ; 9.1 : retrait de la lecture du dossier Plans (lot 4b) ; 9.0 : lot 4a (carnet de chantier) ; 8.0 : lot 3 (notes de chantier) ; 7.0 : lot 7 (signalements) ; 6.0 : lot 2 (comptes)
 
 // ── CONFIGURATION ──
 const SHEET_CONTACTS      = 'Contacts';
@@ -35,6 +35,12 @@ const DEMANDES_HEURE_LIMITE  = '15:45';  // du lundi au vendredi : le récapitul
 const DEMANDES_FIN_ESSAIS    = '17:30';  // si le mail n'a pas pu partir : nouvel essai toutes les 10 minutes jusqu'à cette heure, puis report au récapitulatif suivant
 const DEMANDES_MAX_PAR_JOUR  = 30;       // demandes acceptées par compte et par jour
 const DEMANDES_JOURS_LISTE   = 90;       // « Mes demandes » : les 90 derniers jours
+
+// ── LOT 10b — LE POINT DU VENDREDI (un mail par semaine à Franck). Heures de Paris, été comme hiver ──
+// Mis en service par demarrerPointDuVendredi(), arrêté par arreterPointDuVendredi() (éditeur Apps Script).
+const VENDREDI_HEURE      = '14:00';  // le vendredi : le mail part au premier passage du réveil des 10 minutes après cette heure
+const VENDREDI_FIN_ESSAIS = '18:00';  // si le mail n'a pas pu partir : nouvel essai toutes les 10 minutes jusqu'à cette heure, puis abandon pour la semaine
+const VENDREDI_RAPPEL_JOURS = 7;      // rappel des signalements « Bloquant » restés « À traiter » depuis ce nombre de jours ou plus
 
 // Sous-dossiers que listerPartages() (lot 0) marque « garder » : leurs partages par lien ne sont pas retirés par retirerPartages().
 // Tout le reste est en « accès limité » depuis le lot 0.
