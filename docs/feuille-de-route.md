@@ -6,8 +6,8 @@
 
 | # | Qui | Quoi | Temps |
 |---|---|---|---|
-| 1 | toi, téléphone | sur la copie d'essai (icône « Loué ESSAI », **encore l'ancienne version**) : commence une note de réunion sans l'envoyer, et mets une note **en attente** (mode avion, Envoyer). Dis-moi « prêt » | 5 min |
-| 2 | moi | je publie la copie d'essai avec les pages du lot 8 | 10 min, sans toi |
+| 1 | toi, téléphone | sur la copie d'essai (icône « Loué ESSAI », **encore l'ancienne version**) : commence une note de réunion sans l'envoyer, et mets une note **en attente** (mode avion, Envoyer). Dis-moi « prêt » | **fait** |
+| 2 | moi | je publie la copie d'essai avec les pages du lot 8 | **fait à 09 h 27** (appli 10.2, serveur de TEST v11.1 contrôlé) |
 | 3 | toi, téléphone | **les 13 essais du lot 8** : étape B de `docs/lot8-procedure.md` (branche `lot-8`) | 20 min |
 | 4 | moi, puis toi | je te confirme « dossier prêt, branche lot-5c, serveur v10.1 » ; tu lances `node outils\envoyer-test.js --avec-porte` **depuis le dossier `chantier-pro-lot5c`** (le serveur du lot 8 est alors remplacé sur TEST : c'est voulu) | 2 min |
 | 5 | moi | je publie la copie d'essai avec les pages du 5c ; je vérifie que les fichiers du planning de TEST sont redevenus privés ; j'essaie un PDF de 4,9 Mo | 20 min, sans toi |
@@ -75,3 +75,10 @@ La première maquette (Excel) est rangée dans `_prive\planning\maquette\ancienn
 - `listerPartagesPlans` en production (lecture seule), puis le ménage des partages dans Drive : c'est toi qui les retires.
 - Lot 2 : `demarrerTransition` n'a pas été lancé en production.
 - Copie TEST : supprimer les quatre onglets « … (ancienne version …) » ; CHANTIER TEST AUTO est resté à « Terminé ».
+
+## 6. Tes deux remarques du 19/11 (un petit lot à venir, pas avant le lot 8)
+
+Rien n'est construit ni planifié en détail : ce sont mes premières réponses.
+
+- **« Notes » au lieu de « Notes de chantier », et une tuile « Notes » sur l'accueil** (toutes les notes du gars, tous chantiers confondus, avec le chantier, la date et une case à cocher dans la liste ; les notes faites en bas). **Faisable, y compris hors réseau** : le téléphone garde déjà la dernière liste reçue, et une case cochée sans réseau part toute seule au retour du réseau (c'est la file d'attente des notes d'aujourd'hui). Une question avant le plan : « seulement les siennes », ce sont les notes **qu'il a écrites**, ou les notes **de ses chantiers** (« Mes chantiers ») ? Aujourd'hui une note appartient à un chantier, pas à une personne. Je propose un **lot 13**, après le lot 12 (les deux touchent l'accueil).
+- **Un brouillon par chantier** : étudié. Le vrai « un brouillon par chantier » coûte cher : il touche la brique anti-perte et les 9 fiches, et le chantier d'une fiche peut changer en cours de saisie. Je propose mieux pour dix fois moins : un troisième bouton **« Garder pour plus tard »** à côté de « Restaurer » et « Repartir à zéro », et une petite liste « Brouillons gardés » (chantier et date) pour reprendre celui qu'on veut. Le rangement existe déjà (5 brouillons mis de côté, 30 jours) : la protection anti-perte n'est pas touchée. Un petit lot, à placer après le lot 13.
