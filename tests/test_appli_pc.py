@@ -930,6 +930,108 @@ class Rapatriement(Monde):
         self.assertEqual((liste["note"], [e["chemin"] for e in liste["fichiers"]][1:]), ("gardée", [COTES + "/NOUVEAU.pdf"]))
         self.assertRegex(liste["fichiers"][1]["copie_le"], r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+0[12]:00$")
 
+    # ── Lot 8d : le récapitulatif des notes de réunion, le seul fichier que le programme remplace ──
+    def test_recapitulatif_des_notes_remplace_et_lui_seul(self):
+        notes = "05 - CHANTIER/COMPTE RENDU"
+        recap = notes + "/" + ap.RECAP_PREFIXE + "CHANTIER ESSAI UN.pdf"
+        source = self.fiche(recap, "récapitulatif : une note")
+        voisin = self.fiche(notes + "/COMPTE RENDU ESSAI 2026-11-12.pdf", "la note du 12")
+        ailleurs = self.fiche(COTES + "/" + ap.RECAP_PREFIXE + "CHANTIER ESSAI UN.pdf", "même nom, mais pas dans le dossier des notes")
+        plan = self.rapatrier()
+        self.assertEqual(sorted(a["chemin"] for a in plan["copies"]),
+                         sorted([recap, notes + "/COMPTE RENDU ESSAI 2026-11-12.pdf", COTES + "/" + ap.RECAP_PREFIXE + "CHANTIER ESSAI UN.pdf"]))
+        sur_pc = os.path.join(self.pc, PC_1, *recap.split("/"))
+        # Le serveur refait le récapitulatif (nouvelle note) : autre taille, autre date
+        ecrire(source, "récapitulatif : deux notes, plus long")
+        os.utime(source, (1800000000, 1800000000))
+        ecrire(voisin, "la note du 12, refaite et plus longue")            # un autre fichier qui change : jamais remplacé
+        ecrire(ailleurs, "même nom ailleurs, refait et plus long")          # le bon nom au mauvais endroit : jamais remplacé
+        simule = self.rapatrier(simuler=True)
+        self.assertEqual([(a["chemin"], a.get("remplace")) for a in simule["a_copier"]], [(recap, True)])
+        with open(sur_pc, encoding="utf-8") as f:
+            self.assertEqual(f.read(), "récapitulatif : une note", "une simulation ne remplace rien")
+        plus_tard = self.instant + datetime.timedelta(hours=1)
+        plan = self.rapatrier(maintenant=plus_tard)
+        self.assertEqual([(a["chemin"], a.get("remplace")) for a in plan["copies"]], [(recap, True)])
+        self.assertTrue(any("remplacé" in ligne for ligne in self.lignes), self.lignes)
+        with open(sur_pc, encoding="utf-8") as f:
+            self.assertEqual(f.read(), "récapitulatif : deux notes, plus long")
+        self.assertEqual(int(os.stat(sur_pc).st_mtime), 1800000000, "la copie garde la date du fichier du Drive")
+        self.assertEqual(sorted(x["motif"] for x in plan["signales"]), ["taille-differente", "taille-differente"],
+                         "les deux autres sont signalés, pas remplacés")
+        with open(os.path.join(self.pc, PC_1, notes, "COMPTE RENDU ESSAI 2026-11-12.pdf"), encoding="utf-8") as f:
+            self.assertEqual(f.read(), "la note du 12")
+        with open(os.path.join(self.pc, PC_1, COTES, ap.RECAP_PREFIXE + "CHANTIER ESSAI UN.pdf"), encoding="utf-8") as f:
+            self.assertEqual(f.read(), "même nom, mais pas dans le dossier des notes")
+        entrees = [e for e in self.provenance()["fichiers"] if e["chemin"] == recap]
+        self.assertEqual(len(entrees), 1, "jamais deux fois le même chemin dans la liste")
+        self.assertEqual((entrees[0]["taille"], entrees[0]["date"], entrees[0]["copie_le"]),
+                         (os.path.getsize(source), 1800000000, ap.heure_de_paris(plus_tard)))
+        self.assertIn({"chemin": recap, "taille": os.path.getsize(source)}, self.index()["fichiers"], "au relevé avec sa nouvelle taille")
+        self.assertFalse(os.path.exists(sur_pc + ap.PARTIEL))
+        # Rien n'a changé : au passage suivant, rien n'est recopié
+        self.assertEqual(self.rapatrier(maintenant=plus_tard + datetime.timedelta(hours=1))["copies"], [])
+
+    def test_recapitulatif_modifie_a_la_main_sur_le_pc_jamais_remplace(self):
+        recap = "05 - CHANTIER/COMPTE RENDU/" + ap.RECAP_PREFIXE + "CHANTIER ESSAI UN.pdf"
+        source = self.fiche(recap, "récapitulatif : une note")
+        self.rapatrier()
+        sur_pc = os.path.join(self.pc, PC_1, *recap.split("/"))
+        ecrire(sur_pc, "récapitulatif annoté par Franck")
+        ecrire(source, "récapitulatif : deux notes, plus long")
+        plan = self.rapatrier(maintenant=self.instant + datetime.timedelta(hours=1))
+        self.assertEqual((plan["copies"], [x["motif"] for x in plan["signales"]]), ([], ["taille-differente"]))
+        with open(sur_pc, encoding="utf-8") as f:
+            self.assertEqual(f.read(), "récapitulatif annoté par Franck", "le fichier de Franck n'est pas touché")
+        # Même taille que la copie d'origine mais date changée (enregistré à la main sans rien changer) : pas remplacé non plus
+        ecrire(sur_pc, "récapitulatif : une note")
+        os.utime(sur_pc, (1700000000, 1700000000))
+        plan = self.rapatrier(maintenant=self.instant + datetime.timedelta(hours=2))
+        self.assertEqual(plan["copies"], [])
+        with open(sur_pc, encoding="utf-8") as f:
+            self.assertEqual(f.read(), "récapitulatif : une note")
+
+    def test_recapitulatif_deja_sur_le_pc_sans_etre_dans_la_liste_jamais_remplace(self):
+        recap = "05 - CHANTIER/COMPTE RENDU/" + ap.RECAP_PREFIXE + "CHANTIER ESSAI UN.pdf"
+        self.fiche(recap, "récapitulatif du serveur, plus long")
+        sur_pc = self.dans_pc(recap, "un fichier de Franck")
+        plan = self.rapatrier()
+        self.assertEqual((plan["copies"], [x["motif"] for x in plan["signales"]]), ([], ["taille-differente"]))
+        with open(sur_pc, encoding="utf-8") as f:
+            self.assertEqual(f.read(), "un fichier de Franck")
+
+    def test_recapitulatif_de_meme_taille_mais_refait(self):
+        recap = "05 - CHANTIER/COMPTE RENDU/" + ap.RECAP_PREFIXE + "CHANTIER ESSAI UN.pdf"
+        source = self.fiche(recap, "version A du texte")
+        self.rapatrier()
+        sur_pc = os.path.join(self.pc, PC_1, *recap.split("/"))
+        ecrire(source, "version B du texte")                # même nombre d'octets, autre contenu, autre date
+        os.utime(source, (1800000000, 1800000000))
+        plan = self.rapatrier(maintenant=self.instant + datetime.timedelta(hours=1))
+        self.assertEqual([(a["chemin"], a.get("remplace")) for a in plan["copies"]], [(recap, True)])
+        with open(sur_pc, encoding="utf-8") as f:
+            self.assertEqual(f.read(), "version B du texte")
+
+    def test_recapitulatif_change_pendant_le_passage_pas_remplace(self):
+        recap = "05 - CHANTIER/COMPTE RENDU/" + ap.RECAP_PREFIXE + "CHANTIER ESSAI UN.pdf"
+        source = self.fiche(recap, "récapitulatif : une note")
+        self.rapatrier()
+        sur_pc = os.path.join(self.pc, PC_1, *recap.split("/"))
+        ecrire(source, "récapitulatif : deux notes, plus long")
+        vraie = ap.copier_blocs
+
+        def copie_puis_franck_modifie(lecture, ecriture):
+            vraie(lecture, ecriture)
+            ecrire(sur_pc, "Franck vient de l'ouvrir et de l'enregistrer")
+
+        with mock.patch.object(ap, "copier_blocs", copie_puis_franck_modifie):
+            plan = self.rapatrier(maintenant=self.instant + datetime.timedelta(hours=1))
+        self.assertEqual((plan["copies"], len(plan["erreurs"])), ([], 1))
+        self.assertIn("changé entre-temps", plan["erreurs"][0]["detail"])
+        with open(sur_pc, encoding="utf-8") as f:
+            self.assertEqual(f.read(), "Franck vient de l'ouvrir et de l'enregistrer")
+        self.assertFalse(os.path.exists(sur_pc + ap.PARTIEL), "la copie inachevée est retirée")
+
     def test_fiche_nouvelle_sous_le_nom_d_une_ancienne(self):
         source = self.fiche(COTES + "/QUITUS.pdf", "premier quitus")
         self.rapatrier()

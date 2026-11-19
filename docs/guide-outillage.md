@@ -128,6 +128,7 @@ Pendant les essais, le serveur de la copie TEST contient des **outils d'essai** 
 | `titresNotes` | Lecture seule : la ligne de titres des onglets des notes telle que Sheets la renvoie (pour comprendre un « titres changés ») |
 | `dossierChantierEssai` | Lecture seule : où le serveur range les documents du chantier d'essai (onglet *Dossiers chantiers*, dossiers en double, PDF présents). Refuse si la racine du Drive ne s'appelle pas « … TEST … » |
 | `installerLot7`, `lireSignalements`, `destinatairesEssai` | Lot 7 : installer le lot sur TEST, lire l'onglet *Signalements* (sans chantier ni texte saisi), savoir à qui partiraient les mails d'un essai (sans donner d'adresse) |
+| `installerLot8d`, `lireRecap` | Lot 8d : poser la colonne « Texte de la note » sur TEST (relançable sans danger) ; compter les récapitulatifs du dossier des notes du chantier d'essai et les chantiers en attente (lecture seule, aucun nom rendu) |
 | `installerLot8`, `lireComptesRendus`, `purgerComptesRendusEssai` | Lot 8 : créer l'onglet *Comptes rendus* sur TEST (relançable sans danger) ; lire ses dernières lignes (numéro de fiche des essais, N° du chantier, date, reçu le, remarque — ni nom, ni objet, ni texte des points) ; retirer les lignes écrites par les essais automatiques (numéros « fiche-auto-… »), et elles seules : les points d'essai partent avec elles |
 | `preparerChantier` | Une ligne « CHANTIER TEST AUTO » dans l'onglet *Chantiers* de TEST |
 

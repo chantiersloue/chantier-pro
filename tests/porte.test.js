@@ -293,6 +293,14 @@ test('porte, lot 8 : installation de l’onglet « Comptes rendus » sur la copi
   assert.ok(i.ok && /Lot 8 — installation — environnement : TEST/.test(i.message) && /installation terminée/.test(i.message), i.message);
   assert.ok(g.feuilles['Comptes rendus'] && g.feuilles['Comptes rendus'].lignes[0].length === 10, 'onglet créé avec ses 10 titres');
   assert.ok(geste(g, 'installerLot8').ok, 'relançable');
+  // lot 8d : la colonne du texte, posée par la porte, relançable
+  const i8d = geste(g, 'installerLot8d');
+  assert.ok(i8d.ok && /Lot 8d — installation — environnement : TEST/.test(i8d.message) && /installation terminée/.test(i8d.message), i8d.message);
+  assert.strictEqual(g.feuilles['Comptes rendus'].lignes[0][10], 'Texte de la note');
+  assert.ok(geste(g, 'installerLot8d').ok, 'relançable');
+  if (!g.elements[g.proprietes.DRIVE_ROOT_ID]) g.creerElement('dossier', 'CHANTIERPRO-TEST', null, { id: g.proprietes.DRIVE_ROOT_ID });   // la lecture refuse un Drive qui ne s'appelle pas « … TEST … »
+  const lr = geste(g, 'lireRecap');
+  assert.ok(lr.ok && lr.data.fichiers === 0 && lr.data.enAttente === 0 && Object.keys(lr.data).sort().join() === 'corbeille,enAttente,fichiers,octets', JSON.stringify(lr));
   // lecture sans nom ni objet, et nettoyage des seules lignes des essais automatiques
   const sh = g.feuilles['Comptes rendus'];
   sh.lignes.push(['fiche-vraie-000001', 'VRAI CHANTIER', '403', '12/11/2026', 'Objet réel', 'Personne Réelle', 'x', 'x.pdf', new Date(), '']);
@@ -390,7 +398,7 @@ test('porte complète hors de TEST : tous les gestes sont refusés, rien n’est
   const avant = JSON.stringify([U(g), g.proprietes, g.declencheurs]);
   ['etat', 'preparerComptes', 'session', 'fermerSessions', 'cocher', 'poserDeclencheurs', 'retirerDeclencheurs', 'traiterComptes', 'finirTransition', 'prolongerTransition',
     'lireEnvois', 'lireBilan', 'lireChantiers', 'lireCompte', 'controlerLot2', 'essaiDeclencheur', 'retablirTransition', 'preparerChantier',
-    'installerLot7', 'installerLot8', 'lireComptesRendus', 'purgerComptesRendusEssai', 'lireSignalements', 'destinatairesEssai', 'installerLot3', 'accesChantier', 'rangerAnciennesNotes', 'purgerNotesEssai', 'dossierChantierEssai', 'titresNotes', 'carnetFauxDepot', 'carnetRetirerFauxDepot'].forEach(nom =>
+    'installerLot7', 'installerLot8', 'installerLot8d', 'lireRecap', 'lireComptesRendus', 'purgerComptesRendusEssai', 'lireSignalements', 'destinatairesEssai', 'installerLot3', 'accesChantier', 'rangerAnciennesNotes', 'purgerNotesEssai', 'dossierChantierEssai', 'titresNotes', 'carnetFauxDepot', 'carnetRetirerFauxDepot'].forEach(nom =>
     assert.deepStrictEqual(geste(g, nom, { id: 'auto-admin', case: 'actif', valeur: true }), { ok: false, code: 'REFUSE', message: 'Refusé' }, nom));
   assert.strictEqual(JSON.stringify([U(g), g.proprietes, g.declencheurs]), avant);
 });

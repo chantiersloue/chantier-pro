@@ -143,11 +143,14 @@ Une ligne par note de réunion reçue, écrite **en une fois** par l'appli. Un c
 |H|Nom du PDF|Le fichier rangé dans Drive|
 |I|Reçu le|Heure du serveur|
 |J|Remarque de l'appli|« chantier hors liste », « reçu après le compte rendu du … »…|
+|K|Texte de la note|**Lot 8d**, colonne posée par `installerLot8dTest` / `installerLot8dProduction`. Le texte saisi dans la note (20 000 caractères au plus ; au-delà il est coupé, et le dit). Sert au récapitulatif des notes du chantier|
 
 - Colonnes de texte en « texte brut » ; une formule tapée dans l'objet ou un nom reste du texte.
 - **Ne change pas la ligne de titres.** Si elle change, l'appli n'écrit plus rien dans l'onglet : les notes partent quand même (PDF et mails), mais sans ligne ici, et Franck reçoit un mail (un par jour au plus). Remets les titres : tout reprend.
 - Tu peux trier l'onglet : l'appli retrouve une note par son numéro de fiche, jamais par sa place.
-- **Aucune adresse de destinataire** n'est gardée ici. Ni le texte de la note ni ses **photos** ne sont gardés ici : ils sont dans le PDF.
+- **Aucune adresse de destinataire** n'est gardée ici. Les **photos** ne sont pas gardées ici : elles sont dans le PDF. Le **texte** de la note est gardé en colonne K depuis le lot 8d (avant : dans le PDF seulement).
+- **Colonne K (lot 8d)** : tant qu'elle n'existe pas, le serveur ne garde aucun texte et ne fait aucun récapitulatif. **Changer son titre arrête le récapitulatif** (les notes partent comme avant) ; remettre « Texte de la note » le fait reprendre. Un texte qui commence par « = », « + », « - » ou « @ » est précédé d'une apostrophe : il reste du texte, jamais une formule.
+- **Propriété du script `RECAP_A_REFAIRE`** (lot 8d) : la liste des chantiers dont le fichier « RÉCAPITULATIF DES NOTES - … » est à refaire au prochain passage de 10 minutes. Elle se vide toute seule ; ne pas la modifier.
 - Les colonnes K à N (« Points ouverts… », « Données de l'appli ») n'existent que sur la copie TEST : elles datent des points (lot 8c), retirés le 19/11/2026 avant toute mise en production. Le serveur ne les lit pas.
 
 ## Onglet « Installation » (outillage)

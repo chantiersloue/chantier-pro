@@ -63,6 +63,11 @@ DOCUMENTS_DEFAUT = {
     "carnet": "CARNET",
     "plans": "Plans",
 }
+# Lot 8d : le récapitulatif des notes de réunion d'un chantier. C'est le SEUL fichier que le serveur refait sous le même nom
+# (à chaque nouvelle note), donc le seul que ce programme a le droit de remplacer dans le dossier du chantier sur le PC.
+# Il est reconnu à son nom ET à sa place : le dossier des notes de réunion (clé « note » ci-dessus).
+RECAP_PREFIXE = "RÉCAPITULATIF DES NOTES - "
+CLE_NOTES = "note"
 CLES_NON_RAPATRIEES = ("carnet", "plans")      # des copies de documents qui sont déjà dans le dossier du chantier sur le PC
 PROVENANCE = "CHANTIERPRO - fiches rapatriees.json"    # dans le dossier du chantier sur le PC : « ces fichiers viennent de l'appli »
 A_VOIR = "CHANTIERPRO - A VOIR.txt"            # dans le dossier qui contient les dossiers de chantier : ce que Franck doit regarder
@@ -909,7 +914,8 @@ def retirer_document(reglages, demander=input, dire=print, retirer=None):
 
 # ── La recopie des fiches : Drive de l'appli → dossier du chantier sur le PC ──
 def sous_dossiers(racine):
-    """Lit dossiers.json. Rend {"fiches": [chemins à recopier], "exclus": [carnet, plans]} ; un chemin = une liste de noms."""
+    """Lit dossiers.json. Rend {"fiches": [chemins à recopier], "exclus": [carnet, plans], "notes": chemin du dossier des notes de
+    réunion (lot 8d)} ; un chemin = une liste de noms."""
     try:
         lu = dc.lire_json(os.path.join(racine, dc.DOSSIERS_FICHIER))
     except (OSError, ValueError) as e:
@@ -920,7 +926,7 @@ def sous_dossiers(racine):
         valeur = str(valeur if valeur is not None else "").strip()
         if valeur and all(m.strip() != ".." for m in valeur.split("/")):     # comme cheminsSurs_ (apps-script/Dossiers.gs)
             documents[nom] = valeur
-    rendu = {"fiches": [], "exclus": []}
+    rendu = {"fiches": [], "exclus": [], "notes": [m.strip() for m in documents[CLE_NOTES].split("/") if m.strip()]}
     for nom in sorted(documents):
         morceaux = [m.strip() for m in documents[nom].split("/") if m.strip()]
         if not morceaux or not all(dc.nom_simple(m) for m in morceaux):
@@ -930,6 +936,15 @@ def sous_dossiers(racine):
         if [cle(m) for m in morceaux] not in [[cle(m) for m in deja] for deja in ou]:
             ou.append(morceaux)
     return rendu
+
+
+def est_recapitulatif(relatif, sous):
+    """Vrai pour le récapitulatif des notes de réunion (lot 8d) : un fichier « RÉCAPITULATIF DES NOTES - ….pdf » placé
+    directement dans le dossier des notes de réunion. Partout ailleurs, ou sous un autre nom : un fichier comme les autres."""
+    notes = (sous or {}).get("notes")
+    nom = cle(relatif[-1])
+    return bool(notes) and [cle(m) for m in relatif[:-1]] == [cle(m) for m in notes] \
+        and nom.startswith(cle(RECAP_PREFIXE)) and nom.endswith(".pdf")
 
 
 def est_sous(morceaux, chemins):
@@ -1056,6 +1071,16 @@ def plan_rapatriement(reglages, numero, sous=None, maintenant=None):
                 signaler("taille-differente", chemin, "dans le dossier du PC, ce nom est celui d'un dossier")
             elif os.path.lexists(cible):
                 sur_pc = os.stat(cible)
+                # Lot 8d — le récapitulatif des notes : la copie du PC est REMPLACÉE par la nouvelle version du Drive, à une
+                # condition : c'est bien la copie faite par ce programme (même taille et même date que dans la liste de
+                # provenance). Modifiée à la main, ou inconnue de la liste : elle n'est pas touchée, et c'est signalé
+                # comme pour tout autre fichier.
+                if est_recapitulatif(relatif, sous) and note is not None and note.get("taille") == sur_pc.st_size \
+                        and ("date" not in note or meme_date(sur_pc.st_mtime, note["date"])) \
+                        and (sur_pc.st_size != taille or not meme_date(etat.st_mtime, sur_pc.st_mtime)):
+                    entree.update(remplace=True, inscrit=False, pc_avant=(sur_pc.st_size, int(sur_pc.st_mtime)))
+                    plan["a_copier"].append(entree)
+                    continue
                 if sur_pc.st_size != taille:
                     signaler("taille-differente", chemin, "Drive : %d octets ; PC : %d octets" % (taille, sur_pc.st_size))
                     continue
@@ -1085,9 +1110,11 @@ def copier_blocs(lecture, ecriture):
         ecriture.write(bloc)
 
 
-def copier_fichier(source, cible):
+def copier_fichier(source, cible, remplacer=None):
     """Copie « source » vers « cible » sans jamais écraser : sous un nom temporaire, puis renommage si la taille est bonne.
-    Un arrêt en route ne laisse jamais un fichier tronqué sous son nom final. Rend la taille copiée."""
+    Un arrêt en route ne laisse jamais un fichier tronqué sous son nom final. Rend la taille copiée.
+    remplacer (lot 8d, le récapitulatif des notes SEULEMENT) : (taille, date) du fichier du PC vu au moment du plan. Le fichier
+    du PC est alors remplacé d'un seul geste, à condition qu'il n'ait pas changé entre-temps."""
     os.makedirs(os.path.dirname(cible), exist_ok=True)
     partiel = cible + PARTIEL
     fini = False
@@ -1101,6 +1128,13 @@ def copier_fichier(source, cible):
         if taille != avant.st_size or os.path.getsize(source) != avant.st_size:
             raise OSError("la copie fait %d octets au lieu de %d : elle n'est pas gardée" % (taille, avant.st_size))
         os.utime(partiel, (avant.st_atime, avant.st_mtime))        # la copie garde la date du fichier d'origine
+        if remplacer is not None:
+            en_place = os.stat(cible)
+            if (en_place.st_size, int(en_place.st_mtime)) != tuple(remplacer):
+                raise OSError("le fichier du dossier du chantier a changé entre-temps : il n'est pas remplacé")
+            os.replace(partiel, cible)   # un seul geste : jamais de moment sans fichier, jamais de fichier tronqué
+            fini = True
+            return taille
         if os.path.lexists(cible):
             raise OSError("un fichier de ce nom vient d'apparaître dans le dossier du chantier : rien n'est écrasé")
         os.rename(partiel, cible)        # sous Windows, « rename » refuse d'écraser un fichier apparu entre-temps
@@ -1182,10 +1216,10 @@ def rapatrier(reglages, numero, sous=None, dire=print, maintenant=None, simuler=
     try:
         for a in plan["a_copier"]:
             try:
-                copier_fichier(a["source"], a["cible"])
+                copier_fichier(a["source"], a["cible"], remplacer=a["pc_avant"] if a.get("remplace") else None)
                 plan["copies"].append(a)
                 inscrire(a)
-                dire("    copié : %s — %s (%s)" % (plan["dossier_pc"], a["chemin"], mo(a["taille"])))
+                dire("    %s : %s — %s (%s)" % ("remplacé" if a.get("remplace") else "copié", plan["dossier_pc"], a["chemin"], mo(a["taille"])))
             except OSError as e:
                 plan["erreurs"].append({"chemin": a["chemin"], "detail": str(e)})
                 dire("    ! pas copié : %s — %s (%s)" % (plan["dossier_pc"], a["chemin"], e))
@@ -1267,7 +1301,7 @@ def dire_rapatriement(plan, dire, simuler=False):
     dire("Chantier n° %s « %s » — Drive « %s » → dossier du PC « %s »" % (plan["numero"], plan["chantier"], plan["dossier_drive"], plan["dossier_pc"]))
     if simuler:
         dire("  %d fichier(s) à copier, %d déjà dans le dossier du PC." % (len(plan["a_copier"]), len(plan["deja"])))
-        montrer_liste(dire, ["    à copier : %s (%s)" % (a["chemin"], mo(a["taille"])) for a in plan["a_copier"]])
+        montrer_liste(dire, ["    %s : %s (%s)" % ("à remplacer" if a.get("remplace") else "à copier", a["chemin"], mo(a["taille"])) for a in plan["a_copier"]])
     else:
         dire("  %d fichier(s) copié(s), %d déjà dans le dossier du PC, %d en erreur ; %d ajouté(s) à la liste de provenance ; relevé : %d fichier(s)."
              % (len(plan["copies"]), len(plan["deja"]), len(plan["erreurs"]), plan["ajoutes"], plan["releve"]))

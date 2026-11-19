@@ -71,6 +71,7 @@ ctx.traiterComptes();
 ctx.installerLot3Production();   // lot 3 : onglets des notes de chantier
 console.log(ctx.installerLot7Production().split(String.fromCharCode(10)).filter(l => /installation terminée|❌|Refusé/.test(l)).join(' ') || 'Lot 7 : installation non confirmée');   // lot 7 : onglet Signalements
 if (typeof ctx.installerLot8Production === 'function') ctx.installerLot8Production();   // lot 8b : onglet « Comptes rendus » (absent d'un ancien serveur)
+if (typeof ctx.installerLot8dProduction === 'function') ctx.installerLot8dProduction();   // lot 8d : colonne « Texte de la note » (absente d'un ancien serveur)
 U.lignes.slice(1).filter(l => l[0]).forEach(l => {
   if (l[0] === 'nouveau1') { console.log('Compte « nouveau1 » : mot de passe provisoire ' + l[5]); return; }
   const r = ctx.motDePasse_({ identifiant: l[0], ancien: l[5], nouveau: 'Essai-2026' });

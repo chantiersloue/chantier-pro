@@ -49,6 +49,7 @@ Tuile **Note de réunion**. Tu remplis, tu touches **Envoyer la note** : le bure
 - **Notes et commentaires** : écris ce qui s'est dit, à la suite, ou **dicte-le** avec le micro du clavier.
 - **Sans réseau** : écris ta note, envoie : elle attend dans le téléphone et part toute seule. Ne refais jamais une note.
 - **Le message de fin** : « ✓ Compte rendu du 06/11/2026 envoyé — 3 mails envoyés ».
+- **Relire les notes d'un chantier** : ouvre le chantier, touche **Récapitulatif des notes**. Toutes les notes de réunion du chantier sont là, à la suite, la plus récente en haut : la date, l'objet, le texte. Pas les photos. Ça marche **sans réseau** : tu vois la dernière liste reçue, avec sa date.
 - **Photos** : « 📷 Photo » ou « 🖼 Galerie ». Tu peux écrire une légende sous chaque photo.
 - **Dessiner sur une photo** : touche la photo (ou « ✏️ Annoter »).
   - ✏️ stylo, ↗ flèche, ▭ rectangle, six couleurs, taille du trait.

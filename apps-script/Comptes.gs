@@ -588,6 +588,8 @@ function traiterComptes() {
   } finally {
     UTILISATEURS_ = null;
     verrou.releaseLock();
+    // Lot 8d : les récapitulatifs des notes à refaire, APRÈS avoir rendu le verrou (une note peut partir pendant ce temps)
+    recapPassage_();
   }
 }
 

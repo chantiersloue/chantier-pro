@@ -79,7 +79,8 @@
         var c = req.result; if (!c) return;
         var e = c.value;
         if (e.sorte === 'texte') { c.continue(); return; }
-        if (e.sorte !== 'elements' || !id || e.compte !== id) c.delete();
+        // (« recap » : lot 8d, le récapitulatif des notes de réunion d'un chantier, gardé comme une liste)
+        if ((e.sorte !== 'elements' && e.sorte !== 'recap') || !id || e.compte !== id) c.delete();
         c.continue();
       };
     }).catch(function () {});
@@ -124,6 +125,24 @@
   // La dernière liste gardée dans le téléphone pour ce chantier (ou null) : affichée tout de suite, avant la réponse du serveur
   N.gardee = function (chantier) {
     return lireEntree('elements|' + cleChantier(chantier)).then(function (e) { return e && e.valeur ? { donnees: e.valeur, date: e.date, depuisLeTelephone: true } : null; });
+  };
+  // ── Lot 8d : le récapitulatif des notes de RÉUNION d'un chantier (lecture seule) ──
+  // → { donnees: { chantier, notes: [{ date, objet, auteur, texte, sansTexte }], heure }, date, depuisLeTelephone }
+  // Gardé dans le téléphone comme la liste d'un chantier : rendu au seul compte qui l'a reçu, effacé à la déconnexion
+  // et dès que le serveur répond que le chantier n'est plus dans la liste du compte.
+  N.recap = function (chantier) {
+    var cle = 'recap|' + cleChantier(chantier), qui = moi();
+    return appel({ action: 'recapNotes', chantier: chantier || '' }, 20000, 'Récapitulatif indisponible').then(function (d) {
+      if (qui === moi()) misesAJour = misesAJour.then(function () { return ecrireEntree(cle, 'recap', d); });
+      return { donnees: d, date: Date.now(), depuisLeTelephone: false };
+    }, function (err) {
+      if (err && err.code === 'INTERDIT') effacerEntree(cle);
+      if (err && (err.connexion || err.serveur)) throw err;
+      return N.recapGarde(chantier).then(function (g) { if (g) return g; throw err; });   // pas de réseau : le dernier reçu par CE compte
+    });
+  };
+  N.recapGarde = function (chantier) {
+    return lireEntree('recap|' + cleChantier(chantier)).then(function (e) { return e && e.valeur ? { donnees: e.valeur, date: e.date, depuisLeTelephone: true } : null; });
   };
   // Après l'affichage : « j'ai vu la liste de ce chantier jusqu'à telle heure du serveur ». Un échec est sans gravité.
   // chantier vide + tous = vrai : tous les chantiers (vue « Tous chantiers » des conducteurs).

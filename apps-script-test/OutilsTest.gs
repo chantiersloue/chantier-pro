@@ -89,6 +89,10 @@ function outilTest_(corps) {
         .map((l, i) => { if (i > 0 && !/^fiche-auto-/.test(String(l[0]))) l[0] = '(note réelle)'; return l; }) });
       case 'purgerComptesRendusEssai': return ok('Lignes des essais automatiques retirées', outilTestSousVerrou_(outilTestPurgerComptesRendus_));
       case 'installerLot8': { const r = installer_('Lot 8', 'TEST', etapesLot8_()); if (!r.ok) throw new Error('installation du lot 8 non terminée : ' + r.texte); return ok(r.texte); }
+      // Lot 8d : la colonne « Texte de la note » de l'onglet Comptes rendus (relançable ; installe aussi l'onglet du lot 8 s'il manque)
+      case 'installerLot8d': { const r = installer_('Lot 8d', 'TEST', etapesLot8d_()); if (!r.ok) throw new Error('installation du lot 8d non terminée : ' + r.texte); return ok(r.texte); }
+      // … et une LECTURE : combien de récapitulatifs dans le dossier des notes du chantier d'essai, combien de chantiers en attente (aucun nom)
+      case 'lireRecap': return ok('Récapitulatif des notes du chantier d’essai (lecture seule)', outilTestRecap_());
       case 'installerLot5': { const r = installer_('Lot 5', 'TEST', etapesLot5_()); if (!r.ok) throw new Error('installation du lot 5 non terminée : ' + r.texte); return ok(r.texte); }
       // Lot 5 — LECTURES seulement (aucun geste de cette porte ne met quoi que ce soit à la corbeille, pas même dans le chantier d'essai) :
       //   placeCompte        : la place du compte vue par les deux sources (à comparer avec one.google.com/storage) ;
@@ -344,6 +348,23 @@ function outilTestTitresNotes_() {
 }
 // Où le serveur range les documents du chantier d'essai : ce que dit l'onglet « Dossiers chantiers », et ce qu'il y a
 // réellement dans Drive (dossiers en double, PDF présents). Lecture seule.
+// Lot 8d — lecture seule : les récapitulatifs du dossier des notes du chantier d'essai (reconnus à leur nom), sans aucun nom rendu
+function outilTestRecap_() {
+  const racine = DriveApp.getFolderById(driveRootId_());
+  if (!/TEST/i.test(racine.getName())) throw new Error('le dossier racine de ce serveur ne s’appelle pas « … TEST … »');
+  const dossier = dossierChantier_(OUTIL_TEST_CHANTIER, false);
+  const notes = dossier ? dossierParChemin_(dossier, dossiers_().documents['note'] || 'Divers', false) : null;
+  let fichiers = 0, corbeille = 0, octets = 0;
+  if (notes) {
+    const it = notes.getFiles();
+    while (it.hasNext()) {
+      const f = it.next();
+      if (String(f.getName()).indexOf(RECAP_PREFIXE) !== 0) continue;
+      if (f.isTrashed()) corbeille++; else { fichiers++; octets = f.getSize(); }
+    }
+  }
+  return { fichiers: fichiers, corbeille: corbeille, octets: octets, enAttente: Object.keys(recapAttente_()).length };
+}
 function outilTestDossierEssai_() {
   const racine = DriveApp.getFolderById(driveRootId_());
   if (!/TEST/i.test(racine.getName())) throw new Error('le dossier racine de ce serveur ne s’appelle pas « … TEST … »');

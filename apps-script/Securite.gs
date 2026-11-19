@@ -329,6 +329,7 @@ function alerte_(texte, sorte) {
       transition: '[Loué App] Fin de la période sans compte dans 3 jours',
       demarrage : '[Loué App] Période de transition pas démarrée',
       planning  : '[Loué App] Planning encore lisible par lien',
+      recap     : '[Loué App] Récapitulatif des notes en retard',
     }[sorte] || "[Loué App] Envoi refusé — voir l'onglet Journal";
     GmailApp.sendEmail(emailAdmin_(), sujet,
       texte + "\n\nLes cas suivants de la journée sont notés dans l'onglet « Journal » du Sheet, sans autre mail.\n\nLoué App",

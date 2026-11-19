@@ -1,5 +1,7 @@
 // Tests du lot 0 (sécurité) : node tests/lot0.test.js
 'use strict';
+// Le numéro de version du serveur est lu dans apps-script/Config.gs : un nouveau lot ne fait plus changer ce fichier de tests
+const VERSION_SERVEUR = (/VERSION_API = '([^']+)'/.exec(require('fs').readFileSync(require('path').join(__dirname, '..', 'apps-script', 'Config.gs'), 'utf8')) || [])[1];
 const assert = require('assert');
 const { creerGoogle, chargerScript } = require('./gas-harness');
 
@@ -335,7 +337,7 @@ console.log('Lot 0 — consultation et partages Drive');
 
 test('doGet : version, callback JSONP contrôlé', () => {
   const g = environnement();
-  assert.strictEqual(g.ctx.doGet({ parameter: {} }).contenu, 'Loué App API v11.0 OK');
+  assert.strictEqual(g.ctx.doGet({ parameter: {} }).contenu, 'Loué App API ' + VERSION_SERVEUR + ' OK');
   const r = g.ctx.doGet({ parameter: { action: 'getContacts', callback: 'alert(1);x' } });
   assert.ok(r.contenu.charAt(0) === '{', 'callback invalide ignoré : JSON simple');
 });

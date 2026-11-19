@@ -6,7 +6,7 @@
 <title>Loué App</title>
 <link rel="icon" type="image/png" href="apple-touch-icon.png">
 <link rel="manifest" href="manifest.json">
-<link rel="stylesheet" href="commun/style.css?v=3d44501e15">
+<link rel="stylesheet" href="commun/style.css?v=8909069c98">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -367,6 +367,14 @@ body.loue-test .installer{padding-top:calc(56px + env(safe-area-inset-top,0px));
       </div>
       <div class="tile-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg></div>
     </button>
+    <button type="button" class="home-tile tuile-chantier" id="tuile-recap" style="border-color:#B0D8CC" onclick="ouvrirRecap()">
+      <div class="tile-icon" style="background:var(--teal-l)"><svg viewBox="0 0 24 24" fill="none" stroke="#0D7A6B" stroke-width="1.8"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="15" x2="16" y2="15"/><line x1="8" y1="18" x2="13" y2="18"/></svg></div>
+      <div class="tile-body">
+        <div class="tile-title">Récapitulatif des notes</div>
+        <div class="tile-sub">Les notes de réunion du chantier, à la suite</div>
+      </div>
+      <div class="tile-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg></div>
+    </button>
     <div class="home-label">Fiches</div>
     <div class="fiches-grid">
 
@@ -500,11 +508,11 @@ body.loue-test .installer{padding-top:calc(56px + env(safe-area-inset-top,0px));
 </div>
 
 
-<script src="commun/config.js?v=3d44501e15"></script>
-<script src="commun/api.js?v=3d44501e15"></script>
-<script src="commun/ui.js?v=3d44501e15"></script>
-<script src="commun/notes.js?v=3d44501e15"></script>
-<script src="commun/hors-ligne.js?v=3d44501e15"></script>
+<script src="commun/config.js?v=8909069c98"></script>
+<script src="commun/api.js?v=8909069c98"></script>
+<script src="commun/ui.js?v=8909069c98"></script>
+<script src="commun/notes.js?v=8909069c98"></script>
+<script src="commun/hors-ligne.js?v=8909069c98"></script>
 <script>
 // ── Accueil (lot 2) : connexion, « Mes chantiers », fiches du chantier avec le chantier pré-rempli ──
 // Rien ici n'empêche de remplir une fiche : « Remplir une fiche sans être connecté » est toujours proposé,
@@ -757,6 +765,7 @@ function ouvrirFiches(ch) {
   $('tuile-signalements').hidden = !ch || MODE !== 'compte';   // le suivi demande un compte
   $('tuile-notes').hidden = !ch || MODE !== 'compte';           // lot 3 : les notes demandent un compte
   $('tuile-carnet').hidden = !ch || MODE !== 'compte';          // lot 4 : le carnet demande un compte
+  $('tuile-recap').hidden = !ch || MODE !== 'compte';           // lot 8d : le récapitulatif des notes de réunion aussi
   majBadgesNotes();
   document.querySelectorAll('#page-chantier-fiches a.fiche-card[data-base]').forEach(a => {
     const base = a.getAttribute('data-base');
@@ -768,6 +777,9 @@ function ouvrirFiches(ch) {
 // ── Notes de chantier (lot 3) : celles du chantier ouvert, ou toutes (conducteurs, depuis l'accueil) ──
 function ouvrirCarnet() {
   if (currentChantier) location.href = 'carnet.html?chantier=' + encodeURIComponent(currentChantier.nom);
+}
+function ouvrirRecap() {
+  if (currentChantier) location.href = 'recap-notes.html?chantier=' + encodeURIComponent(currentChantier.nom);
 }
 function ouvrirNotes(tous) {
   location.href = 'notes.html' + (!tous && currentChantier ? '?chantier=' + encodeURIComponent(currentChantier.nom) : '');
