@@ -129,7 +129,7 @@ La liste des choses à faire de chaque chantier. Écrits par l'appli seulement. 
 
 ## Onglet « Comptes rendus » (lot 8 — créé par `installerLot8Test` / `installerLot8Production`, ou à la première note)
 
-Une ligne par note de réunion reçue, écrite **en une fois** par l'appli. Un compte rendu se désigne par sa **date de réunion** (il n'a pas de numéro). C'est dans la **dernière ligne arrivée** d'un chantier que le serveur lit ses points ouverts.
+Une ligne par note de réunion reçue, écrite **en une fois** par l'appli. Un compte rendu se désigne par sa **date de réunion** (il n'a pas de numéro).
 
 |Colonne|Titre|Contenu|
 |-|-|-|
@@ -141,20 +141,14 @@ Une ligne par note de réunion reçue, écrite **en une fois** par l'appli. Un c
 |F|Rédigé par|Le nom affiché sur la note|
 |G|Compte qui a envoyé|« Nom (identifiant) », vérifié par le serveur, ou « sans compte »|
 |H|Nom du PDF|Le fichier rangé dans Drive|
-|I|Reçu le|Heure du serveur. **C'est elle qui donne l'ordre des comptes rendus d'un chantier**|
-|J|Remarque de l'appli|« chantier hors liste », « reçu après le compte rendu du … », « Rédigé sans connaître le compte rendu du … », « gestes sur des points existants ignorés (pas d'accès au chantier) »…|
-|K|Points ouverts après cette note|Lisible par Franck : un point par ligne|
-|L|Points clos par cette note|Lisible par Franck : un point par ligne|
-|M|Données de l'appli (ne pas modifier)|Les points ouverts du chantier après cette note, les points clos par les 3 derniers comptes rendus, leurs identifiants et leurs dates. Texte technique, lu par l'appli|
-|N|Données de l'appli (suite)|La suite de la colonne M quand elle ne tient pas dans une cellule (plus de 45 000 caractères). Vide le plus souvent|
+|I|Reçu le|Heure du serveur|
+|J|Remarque de l'appli|« chantier hors liste », « reçu après le compte rendu du … »…|
 
-- Colonnes de texte en « texte brut » ; une formule tapée dans l'objet, un nom ou un point reste du texte.
-- **Ne change pas la ligne de titres, ni les colonnes M et N.** Si les titres changent, l'appli n'écrit plus rien dans l'onglet : les notes partent quand même (PDF et mails), mais sans ligne ici et **sans suivi de leurs points**, et Franck reçoit un mail (un par jour au plus). Remets les titres : tout reprend. Si une cellule M est abîmée, la note suivante part quand même ; les points repris par le téléphone sont recréés, et Franck reçoit un mail.
-- Tu peux trier l'onglet : l'appli retrouve une note par son numéro de fiche, et la dernière note d'un chantier par la colonne « Reçu le », jamais par sa place.
-- **Aucune adresse de destinataire** n'est gardée ici.
-- Chantier **hors liste** : la ligne est écrite, les colonnes K à N restent vides (points imprimés dans le PDF, pas suivis).
-- **Chantier renommé** : ses points suivent s'il a un N° (colonne C) ; sinon ils restent sous l'ancien nom.
-- Les **photos** ne sont pas gardées ici : elles sont dans le PDF de leur note.
+- Colonnes de texte en « texte brut » ; une formule tapée dans l'objet ou un nom reste du texte.
+- **Ne change pas la ligne de titres.** Si elle change, l'appli n'écrit plus rien dans l'onglet : les notes partent quand même (PDF et mails), mais sans ligne ici, et Franck reçoit un mail (un par jour au plus). Remets les titres : tout reprend.
+- Tu peux trier l'onglet : l'appli retrouve une note par son numéro de fiche, jamais par sa place.
+- **Aucune adresse de destinataire** n'est gardée ici. Ni le texte de la note ni ses **photos** ne sont gardés ici : ils sont dans le PDF.
+- Les colonnes K à N (« Points ouverts… », « Données de l'appli ») n'existent que sur la copie TEST : elles datent des points (lot 8c), retirés le 19/11/2026 avant toute mise en production. Le serveur ne les lit pas.
 
 ## Onglet « Demandes » (lot 10a-1 — créé par `installerLot10Test` / `installerLot10Production`, ou à la première demande)
 

@@ -238,7 +238,8 @@ function listerPartages() {
       const chemin = cheminDansAppli_(el, rootId, planningId, cache);
       if (!chemin) continue;  // fichier hors de l'appli : on n'y touche pas
       const morceaux = chemin.split(' › ');
-      const garder = morceaux[0] === 'PLANNING' || (morceaux[0] === 'RACINE' && SOUS_DOSSIERS_PARTAGES.indexOf(morceaux[2]) > -1);
+      // Lot 5c : le planning n'est plus gardé partagé (il est envoyé par le serveur aux seuls comptes de l'appli)
+      const garder = morceaux[0] === 'RACINE' && SOUS_DOSSIERS_PARTAGES.indexOf(morceaux[2]) > -1;
       lignes.push([phase === 'fichiers' ? 'fichier' : 'dossier', el.getName(), chemin, el.getId(),
         String(el.getSharingAccess()), String(el.getSharingPermission()),
         garder ? 'garder' : 'à retirer', ''].map(cellule_));

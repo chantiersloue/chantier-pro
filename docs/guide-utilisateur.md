@@ -46,15 +46,10 @@ Tuile **Note de réunion**. Tu remplis, tu touches **Envoyer la note** : le bure
 
 - **Chantier et « Rédigé par »** : obligatoires. Le reste est facultatif.
 - **Destinataires** : le conducteur du chantier reçoit toujours une copie. Ajoute les autres si besoin. Sous la liste, l'appli te dit combien de mails vont partir. Pas plus de 10 adresses de la liste par note.
-- **Les points.** Une note est faite de points : un point = un sujet de la réunion.
-  - **+ Nouveau point** (toujours visible en bas de l'écran) : tape le texte, ou **dicte-le** avec le micro du clavier. Tu peux mettre une photo dans le point. Coche **« Réglé pendant la réunion »** si le sujet est déjà réglé.
-  - **Points ouverts** : les points restés ouverts à la dernière note du chantier **reviennent tout seuls**. Pour chacun : **Clore** s'il est réglé ; sinon touche-le pour l'ouvrir, puis **Compléter** pour modifier son texte ; ou ne fais rien, il reste ouvert.
-  - Tu as clos un point par erreur ? **Rouvrir**. Après l'envoi, il reste dans **« Clos récemment »** pendant les trois notes suivantes du chantier : tu peux encore le rouvrir de là.
-  - Tu ne vois les points ouverts que des chantiers **de ta liste**. Sur un autre chantier, tu peux quand même écrire de nouveaux points.
-- **Remarques générales** : pour ce qui ne va avec aucun point. Facultatif.
-- **Sans réseau** : la page montre les points gardés dans le téléphone, avec leur date. Écris ta note, envoie : elle attend dans le téléphone et part toute seule. Tu peux même en écrire une seconde : elle reprend les points de la première. Ne refais jamais une note.
-- **Le message de fin** : « ✓ Compte rendu du 06/11/2026 envoyé — 3 mails envoyés ». S'il ajoute « Rédigé sans connaître le compte rendu du … », c'est que quelqu'un d'autre a envoyé une note de ce chantier entre-temps : rien n'est perdu, c'est juste écrit en tête du PDF.
-- **Photos** : dans un point (« 📷 Photo », « 🖼 Galerie »), ou tout en bas pour les photos qui ne vont avec aucun point. 10 photos au plus par note. Tu peux écrire une légende sous chaque photo.
+- **Notes et commentaires** : écris ce qui s'est dit, à la suite, ou **dicte-le** avec le micro du clavier.
+- **Sans réseau** : écris ta note, envoie : elle attend dans le téléphone et part toute seule. Ne refais jamais une note.
+- **Le message de fin** : « ✓ Compte rendu du 06/11/2026 envoyé — 3 mails envoyés ».
+- **Photos** : « 📷 Photo » ou « 🖼 Galerie ». Tu peux écrire une légende sous chaque photo.
 - **Dessiner sur une photo** : touche la photo (ou « ✏️ Annoter »).
   - ✏️ stylo, ↗ flèche, ▭ rectangle, six couleurs, taille du trait.
   - 🧽 **gomme** : elle efface tes traits, **pas la photo**.
@@ -170,7 +165,7 @@ Les plans et les documents d'un chantier se lisent dans le **Carnet** : Accueil 
 - Le Carnet demande d'être **connecté** avec ton compte.
 - Un plan manque dans le Carnet ? Demande-le au bureau : c'est le bureau qui dépose les plans validés.
 - La liste de tes chantiers s'affiche aussi sans réseau.
-- Le **planning de l'équipe** ne change pas : Accueil → **Planning** → touche le document (il faut du réseau).
+- Le **planning de l'équipe** : Accueil → **Planning** → touche le document : « ⏳ Téléchargement… », puis « ✓ Prêt ». **Touche encore** : il s'ouvre. Il faut du réseau et **être connecté** (le planning n'est plus lisible sans compte, ni par un lien transféré).
 
 ## Mise à jour de l'appli
 

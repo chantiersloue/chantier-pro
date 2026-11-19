@@ -391,10 +391,6 @@
         var el = ancien;
         var serie = el.type === 'note-chantier' ? (el.saisiPar || '') + '|' + el.id
           : (el.type === 'note-action' && el.donnees ? (el.saisiPar || '') + '|' + String(el.donnees.note || '') : '');
-        // Lot 8c : deux notes de RÉUNION du même chantier, écrites par la même personne, partent dans l'ordre où elles ont été
-        // écrites (la seconde reprend les points de la première). Une note mise de côté (« erreur ») ne retient pas les suivantes :
-        // le serveur prend alors leurs points comme de nouveaux points, rien n'est perdu.
-        if (el.type === 'note' && el.donnees && el.donnees.points && el.donnees.chantier) serie = 'cr|' + (el.saisiPar || '') + '|' + String(el.donnees.chantier).trim().toLowerCase();
         if (el.etat === 'erreur') {                                         // attend une action de la personne
           // un ajout refusé retient les gestes sur cet élément (ils seraient refusés un par un : « cet élément n'existe pas »)
           if (serie && el.type === 'note-chantier') seriesBloquees[serie] = true;

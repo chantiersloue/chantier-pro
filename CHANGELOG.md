@@ -36,35 +36,22 @@ Chaque lot : **quoi**, **pourquoi**, **comment déployer**. Procédures détaill
 **Quoi** : une ligne facultative `"ignorer"` dans `_prive\depot.json` (numéros de chantier ou noms exacts de dossiers du Drive). Ces dossiers ne sont plus copiés, plus déposés, et ne reviennent plus dans « A VOIR ».
 **Pourquoi** : un chantier archivé et des dossiers d'essai revenaient à chaque passage.
 **Déployer** : rien à installer ; ajouter la ligne (voir `docs/lot4c-procedure.md`). Sans cette ligne, rien ne change. 79 tests.
-## Lot 8 — Note de réunion en points, reprise des points ouverts — serveur **v11.1**, appli **10.2** — **construit, testé contre le faux serveur seulement** (rien n'a tourné chez Google)
+## Lot 8 — Note de réunion : onglet « Comptes rendus », compteur de mails — serveur **v11.0**, appli **10.1** — **les points (8c) sont retirés** (décision de Franck du 19/11/2026)
 
 **Quoi**
-- **La note de réunion est faite de points.** Un point = un texte, des photos, un état **ouvert / clos**. Les points restés ouverts **reviennent tout seuls** dans la note suivante du même chantier (« repris du compte rendu du 06/11 · ouvert depuis le 23/10 »).
-- **Gestes** sur un point repris : *Clore*, *Compléter* (on modifie son texte), *Rouvrir*, ou rien. « + Nouveau point » toujours visible en bas de l'écran ; case « Réglé pendant la réunion ». Un point clos reste rouvrable (« Clos récemment ») pendant les **3 comptes rendus suivants**.
-- **Le téléphone envoie ce que la personne a fait, pas l'état des points** : « rien », « complété », « clos », « rouvert », « nouveau ». Le serveur prend la liste du dernier compte rendu arrivé pour le chantier, applique les gestes, écrit la nouvelle liste. Un téléphone resté sans réseau ne peut donc ni rouvrir un point clos entre-temps, ni remplacer un texte complété. Si un compte rendu est arrivé entre-temps : « Rédigé sans connaître le compte rendu du 07/11/2026 » (message du téléphone, tête du PDF, onglet).
-- **Plus de numéro de compte rendu, plus de présents** (réponses de Franck du 16/11/2026) : retirés de l'écran, du brouillon, du PDF, de l'aperçu, du serveur et de l'onglet. Un compte rendu se désigne par sa **date de réunion** : « ✓ Compte rendu du 06/11/2026 envoyé — 3 mails envoyés ».
-- **Onglet *Comptes rendus*** : une ligne par note, écrite en une fois sous verrou, jamais deux fois la même fiche ; 14 colonnes, dont « Points ouverts après cette note », « Points clos par cette note » et deux colonnes « Données de l'appli ». Vérifié avant chaque écriture : titres changés → la note part quand même, Franck est prévenu.
-- **Hors réseau** : la liste du chantier est gardée dans le téléphone (base à part, par compte, effacée à la déconnexion et quand l'accès au chantier est retiré) et s'affiche avec sa date. **Deux notes de suite sans réseau** : la seconde reprend les points de la première ; elles partent dans l'ordre où elles ont été écrites.
-- **Droits** : écrire une note, comme avant (personne n'est refusé). Lire les points d'un chantier et faire un geste sur un point existant : un compte qui a accès au chantier. Sinon seuls les nouveaux points sont pris.
-- **Brouillon** : il ne contient que les gestes de la personne (`commun/brouillon.js` non modifié) : pas de faux « Brouillon retrouvé ». Restauré plus tard, un texte tapé sur un point clos entre-temps est montré avec un choix (rouvrir, en faire un nouveau point, retirer) : rien n'est jeté en silence.
-- **Compatibilité** : un ancien brouillon et une ancienne fiche en attente sont acceptés ; la nouvelle page marche avec l'ancien serveur (photos à plat avec « Point 3 — », copie lisible des points dans l'ancien champ de texte) ; **page de repli** pour un retour arrière de la page (`outils/repli-lot8/note-reunion.html`).
-- **PDF** : tableau des points (numéro, texte, mention, OUVERT / CLOS), « Remarques générales », photos dans l'ordre des points. **Destinataires** : compteur « x mails partiront », 11e adresse de la liste refusée, alerte sous 20 mails restants dans la journée.
-- Limites : 40 nouveaux points par note, 2 000 caractères par point, 10 photos par note.
-- Fichiers : `apps-script/ComptesRendus.gs`, `Documents.gs`, `Api.gs` (action `compteRendu`), `Securite.gs`, `Config.gs` ; `modeles/note.js` ; `note-reunion.html` ; `commun/comptes-rendus.js` (nouveau), `commun/api.js` (ordre d'envoi de deux notes de réunion d'un même chantier), `commun/ui.js`, `commun/config.js` ; `outils/repli-lot8/` ; tests `tests/lot8-note.test.js` (30), `tests/lot8-points.test.js` (34), `tests/lot8-page.test.js` (50), `tests/lot8c-page.test.js` (46), cas de PDF dans `tests/pdf-cas.js`, essai réel `tests/reel-lot8.js` (**pas encore lancé**).
+- **La note de réunion reste un texte libre, des photos, un PDF par réunion.** Ni numéro de compte rendu, ni présents (réponses de Franck du 16/11/2026), ni points. Un compte rendu se désigne par sa **date de réunion** : « ✓ Compte rendu du 06/11/2026 envoyé — 3 mails envoyés ».
+- **Onglet *Comptes rendus*** : une ligne par note, écrite en une fois sous verrou, jamais deux fois la même fiche ; 10 colonnes. Vérifié avant chaque écriture : titres changés → la note part quand même, Franck est prévenu.
+- **Destinataires** : compteur « x mails partiront », 11e adresse de la liste refusée, alerte sous 20 mails restants dans la journée.
+- **Retiré le 19/11/2026, avant toute mise en production** : la note « en points » (nouveau point, clore, compléter, rouvrir, reprise des points ouverts d'une réunion à l'autre), le serveur v11.1 et l'appli 10.2 qui la portaient, `commun/comptes-rendus.js`, la page de repli `outils/repli-lot8/`, les tests `tests/lot8-points.test.js` et `tests/lot8c-page.test.js`. Les fichiers sont revenus à l'état relu le 16/11 (enregistrement `d3040a0`) ; le travail retiré reste dans l'historique Git (`baa2a4b`, `01e9956`).
+- Fichiers : `apps-script/ComptesRendus.gs`, `Documents.gs`, `Api.gs`, `Modeles.gs`, `Securite.gs`, `Config.gs` ; `modeles/note.js` ; `note-reunion.html` ; `commun/api.js`, `commun/ui.js`, `commun/config.js` ; tests `tests/lot8-note.test.js`, `tests/lot8-page.test.js`, `tests/reel-lot8.js`.
 
-**Pourquoi** : suivre les sujets d'un chantier d'une réunion à l'autre sans les recopier (exigence 12, `docs/lot8-plan.md` version 3). Les gestes plutôt que l'état : deux personnes, ou un téléphone longtemps sans réseau, ne doivent rien pouvoir défaire sans le vouloir.
+**Pourquoi** : Franck doute de l'utilité des points, et ils alourdissaient la note pour les gars. Il préfère le fonctionnement d'avant, plus un récapitulatif des notes par chantier (lot 8d, `docs/lot8d-plan.md`, pas construit).
 
-**Tests existants mis à jour** (ce que le lot change, rien d'autre) : la version du serveur citée par `tests/lot0.test.js`, `tests/lot3-notes.test.js` et `tests/lot5-stockage.test.js` ; le nombre de colonnes de l'onglet dans `tests/porte.test.js`.
-
-**Pas vérifié** : le vrai verrou de Google (deux notes au même instant : `tests/reel-lot8.js`, à lancer sur la copie TEST ; **pas de production avant**) ; la hauteur réelle du tableau des points dans le PDF de Google (mesurée dans Chrome seulement) ; gants, soleil, dictée, vrais mails, une barre de réseau (essais de Franck).
+**Pas vérifié** : le vrai verrou de Google avec le serveur v11.0 (`tests/reel-lot8.js`, à relancer sur la copie TEST : les essais réels du 18/11 ont tourné avec le serveur des points) ; gants, soleil, dictée, vrais mails, une barre de réseau (essais de Franck).
 
 **Comment déployer** : `docs/lot8-procedure.md` (une seule livraison : serveur puis pages ; chaque moitié marche avec l'ancienne version de l'autre).
 
-*Historique sur la branche, jamais déployé* : un « lot 8b » (serveur v11.0, appli 10.1) donnait un numéro « Compte rendu n° x » et une liste de présents. Les deux ont été retirés avant toute mise en service.
-
-**Relecture indépendante (16/11/2026, un tour) : rien de bloquant.** Corrigé : la liste des points gardée dans le téléphone est mise à jour aussi quand la note part depuis l'accueil, et effacée à la déconnexion faite à l'accueil ; « Clore » ne jette plus sans question un texte tapé sur un point rouvert ; une note arrivée pendant qu'un chantier était hors de la liste ne fait plus repartir ses points de zéro ; un point clos se lit sur 2 lignes. Laissé : le plafond de 10 adresses est tenu par la page seule.
-
-## Lot 8a — Note de réunion : annotation des photos qu'on peut rouvrir — pages seules — **construit, testé contre le faux serveur seulement** (sort avec le lot 8, appli 10.2)
+## Lot 8a — Note de réunion : annotation des photos qu'on peut rouvrir — pages seules — **construit, testé contre le faux serveur seulement** (sort avec le lot 8, appli 10.1)
 
 **Quoi**
 - Dans la note de réunion, une photo déjà annotée peut être **rouverte** : ses traits reviennent un par un ; la gomme et « annuler le dernier trait » agissent aussi sur les anciens traits. Tous les traits retirés : la photo redevient la photo d'origine.
@@ -82,6 +69,13 @@ Chaque lot : **quoi**, **pourquoi**, **comment déployer**. Procédures détaill
 **Après relecture** : un seul trait à la fois (second doigt ou paume ignorés) ; flèche ou rectangle touché sans glisser : rien n'est gardé ; plafond des traits à 30 000 caractères par photo ; une image qui n'a pas pu être refaite après un brouillon restauré est marquée « ⚠ à vérifier » et retient l'envoi.
 
 **Comment déployer** : `docs/lot8-procedure.md` (pages seules : rien à faire dans Apps Script).
+## Lot 5c — Le planning lisible par les seuls comptes de l'appli — serveur **v10.1**, appli **9.1** — **en production depuis le 19/11/2026** (déploiement « Lot 5c — production » ; essai réel sur la copie TEST : `tests/reel-lot5c.js`)
+
+**Quoi** : le serveur ne met plus aucun fichier du dossier *Planning* en partage par lien, et remet en privé ceux qui le sont (le dossier compris). Le téléphone demande le document au serveur avec son compte (nouvelle action `planningFichier`) ; un premier toucher le télécharge, un second l'ouvre. Sans compte, le planning n'est plus servi, même pendant la période sans compte. 5 Mo au plus par document. La liste montre le poids du document, elle est relue à chaque ouverture et effacée à la déconnexion. Fichiers Google envoyés en PDF, raccourcis écartés. Mail à Franck si un partage ne peut pas être retiré ; fonction `fermerPartagesPlanning` à lancer une fois.
+**Pourquoi** : demande de Franck du 18/11/2026 : « Seuls les comptes de l'appli doivent pouvoir lire le PDF du planning. » Avant, quiconque avait le lien d'un PDF du planning pouvait le lire sans compte.
+**Déployer** : `docs/lot5c-procedure.md` (copie TEST, essais Android et iPhone, production : serveur d'abord, pages ensuite).
+**Relecture indépendante (18/11, un tour)** : un point bloquant, les anciens déploiements (adresses publiques dans l'historique) servent encore le planning sans compte : leur archivage est ajouté à la procédure, étape C. Corrigé aussi : planning resté visible après une déconnexion, messages en anglais et délai trop court sur réseau faible, fichiers Google, partage impossible à retirer sans alerte.
+**Tests** : nouvelle série `tests/lot5c-planning.test.js` (12 tests) ; `lot0`, `lot2-comptes` et `accueil-page` adaptés (planning privé, plus de lien Drive).
 
 ## Lot 5 — Suivi du stockage, alertes et purge sur case cochée — serveur **v10.0**, aucune page ne change — **construit, testé contre le faux serveur seulement** (rien n'a tourné chez Google)
 
