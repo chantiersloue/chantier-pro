@@ -9,8 +9,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Loué App">
 <meta name="theme-color" content="#1A2B4A">
-<link rel="stylesheet" href="commun/style.css?v=cab1afdf89">
-<link rel="stylesheet" href="commun/fiche.css?v=cab1afdf89">
+<link rel="stylesheet" href="commun/style.css?v=5d4436bac0">
+<link rel="stylesheet" href="commun/fiche.css?v=5d4436bac0">
 <style>
 [hidden]{display:none!important;}
 .liste{background:var(--card);border:1px solid var(--border);border-radius:var(--rl);overflow:hidden;}
@@ -24,14 +24,14 @@
 .el.faite .el-texte{text-decoration:line-through;color:var(--muted);}
 .el-marque{display:inline-block;margin-left:8px;font-size:13px;font-weight:700;vertical-align:middle;}
 .el-info{font-size:14px;color:var(--muted);margin-top:4px;line-height:1.4;}
-.el-info a{display:inline-block;padding:6px 0;font-weight:700;color:var(--blue-d,#1A4A8A);}
+.el-info a{display:inline-block;min-height:44px;padding:12px 6px 12px 0;font-weight:700;color:var(--blue-d,#1A4A8A);}
 .el-info.erreur{color:#B32E2E;font-weight:600;}
 .vide{text-align:center;color:var(--muted);padding:28px 10px;font-size:17px;line-height:1.5;}
 .vide a{display:inline-block;margin-top:14px;font-size:17px;font-weight:700;}
 details.faites{margin-top:18px;}
 details.faites summary{min-height:48px;display:flex;align-items:center;font-size:16px;font-weight:700;color:var(--muted);cursor:pointer;}
 #info{margin-bottom:10px;}
-.btn-tous-notes{display:block;width:100%;min-height:48px;margin:18px 0 0;border:1px solid var(--border);border-radius:12px;background:var(--card);color:var(--muted);font:700 15px system-ui,sans-serif;}
+.btn-tous-notes{display:block;width:100%;min-height:48px;margin:0 0 12px;border:1px solid var(--border);border-radius:12px;background:var(--card);color:var(--muted);font:700 15px system-ui,sans-serif;}
 </style>
 </head>
 <body>
@@ -45,20 +45,20 @@ details.faites summary{min-height:48px;display:flex;align-items:center;font-size
 
 <div class="main">
   <div class="aide" id="entete">Les notes que vous avez écrites, tous chantiers confondus. Cochez celles qui sont faites.</div>
+  <button type="button" class="btn-tous-notes" id="btn-tous-notes" hidden onclick="location.href='notes.html'">Les notes de tous les chantiers ›</button>
   <div class="listes-info" id="info" role="status"></div>
   <div id="liste"></div>
   <details class="faites" id="faites" hidden>
     <summary id="faites-titre">Faites</summary>
     <div id="liste-faites"></div>
   </details>
-  <button type="button" class="btn-tous-notes" id="btn-tous-notes" hidden onclick="location.href='notes.html'">Les notes de tous les chantiers ›</button>
 </div>
 
-<script src="commun/config.js?v=cab1afdf89"></script>
-<script src="commun/api.js?v=cab1afdf89"></script>
-<script src="commun/ui.js?v=cab1afdf89"></script>
-<script src="commun/notes.js?v=cab1afdf89"></script>
-<script src="commun/hors-ligne.js?v=cab1afdf89"></script>
+<script src="commun/config.js?v=5d4436bac0"></script>
+<script src="commun/api.js?v=5d4436bac0"></script>
+<script src="commun/ui.js?v=5d4436bac0"></script>
+<script src="commun/notes.js?v=5d4436bac0"></script>
+<script src="commun/hors-ligne.js?v=5d4436bac0"></script>
 <script>
 'use strict';
 // ═══════════════════════════════════════════════════════════════
@@ -94,7 +94,15 @@ function elementsAffiches() {
   const parId = {};
   tout.forEach(n => { parId[n.id] = n; });
   ATTENTE.forEach(a => {
-    const d = a.donnees || {}, n = parId[d.note];
+    const d = a.donnees || {};
+    // une note que la personne vient d'ajouter depuis un chantier, pas encore partie (pas de réseau) : elle est à elle, elle s'affiche
+    if (a.type === 'note-chantier') {
+      if (parId[a.id] || a.etat === 'erreur') return;
+      const nouvelle = { id: a.id, texte: d.texte || '', fait: false, chantier: d.chantier || '', cree: a.cree || Date.now(), enAttente: true, pasPartie: true };
+      tout.push(nouvelle); parId[a.id] = nouvelle;
+      return;
+    }
+    const n = parId[d.note];
     if (a.type !== 'note-action' || !n) return;
     if (a.etat === 'erreur') { n.refus = a.message; return; }
     n.enAttente = true;
@@ -119,6 +127,7 @@ function ligne(n) {
   coche.setAttribute('aria-label', (n.fait ? 'Décocher : ' : 'Cocher : ') + (n.texte || ''));
   coche.appendChild(el('span', '', n.fait ? '✓' : ''));
   coche.addEventListener('click', () => cocher(n));
+  if (n.pasPartie) { coche.disabled = true; coche.setAttribute('aria-label', 'Note pas encore partie : ' + (n.texte || '')); }   // elle se cochera une fois arrivée au bureau
   c.appendChild(coche);
   const corps = el('div', 'el-corps');
   const texte = el('div', 'el-texte', n.texte || '');
@@ -176,8 +185,7 @@ function charger() {
   } else $('info').textContent = 'Mise à jour…';
   // Ce qui attend dans le téléphone est relu APRÈS la réponse du serveur (elle peut arriver 20 s plus tard), jamais avant
   LOUE.notes.lire({ miennes: true }).then(liste => {
-    // Un serveur d'avant le lot 13 ne connaît pas « les miennes » : il rendrait la vue « tous chantiers » à un conducteur
-    if (!liste.donnees || liste.donnees.miennes !== true) throw Object.assign(new Error('le serveur n’est pas encore à jour'), { serveur: true });
+    // (la réponse d'un serveur d'avant le lot 13 est refusée par LOUE.notes.lire, avant d'être gardée)
     return LOUE.notes.enAttente('', true).then(a => [liste, a]);
   }).then(r => {
     if (moi !== enCours) return;
@@ -208,7 +216,7 @@ function majAttente(relire) {
 LOUE.surEvenement(ev => {
   const estNote = ev.element && /^note-/.test(ev.element.type || '');
   // un geste confirmé par le serveur est reporté tout de suite dans la liste affichée (sinon la ligne reviendrait un instant en arrière)
-  if (ev.type === 'envoyee' && estNote) { if (DONNEES) LOUE.notes.integrer(DONNEES, ev.element); majAttente(true); }
+  if (ev.type === 'envoyee' && estNote) { if (DONNEES) LOUE.notes.integrerMiennes(DONNEES, ev.element); majAttente(true); }
   else if (ev.type === 'file' || estNote) majAttente(false);
   if (ev.type === 'compte') { DONNEES = null; charger(); }
 });

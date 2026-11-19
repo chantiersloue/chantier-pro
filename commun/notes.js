@@ -113,6 +113,9 @@
     var cle = 'elements|' + (o.miennes && !o.chantier ? N.CLE_MIENNES : cleChantier(o.chantier)), qui = moi();
     var depart = Date.now();
     return appel({ action: 'notes', chantier: o.chantier || '', recherche: o.recherche || '', nouveau: !!o.nouveau, termines: !!o.termines, miennes: !!o.miennes && !o.chantier }, 20000, 'Notes indisponibles').then(function (d) {
+      // Un serveur d'avant le lot 13 ne connaît pas « les miennes » : il rendrait la vue « tous chantiers » à un conducteur.
+      // Sa réponse est refusée AVANT d'être gardée dans le téléphone.
+      if (o.miennes && !o.chantier && d.miennes !== true) throw Object.assign(new Error('le serveur n’est pas encore à jour'), { serveur: true });
       // gardée seulement si aucun envoi n'a été confirmé depuis le départ de la demande : une réponse partie avant un ajout
       // et arrivée après ne doit pas remplacer la liste gardée par une liste sans cet ajout
       if (gardable && qui === moi() && depart > dernierEnvoi) misesAJour = misesAJour.then(function () { return ecrireEntree(cle, 'elements', d); });
@@ -170,6 +173,18 @@
     if (d.geste === 'defaire') n.fait = false;
     return donnees;
   };
+  // Lot 13 — le même report dans la liste « Mes notes » : une note que la personne vient d'ajouter y entre EN TÊTE, avec son
+  // chantier et sa date ; un geste (cocher, décocher, modifier) est reporté sur la note si elle y est.
+  N.integrerMiennes = function (donnees, a) {
+    if (!donnees || !a) return donnees;
+    var d = a.donnees || {};
+    if (a.type !== 'note-chantier') return N.integrer(donnees, a);
+    donnees.aFaire = donnees.aFaire || []; donnees.termines = donnees.termines || [];
+    if (!donnees.aFaire.concat(donnees.termines).some(function (n) { return n.id === a.id; })) {
+      donnees.aFaire.unshift({ id: a.id, texte: d.texte || '', fait: false, nouveau: false, chantier: d.chantier || '', cree: a.cree || Date.now() });
+    }
+    return donnees;
+  };
   // … et la liste GARDÉE du chantier est mise à jour à chaque envoi confirmé, quelle que soit la page ouverte (la file peut
   // partir depuis l'accueil) : hors réseau, on retrouve ce qu'on a ajouté ou coché, même si la liste n'a pas été relue depuis.
   if (LOUE.surEvenement) LOUE.surEvenement(function (ev) {
@@ -179,6 +194,10 @@
     var cle = 'elements|' + cleChantier(a.donnees.chantier);
     misesAJour = misesAJour.then(function () {   // l'une après l'autre : deux envois de suite ne s'écrasent pas
       return lireEntree(cle).then(function (e) { if (e && e.valeur && a.saisiPar === moi()) return ecrireEntree(cle, 'elements', N.integrer(e.valeur, a)); });
+    }).then(function () {
+      // Lot 13 : la liste gardée « Mes notes » suit aussi (une note ajoutée ou cochée depuis un chantier s'y retrouve hors réseau)
+      var cleM = 'elements|' + N.CLE_MIENNES;
+      return lireEntree(cleM).then(function (e) { if (e && e.valeur && a.saisiPar === moi()) return ecrireEntree(cleM, 'elements', N.integrerMiennes(e.valeur, a)); });
     }).catch(function () {});
   });
   // Chiffres rouges de l'accueil : { parChantier: { nom: n }, total }

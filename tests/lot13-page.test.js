@@ -37,7 +37,7 @@ function scenario() {
       info: (c.querySelector('.el-info') || {}).textContent || '', faite: c.classList.contains('faite'), attente: !!c.querySelector('.el-marque') }));
     const cases = Array.from(document.querySelectorAll('.case')).map(b => b.getBoundingClientRect());
     const f = document.getElementById('faites'), b = document.getElementById('btn-tous-notes');
-    return { haut: lignes('#liste'), bas: lignes('#liste-faites'), faites: f.hidden ? '' : document.getElementById('faites-titre').textContent,
+    return { boutonEnHaut: !!(b.compareDocumentPosition(document.getElementById('liste')) & Node.DOCUMENT_POSITION_FOLLOWING), haut: lignes('#liste'), bas: lignes('#liste-faites'), faites: f.hidden ? '' : document.getElementById('faites-titre').textContent,
       info: document.getElementById('info').textContent, vide: (document.querySelector('#liste .vide') || {}).textContent || '',
       tousChantiers: !b.hidden, xss: window.__xss || 0, dangereux: document.querySelectorAll('#liste img, #liste script, #liste b').length,
       caseMin: cases.length ? Math.round(Math.min.apply(null, cases.map(x => Math.min(x.width, x.height)))) : 0,
@@ -71,9 +71,16 @@ function scenario() {
   r.horsReseau = await etatNotes();
   await cocher('gras'); await page.waitForTimeout(4200);
   r.horsReseauCochee = await etatNotes(); r.horsReseauCochee.file = await file();
+  // … une note AJOUTÉE sans réseau (depuis un chantier) s'affiche dans « Mes notes », en tête, case inactive tant qu'elle n'est pas partie
+  await page.evaluate(() => LOUE.mettreEnFile('note-chantier', { chantier: 'CHANTIER TEST 1', texte: 'Note sans réseau' }, [], 'Élément ajouté'));
+  await page.goto(MES).catch(() => {}); await page.waitForTimeout(3000);
+  r.ajoutHorsReseau = await page.evaluate(() => { const c = Array.from(document.querySelectorAll('#liste .el')).find(x => x.textContent.indexOf('Note sans réseau') > -1);
+    return c ? { la: true, inactive: c.querySelector('.case').disabled, premiere: document.querySelector('#liste .el') === c, info: (c.querySelector('.el-info') || {}).textContent || '' } : { la: false }; });
   await ctx.setOffline(false);
   await page.evaluate(() => LOUE.viderFile()); await attendreFileVide(); await page.waitForTimeout(1500);
   r.serveurApresRetour = await serveur();
+  // … partie : elle est sur le serveur ET dans la liste « Mes notes » gardée dans le téléphone (avec son chantier)
+  r.gardeeApresRetour = await page.evaluate(() => LOUE.notes.gardee(LOUE.notes.CLE_MIENNES).then(g => JSON.stringify(g)));
   // 5. Décocher depuis « Faites »
   await page.goto(MES); await page.waitForTimeout(2500);
   await page.evaluate(() => { document.getElementById('faites').open = true; }); await page.waitForTimeout(200);
@@ -111,6 +118,8 @@ function scenario() {
       pastille: p && !p.hidden ? p.textContent : '', objet: document.getElementById('meta-objet').value, texte: document.getElementById('meta-commentaires').value,
       panneau: pan ? Array.from(pan.querySelectorAll('.loue-brouillons-ligne')).map(l => l.querySelector('.loue-brouillons-texte').textContent) : null,
       garderEnCours: pan ? !!pan.querySelector('.loue-brouillons-garder') : null,
+      avis: pan ? Array.from(pan.querySelectorAll('.loue-brouillons-avis')).map(a => a.textContent).join(' | ') : '',
+      boutonsHauts: b ? Math.round(Math.min.apply(null, Array.from(b.querySelectorAll('button')).map(x => x.getBoundingClientRect().height))) : 0,
       liste: liste.map(e => [(e.champs['meta-objet'] || {}).v || '', e.garde ? 'gardé' : 'auto']), courant: courant ? ((courant.champs['meta-objet'] || {}).v || '') : null,
       message: (document.querySelector('#loue-message.visible') || {}).textContent || '',
       pastilleHaute: p && !p.hidden ? Math.round(p.getBoundingClientRect().height) : 0, largeur: document.documentElement.scrollWidth <= innerWidth };
@@ -177,6 +186,41 @@ function scenario() {
   r.b8 = await etatB();
   await clic('.loue-brouillon [data-oui]'); await page.waitForTimeout(1500);
   r.b8Restaure = await etatB();
+  const poserCourant = (objet, age) => page.evaluate(async a => {
+    const e = { cle: 'brouillon_note', t: Date.now() - a[1], champs: { 'meta-chantier': { v: 'CHANTIER TEST 1' }, 'meta-objet': { v: a[0] } }, extra: { destinataires: [], photos: [] } };
+    localStorage.setItem('loue_brouillon_' + LOUE_CONFIG.env + '_note', JSON.stringify(e));
+    await LOUE.stockage.ecrire('brouillons', e);
+  }, [objet, age]);
+  // B9. Un brouillon de PLUS DE 30 JOURS (fiche oubliée) : « Garder pour plus tard » le range, et il y est ENCORE à l'ouverture suivante
+  await page.goto(MES); await page.waitForTimeout(800); await viderBrouillons();
+  await poserCourant('Vieille réunion', 40 * 24 * 3600 * 1000);
+  await ouvrirNote();
+  r.b9Bandeau = await etatB();
+  await clic('.loue-brouillon [data-garder]'); await page.waitForTimeout(1500);
+  await ouvrirNote();
+  r.b9 = await etatB();
+  await clic('.loue-brouillons-pastille'); await page.waitForTimeout(600);
+  r.b9Panneau = await etatB();
+  // B10. Le bandeau propose X ; on tape Y et on touche « Garder pour plus tard » AUSSITÔT (avant toute sauvegarde automatique)
+  await page.goto(MES); await page.waitForTimeout(800); await viderBrouillons();
+  await poserCourant('Réunion X', 3600000);
+  await ouvrirNote();
+  await page.fill('#meta-objet', 'Réunion Y');
+  await clic('.loue-brouillon [data-garder]'); await page.waitForTimeout(6000);
+  r.b10 = await etatB();
+  await ouvrirNote();
+  r.b10Apres = await etatB();
+  // B11. Page fermée au milieu d'un rangement : la même fiche est à la fois « courante » et dans la liste → une seule reste
+  await page.goto(MES); await page.waitForTimeout(800); await viderBrouillons();
+  await poserCourant('Réunion en double', 3600000);
+  await page.evaluate(async () => {
+    const e = Object.assign({}, await LOUE.stockage.lire('brouillons', 'brouillon_note'), { garde: true, range: Date.now() });
+    localStorage.setItem('loue_brouillon_' + LOUE_CONFIG.env + '_note_mis_de_cote', JSON.stringify([e]));
+    await LOUE.stockage.ecrire('brouillons', { cle: 'brouillon_note_mis_de_cote', liste: [e] });
+  });
+  await ouvrirNote();
+  r.b11 = await etatB();
+  await page.goto(MES); await page.waitForTimeout(800);
   await viderBrouillons();
   return JSON.stringify(r);
 }`;
@@ -218,17 +262,21 @@ setTimeout(() => {
     verifier('hors réseau : la liste gardée s’affiche, avec sa date', r.horsReseau.haut.length === 1 && /gardée dans le téléphone/.test(r.horsReseau.info), j(r.horsReseau));
     verifier('… une case cochée sans réseau est gardée dans le téléphone, et part toute seule au retour du réseau', r.horsReseauCochee.file === 1 && r.horsReseauCochee.faites === 'Faites (2)'
       && r.serveurApresRetour.filter(l => l[1] === 'Oui').length === 2, j([r.horsReseauCochee, r.serveurApresRetour]));
+    verifier('une note AJOUTÉE sans réseau s’affiche dans « Mes notes », en tête, avec son chantier ; sa case attend qu’elle soit partie',
+      r.ajoutHorsReseau.la === true && r.ajoutHorsReseau.inactive === true && r.ajoutHorsReseau.premiere === true && /^CHANTIER TEST 1/.test(r.ajoutHorsReseau.info), j(r.ajoutHorsReseau));
+    verifier('… au retour du réseau, elle est dans la liste gardée dans le téléphone', /Note sans réseau/.test(r.gardeeApresRetour), String(r.gardeeApresRetour).slice(0, 600));
     verifier('décocher depuis « Faites » : la note revient dans la liste', r.decochee.haut.some(n => n.texte === 'Note un' && !n.faite), j(r.decochee));
     verifier('accueil : la tuile « Notes » existe pour un poseur, sans chiffre rouge, et ouvre « Mes notes »', r.tuile.visible === true && r.tuile.titre === 'Notes'
       && /écrites/.test(r.tuile.sous) && r.tuile.badgeCache === true && /mes-notes\.html/.test(r.tuileAdresse), j([r.tuile, r.tuileAdresse]));
-    verifier('conducteur : seulement ses notes à lui (aucune ici), et le bouton « Les notes de tous les chantiers »', r.connexionC === 'CONNECTE' && r.conducteur.haut.length === 0 && r.conducteur.tousChantiers === true
+    verifier('conducteur : seulement ses notes à lui (aucune ici), et le bouton « Les notes de tous les chantiers »', r.connexionC === 'CONNECTE' && r.conducteur.haut.length === 0 && r.conducteur.tousChantiers === true && r.conducteur.boutonEnHaut === true
       && r.liste.tousChantiers === false, j([r.conducteur, r.liste.tousChantiers]));
     verifier('sans compte : rien n’est affiché, connexion demandée', r.sansCompte.haut.length === 0 && /Connectez-vous/.test(r.sansCompte.vide), j(r.sansCompte));
 
     console.log(' « Garder pour plus tard »');
     verifier('une fiche commencée : la ligne « 📝 Garder pour plus tard » apparaît en haut (48 px au moins)', r.b1.pastille === '📝 Garder pour plus tard' && r.b1.pastilleHaute >= 48 && r.b1.largeur === true, j(r.b1));
     verifier('à la réouverture : le bandeau propose Restaurer, Garder pour plus tard, Repartir à zéro ; la ligne du haut est cachée pendant ce temps',
-      /Brouillon retrouvé/.test(r.b2Bandeau.bandeau) && j(r.b2Bandeau.boutons) === j(['Restaurer', 'Garder pour plus tard', 'Repartir à zéro']) && r.b2Bandeau.pastille === '', j(r.b2Bandeau));
+      /Brouillon retrouvé/.test(r.b2Bandeau.bandeau) && j(r.b2Bandeau.boutons) === j(['Restaurer', 'Garder pour plus tard', 'Repartir à zéro']) && r.b2Bandeau.pastille === ''
+      && r.b2Bandeau.boutonsHauts >= 48, j(r.b2Bandeau));
     verifier('« Garder pour plus tard » : la fiche reste vide, le brouillon est rangé (gardé exprès), il n’est plus « le brouillon courant »',
       r.b2.bandeau === '' && r.b2.objet === '' && j(r.b2.liste) === j([['Réunion A', 'gardé']]) && r.b2.courant === null && r.b2.pastille === '📝 Brouillons gardés (1)' && /Brouillon gardé/.test(r.b2.message), j(r.b2));
     verifier('… à l’ouverture suivante, il n’est PAS reproposé par le bandeau : il attend dans « Brouillons gardés (1) »', r.b3.bandeau === '' && r.b3.objet === '' && r.b3.pastille === '📝 Brouillons gardés (1)', j(r.b3));
@@ -239,12 +287,21 @@ setTimeout(() => {
     verifier('« Garder la fiche en cours pour plus tard » : la fiche repart vide, deux brouillons gardés, aucun bandeau', r.b5.objet === '' && r.b5.bandeau === ''
       && j(r.b5.liste.map(l => l[0]).sort()) === j(['Réunion A', 'Réunion B']) && r.b5.liste.every(l => l[1] === 'gardé') && r.b5.pastille === '📝 Brouillons gardés (2)', j(r.b5));
     verifier('« Effacer » un brouillon gardé (après confirmation) : il sort de la liste, l’autre reste', r.b6.liste.length === 1 && r.b6.panneau && r.b6.panneau.length === 1, j(r.b6));
-    verifier('limite de 5 : le sixième est REFUSÉ avec un message clair ; la fiche en cours reste à l’écran et dans le téléphone', /Déjà 5 brouillons gardés/.test(r.b7.message)
-      && r.b7.objet === 'Réunion de trop' && r.b7.liste.length === 5 && r.b7.courant === 'Réunion de trop', j(r.b7));
+    verifier('limite de 5 : le sixième est REFUSÉ, l’explication est écrite EN TÊTE de la liste ouverte ; la fiche en cours reste à l’écran et dans le téléphone', /Déjà 5 brouillons gardés/.test(r.b7.avis)
+      && r.b7.panneau && r.b7.panneau.length === 5 && r.b7.objet === 'Réunion de trop' && r.b7.liste.length === 5 && r.b7.courant === 'Réunion de trop', j(r.b7));
     verifier('… « Reprendre » marche à la limite : la fiche en cours prend la place du brouillon repris (toujours 5, aucun perdu)', r.b7Reprise.objet === 'Gardé 3'
       && r.b7Reprise.liste.length === 5 && r.b7Reprise.liste.some(l => l[0] === 'Réunion de trop') && !r.b7Reprise.liste.some(l => l[0] === 'Gardé 3'), j(r.b7Reprise));
     verifier('un brouillon mis de côté TOUT SEUL est toujours reproposé à l’ouverture, et se restaure comme avant', /Brouillon mis de côté/.test(r.b8.bandeau)
       && r.b8Restaure.objet === 'Mis de côté tout seul' && r.b8Restaure.liste.length === 0, j([r.b8, r.b8Restaure]));
+    console.log(' Les cas de la relecture');
+    verifier('un brouillon de PLUS DE 30 JOURS, gardé par le bandeau, est toujours là à l’ouverture suivante (les 30 jours comptent à partir du jour où il est gardé)',
+      /Brouillon retrouvé/.test(r.b9Bandeau.bandeau) && r.b9.pastille === '📝 Brouillons gardés (1)' && j(r.b9.liste) === j([['Vieille réunion', 'gardé']]) && r.b9.bandeau === ''
+      && r.b9Panneau.panneau && r.b9Panneau.panneau.length === 1 && /gardé jusqu’au/.test(r.b9Panneau.panneau[0]), j([r.b9Bandeau, r.b9, r.b9Panneau]));
+    verifier('« Garder » du bandeau juste après une frappe : le brouillon proposé est rangé, ET ce qui vient d’être tapé est enregistré (rien de perdu)',
+      r.b10.liste.some(l => l[0] === 'Réunion X' && l[1] === 'gardé') && r.b10.objet === 'Réunion Y' && r.b10.courant === 'Réunion Y'
+      && /Brouillon retrouvé/.test(r.b10Apres.bandeau) && r.b10Apres.liste.some(l => l[0] === 'Réunion X'), j([r.b10, r.b10Apres]));
+    verifier('la même fiche à la fois « en cours » et dans la liste (page fermée au milieu d’un rangement) : la copie de la liste est retirée',
+      r.b11.liste.length === 0 && /Brouillon retrouvé/.test(r.b11.bandeau) && r.b11.courant === 'Réunion en double', j(r.b11));
   } catch (e) { echecs++; console.log('  ✗ ' + e.message); }
   spawnSync('playwright-cli', ['-s=loue-l13', 'close'], { shell: true });
   site.kill(); faux.kill();

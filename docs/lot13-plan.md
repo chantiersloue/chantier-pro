@@ -1,6 +1,6 @@
 # Lot 13 — La tuile « Notes » de l'accueil, et « Garder pour plus tard » — PLAN COURT
 
-> Plan du 20/11/2026, sur tes deux remarques du 19/11 et ta consigne « plan, puis construction ». **Construit le 20/11/2026**, en autonomie (procédure : `docs/lot13-procedure.md`) ; les choix faits pendant la construction sont dans `DECISIONS.md` (D13-…).
+> Plan du 19/11/2026, sur tes deux remarques du 19/11 et ta consigne « plan, puis construction ». **Construit le 19/11/2026**, en autonomie (procédure : `docs/lot13-procedure.md`) ; les choix faits pendant la construction sont dans `DECISIONS.md` (D13-…).
 > Pas de critique du plan par un agent séparé (règle d'économie) ; une relecture indépendante du résultat, un tour, parce que le lot touche au brouillon automatique.
 > Pages seules pour le brouillon ; une petite retouche du serveur pour les notes. Il vient après le lot 12.
 
@@ -43,7 +43,7 @@
 - Un brouillon **gardé exprès** n'est plus reproposé par le bandeau à chaque ouverture (c'était le but : faire autre chose). Il attend dans la liste.
 - Un brouillon mis de côté **tout seul** (bandeau resté sans réponse) continue d'être reproposé, comme aujourd'hui.
 - **5 brouillons gardés exprès au plus par fiche** : au sixième, la page refuse et dit d'en reprendre ou d'en effacer un. Jamais d'effacement silencieux d'un brouillon gardé exprès. Les brouillons mis de côté tout seuls gardent leur limite (les plus anciens laissent la place), sans jamais pousser dehors un brouillon gardé exprès.
-- **30 jours**, comme aujourd'hui : la liste affiche la date limite de chacun.
+- **30 jours**, comptés **à partir du jour où le brouillon est gardé** (et non du jour de la saisie : une fiche oubliée depuis plus d'un mois, puis gardée, était détruite à l'ouverture suivante — corrigé après la relecture) : la liste affiche la date limite de chacun.
 - Photos et signatures suivent le brouillon, comme aujourd'hui.
 
 **Deux façons de faire, comparées**

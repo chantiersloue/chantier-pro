@@ -2,7 +2,7 @@
 
 > Pour Franck. Plan : `docs/lot13-plan.md`.
 > Une livraison : le **serveur v11.3** (une petite retouche : la lecture « mes notes ») et les **pages, appli 10.4**.
-> **État au 20/11/2026** : construit, testé contre le faux serveur et dans Chrome. **Rien n'a tourné chez Google**, et aucun vrai téléphone.
+> **État au 19/11/2026** : construit, testé contre le faux serveur et dans Chrome, **relu par un agent indépendant (un tour : deux cas de perte de saisie trouvés et corrigés, tests ajoutés)**. **Rien n'a tourné chez Google**, et aucun vrai téléphone.
 > **Ne passe à l'étape suivante que si la précédente est verte.** Sinon : arrête-toi et envoie-moi une capture.
 
 ## Ce qui change, en clair
@@ -13,7 +13,8 @@
 - **Une grande case à cocher** par note. Cochée : la note reste barrée trois secondes (un nouvel appui annule), puis descend dans **« Faites »**, en bas. On peut l'y décocher.
 - Le nom du chantier, sous la note, ouvre la liste de ce chantier (pour modifier ou ajouter).
 - **Sans réseau** : la dernière liste s'affiche ; une case cochée attend dans le téléphone (⏳) et part toute seule.
-- **Toi et les conducteurs** : la même page, avec en bas le bouton **« Les notes de tous les chantiers »** (la vue d'avant, inchangée). Le chiffre rouge de la tuile reste pour vous.
+- Une note **ajoutée sans réseau** depuis un chantier apparaît aussi dans « Mes notes » (⏳) ; sa case s'active quand elle est partie.
+- **Toi et les conducteurs** : la même page, avec **en haut** le bouton **« Les notes de tous les chantiers »** (la vue d'avant, inchangée). Le chiffre rouge de la tuile reste pour vous.
 
 **Le brouillon**
 - Quand on rouvre une fiche qui a un brouillon, le bandeau propose maintenant **Restaurer**, **Garder pour plus tard** ou **Repartir à zéro**.
@@ -23,7 +24,8 @@
 
 **À savoir**
 - **Une liste par sorte de fiche** : les brouillons gardés d'un quitus se retrouvent dans le quitus, pas dans la note de réunion.
-- **5 brouillons gardés au plus par sorte de fiche, pendant 30 jours.** Au sixième, la page refuse et le dit ; elle n'efface rien. Passé 30 jours, un brouillon gardé disparaît (la liste affiche la date limite).
+- **5 brouillons gardés au plus par sorte de fiche.** Au sixième, la page refuse : la liste s'ouvre avec l'explication en tête, et rien n'est effacé.
+- **Un brouillon gardé reste 30 jours, à partir du jour où il est gardé**, puis il disparaît (la liste affiche sa date limite).
 - Un brouillon **gardé exprès** n'est plus proposé à chaque ouverture : il attend dans la liste. Un brouillon mis de côté **tout seul** (bandeau resté sans réponse) est reproposé, comme aujourd'hui.
 - « Mes notes » ne montre que les notes des chantiers que le gars peut encore ouvrir, et pas celles d'un chantier « Terminé ».
 - On n'ajoute pas de note depuis « Mes notes » : une note appartient à un chantier.
@@ -66,7 +68,9 @@ Sur la copie d'essai (icône « Loué ESSAI »), connecté. Touche **Mettre à j
 
 ## Retour arrière
 
-Je remets l'adresse du serveur précédent et les pages d'avant par une fusion. Les brouillons gardés restent dans les téléphones : la page d'avant les traite comme des brouillons « mis de côté » (elle les repropose à l'ouverture), rien n'est perdu.
+Je remets l'adresse du serveur précédent et les pages d'avant par une fusion. Les brouillons gardés restent dans les téléphones, et la page d'avant les traite comme des brouillons « mis de côté » : elle repropose **le plus récent** à l'ouverture.
+
+**Attention, deux limites de la page d'avant** : elle ne conserve que **les 5 plus récents** de la liste (au-delà, les plus anciens sont effacés dès qu'elle y écrit), et elle compte les 30 jours **depuis la saisie**. Un retour arrière peut donc faire perdre des brouillons gardés si un gars en a plus de 5 dans une même sorte de fiche, ou de très anciens. **Avant un retour arrière, préviens les gars de reprendre et d'envoyer leurs brouillons gardés** ; je te le rappellerai.
 
 ## Ce qui n'a pas été vérifié
 

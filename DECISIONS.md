@@ -432,7 +432,7 @@ Choix de construction, là où le plan ne tranchait pas. Construit et testé con
 | D12-23 | Après relecture (I1, M9, M10, M11) : la liste dépliée reste dépliée après une étoile ; la carte touchée reste sous le doigt ; si le téléphone refuse de garder les étoiles, elles vivent à l'écran et la page le dit ; une réponse arrivée après un changement de compte est ignorée | — | Points d'usage relevés par le relecteur ; « VRAI » tapé à la main qui allume le réglage est seulement documenté (qui peut écrire peut cocher) |
 | D12-24 | Relecture, points laissés : la double lecture de l'onglet *Chantiers* par requête quand le réglage est allumé (coût faible) ; une seule annulation gardée pour l'étoile retirée | Les traiter | Sans effet visible ; la simplicité d'abord |
 
-## Lot 13 (tuile « Notes », « Garder pour plus tard ») — branche `lot-13`, partie de `lot-12` (20/11/2026)
+## Lot 13 (tuile « Notes », « Garder pour plus tard ») — branche `lot-13`, partie de `lot-12` (19/11/2026)
 
 > Construit en autonomie sur la consigne de Franck du 19/11/2026 (« plan, puis construction »). Plan : `docs/lot13-plan.md`.
 
@@ -450,4 +450,12 @@ Choix de construction, là où le plan ne tranchait pas. Construit et testé con
 | D13-10 | Garder la fiche en cours, ou reprendre un brouillon : **ranger d'abord, vérifier l'écriture, puis seulement effacer le brouillon courant et recharger la page** ; le brouillon repris ne sort de la liste qu'une fois enregistré comme brouillon courant | Remettre les champs sans recharger | Une page rechargée est une page propre (même chemin que la restauration du bandeau) ; au moindre doute, le brouillon existe en double plutôt que pas du tout |
 | D13-11 | La ligne « 📝 … » est **dans la page, en haut de la fiche**, et cachée tant que le bandeau attend une réponse | Un bouton fixe en bas | Le bas des fiches est pris par les boutons d'envoi ; pas deux questions en même temps |
 | D13-12 | Numéros : serveur **v11.3**, appli **10.4** | — | Voir D8d-12 |
+| D13-13 | Relecture indépendante, **un tour** (la brique touchée est la protection anti-perte) ; pas de second tour : chaque correction est couverte par un test de page | Aucune relecture ; deux tours | Règle d'économie de Franck ; les deux points bloquants étaient des pertes de saisie possibles |
+| D13-14 | Les **30 jours** d'un brouillon gardé comptent **à partir du jour où il est gardé** (champ `range`) | Depuis la saisie (comme les brouillons mis de côté tout seuls) | Bloquant de la relecture : une fiche oubliée plus de 30 jours, puis « gardée », était détruite à l'ouverture suivante |
+| D13-15 | Garder : la copie complète (avec photos) est écrite **d'abord**, puis **relue** ; si elle est refusée et que le brouillon a des photos, rien n'est écrit et la page le dit | Écrire la copie texte d'abord | Une copie texte seule aurait fait croire le brouillon gardé alors que ses photos ne l'étaient pas |
+| D13-16 | Après « Garder pour plus tard » du bandeau, ce qui a déjà été tapé dans la fiche est **enregistré aussitôt** comme brouillon en cours | Le déclarer « déjà sauvegardé » | Bloquant de la relecture : une frappe faite juste avant l'appui pouvait n'être jamais enregistrée |
+| D13-17 | Le refus « déjà 5 brouillons gardés » est écrit **en tête de la liste ouverte** | Un message en bas de l'écran | Le message passait derrière la liste : le gars ne voyait pas pourquoi rien ne se passait |
+| D13-18 | L'effacement du brouillon courant a **3 secondes** avant le rechargement ; une fiche présente à la fois en cours et dans la liste (page fermée au milieu) voit sa copie de la liste **retirée au démarrage** | Attendre sans limite ; laisser le doublon | Une mémoire bloquée ne doit pas figer la page ; un doublon resté dans la liste risquait un double envoi |
+| D13-19 | Une note **ajoutée sans réseau** s'affiche dans « Mes notes » (case inactive tant qu'elle n'est pas partie), et la liste gardée « Mes notes » suit chaque envoi confirmé | N'afficher que ce que le serveur a rendu | Le gars doit retrouver ce qu'il vient d'écrire, réseau ou pas |
+| D13-20 | Si le téléphone n'arrive pas à lire la copie complète des brouillons, « Reprendre » **ne remet rien** dans la fiche et le dit | Reprendre la copie texte | Elle n'a pas les photos, et la bonne copie aurait été retirée de la liste |
 

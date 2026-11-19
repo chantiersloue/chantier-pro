@@ -2,7 +2,7 @@
 
 > Pour Franck. Plan : `docs/lot12-plan.md` ; tes deux réponses du 19/11/2026 : les chantiers « Terminé » restent **visibles, en bas de la liste, grisés** ; ton accueil est le même écran que celui des gars, et tes chantiers de conducteur arrivent tout seuls dans « Mes chantiers ».
 > Une livraison : le **serveur v11.2** (le programme chez Google) et les **pages, appli 10.3**.
-> **État au 20/11/2026** : construit, testé contre le faux serveur et dans Chrome, **relu par un agent indépendant (un tour, rien de bloquant) et corrigé**. **Rien n'a tourné chez Google.**
+> **État au 19/11/2026** : construit, testé contre le faux serveur et dans Chrome, **relu par un agent indépendant (un tour, rien de bloquant) et corrigé**. **Rien n'a tourné chez Google.**
 > **Ne passe à l'étape suivante que si la précédente est verte.** Sinon : arrête-toi et envoie-moi une capture.
 
 ## Ce qui change, en clair

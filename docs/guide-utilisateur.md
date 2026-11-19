@@ -145,7 +145,8 @@ Dans un chantier, la tuile **« Carnet »** donne les plans validés par le bure
 - Tu as commencé une fiche et tu dois en faire une autre de la même sorte ? En haut de la fiche, touche **« 📝 Garder pour plus tard »** : elle est rangée, et la fiche repart vide.
 - Quand tu rouvres une fiche qui a un brouillon, le bandeau propose aussi **Garder pour plus tard**.
 - Pour la retrouver : **« 📝 Brouillons gardés »**, en haut de la même fiche, puis **Reprendre**. Si une fiche est en cours à ce moment-là, elle est gardée à son tour : rien n'est écrasé.
-- 5 brouillons gardés au plus par sorte de fiche, pendant 30 jours. Au-delà, la page te demande d'en reprendre ou d'en effacer un.
+- 5 brouillons gardés au plus par sorte de fiche : au sixième, la page te demande d'en reprendre ou d'en effacer un.
+- Un brouillon gardé reste **30 jours** (la liste affiche sa date limite), puis il disparaît : ne t'en sers pas comme d'une archive.
 
 ## Destinataires
 
