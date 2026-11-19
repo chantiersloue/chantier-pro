@@ -2,6 +2,23 @@
 
 Chaque lot : **quoi**, **pourquoi**, **comment déployer**. Procédures détaillées dans `docs/lotN-procedure.md`.
 
+## Lot 14 — La demande d'absence reliée au planning — serveur **v11.4**, appli **10.5** — **construit, testé contre le faux serveur et dans Chrome ; livré ÉTEINT ; rien n'a tourné chez Google**
+
+**Quoi**
+- **Nouveau réglage `ABSENCE_DIRECTION`** (Propriétés du script : 1 à 3 adresses de la direction). **Absent : les demandes d'absence partent exactement comme avant.**
+- **Allumé** : le mail part **à la direction seule**, avec le PDF et deux boutons « ✅ Accepter » / « ❌ Refuser » (faits en tableau, pour Outlook ; liens aussi écrits en clair). Le lien, **signé par le serveur**, à **usage unique**, valable **7 jours**, ouvre la nouvelle page `absence-reponse.html` : elle rappelle la demande (sans le motif) ; **« Confirmer » décide** (deux clics en tout, sans compte).
+- **Acceptée** : mail d'information au conducteur de travaux (qui, quand, durée, appellation du planning ; jamais le motif) ; **refusée** : rien. Le poseur lit l'état dans **« Mes demandes »**, en haut de la page d'absence (En attente, Acceptée, Refusée, Sans réponse), y compris hors réseau.
+- **Données personnelles** : le motif et les précisions ne sont plus écrits que dans le mail de la direction et son PDF. Onglet *Absences* : « (réservé à la direction) » ; nouvel onglet *Absences suivi* sans motif ; le PDF n'est plus rangé dans Drive ; rien dans « Mails en attente » (si le mail ne part pas, la demande reste dans le téléphone).
+- **Planning** (`planning/Publication.gs`, `planning/Regles.gs`) : chaque nuit, et avant chaque publication, les absences acceptées sont lues dans l'appli (lecture seule) et inscrites dans les cases du gars, retrouvé par son compte de l'appli : « Congés », « École », « Formation », sinon « Absent ». Journal dans l'onglet *ABSENCES* du planning.
+- `commun/config.js` : « ?env1=test » / « ?env1=prod » choisit le serveur pour une page seulement, sans rien retenir.
+- Fichiers : `apps-script/Absences.gs` (nouveau), `Documents.gs`, `Api.gs`, `Comptes.gs`, `Admin.gs`, `Config.gs` ; `absence.html`, `absence-reponse.html` (nouvelle) ; `planning/` ; tests : `tests/lot14-absences.test.js` (28), `tests/lot14-planning.test.js` (16), `tests/lot14-page.test.js`.
+
+**Pourquoi** : demande de Franck du 19/11/2026 — la direction répond d'un clic, le planning se met à jour tout seul, et le motif ne circule plus.
+
+**Pas vérifié** : l'aspect du mail dans Outlook ; les indésirables ; une vraie messagerie qui ouvre les liens toute seule ; tout ce qui dépend de Google.
+
+**Comment déployer** : `docs/lot14-procedure.md`. Coller le serveur ne change rien tant que `ABSENCE_DIRECTION` n'existe pas. **Retour arrière** : supprimer ce réglage (30 secondes).
+
 ## Lot 11.1 — Le Sheet « Planning Loué » (deux programmes, hors de l'appli) — **construit, testé contre un faux Google seulement ; rien n'est installé chez Google**
 
 **Quoi**

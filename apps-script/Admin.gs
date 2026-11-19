@@ -146,6 +146,11 @@ function verifierConfig() {
   const restes = presents.filter(d => /^outilTest/.test(d));
   if (restes.length) ok(false, 'Déclencheur d’essai resté en place (' + restes.join(', ') + ') : le supprimer (éditeur → icône réveil « Déclencheurs » → ⋮ → Supprimer)');
   if (ou.env === 'TEST' && (porte || cleOutils)) lignes.push('Outils d’essai (copie TEST) : porte ' + (porte ? 'présente' : 'absente') + ', clé ' + (cleOutils ? 'présente' : 'absente'));
+  // Lot 14 : les demandes d'absence (réglage ABSENCE_DIRECTION). Les adresses ne sont pas affichées.
+  const absTape = String(propriete_(ABS_PROP_DIRECTION)).trim(), absLues = absDirection_();
+  if (!absTape) lignes.push('✅ Absences (propriété ' + ABS_PROP_DIRECTION + ') : éteint — les demandes partent comme avant le lot 14');
+  else if (!absLues.length) ok(false, 'Absences (propriété ' + ABS_PROP_DIRECTION + ') : aucune adresse lisible, lu comme éteint (attendu : 1 à ' + ABS_DIRECTION_MAX + ' adresses séparées par une virgule)');
+  else ok(true, 'Absences (propriété ' + ABS_PROP_DIRECTION + ') : allumé — ' + absLues.length + ' adresse(s) de la direction ; boutons du mail vers ' + absAdresseAppli_());
   lignes.push("Mails encore possibles aujourd'hui : " + MailApp.getRemainingDailyQuota());
   Logger.log(lignes.join('\n'));
   return lignes.join('\n');

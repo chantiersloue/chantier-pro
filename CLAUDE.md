@@ -21,7 +21,7 @@ ChantierPro est l'application web de chantier de **Loué Menuiserie** (menuiseri
 - Signalements : `signaler.html` (le poseur signale une casse, un manquant, une chose à recommander) et `signalements.html` (suivi des signalements).
 - Notes : `notes.html` (la liste des choses à faire d'un chantier, utilisable hors réseau) et `mes-notes.html` (les notes que la personne a écrites, tous chantiers, avec une case à cocher).
 - Carnet de chantier : `carnet.html` (les plans du chantier en images, zoom et rotation, téléchargeables pour le hors réseau). Les plans y sont déposés par le programme du PC (`outils/appli_pc.py`), jamais par le serveur.
-- Hors chantier : `absence.html` (demande d'absence d'un salarié).
+- Hors chantier : `absence.html` (demande d'absence d'un salarié, et l'état de ses demandes) ; `absence-reponse.html` (lot 14 : la page où la direction confirme « accepter » ou « refuser », ouverte depuis son mail, sans compte).
 - Briques communes dans `commun/` : `config.js` (adresse du serveur), `api.js` (appels et file d'attente), `brouillon.js`, `signature.js`, `photos.js`, `destinataires.js`, `adresses.js`, `hors-ligne.js`, `ui.js`, `notes.js`, `carnet.js`, `favoris.js` (les étoiles de « Mes chantiers »).
 - Hors de l'appli : `planning/` (lot 11.1), les deux programmes du Google Sheets « Planning Loué » (un attaché au Sheet, un de publication dans le compte de Loué) ; fichiers à coller dans `A-COLLER-PLANNING/`, fabriqués par `outils/construire-planning.js`. Tests sans Google : `tests/lot11-*.test.js`.
 - Côté Google Sheets (pas des pages) : onglets *Stockage* et *Purges* (place du compte, mise à la corbeille sur case cochée).

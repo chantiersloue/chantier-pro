@@ -88,6 +88,9 @@ http.createServer((req, res) => {
   if (url.pathname === '/reglage') {
     const m = url.searchParams.get('mode') || 'normal';
     if (m === 'transition-finie') { google.proprietes.FIN_TRANSITION = String(Date.now() - 1000); res.writeHead(200, entetes); return res.end('{"transition":"finie"}'); }
+    // Lot 14 : la direction répond aux demandes d'absence depuis son mail (réglage ABSENCE_DIRECTION)
+    if (m === 'absences-direction') { google.proprietes.ABSENCE_DIRECTION = 'direction@loue.test'; res.writeHead(200, entetes); return res.end('{"absences":"direction"}'); }
+    if (m === 'absences-avant') { delete google.proprietes.ABSENCE_DIRECTION; res.writeHead(200, entetes); return res.end('{"absences":"avant"}'); }
     if (m === 'transition-ouverte') { delete google.proprietes.FIN_TRANSITION; res.writeHead(200, entetes); return res.end('{"transition":"ouverte"}'); }
     if (m === 'deconnecter') {
       const l = U.lignes.find(x => x[0] === url.searchParams.get('id'));
@@ -158,6 +161,9 @@ http.createServer((req, res) => {
     return res.end(JSON.stringify({ mode, mails: google.mails.map(m => ({ to: m.to, sujet: m.sujet, bcc: m.opts.bcc || '' })),
       envois: (google.feuilles['Envois'] || { lignes: [] }).lignes, quota: google.etat.quota,
       signalements: (google.feuilles['Signalements'] || { lignes: [] }).lignes,   // lot 7
+      // lot 14 : le suivi des absences, et les liens « accepter » / « refuser » du dernier mail à la direction
+      absences: (google.feuilles['Absences suivi'] || { lignes: [] }).lignes.slice(1).map(l => [l[0], l[2], l[3], l[4], l[7], l[8], l[9], l[11]]),
+      liensAbsence: (google.mails.filter(m => /Demande d'absence/.test(m.sujet)).slice(-1)[0] || { texte: '' }).texte.match(/https:\/\/\S+absence-reponse\.html\?\S+/g) || [],
       notes: (google.feuilles['Notes'] || { lignes: [] }).lignes,                 // lot 3
       comptesRendus: (google.feuilles['Comptes rendus'] || { lignes: [] }).lignes,   // lot 8b
       // lot 8b : le texte des 5 derniers PDF envoyés (sans les images), pour vérifier ce qui est imprimé

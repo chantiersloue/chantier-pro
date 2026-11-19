@@ -609,6 +609,8 @@ function traiterComptes() {
     // Lot 12 : les chantiers du planning (éteint tant que la propriété PLANNING_SHEET_ID n'existe pas)
     REGLAGE_TOUS_LU_ = null; PLANIFIES_LUS_ = null;
     planifPassage_();
+    // Lot 14 : un mail « absence acceptée » au conducteur qui n'a pas pu partir (ne fait rien s'il n'y en a pas)
+    absPassage_();
   }
 }
 

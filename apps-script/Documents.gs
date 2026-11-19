@@ -297,7 +297,11 @@ function getContactsRaw() {
 // ══════════════════════════════════════════════════════════
 // DEMANDE D'ABSENCE
 // ══════════════════════════════════════════════════════════
-function traiterAbsence(data, brut) {
+function traiterAbsence(data, brut, contexte) {
+  // Lot 14 : quand le réglage ABSENCE_DIRECTION existe, la demande part à la direction seule, avec ses deux boutons
+  // (Absences.gs). Sans ce réglage : tout ce qui suit, exactement comme avant.
+  const direction = absDirection_();
+  if (direction.length) return absTraiter_(brut, contexte || {}, direction);
   // 1. Sheet « Absences » — mêmes colonnes qu'avant ; protégé contre les erreurs (données brutes, formules neutralisées)
   try {
     const ss = SpreadsheetApp.getActiveSpreadsheet();

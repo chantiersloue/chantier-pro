@@ -270,8 +270,11 @@ function routerV5_(corps) {
     if (corps.action === 'outilTest' && typeof outilTest_ === 'function') return outilTest_(corps);
     if (corps.action === 'connexion')  return connexion_(corps);
     if (corps.action === 'motDePasse') return motDePasse_(corps);
+    // Lot 14 : la réponse de la direction à une demande d'absence. Sans compte : c'est le lien signé du mail qui fait foi.
+    if (corps.action === 'absenceVoir')    return absVoir_(corps);
+    if (corps.action === 'absenceDecider') return absDecider_(corps);
     if (['photo', 'fiche', 'moi', 'listes', 'dossiers', 'signalements', 'signalementStatut',
-      'notes', 'notesNouvelles', 'notesVues', 'carnet', 'carnetTuiles', 'planningFichier', 'recapNotes'].indexOf(corps.action) < 0) return { ok: false, code: 'ACTION_INCONNUE', message: 'Action inconnue' };
+      'notes', 'notesNouvelles', 'notesVues', 'carnet', 'carnetTuiles', 'planningFichier', 'recapNotes', 'absencesMiennes'].indexOf(corps.action) < 0) return { ok: false, code: 'ACTION_INCONNUE', message: 'Action inconnue' };
     let qui = identifier_(corps);
     const envoi = corps.action === 'photo' || corps.action === 'fiche';
     // Lot 3 : une note de chantier (ou un geste sur une note) demande TOUJOURS un compte en règle : ni « compte désactivé »,
@@ -310,6 +313,8 @@ function routerV5_(corps) {
     if (corps.action === 'carnet')       return carnetLister_(qui.compte, corps);
     // Lot 8d : le récapitulatif des notes de réunion d'un chantier (droits vérifiés dans Recapitulatif.gs)
     if (corps.action === 'recapNotes')   return recapLire_(qui.compte, corps);
+    // Lot 14 : l'état des demandes d'absence du compte (aucun motif)
+    if (corps.action === 'absencesMiennes') return absMiennes_(qui.compte);
     if (corps.action === 'carnetTuiles') return carnetTuiles_(qui.compte, corps);
   } catch (err) {
     console.error('routerV5_:', err.message);

@@ -14,6 +14,8 @@ Deux programmes, dans le dossier `A-COLLER-PLANNING/` :
 | `1-Programme-du-planning.gs` | **dans le Sheet** « Planning Loué » (Extensions → Apps Script) | le menu « Planning Loué », la saisie complétée, les couleurs, *Créer la semaine suivante*, *Ajouter / Retirer un gars*, *Vérifier la semaine*, *Préparer l'affiche A3*. **Il ne peut toucher que ce Sheet** (Google le lui interdit ailleurs) |
 | `2-Programme-de-publication.gs` | **à part**, sur script.google.com, dans le compte de Loué | toutes les 10 minutes : le PDF des gars dans le dossier *Planning* de l'appli quand « Publier » est coché ; chaque nuit : la liste des chantiers recopiée de l'appli, les PDF des semaines finies retirés, les vieilles semaines rangées dans *HISTORIQUE* |
 
+Avec le lot 14 (`docs/lot14-procedure.md`), le programme de publication inscrit aussi dans le planning les absences acceptées par la direction.
+
 Rien ne change dans l'appli : la lecture du planning par l'appli (chantiers mis tout seuls en favoris) est déjà dans le **lot 12**, éteinte tant qu'on ne lui donne pas l'adresse du planning (étape E).
 
 ## Ce que j'ai tranché à ta place (tu peux me faire changer d'avis)

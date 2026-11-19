@@ -3,7 +3,7 @@
 // Loué Menuiserie
 // ═══════════════════════════════════════════════════════════════
 
-const VERSION_API = 'v11.3';   // 11.3 : lot 13 (« Mes notes » : les notes écrites par le compte, tous chantiers) ; 11.2 : lot 12 (réglage « tous les comptes ouvrent tous les chantiers », chantiers du planning en favoris) ; 11.1 : lot 8d (récapitulatif des notes de réunion par chantier ; ce numéro avait servi aux essais du lot 8c, les points, retirés le 19/11/2026 avant toute mise en production) ; 11.0 : lot 8b (onglet « Comptes rendus », une ligne par note de réunion) ; 10.1 : lot 5c (planning lisible par les seuls comptes, plus aucun lien de partage) ; 10.0 : lot 5 (suivi du stockage, purge sur case cochée) ; 9.1 : retrait de la lecture du dossier Plans (lot 4b) ; 9.0 : lot 4a (carnet de chantier) ; 8.0 : lot 3 (notes de chantier) ; 7.0 : lot 7 (signalements) ; 6.0 : lot 2 (comptes)
+const VERSION_API = 'v11.4';   // 11.4 : lot 14 (demande d'absence : réponse de la direction par lien signé, état pour le poseur ; ÉTEINT sans la propriété ABSENCE_DIRECTION) ; 11.3 : lot 13 (« Mes notes » : les notes écrites par le compte, tous chantiers) ; 11.2 : lot 12 (réglage « tous les comptes ouvrent tous les chantiers », chantiers du planning en favoris) ; 11.1 : lot 8d (récapitulatif des notes de réunion par chantier ; ce numéro avait servi aux essais du lot 8c, les points, retirés le 19/11/2026 avant toute mise en production) ; 11.0 : lot 8b (onglet « Comptes rendus », une ligne par note de réunion) ; 10.1 : lot 5c (planning lisible par les seuls comptes, plus aucun lien de partage) ; 10.0 : lot 5 (suivi du stockage, purge sur case cochée) ; 9.1 : retrait de la lecture du dossier Plans (lot 4b) ; 9.0 : lot 4a (carnet de chantier) ; 8.0 : lot 3 (notes de chantier) ; 7.0 : lot 7 (signalements) ; 6.0 : lot 2 (comptes)
 
 // ── CONFIGURATION ──
 const SHEET_CONTACTS      = 'Contacts';
@@ -42,6 +42,9 @@ const SOUS_DOSSIERS_PARTAGES = ['Plans'];
 //   DRIVE_ROOT_ID     : dossier racine "Loué Menuiserie - Chantiers"
 //   DRIVE_PLANNING_ID : dossier Planning
 //   EMAIL_ADMIN       : (facultatif) adresse de Franck ; sinon celle du compte qui a déployé
+//   ABSENCE_DIRECTION : (facultatif, lot 14) 1 à 3 adresses de la direction : elle seule reçoit les demandes d'absence, avec les
+//                       boutons Accepter / Refuser. ABSENT = comme avant le lot 14. Voir Absences.gs.
+//   ADRESSE_APPLI     : (facultatif, lot 14) adresse des pages de l'appli pour les liens du mail (utile sur la copie TEST)
 function propriete_(cle) {
   return PropertiesService.getScriptProperties().getProperty(cle) || '';
 }

@@ -197,7 +197,7 @@ test('le Sheet de l’appli est SEULEMENT LU : aucune écriture, jamais, quoi qu
   // dans le programme : une seule fonction ouvre le Sheet de l'appli
   const code = fs.readFileSync(path.join(__dirname, '..', 'planning', 'Publication.gs'), 'utf8').replace(/\/\/.*$/gm, '');
   egal((code.match(/pubProp_\(PUB_PROP\.appli\)/g) || []).length, 1);
-  assert.ok(/function pubLireChantiersAppli_\(\) \{[^}]*pubProp_\(PUB_PROP\.appli\)/.test(code));
+  assert.ok(/function pubLireAppli_\(onglet, nbCol, facultatif\) \{[^}]*pubProp_\(PUB_PROP\.appli\)/.test(code));
   assert.ok(!/GmailApp|MailApp/.test(code), 'aucun mail');
 });
 test('liste illisible (Sheet de l’appli indisponible, onglet absent, ou liste vide) : l’ancienne liste est gardée, l’état le dit, le reste de la nuit se fait', () => {

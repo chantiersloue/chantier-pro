@@ -26,7 +26,7 @@ const PL_CAS_NON_RECOPIES = ['Absent', 'Congés', 'École', 'Formation', 'Féri�
 // Mots à ne jamais écrire dans le planning (santé) : la case passe en rouge. Un filet, pas une garantie.
 const PL_MOTS_A_EVITER = ['arret', 'malade', 'maladie', 'accident', 'accidente', 'hopital', 'hospitalise', 'hospitalisation', 'medecin', 'medical',
   'operation', 'opere', 'chirurgie', 'blesse', 'blessure', 'depression', 'grossesse', 'enceinte', 'covid', 'grippe', 'cancer', 'handicap', 'psy', 'at', 'mp'];
-const PL_ONGLETS = { listes: 'LISTES', salaries: 'SALARIÉS', affiche: 'AFFICHE A3', appli: 'APPLI', historique: 'HISTORIQUE' };
+const PL_ONGLETS = { listes: 'LISTES', salaries: 'SALARIÉS', affiche: 'AFFICHE A3', appli: 'APPLI', historique: 'HISTORIQUE', absences: 'ABSENCES' };
 // Un onglet de semaine : lignes et colonnes fixes
 const PL_S = { ligTitre: 1, ligPublier: 2, ligEntetes: 3, lig1: 4, colVehicule: 1, colNom: 2, colJour1: 3, colMarque: 8, nbCol: 8,
   colCase: 2, colEtat: 3 };   // ligne 2 : A2 = « Publier pour les gars », B2 = la case à cocher, C2 = l'état
@@ -202,9 +202,11 @@ function plLireSemaine_(valeurs) {
   const lundi = cel(PL_S.ligTitre, PL_S.colMarque);
   if (!plEstIso_(lundi) || plLundi_(lundi) !== lundi) return null;
   const s = { lundi: lundi, publier: (v[PL_S.ligPublier - 1] || [])[PL_S.colCase - 1] === true, etat: cel(PL_S.ligPublier, PL_S.colEtat), pose: [], atelier: [] };
+  const lignesDe = {};   // nom (sans majuscules ni accents) → numéro de sa ligne dans l'onglet ; 0 si le nom y est deux fois
   const jours = l => PL_JOURS.map((_, i) => brut(l, PL_S.colJour1 + i));
   for (let l = PL_S.lig1; l <= v.length; l++) {
     const marque = cel(l, PL_S.colMarque);
+    if (marque === PL_M.pose || marque === PL_M.atelier) { const n = plNorm_(cel(l, PL_S.colNom)); if (n) lignesDe[n] = lignesDe[n] === undefined ? l : 0; }
     if (marque === PL_M.pose) s.pose.push({ nom: cel(l, PL_S.colNom), vehicule: cel(l, PL_S.colVehicule), jours: jours(l), vehiculesJour: ['', '', '', '', ''] });
     else if (marque === PL_M.vehicule && s.pose.length) s.pose[s.pose.length - 1].vehiculesJour = jours(l).map(plTexte_);
     else if (marque === PL_M.atelier) s.atelier.push({ nom: cel(l, PL_S.colNom), jours: jours(l) });
@@ -212,6 +214,7 @@ function plLireSemaine_(valeurs) {
     // On ne devine pas (une semaine lue à moitié serait publiée à moitié).
     else if (marque !== PL_M.titre && marque !== PL_M.vehicule && (v[l - 1] || []).slice(0, 7).some(x => plTexte_(x) !== '')) return null;
   }
+  Object.defineProperty(s, 'lignesDe', { value: lignesDe, enumerable: false });   // à part : n'entre ni dans la grille ni dans l'empreinte
   return s;
 }
 // Le tableau de valeurs à écrire dans l'onglet, à partir du modèle (l'inverse de plLireSemaine_)
@@ -455,3 +458,29 @@ function plStyles_(valeurs, vehicules, index) {
 }
 // Une date et une heure écrites pour Franck : « 20/11 à 16 h 10 » (d = objet Date, fuseau de Paris géré par l'appelant)
 function plQuand_(jj, mm, hh, mi) { return plDeux_(jj) + '/' + plDeux_(mm) + ' à ' + hh + ' h ' + plDeux_(mi); }
+
+// ── Lot 14 : une absence acceptée par la direction, inscrite dans une case ──
+// Les jours ouvrés (lundi à vendredi) d'une absence, du … au … compris
+function plJoursAbsence_(du, au) {
+  const jours = [];
+  if (!plEstIso_(du) || !plEstIso_(au) || au < du) return jours;
+  for (let j = du, n = 0; j <= au && n < 400; j = plDecaler_(j, 1), n++) { const rang = (plDate_(j).getUTCDay() + 6) % 7; if (rang < 5) jours.push(j); }
+  return jours;
+}
+// Ce que devient une case quand une absence s'y inscrit. duree : « Matin », « Après-midi », sinon la journée entière.
+//   journée entière : la case devient l'appellation (« Congés ») ; ce qui y était écrit est rendu dans « avant » ;
+//   demi-journée    : « ½ Congés » est ajouté, avant (matin) ou après (après-midi) ce qui est déjà écrit ; un chantier seul devient « ½ … ».
+// Rend { valeur, change, avant }. Ne change rien si l'absence y est déjà.
+function plAvecAbsence_(valeur, duree, libelle) {
+  const d = plNorm_(duree), matin = d === 'matin', demi = matin || d === 'apres-midi' || d === 'apres midi';
+  const lignes = plMorceaux_(valeur), avant = lignes.join(PL_SEPARATEUR_AFFICHE);
+  const deja = lignes.some(l => plNorm_(plPart_(l).texte) === plNorm_(libelle));
+  if (!demi) {
+    if (lignes.length === 1 && deja && !plPart_(lignes[0]).quarts) return { valeur: lignes[0], change: false, avant: '' };
+    return { valeur: libelle, change: true, avant: avant };
+  }
+  if (deja) return { valeur: lignes.join('\n'), change: false, avant: '' };
+  const part = PL_PARTS[2] + ' ' + libelle;
+  const autres = lignes.length === 1 && !plPart_(lignes[0]).quarts ? [PL_PARTS[2] + ' ' + lignes[0]] : lignes;
+  return { valeur: (matin ? [part].concat(autres) : autres.concat([part])).join('\n'), change: true, avant: '' };
+}

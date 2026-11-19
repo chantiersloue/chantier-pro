@@ -168,3 +168,12 @@ Les plans et les documents d'un chantier se lisent dans le **Carnet** : Accueil 
 
 - Un bandeau **« Nouvelle version — Mettre à jour »** peut apparaître : touche **Mettre à jour** quand tu veux (ton brouillon est gardé).
 - Accueil → **À propos de l'appli** : version, place utilisée, fiches en attente, bouton **Vérifier les mises à jour**.
+
+## Demande d'absence
+
+- Tuile **Demande d'absence** : ton nom, la date (un jour, une période ou une semaine), la durée, sur quoi les heures sont prises, le motif. Signe, puis **Envoyer la demande**.
+- La demande part à **la direction**, et à elle seule. Tu ne reçois pas de mail en retour.
+- **La réponse se lit dans l'appli** : en haut de la page, **« Mes demandes »** affiche **En attente**, puis **Acceptée** ou **Refusée**. Ça marche aussi sans réseau (le dernier état connu).
+- **« Sans réponse »** : pas de réponse depuis plus de 7 jours. Refais ta demande, ou vois avec le bureau.
+- **« ⏳ dans le téléphone »** : ta demande n'est pas encore partie (pas de réseau). Elle partira toute seule.
+- Une absence acceptée s'inscrit toute seule dans le planning.

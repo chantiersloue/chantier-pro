@@ -1,10 +1,10 @@
 // ═══════════════════════════════════════════════════════════════
 // LOUÉ APP — SERVEUR COMPLET, À COLLER DANS APPS SCRIPT (fichier « Code.gs », tout remplacer)
 // FICHIER GÉNÉRÉ AUTOMATIQUEMENT par « node outils/construire.js » — NE PAS MODIFIER À LA MAIN :
-// les sources sont dans le dossier apps-script/ du dépôt. Version du serveur 86da29ba2e (pages 5d4436bac0)
+// les sources sont dans le dossier apps-script/ du dépôt. Version du serveur 9882b3925e (pages da1c66bf9e)
 // ═══════════════════════════════════════════════════════════════
 
-const EMPREINTE_SERVEUR = '86da29ba2e';
+const EMPREINTE_SERVEUR = '9882b3925e';
 
 // ████ Config.gs ████
 // ═══════════════════════════════════════════════════════════════
@@ -12,7 +12,7 @@ const EMPREINTE_SERVEUR = '86da29ba2e';
 // Loué Menuiserie
 // ═══════════════════════════════════════════════════════════════
 
-const VERSION_API = 'v11.3';   // 11.3 : lot 13 (« Mes notes » : les notes écrites par le compte, tous chantiers) ; 11.2 : lot 12 (réglage « tous les comptes ouvrent tous les chantiers », chantiers du planning en favoris) ; 11.1 : lot 8d (récapitulatif des notes de réunion par chantier ; ce numéro avait servi aux essais du lot 8c, les points, retirés le 19/11/2026 avant toute mise en production) ; 11.0 : lot 8b (onglet « Comptes rendus », une ligne par note de réunion) ; 10.1 : lot 5c (planning lisible par les seuls comptes, plus aucun lien de partage) ; 10.0 : lot 5 (suivi du stockage, purge sur case cochée) ; 9.1 : retrait de la lecture du dossier Plans (lot 4b) ; 9.0 : lot 4a (carnet de chantier) ; 8.0 : lot 3 (notes de chantier) ; 7.0 : lot 7 (signalements) ; 6.0 : lot 2 (comptes)
+const VERSION_API = 'v11.4';   // 11.4 : lot 14 (demande d'absence : réponse de la direction par lien signé, état pour le poseur ; ÉTEINT sans la propriété ABSENCE_DIRECTION) ; 11.3 : lot 13 (« Mes notes » : les notes écrites par le compte, tous chantiers) ; 11.2 : lot 12 (réglage « tous les comptes ouvrent tous les chantiers », chantiers du planning en favoris) ; 11.1 : lot 8d (récapitulatif des notes de réunion par chantier ; ce numéro avait servi aux essais du lot 8c, les points, retirés le 19/11/2026 avant toute mise en production) ; 11.0 : lot 8b (onglet « Comptes rendus », une ligne par note de réunion) ; 10.1 : lot 5c (planning lisible par les seuls comptes, plus aucun lien de partage) ; 10.0 : lot 5 (suivi du stockage, purge sur case cochée) ; 9.1 : retrait de la lecture du dossier Plans (lot 4b) ; 9.0 : lot 4a (carnet de chantier) ; 8.0 : lot 3 (notes de chantier) ; 7.0 : lot 7 (signalements) ; 6.0 : lot 2 (comptes)
 
 // ── CONFIGURATION ──
 const SHEET_CONTACTS      = 'Contacts';
@@ -51,6 +51,9 @@ const SOUS_DOSSIERS_PARTAGES = ['Plans'];
 //   DRIVE_ROOT_ID     : dossier racine "Loué Menuiserie - Chantiers"
 //   DRIVE_PLANNING_ID : dossier Planning
 //   EMAIL_ADMIN       : (facultatif) adresse de Franck ; sinon celle du compte qui a déployé
+//   ABSENCE_DIRECTION : (facultatif, lot 14) 1 à 3 adresses de la direction : elle seule reçoit les demandes d'absence, avec les
+//                       boutons Accepter / Refuser. ABSENT = comme avant le lot 14. Voir Absences.gs.
+//   ADRESSE_APPLI     : (facultatif, lot 14) adresse des pages de l'appli pour les liens du mail (utile sur la copie TEST)
 function propriete_(cle) {
   return PropertiesService.getScriptProperties().getProperty(cle) || '';
 }
@@ -1048,6 +1051,8 @@ function traiterComptes() {
     // Lot 12 : les chantiers du planning (éteint tant que la propriété PLANNING_SHEET_ID n'existe pas)
     REGLAGE_TOUS_LU_ = null; PLANIFIES_LUS_ = null;
     planifPassage_();
+    // Lot 14 : un mail « absence acceptée » au conducteur qui n'a pas pu partir (ne fait rien s'il n'y en a pas)
+    absPassage_();
   }
 }
 
@@ -1492,8 +1497,11 @@ function routerV5_(corps) {
     if (corps.action === 'outilTest' && typeof outilTest_ === 'function') return outilTest_(corps);
     if (corps.action === 'connexion')  return connexion_(corps);
     if (corps.action === 'motDePasse') return motDePasse_(corps);
+    // Lot 14 : la réponse de la direction à une demande d'absence. Sans compte : c'est le lien signé du mail qui fait foi.
+    if (corps.action === 'absenceVoir')    return absVoir_(corps);
+    if (corps.action === 'absenceDecider') return absDecider_(corps);
     if (['photo', 'fiche', 'moi', 'listes', 'dossiers', 'signalements', 'signalementStatut',
-      'notes', 'notesNouvelles', 'notesVues', 'carnet', 'carnetTuiles', 'planningFichier', 'recapNotes'].indexOf(corps.action) < 0) return { ok: false, code: 'ACTION_INCONNUE', message: 'Action inconnue' };
+      'notes', 'notesNouvelles', 'notesVues', 'carnet', 'carnetTuiles', 'planningFichier', 'recapNotes', 'absencesMiennes'].indexOf(corps.action) < 0) return { ok: false, code: 'ACTION_INCONNUE', message: 'Action inconnue' };
     let qui = identifier_(corps);
     const envoi = corps.action === 'photo' || corps.action === 'fiche';
     // Lot 3 : une note de chantier (ou un geste sur une note) demande TOUJOURS un compte en règle : ni « compte désactivé »,
@@ -1532,6 +1540,8 @@ function routerV5_(corps) {
     if (corps.action === 'carnet')       return carnetLister_(qui.compte, corps);
     // Lot 8d : le récapitulatif des notes de réunion d'un chantier (droits vérifiés dans Recapitulatif.gs)
     if (corps.action === 'recapNotes')   return recapLire_(qui.compte, corps);
+    // Lot 14 : l'état des demandes d'absence du compte (aucun motif)
+    if (corps.action === 'absencesMiennes') return absMiennes_(qui.compte);
     if (corps.action === 'carnetTuiles') return carnetTuiles_(qui.compte, corps);
   } catch (err) {
     console.error('routerV5_:', err.message);
@@ -2058,7 +2068,11 @@ function getContactsRaw() {
 // ══════════════════════════════════════════════════════════
 // DEMANDE D'ABSENCE
 // ══════════════════════════════════════════════════════════
-function traiterAbsence(data, brut) {
+function traiterAbsence(data, brut, contexte) {
+  // Lot 14 : quand le réglage ABSENCE_DIRECTION existe, la demande part à la direction seule, avec ses deux boutons
+  // (Absences.gs). Sans ce réglage : tout ce qui suit, exactement comme avant.
+  const direction = absDirection_();
+  if (direction.length) return absTraiter_(brut, contexte || {}, direction);
   // 1. Sheet « Absences » — mêmes colonnes qu'avant ; protégé contre les erreurs (données brutes, formules neutralisées)
   try {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -3809,6 +3823,303 @@ function etapesLot12_() {
 function installerLot12_(attendu) { return installer_('Lot 12', attendu, etapesLot12_()).texte; }
 function installerLot12Test() { return installerLot12_('TEST'); }
 function installerLot12Production() { return installerLot12_('PRODUCTION'); }
+
+// ████ Absences.gs ████
+// ═══════════════════════════════════════════════════════════════════════════════
+// LOT 14 — LA DEMANDE D'ABSENCE : RÉPONSE DE LA DIRECTION, ÉTAT POUR LE POSEUR, LIEN AVEC LE PLANNING
+//
+// Règles de Franck (19/11/2026) : le mail part UNIQUEMENT à la direction, avec deux boutons « Accepter » et « Refuser » ;
+// un clic ouvre une page de confirmation (absence-reponse.html), on y confirme : deux clics en tout. Lien unique, à usage
+// unique, valable quelques jours, sans connexion à l'appli. ACCEPTÉE : un mail au conducteur de travaux pour information, et
+// l'absence s'inscrit toute seule dans le planning (lu ici par le programme de publication du planning, lot 11) avec son
+// appellation — sauf maladie et accident : « Absent ». REFUSÉE : rien. Le poseur voit l'état de sa demande dans l'appli.
+// LE MOTIF N'EST VISIBLE QUE PAR LA DIRECTION.
+//
+//   - ÉTEINT tant que la propriété du script ABSENCE_DIRECTION (1 à 3 adresses de la direction) n'existe pas : sans elle,
+//     traiterAbsence fait exactement comme avant ;
+//   - le motif et les précisions ne sont écrits NULLE PART ailleurs que dans le mail à la direction et son PDF : ni dans le
+//     Sheet, ni dans Drive, ni dans l'onglet « Mails en attente », ni dans le Journal, ni dans une alerte ;
+//   - si le mail à la direction ne peut pas partir, la demande n'est PAS reçue : le téléphone la garde et la renvoie
+//     (même numéro : aucun doublon) ;
+//   - le lien est SIGNÉ avec la clé secrète du serveur (numéro de la demande + date limite) : rien de secret n'est écrit dans
+//     le Sheet, lire le Sheet ne permet pas de fabriquer un lien. Usage unique : dès qu'une réponse est enregistrée, le lien
+//     ne fait plus que la redire ;
+//   - l'onglet « Absences suivi » (aucun motif) tient l'état de chaque demande ; c'est lui que le planning vient LIRE.
+// Plan : docs/lot14-plan.md. Décisions : D14-… (DECISIONS.md).
+// ═══════════════════════════════════════════════════════════════════════════════
+const SHEET_ABS_SUIVI = 'Absences suivi';
+const ABS_ENTETES = ['Numéro', 'Reçue le', 'Compte', 'Demandeur', 'Date d’absence', 'Du', 'Au', 'Durée', 'Appellation (planning)', 'État', 'Décidée le', 'Mail au conducteur'];
+const COL_AB = { numero: 1, recue: 2, compte: 3, demandeur: 4, texte: 5, du: 6, au: 7, duree: 8, libelle: 9, etat: 10, decidee: 11, mail: 12 };
+const ABS_PROP_DIRECTION = 'ABSENCE_DIRECTION';     // adresses de la direction (jamais dans le dépôt). Absente = lot 14 éteint
+const ABS_PROP_ADRESSE = 'ADRESSE_APPLI';           // (facultatif) adresse des pages de l'appli, pour les liens du mail
+const ABS_ADRESSE_DEFAUT = 'https://chantiersloue.github.io/chantier-pro/';
+const ABS_PROP_A_ENVOYER = 'ABS_MAIL_A_ENVOYER';    // « 1 » : un mail au conducteur attend (regardé toutes les 10 minutes)
+const ABS_LIEN_JOURS = 7;                           // durée de vie d'un lien
+const ABS_DIRECTION_MAX = 3;
+const ABS_ETATS = { attente: 'En attente', acceptee: 'Acceptée', refusee: 'Refusée', sansReponse: 'Sans réponse' };
+const ABS_RESERVE = '(réservé à la direction)';
+const ABS_MAIL_A_ENVOYER = 'à envoyer';
+// Mots de santé : l'appellation est toujours « Absent », quoi qu'il soit coché par ailleurs
+const ABS_SANTE = ['medical', 'medicale', 'medecin', 'maladie', 'malade', 'accident', 'arret', 'hopital', 'hospitalisation', 'operation', 'chirurgie', 'sante', 'soins', 'blessure'];
+
+// ── Le réglage ──
+function absDirection_() {
+  const vues = {}, liste = [];
+  decouperAdresses_(propriete_(ABS_PROP_DIRECTION)).forEach(a => { const c = a.toLowerCase(); if (!vues[c]) { vues[c] = true; liste.push(a); } });
+  return liste.slice(0, ABS_DIRECTION_MAX);
+}
+function absAdresseAppli_() {
+  const p = String(propriete_(ABS_PROP_ADRESSE)).trim();
+  return /^https:\/\/[A-Za-z0-9.-]+\/[A-Za-z0-9._~\/-]*$/.test(p) ? (p.slice(-1) === '/' ? p : p + '/') : ABS_ADRESSE_DEFAUT;
+}
+
+// ── Textes et dates ──
+function absNorm_(v) { return String(v === undefined || v === null ? '' : v).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ').trim(); }
+// L'appellation écrite dans le planning et dans le mail au conducteur. Dans le doute : « Absent ».
+function absLibelle_(motif, imputation) {
+  const m = absNorm_(motif), mots = m.split(/[^a-z0-9]+/).filter(Boolean);
+  if (mots.some(x => ABS_SANTE.indexOf(x) > -1)) return 'Absent';
+  if (mots.indexOf('ecole') > -1) return 'École';
+  if (mots.indexOf('formation') > -1) return 'Formation';
+  if (mots.some(x => x === 'conge' || x === 'conges') || absNorm_(imputation).indexOf('conges payes') > -1) return 'Congés';
+  return 'Absent';
+}
+// « 30/11/2026 », « Du 30/11/2026 au 04/12/2026 », « Semaine 49 (du lundi 30/11/2026 au vendredi 04/12/2026) » → { du, au } en
+// AAAA-MM-JJ ; { du: '', au: '' } si ce n'est pas lisible (l'absence sera à inscrire à la main dans le planning)
+function absDates_(texte) {
+  const trouvees = [];
+  String(texte || '').replace(/(\d{1,2})\/(\d{1,2})\/(\d{4})/g, (tout, j, m, a) => {
+    const d = new Date(Date.UTC(+a, +m - 1, +j));
+    trouvees.push(d.getUTCFullYear() === +a && d.getUTCMonth() === +m - 1 && d.getUTCDate() === +j ? d.toISOString().slice(0, 10) : null);
+    return tout;
+  });
+  if (!trouvees.length || trouvees.length > 2 || trouvees.indexOf(null) > -1) return { du: '', au: '' };
+  const du = trouvees[0], au = trouvees[trouvees.length - 1];
+  if (au < du || (new Date(au) - new Date(du)) / 86400000 > 366) return { du: '', au: '' };
+  return { du: du, au: au };
+}
+function absIso_(v) {
+  if (Object.prototype.toString.call(v) === '[object Date]' && !isNaN(v.getTime())) return Utilities.formatDate(v, 'Europe/Paris', 'yyyy-MM-dd');
+  const t = String(v === undefined || v === null ? '' : v).trim();
+  return /^\d{4}-\d{2}-\d{2}$/.test(t) ? t : '';
+}
+function absMs_(v) { return Object.prototype.toString.call(v) === '[object Date]' ? v.getTime() : (Number(v) || 0); }
+function absQuand_(ms) { return ms ? Utilities.formatDate(new Date(ms), 'Europe/Paris', 'dd/MM/yyyy') + ' à ' + Utilities.formatDate(new Date(ms), 'Europe/Paris', 'HH:mm') : ''; }
+
+// ── L'onglet de suivi ──
+function absFeuille_() {
+  const sh = feuille_(SHEET_ABS_SUIVI, ABS_ENTETES);
+  return sh;
+}
+// Ligne d'une demande (par son numéro), ou 0
+function absChercher_(sh, id) {
+  const n = sh.getLastRow() - 1;
+  if (n < 1) return 0;
+  const v = sh.getRange(2, COL_AB.numero, n, 1).getValues();
+  for (let i = v.length - 1; i >= 0; i--) if (String(v[i][0]) === String(id)) return i + 2;
+  return 0;
+}
+
+// ── Le lien signé ──
+function absSignature_(id, limite) { return signer_('absence|' + id + '|' + limite); }
+function absLien_(id, limite, choix) {
+  let test = false;
+  try { test = environnementReel_().env === 'TEST'; } catch (e) {}
+  return absAdresseAppli_() + 'absence-reponse.html?n=' + encodeURIComponent(id) + '&e=' + limite + '&s=' + absSignature_(id, limite)
+    + '&c=' + (choix === 'refuser' ? 'refuser' : 'accepter') + '&env1=' + (test ? 'test' : 'prod');   // le serveur de cette page seulement (commun/config.js)
+}
+// { ok, id, expire } : la signature est vérifiée AVANT toute lecture du Sheet
+function absVerifierLien_(corps) {
+  const id = String(corps && corps.n || ''), limite = String(corps && corps.e || ''), s = String(corps && corps.s || '');
+  if (!idValide_(id) || !/^\d{12,14}$/.test(limite) || s.length < 20 || s.length > 80) return { ok: false };
+  if (!egaux_(s, absSignature_(id, limite))) return { ok: false };
+  return { ok: true, id: id, expire: maintenant_() > Number(limite) };
+}
+
+// ══════════════════════════════════════════════════════════
+// LA DEMANDE ARRIVE (appelée par traiterAbsence quand le réglage ABSENCE_DIRECTION existe)
+// ══════════════════════════════════════════════════════════
+function absTraiter_(brut, contexte, direction) {
+  const id = contexte && contexte.id ? String(contexte.id) : '';
+  if (!idValide_(id)) throw new Error('demande d’absence sans numéro');
+  const dates = absDates_(brut.dateAbsence), libelle = absLibelle_(brut.motif, brut.imputation);
+  const compte = contexte.auteurId ? String(contexte.auteurId) : '';
+
+  // 1. La ligne de suivi (aucun motif). Retrouvée par son numéro si le téléphone renvoie la demande.
+  const sh = absFeuille_();
+  let ligne = absChercher_(sh, id);
+  const nouvelle = !ligne;
+  if (nouvelle) {
+    sh.appendRow([id, new Date(maintenant_()), compte, brut.nom || '', brut.dateAbsence || '', dates.du, dates.au, brut.duree || '', libelle, ABS_ETATS.attente, '', ''].map(cellule_));
+    ligne = sh.getLastRow();
+    sh.getRange(ligne, COL_AB.du, 1, 2).setNumberFormat('@').setValues([[dates.du, dates.au]]);   // des textes, pas des dates de tableur
+    // L'onglet « Absences » d'avant, sans le motif ni les précisions (écrit ici, une seule fois par demande)
+    try {
+      const ancien = feuille_(SHEET_ABSENCES, ['Horodatage', 'Demandeur', 'Date dépôt', 'Date absence', 'Durée', 'Imputation', 'Motif', 'Précisions', 'Email perso']);
+      ancien.appendRow([new Date(maintenant_()), brut.nom || '', brut.dateDepot || '', brut.dateAbsence || '', brut.duree || '', brut.imputation || '', ABS_RESERVE, ABS_RESERVE, ''].map(cellule_));
+    } catch (err) { console.error('Sheet absences:', err.message); }
+  } else if (String(sh.getRange(ligne, COL_AB.etat).getValue()) !== ABS_ETATS.attente) {
+    return;   // déjà décidée (renvoi tardif d'un téléphone) : rien à refaire, la demande est « reçue »
+  }
+
+  // 2. Le PDF (avec le motif) : fabriqué une fois, joint au mail. Il n'est PAS rangé dans Drive.
+  const htmlPDF = modele_absence(validerImages_(brut), esc_);
+  const nomFichier = nomFichier_('Absence_' + String(brut.nom || '').replace(/ /g, '_') + '_' + String(brut.dateAbsence || '').replace(/\//g, '-') + '.pdf');
+  const pdf = HtmlService.createHtmlOutput(htmlPDF).getAs('application/pdf').setName(nomFichier);
+
+  // 3. Le mail à la direction, et à elle seule. S'il ne peut pas partir du tout, la demande reste dans le téléphone.
+  let quota = 0;
+  try { quota = MailApp.getRemainingDailyQuota(); } catch (e) {}
+  if (quota < direction.length) absReessayer_('le quota de mails du jour est atteint');
+  const limite = maintenant_() + ABS_LIEN_JOURS * 86400000;
+  const m = absMailDirection_(brut, absLien_(id, limite, 'accepter'), absLien_(id, limite, 'refuser'), limite);
+  let partis = 0, erreur = '';
+  direction.forEach(adresse => {
+    try {
+      GmailApp.sendEmail(adresse, m.sujet, m.texte, { htmlBody: m.html, attachments: [pdf.copyBlob().setName(nomFichier)], name: NOM_ENTREPRISE });
+      partis++; noter_('envoyé', adresse);
+    } catch (err) { erreur = err.message; console.error('Mail à la direction échoué :', err.message); }
+  });
+  if (!partis) absReessayer_('le mail à la direction n’a pas pu partir (' + erreur + ')');
+  // Une adresse sur plusieurs a échoué : la direction est prévenue par l'autre ; Franck l'apprend, sans aucun détail de la demande
+  if (partis < direction.length) alerte_('Une demande d’absence est partie à ' + partis + ' adresse(s) de la direction sur ' + direction.length + ' (' + erreur + '). Vérifier le réglage ' + ABS_PROP_DIRECTION + '.', 'erreur');
+
+}
+// « Le téléphone réessaiera » : aucune alerte quotidienne, la fiche reste dans la file du téléphone
+function absReessayer_(raison) { const e = new Error('Demande gardée dans le téléphone : ' + raison + '. Nouvel essai automatique.'); e.occupe = true; throw e; }
+
+// Le mail à la direction : texte brut (liens écrits en entier) et version mise en forme avec deux gros boutons, faits en
+// tableau (la seule façon d'avoir de vrais boutons dans Outlook)
+function absMailDirection_(brut, lienOui, lienNon, limite) {
+  const nom = brut.nom || '?', jusquau = Utilities.formatDate(new Date(limite), 'Europe/Paris', 'dd/MM/yyyy');
+  const lignes = [['Salarié', nom], ['Date', brut.dateAbsence || '?'], ['Durée', brut.duree || '?'], ['Heures imputées sur', brut.imputation || '—'],
+    ['Motif', brut.motif || '?'], ['Précisions', brut.precisions || '—'], ['Demande déposée le', brut.dateDepot || '?']];
+  const sujet = '[Loué App] Demande d\'absence — ' + nom + ' — ' + (brut.dateAbsence || '?');
+  const texte = 'Bonjour,\n\nDemande d\'absence de ' + nom + '.\n\n' + lignes.slice(1).map(l => l[0] + ' : ' + l[1]).join('\n')
+    + '\n\nPour ACCEPTER, ouvrez ce lien puis confirmez :\n' + lienOui + '\n\nPour REFUSER, ouvrez ce lien puis confirmez :\n' + lienNon
+    + '\n\nLiens valables jusqu\'au ' + jusquau + ', pour une seule réponse. La demande signée est en pièce jointe.\n\nLoué App';
+  const bouton = (lien, libelle, couleur) => '<td bgcolor="' + couleur + '" style="background:' + couleur + ';padding:16px 30px;border-radius:8px">'
+    + '<a href="' + esc_(lien) + '" style="font-family:Arial,Helvetica,sans-serif;font-size:19px;font-weight:bold;color:#ffffff;text-decoration:none">' + libelle + '</a></td>';
+  const html = '<div style="font-family:Arial,Helvetica,sans-serif;font-size:15px;color:#1A2B4A;line-height:1.5">'
+    + '<p>Bonjour,</p><p>Demande d\'absence de <b>' + esc_(nom) + '</b>.</p>'
+    + '<table cellpadding="0" cellspacing="0" border="0" style="margin:6px 0 20px">'
+    + lignes.slice(1).map(l => '<tr><td style="padding:3px 16px 3px 0;color:#555555;vertical-align:top">' + esc_(l[0]) + '</td><td style="padding:3px 0"><b>' + esc_(l[1]).replace(/\n/g, '<br>') + '</b></td></tr>').join('')
+    + '</table>'
+    + '<table cellpadding="0" cellspacing="0" border="0"><tr>' + bouton(lienOui, '✅ Accepter', '#1E7B34') + '<td width="18">&nbsp;</td>' + bouton(lienNon, '❌ Refuser', '#B3261E') + '</tr></table>'
+    + '<p style="font-size:13px;color:#555555;margin-top:18px">Un clic ouvre une page qui rappelle la demande : vous y confirmez votre réponse. '
+    + 'Liens valables jusqu\'au ' + jusquau + ', pour une seule réponse. La demande signée est en pièce jointe.</p>'
+    + '<p style="font-size:12px;color:#777777">Si les boutons ne s\'affichent pas — Accepter : <a href="' + esc_(lienOui) + '">' + esc_(lienOui) + '</a><br>Refuser : <a href="' + esc_(lienNon) + '">' + esc_(lienNon) + '</a></p>'
+    + '<p>Loué App</p></div>';
+  return { sujet: sujet, texte: texte, html: html };
+}
+
+// ══════════════════════════════════════════════════════════
+// LA DIRECTION RÉPOND (page absence-reponse.html — sans compte : c'est le lien signé qui fait foi)
+// ══════════════════════════════════════════════════════════
+const ABS_REFUS_LIEN = { ok: false, code: 'LIEN_INVALIDE', message: 'Ce lien n’est pas valable. Ouvrez-le depuis le mail de la demande.' };
+function absResume_(r, expire) {
+  const etat = String(r[COL_AB.etat - 1]);
+  return { demandeur: String(r[COL_AB.demandeur - 1]), dateAbsence: String(r[COL_AB.texte - 1]), duree: String(r[COL_AB.duree - 1]),
+    etat: etat, decideeLe: absQuand_(absMs_(r[COL_AB.decidee - 1])), expire: etat === ABS_ETATS.attente && !!expire };
+}
+// Rappelle la demande (qui, quelles dates, quelle durée) : jamais le motif. Ne modifie rien.
+function absVoir_(corps) {
+  const lien = absVerifierLien_(corps);
+  if (!lien.ok) return ABS_REFUS_LIEN;
+  const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_ABS_SUIVI), ligne = sh ? absChercher_(sh, lien.id) : 0;
+  if (!ligne) return ABS_REFUS_LIEN;
+  return { ok: true, code: 'OK', message: '', data: absResume_(sh.getRange(ligne, 1, 1, ABS_ENTETES.length).getValues()[0], lien.expire) };
+}
+// Enregistre la réponse. Usage unique : une demande déjà décidée ne change plus ; on redit seulement la réponse donnée.
+function absDecider_(corps) {
+  const lien = absVerifierLien_(corps);
+  if (!lien.ok) return ABS_REFUS_LIEN;
+  const choix = corps.choix === 'accepter' ? ABS_ETATS.acceptee : corps.choix === 'refuser' ? ABS_ETATS.refusee : '';
+  if (!choix) return { ok: false, code: 'DONNEES_INVALIDES', message: 'Réponse inconnue.' };
+  const verrou = LockService.getScriptLock();
+  if (!verrou.tryLock(10000)) return { ok: false, code: 'SERVEUR_OCCUPE', message: 'Le serveur est occupé : appuyez de nouveau dans un instant.' };
+  let sh, ligne, r;
+  try {
+    sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_ABS_SUIVI);
+    ligne = sh ? absChercher_(sh, lien.id) : 0;
+    if (!ligne) return ABS_REFUS_LIEN;
+    r = sh.getRange(ligne, 1, 1, ABS_ENTETES.length).getValues()[0];
+    if (String(r[COL_AB.etat - 1]) !== ABS_ETATS.attente) return { ok: true, code: 'DEJA_DECIDE', message: 'Une réponse a déjà été donnée.', data: absResume_(r, false) };
+    if (lien.expire) return { ok: false, code: 'LIEN_EXPIRE', message: 'Ce lien a expiré (' + ABS_LIEN_JOURS + ' jours). Le salarié doit refaire sa demande.', data: absResume_(r, true) };
+    const quand = new Date(maintenant_());
+    r[COL_AB.etat - 1] = choix; r[COL_AB.decidee - 1] = quand; r[COL_AB.mail - 1] = choix === ABS_ETATS.acceptee ? ABS_MAIL_A_ENVOYER : '';
+    sh.getRange(ligne, COL_AB.etat, 1, 3).setValues([[choix, quand, r[COL_AB.mail - 1]]]);
+    if (choix === ABS_ETATS.acceptee) PropertiesService.getScriptProperties().setProperty(ABS_PROP_A_ENVOYER, '1');
+    SpreadsheetApp.flush();
+  } finally { verrou.releaseLock(); }
+  // Acceptée : le conducteur est prévenu (hors du verrou ; s'il ne part pas, le passage de 10 minutes le renverra)
+  if (choix === ABS_ETATS.acceptee) { try { absMailConducteur_(sh, ligne); } catch (err) { console.error('Mail au conducteur :', err.message); } }
+  return { ok: true, code: 'OK', message: 'Réponse enregistrée.', data: absResume_(r, false) };
+}
+
+// ── Le mail au conducteur de travaux (pour information) : qui, quand, quelle durée, l'appellation du planning. JAMAIS le motif. ──
+function absConducteurs_() {
+  const vues = {}, liste = [];
+  getContactsRaw().filter(r => String(r[5]).toUpperCase() === 'O').forEach(r => decouperAdresses_(r[2]).forEach(a => { if (!vues[a.toLowerCase()]) { vues[a.toLowerCase()] = true; liste.push(a); } }));
+  if (!liste.length) decouperAdresses_(emailAdmin_()).forEach(a => liste.push(a));
+  return liste;
+}
+// Rend true si le mail est parti (ou n'a plus à partir)
+function absMailConducteur_(sh, ligne) {
+  const r = sh.getRange(ligne, 1, 1, ABS_ENTETES.length).getValues()[0];
+  if (String(r[COL_AB.etat - 1]) !== ABS_ETATS.acceptee || String(r[COL_AB.mail - 1]) !== ABS_MAIL_A_ENVOYER) return true;
+  const a = absConducteurs_();
+  if (!a.length) { sh.getRange(ligne, COL_AB.mail).setValue('aucune adresse de conducteur'); return true; }
+  let quota = 0;
+  try { quota = MailApp.getRemainingDailyQuota(); } catch (e) {}
+  if (quota < a.length) return false;
+  const nom = String(r[COL_AB.demandeur - 1]) || '?', quand = String(r[COL_AB.texte - 1]) || '?';
+  GmailApp.sendEmail(a.join(', '), '[Loué App] Absence acceptée — ' + nom + ' — ' + quand,
+    'Bonjour,\n\nLa direction a accepté une demande d\'absence.\n\nSalarié : ' + nom + '\nDate : ' + quand + '\nDurée : ' + (String(r[COL_AB.duree - 1]) || '?')
+    + '\nDans le planning : ' + String(r[COL_AB.libelle - 1]) + '\n\nElle s\'inscrit toute seule dans le planning (dans la nuit, ou à la prochaine publication).\n\nLoué App',
+    { name: NOM_ENTREPRISE });
+  sh.getRange(ligne, COL_AB.mail).setValue('envoyé le ' + absQuand_(maintenant_()));
+  return true;
+}
+// Toutes les 10 minutes (traiterComptes) : les mails au conducteur qui n'ont pas pu partir. Ne lève jamais d'erreur.
+function absPassage_() {
+  try {
+    const props = PropertiesService.getScriptProperties();
+    if (props.getProperty(ABS_PROP_A_ENVOYER) !== '1') return 'rien';
+    const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_ABS_SUIVI);
+    const n = sh ? sh.getLastRow() - 1 : 0;
+    let restent = 0, partis = 0;
+    if (n > 0) sh.getRange(2, COL_AB.mail, n, 1).getValues().forEach((l, i) => {
+      if (String(l[0]) !== ABS_MAIL_A_ENVOYER) return;
+      let fait = false;
+      if (partis < 5) { try { fait = absMailConducteur_(sh, i + 2); } catch (err) { console.error('absPassage_ :', err.message); } }
+      if (fait) partis++; else restent++;
+    });
+    if (!restent) props.deleteProperty(ABS_PROP_A_ENVOYER);
+    return partis + ' parti(s), ' + restent + ' en attente';
+  } catch (e) { console.error('absPassage_ :', e.message); return 'erreur : ' + e.message; }
+}
+
+// ══════════════════════════════════════════════════════════
+// LE POSEUR VOIT L'ÉTAT DE SES DEMANDES (action « absencesMiennes », avec son compte)
+// ══════════════════════════════════════════════════════════
+function absMiennes_(compte) {
+  const suivi = absDirection_().length > 0;
+  const rep = demandes => ({ ok: true, code: 'OK', message: '', data: { suivi: suivi, demandes: demandes, jours: ABS_LIEN_JOURS } });
+  if (!suivi || !compte || !compte.id) return rep([]);
+  const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_ABS_SUIVI), n = sh ? sh.getLastRow() - 1 : 0;
+  if (n < 1) return rep([]);
+  const moi = String(compte.id), limite = maintenant_() - ABS_LIEN_JOURS * 86400000;
+  const demandes = sh.getRange(2, 1, n, ABS_ENTETES.length).getValues().filter(r => String(r[COL_AB.compte - 1]) === moi).map(r => {
+    const recue = absMs_(r[COL_AB.recue - 1]);
+    let etat = String(r[COL_AB.etat - 1]);
+    if (etat === ABS_ETATS.attente && recue && recue < limite) etat = ABS_ETATS.sansReponse;      // le lien de la direction a expiré
+    if ([ABS_ETATS.attente, ABS_ETATS.acceptee, ABS_ETATS.refusee, ABS_ETATS.sansReponse].indexOf(etat) < 0) etat = ABS_ETATS.attente;
+    return { id: String(r[COL_AB.numero - 1]), recueLe: recue, dateAbsence: String(r[COL_AB.texte - 1]), duree: String(r[COL_AB.duree - 1]), etat: etat,
+      decideeLe: absQuand_(absMs_(r[COL_AB.decidee - 1])) };
+  });
+  return rep(demandes.sort((a, b) => b.recueLe - a.recueLe).slice(0, 15));
+}
 
 // ████ Planifies.gs ████
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
@@ -6181,6 +6492,11 @@ function verifierConfig() {
   const restes = presents.filter(d => /^outilTest/.test(d));
   if (restes.length) ok(false, 'Déclencheur d’essai resté en place (' + restes.join(', ') + ') : le supprimer (éditeur → icône réveil « Déclencheurs » → ⋮ → Supprimer)');
   if (ou.env === 'TEST' && (porte || cleOutils)) lignes.push('Outils d’essai (copie TEST) : porte ' + (porte ? 'présente' : 'absente') + ', clé ' + (cleOutils ? 'présente' : 'absente'));
+  // Lot 14 : les demandes d'absence (réglage ABSENCE_DIRECTION). Les adresses ne sont pas affichées.
+  const absTape = String(propriete_(ABS_PROP_DIRECTION)).trim(), absLues = absDirection_();
+  if (!absTape) lignes.push('✅ Absences (propriété ' + ABS_PROP_DIRECTION + ') : éteint — les demandes partent comme avant le lot 14');
+  else if (!absLues.length) ok(false, 'Absences (propriété ' + ABS_PROP_DIRECTION + ') : aucune adresse lisible, lu comme éteint (attendu : 1 à ' + ABS_DIRECTION_MAX + ' adresses séparées par une virgule)');
+  else ok(true, 'Absences (propriété ' + ABS_PROP_DIRECTION + ') : allumé — ' + absLues.length + ' adresse(s) de la direction ; boutons du mail vers ' + absAdresseAppli_());
   lignes.push("Mails encore possibles aujourd'hui : " + MailApp.getRemainingDailyQuota());
   Logger.log(lignes.join('\n'));
   return lignes.join('\n');

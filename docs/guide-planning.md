@@ -44,11 +44,18 @@ Une case par jour et par gars : jusqu'à 4 tâches, l'une sous l'autre (Ctrl+Ent
 
 Publie la semaine en cours et, dès qu'elle est prête, la suivante. Le lundi, le PDF de la semaine finie disparaît tout seul de l'appli.
 
+## Les absences acceptées par la direction (lot 14)
+
+- Une demande d'absence **acceptée** s'inscrit toute seule dans les cases du gars : « Congés », « École », « Formation », sinon « Absent ». Dans la nuit, et toujours juste avant une publication.
+- L'onglet ***ABSENCES*** en tient le journal : ce qui a été inscrit, ce qui était écrit dans la case avant, et **ce qui reste à inscrire à la main** (gars sans compte de l'appli dans *SALARIÉS*, dates illisibles).
+- Tu peux corriger une case après coup : elle ne sera pas réécrite.
+- Une semaine déjà publiée où une absence vient s'inscrire affiche « ⚠ Modifié depuis la publication » : recoche **Publier**.
+
 ## À ne pas faire
 
 - Ne supprime pas la **colonne H** (cachée) : c'est le repère des programmes. Si un onglet devient « illisible » : Fichier → Historique des versions → restaurer.
 - Ne renomme pas un onglet de semaine. N'ajoute pas de ligne à la main : passe par *Ajouter un gars*.
-- Ne modifie pas l'onglet *APPLI* ni les colonnes A à D de *LISTES* : ils sont écrits par le programme.
+- Ne modifie pas les onglets *APPLI* et *ABSENCES*, ni les colonnes A à D de *LISTES* : ils sont écrits par le programme.
 
 ## Si quelque chose ne va pas
 

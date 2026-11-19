@@ -1,5 +1,5 @@
 // PLANNING LOUÉ — programme de publication, à coller dans un projet Apps Script À PART (script.google.com), dans le compte de Loué.
-// NE PAS MODIFIER ICI : fichier fabriqué par outils/construire-planning.js — empreinte ee792d7ed6
+// NE PAS MODIFIER ICI : fichier fabriqué par outils/construire-planning.js — empreinte 792648d37f
 
 // ─────────────── Regles.gs ───────────────
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -30,7 +30,7 @@ const PL_CAS_NON_RECOPIES = ['Absent', 'Congés', 'École', 'Formation', 'Féri�
 // Mots à ne jamais écrire dans le planning (santé) : la case passe en rouge. Un filet, pas une garantie.
 const PL_MOTS_A_EVITER = ['arret', 'malade', 'maladie', 'accident', 'accidente', 'hopital', 'hospitalise', 'hospitalisation', 'medecin', 'medical',
   'operation', 'opere', 'chirurgie', 'blesse', 'blessure', 'depression', 'grossesse', 'enceinte', 'covid', 'grippe', 'cancer', 'handicap', 'psy', 'at', 'mp'];
-const PL_ONGLETS = { listes: 'LISTES', salaries: 'SALARIÉS', affiche: 'AFFICHE A3', appli: 'APPLI', historique: 'HISTORIQUE' };
+const PL_ONGLETS = { listes: 'LISTES', salaries: 'SALARIÉS', affiche: 'AFFICHE A3', appli: 'APPLI', historique: 'HISTORIQUE', absences: 'ABSENCES' };
 // Un onglet de semaine : lignes et colonnes fixes
 const PL_S = { ligTitre: 1, ligPublier: 2, ligEntetes: 3, lig1: 4, colVehicule: 1, colNom: 2, colJour1: 3, colMarque: 8, nbCol: 8,
   colCase: 2, colEtat: 3 };   // ligne 2 : A2 = « Publier pour les gars », B2 = la case à cocher, C2 = l'état
@@ -206,9 +206,11 @@ function plLireSemaine_(valeurs) {
   const lundi = cel(PL_S.ligTitre, PL_S.colMarque);
   if (!plEstIso_(lundi) || plLundi_(lundi) !== lundi) return null;
   const s = { lundi: lundi, publier: (v[PL_S.ligPublier - 1] || [])[PL_S.colCase - 1] === true, etat: cel(PL_S.ligPublier, PL_S.colEtat), pose: [], atelier: [] };
+  const lignesDe = {};   // nom (sans majuscules ni accents) → numéro de sa ligne dans l'onglet ; 0 si le nom y est deux fois
   const jours = l => PL_JOURS.map((_, i) => brut(l, PL_S.colJour1 + i));
   for (let l = PL_S.lig1; l <= v.length; l++) {
     const marque = cel(l, PL_S.colMarque);
+    if (marque === PL_M.pose || marque === PL_M.atelier) { const n = plNorm_(cel(l, PL_S.colNom)); if (n) lignesDe[n] = lignesDe[n] === undefined ? l : 0; }
     if (marque === PL_M.pose) s.pose.push({ nom: cel(l, PL_S.colNom), vehicule: cel(l, PL_S.colVehicule), jours: jours(l), vehiculesJour: ['', '', '', '', ''] });
     else if (marque === PL_M.vehicule && s.pose.length) s.pose[s.pose.length - 1].vehiculesJour = jours(l).map(plTexte_);
     else if (marque === PL_M.atelier) s.atelier.push({ nom: cel(l, PL_S.colNom), jours: jours(l) });
@@ -216,6 +218,7 @@ function plLireSemaine_(valeurs) {
     // On ne devine pas (une semaine lue à moitié serait publiée à moitié).
     else if (marque !== PL_M.titre && marque !== PL_M.vehicule && (v[l - 1] || []).slice(0, 7).some(x => plTexte_(x) !== '')) return null;
   }
+  Object.defineProperty(s, 'lignesDe', { value: lignesDe, enumerable: false });   // à part : n'entre ni dans la grille ni dans l'empreinte
   return s;
 }
 // Le tableau de valeurs à écrire dans l'onglet, à partir du modèle (l'inverse de plLireSemaine_)
@@ -460,6 +463,32 @@ function plStyles_(valeurs, vehicules, index) {
 // Une date et une heure écrites pour Franck : « 20/11 à 16 h 10 » (d = objet Date, fuseau de Paris géré par l'appelant)
 function plQuand_(jj, mm, hh, mi) { return plDeux_(jj) + '/' + plDeux_(mm) + ' à ' + hh + ' h ' + plDeux_(mi); }
 
+// ── Lot 14 : une absence acceptée par la direction, inscrite dans une case ──
+// Les jours ouvrés (lundi à vendredi) d'une absence, du … au … compris
+function plJoursAbsence_(du, au) {
+  const jours = [];
+  if (!plEstIso_(du) || !plEstIso_(au) || au < du) return jours;
+  for (let j = du, n = 0; j <= au && n < 400; j = plDecaler_(j, 1), n++) { const rang = (plDate_(j).getUTCDay() + 6) % 7; if (rang < 5) jours.push(j); }
+  return jours;
+}
+// Ce que devient une case quand une absence s'y inscrit. duree : « Matin », « Après-midi », sinon la journée entière.
+//   journée entière : la case devient l'appellation (« Congés ») ; ce qui y était écrit est rendu dans « avant » ;
+//   demi-journée    : « ½ Congés » est ajouté, avant (matin) ou après (après-midi) ce qui est déjà écrit ; un chantier seul devient « ½ … ».
+// Rend { valeur, change, avant }. Ne change rien si l'absence y est déjà.
+function plAvecAbsence_(valeur, duree, libelle) {
+  const d = plNorm_(duree), matin = d === 'matin', demi = matin || d === 'apres-midi' || d === 'apres midi';
+  const lignes = plMorceaux_(valeur), avant = lignes.join(PL_SEPARATEUR_AFFICHE);
+  const deja = lignes.some(l => plNorm_(plPart_(l).texte) === plNorm_(libelle));
+  if (!demi) {
+    if (lignes.length === 1 && deja && !plPart_(lignes[0]).quarts) return { valeur: lignes[0], change: false, avant: '' };
+    return { valeur: libelle, change: true, avant: avant };
+  }
+  if (deja) return { valeur: lignes.join('\n'), change: false, avant: '' };
+  const part = PL_PARTS[2] + ' ' + libelle;
+  const autres = lignes.length === 1 && !plPart_(lignes[0]).quarts ? [PL_PARTS[2] + ' ' + lignes[0]] : lignes;
+  return { valeur: (matin ? [part].concat(autres) : autres.concat([part])).join('\n'), change: true, avant: '' };
+}
+
 // ─────────────── Affiche.gs ───────────────
 // ═══════════════════════════════════════════════════════════════════════════════
 // PLANNING LOUÉ — ÉCRIRE L'AFFICHE COMPACTE DANS UN ONGLET (lot 11.1)
@@ -528,7 +557,10 @@ function plAdresseExport_(idClasseur, idOnglet, papier) {
 //     publiée a été modifiée depuis ;
 //   - chaque nuit (passageDeNuit) : il recopie la liste des chantiers depuis le Sheet de l'appli (LECTURE SEULE), retire les
 //     PDF des semaines terminées, range les semaines de plus de deux mois dans « HISTORIQUE » et efface l'historique de
-//     plus de 12 mois.
+//     plus de 12 mois ;
+//   - lot 14 : chaque nuit, et toujours juste avant de publier, il LIT dans le Sheet de l'appli les demandes d'absence
+//     ACCEPTÉES par la direction (onglet « Absences suivi » : aucun motif n'y est écrit) et les inscrit dans les semaines,
+//     avec leur appellation (Congés, École, Formation, sinon « Absent »). Le journal est dans l'onglet « ABSENCES ».
 // Il ne supprime jamais rien pour de bon (corbeille), et ne met à la corbeille que les fichiers qu'il a LUI-MÊME déposés
 // (il garde leurs identifiants). Il n'écrit JAMAIS dans le Sheet de l'appli. Il n'envoie aucun mail.
 //
@@ -547,6 +579,12 @@ const PUB_HISTORIQUE_JOURS = 365;         // l'historique est effacé au bout de
 const PUB_APPLI_JOURS = 70;               // lignes gardées dans l'onglet APPLI (l'appli y reconnaît les coupures)
 const PUB_APPLI_TITRES = ['Sorte', 'Lundi', 'Compte', 'N° du chantier', 'Publié le', '', 'À voir (écrit par le programme)', ''];
 const PUB_HISTO_TITRES = ['Lundi', 'Équipe', 'Nom'].concat(PL_JOURS);
+// Lot 14 : l'onglet de l'appli où sont les demandes d'absence et leur état (lu seulement), et le journal tenu dans le planning
+const PUB_ABS_APPLI = 'Absences suivi';
+const PUB_ABS_COL = { numero: 0, compte: 2, demandeur: 3, du: 5, au: 6, duree: 7, libelle: 8, etat: 9 };
+const PUB_ABS_ACCEPTEE = 'Acceptée';
+const PUB_ABS_TITRES = ['Numéro', 'Nom (planning)', 'Du', 'Au', 'Durée', 'Appellation', 'Résultat', 'Jours inscrits', 'Ce qui était écrit', 'Vue le'];
+const PUB_ABS_GARDER_JOURS = 365;
 var PUB_HORLOGE_ = null;                  // remplacée dans les tests
 
 function pubMaintenant_() { return typeof PUB_HORLOGE_ === 'function' ? PUB_HORLOGE_() : Date.now(); }
@@ -600,7 +638,7 @@ function pubPassage_() {
   if (!id) return 'pas réglé';
   const ss = SpreadsheetApp.openById(id), etat = pubEtat_();
   const lundiCourant = plLundi_(pubAujourdhui_()), dernier = plDecaler_(lundiCourant, PUB_SEMAINES_DEVANT * 7);
-  let listes = null;
+  let listes = null, absencesVues = false;
   const bilan = [];
   pubOngletsSemaine_(ss).forEach(x => {
     if (x.lundi < plDecaler_(lundiCourant, -7) || x.lundi > dernier) return;
@@ -608,6 +646,8 @@ function pubPassage_() {
     const coche = ligne[0] === true, connue = etat.semaines[x.lundi];
     if (!coche && !connue) return;                           // rien de demandé, jamais publiée : l'onglet n'est même pas lu
     listes = listes || pubListes_(ss);
+    // Lot 14 : avant de publier, les absences acceptées sont inscrites (une fois par passage) : le PDF les montre
+    if (coche && !absencesVues) { absencesVues = true; try { pubAbsences_(ss); } catch (err) { console.error('Absences :', pubMessage_(err)); } }
     if (coche) bilan.push(x.sh.getName() + ' : ' + pubPublier_(ss, x, etat, listes, lundiCourant));
     else if (x.lundi >= lundiCourant) pubSurveiller_(x, etat, plTexte_(ligne[1]));
   });
@@ -745,6 +785,7 @@ function pubNuit_() {
   // Chaque étape est indépendante : une panne de l'une n'empêche pas les autres
   const etape = (nom, f) => { try { bilan.push(nom + ' : ' + f()); } catch (err) { console.error(nom + ' :', pubMessage_(err)); bilan.push(nom + ' : ⚠ ' + pubMessage_(err)); } };
   etape('liste des chantiers', () => pubListe_(ss));
+  etape('absences', () => pubAbsences_(ss));
   etape('PDF des semaines terminées', () => pubRetirerTerminees_(etat, lundiCourant));
   etape('historique', () => pubRanger_(ss, etat, aujourdhui));
   etat.nuit = aujourdhui;
@@ -752,16 +793,18 @@ function pubNuit_() {
   return bilan.join(' ; ');
 }
 
-// La liste des chantiers : recopiée depuis l'onglet Chantiers du Sheet de l'appli. SEULE fonction qui ouvre le Sheet de
-// l'appli, et elle ne fait que LIRE (un test le vérifie).
-function pubLireChantiersAppli_() {
+// SEULE fonction qui ouvre le Sheet de l'appli, et elle ne fait que LIRE (un test le vérifie) : les lignes d'un onglet, sans
+// sa ligne de titres. facultatif : un onglet absent rend une liste vide au lieu d'une erreur.
+function pubLireAppli_(onglet, nbCol, facultatif) {
   const id = pubProp_(PUB_PROP.appli);
   if (!id) throw new Error('réglage ' + PUB_PROP.appli + ' absent');
-  const sh = SpreadsheetApp.openById(id).getSheetByName('Chantiers');
-  if (!sh) throw new Error('onglet Chantiers absent du Sheet de l’appli');
+  const sh = SpreadsheetApp.openById(id).getSheetByName(onglet);
+  if (!sh) { if (facultatif) return []; throw new Error('onglet ' + onglet + ' absent du Sheet de l’appli'); }
   const n = sh.getLastRow() - 1;
-  return n > 0 ? sh.getRange(2, 1, n, 6).getValues() : [];
+  return n > 0 ? sh.getRange(2, 1, n, nbCol).getValues() : [];
 }
+// La liste des chantiers : recopiée depuis l'onglet Chantiers du Sheet de l'appli
+function pubLireChantiersAppli_() { return pubLireAppli_('Chantiers', 6, false); }
 function pubListe_(ss) {
   const li = ss.getSheetByName(PL_ONGLETS.listes);
   if (!li) throw new Error('onglet ' + PL_ONGLETS.listes + ' absent du planning');
@@ -862,4 +905,84 @@ function arreterPublication() {
   let n = 0;
   ScriptApp.getProjectTriggers().forEach(t => { if (['passagePublication', 'passageDeNuit'].indexOf(t.getHandlerFunction()) > -1) { ScriptApp.deleteTrigger(t); n++; } });
   return n + ' minuterie(s) retirée(s)';
+}
+
+// ══════════════════════════════════════════════════════════
+// LOT 14 — LES ABSENCES ACCEPTÉES, INSCRITES DANS LE PLANNING
+// ══════════════════════════════════════════════════════════
+// Lit (lecture seule) les demandes d'absence de l'appli ; pour chaque demande ACCEPTÉE, écrit l'appellation dans les cases du
+// gars (retrouvé par son compte de l'appli, colonne D de SALARIÉS), jour par jour, dans les semaines qui existent. Un jour
+// inscrit ne l'est jamais deux fois : ce que Franck corrige ensuite à la main n'est pas réécrit. Une semaine pas encore créée :
+// l'absence attend. Tout est noté dans l'onglet ABSENCES (une ligne par demande). Seule la case du jour est écrite.
+function pubAbsences_(ss) {
+  const demandes = pubLireAppli_(PUB_ABS_APPLI, 12, true).filter(r => plTexte_(r[PUB_ABS_COL.etat]) === PUB_ABS_ACCEPTEE && plTexte_(r[PUB_ABS_COL.numero]));
+  if (!demandes.length) return 'aucune';
+  // Le journal : une ligne par demande, retrouvée par son numéro
+  let journal = ss.getSheetByName(PL_ONGLETS.absences);
+  if (!journal) { journal = ss.insertSheet(PL_ONGLETS.absences, ss.getSheets().length); journal.getRange(1, 1, 1, PUB_ABS_TITRES.length).setValues([PUB_ABS_TITRES]); }
+  const nbJournal = Math.max(0, journal.getLastRow() - 1);
+  const lignesJournal = nbJournal ? journal.getRange(2, 1, nbJournal, PUB_ABS_TITRES.length).getValues() : [];
+  const connues = {};
+  lignesJournal.forEach((l, i) => { connues[plTexte_(l[0])] = { ligne: i + 2, valeurs: l.map(plTexte_) }; });
+  // Qui est qui : compte de l'appli → nom du planning
+  const sal = ss.getSheetByName(PL_ONGLETS.salaries);
+  const comptes = plComptes_(sal && sal.getLastRow() >= 2 ? sal.getRange(2, 1, sal.getLastRow() - 1, 4).getValues() : []).comptes;
+  const nomDe = {};
+  Object.keys(comptes).forEach(nom => { if (comptes[nom]) nomDe[comptes[nom].toLowerCase()] = nom; });
+  const semaines = {};   // lundi → { sh, s } (lu une fois par passage)
+  const semaine = lundi => {
+    if (semaines[lundi] === undefined) { const sh = ss.getSheetByName(plNomOnglet_(lundi)); let s = null; try { s = sh ? pubLireOnglet_(sh) : null; } catch (err) { s = null; } semaines[lundi] = sh && s && s.lundi === lundi ? { sh: sh, s: s } : null; }
+    return semaines[lundi];
+  };
+  const limite = plDecaler_(pubAujourdhui_(), -7);
+  let inscrits = 0, aLaMain = 0;
+  demandes.forEach(r => {
+    const id = plTexte_(r[PUB_ABS_COL.numero]), du = pubIso_(r[PUB_ABS_COL.du]), au = pubIso_(r[PUB_ABS_COL.au]);
+    const duree = plTexte_(r[PUB_ABS_COL.duree]), compte = plTexte_(r[PUB_ABS_COL.compte]).toLowerCase();
+    const libelle = PL_CAS.indexOf(plTexte_(r[PUB_ABS_COL.libelle])) > -1 ? plTexte_(r[PUB_ABS_COL.libelle]) : 'Absent';
+    const connue = connues[id];
+    const dejaInscrits = connue ? connue.valeurs[7].split(/[ ,]+/).filter(plEstIso_) : [];
+    if (connue && connue.valeurs[6].indexOf('inscrite') === 0 && connue.valeurs[6].indexOf('en attente') < 0) return;   // entièrement inscrite
+    if (plEstIso_(au) && au < limite && !dejaInscrits.length && connue) return;                                          // passée : on n'y revient plus
+    const nom = nomDe[compte] || '';
+    let resultat = '', ecrits = connue ? connue.valeurs[8] : '';
+    const jours = plJoursAbsence_(du, au), faits = dejaInscrits.slice();
+    if (!jours.length) resultat = '⚠ à inscrire à la main : dates illisibles';
+    else if (!nom) resultat = '⚠ à inscrire à la main : aucun gars du planning n’a ce compte de l’appli (onglet SALARIÉS, colonne D)';
+    else {
+      let enAttente = 0, absent = 0;
+      jours.forEach(jour => {
+        if (faits.indexOf(jour) > -1) return;
+        const x = semaine(plLundi_(jour));
+        if (!x) { enAttente++; return; }
+        const ligne = x.s.lignesDe[nom];
+        if (!ligne) { absent++; return; }
+        const col = PL_S.colJour1 + (plDate_(jour).getUTCDay() + 6) % 7, cellule = x.sh.getRange(ligne, col);
+        const a = plAvecAbsence_(cellule.getValue(), duree, libelle);
+        if (a.change) { cellule.setNumberFormat('@').setValue(a.valeur); if (a.avant) ecrits += (ecrits ? ' ; ' : '') + plJjmm_(jour) + ' : ' + a.avant; }
+        faits.push(jour); inscrits++;
+      });
+      resultat = (faits.length ? 'inscrite : ' + faits.length + ' jour(s)' : 'pas encore inscrite')
+        + (enAttente ? ' ; ' + enAttente + ' jour(s) en attente (semaine pas encore créée ou illisible)' : '')
+        + (absent ? ' ; ⚠ ' + absent + ' jour(s) à inscrire à la main : le gars n’est pas dans la semaine' : '');
+      if (!faits.length && !enAttente && !absent) resultat = 'inscrite : 0 jour(s)';
+    }
+    if (resultat.indexOf('à inscrire à la main') > -1) aLaMain++;
+    const ligneJournal = [id, nom ? pubNomAffiche_(semaines, nom) || plTexte_(r[PUB_ABS_COL.demandeur]) : plTexte_(r[PUB_ABS_COL.demandeur]), du, au, duree, libelle, resultat,
+      faits.sort().join(' '), ecrits.slice(0, 500), pubQuand_()];
+    if (connue) { if (connue.valeurs[6] !== resultat || connue.valeurs[7] !== ligneJournal[7]) journal.getRange(connue.ligne, 1, 1, PUB_ABS_TITRES.length).setNumberFormat('@').setValues([ligneJournal]); }
+    else {
+      const debut = Math.max(2, journal.getLastRow() + 1);
+      if (journal.getMaxRows() < debut + 1) journal.insertRowsAfter(journal.getMaxRows(), 50);
+      journal.getRange(debut, 1, 1, PUB_ABS_TITRES.length).setNumberFormat('@').setValues([ligneJournal]);
+      connues[id] = { ligne: debut, valeurs: ligneJournal };
+    }
+  });
+  return inscrits + ' jour(s) inscrit(s)' + (aLaMain ? ', ' + aLaMain + ' demande(s) à inscrire à la main (onglet ' + PL_ONGLETS.absences + ')' : '');
+}
+// Le nom du gars tel qu'il est écrit dans le planning (avec ses majuscules), s'il est dans une semaine déjà lue
+function pubNomAffiche_(semaines, nomNormalise) {
+  let trouve = '';
+  Object.keys(semaines).forEach(l => { const x = semaines[l]; if (!x || trouve) return; x.s.pose.concat(x.s.atelier).forEach(g => { if (!trouve && plNorm_(g.nom) === nomNormalise) trouve = g.nom; }); });
+  return trouve;
 }

@@ -342,6 +342,28 @@ Une ligne **par matériau** ; le même type est répété sur plusieurs lignes. 
 
 Si l'onglet est vide, le champ « Type » propose l'onglet *Materiaux*, comme avant.
 
+## Onglet « Absences suivi » (lot 14 — créé tout seul à la première demande, quand le réglage `ABSENCE_DIRECTION` existe)
+
+Une ligne par demande d'absence. **Aucun motif n'y est écrit.** Le programme de publication du planning vient y lire les demandes « Acceptée ».
+
+|Colonne|Titre|Contenu|
+|-|-|-|
+|A|Numéro|le numéro de la fiche (celui de l'onglet *Envois*)|
+|B|Reçue le|heure du serveur|
+|C|Compte|l'identifiant du compte qui a envoyé la demande (vide : sans compte)|
+|D|Demandeur|le nom écrit dans la demande|
+|E|Date d'absence|le texte de la demande (« Du 30/11/2026 au 02/12/2026 »)|
+|F, G|Du, Au|les mêmes dates, en AAAA-MM-JJ (vides si illisibles)|
+|H|Durée|Matin, Après-midi ou Journée entière|
+|I|Appellation (planning)|Absent, Congés, École ou Formation|
+|J|État|En attente, Acceptée ou Refusée (écrit par la réponse de la direction)|
+|K|Décidée le|heure de la réponse|
+|L|Mail au conducteur|« à envoyer », puis « envoyé le … » (demandes acceptées)|
+
+Onglet *Absences* (d'avant) : avec le lot 14 allumé, les colonnes Motif et Précisions contiennent « (réservé à la direction) » et « Email perso » reste vide.
+
+Réglages (Propriétés du script) : `ABSENCE_DIRECTION` (adresses de la direction ; absent = lot 14 éteint), `ADRESSE_APPLI` (facultatif : adresse des pages pour les liens du mail, utile sur la copie TEST).
+
 ## Autres onglets
 
 (Recopie le même tableau pour chaque onglet.)
