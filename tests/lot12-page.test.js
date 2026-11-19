@@ -116,6 +116,12 @@ function scenario() {
   r.autre = await etat();
   await etoile('#chantiers-container', 'CHANTIER TEST 1'); await page.waitForTimeout(6600);
   r.autreVide = await etat();
+  // … et elle ne se referme pas sous le doigt à la première étoile : on en met deux à la suite
+  await etoile('#tous-container', 'CHANTIER TEST 3'); await page.waitForTimeout(300);
+  r.premiereEtoile = await etat();
+  await etoile('#tous-container', 'CHANTIER TEST 4'); await page.waitForTimeout(300);
+  r.deuxiemeEtoile = await etat();
+  await etoile('#chantiers-container', 'CHANTIER TEST 3'); await etoile('#chantiers-container', 'CHANTIER TEST 4'); await page.waitForTimeout(6600);
   // 9. Le premier revient : ses étoiles sont intactes
   r.connexion3 = await connecter('poseur1');
   await ouvrir();
@@ -186,6 +192,8 @@ setTimeout(() => {
     verifier('un autre gars sur le même téléphone a ses propres étoiles', r.connexion2 === 'CONNECTE' && j(r.autre.mes) === j([T1 + ' ★']), j(r.autre));
     verifier('« Mes chantiers » vide : un message qui dit quoi faire, et la liste entière dépliée d’office', r.autreVide.mes.length === 0 && /Touchez l’étoile ☆/.test(r.autreVide.vide)
       && r.autreVide.tous && r.autreVide.tous.length === 7, j(r.autreVide));
+    verifier('… dépliée d’office, la liste reste dépliée après la première étoile (on peut en mettre plusieurs à la suite)', r.premiereEtoile.tous && r.premiereEtoile.tous.length === 7
+      && j(r.premiereEtoile.mes) === j([T3 + ' ★']) && r.deuxiemeEtoile.tous && j(r.deuxiemeEtoile.mes) === j([T3 + ' ★', T4 + ' ★']), j([r.premiereEtoile, r.deuxiemeEtoile]));
     verifier('le premier gars retrouve ses étoiles intactes', r.connexion3 === 'CONNECTE' && j(r.retour.mes) === j([T3 + ' ★', T2 + ' ★', T4 + ' ★', SN + ' ★']), j(r.retour.mes));
     verifier('conducteur : ses chantiers (colonne D) arrivent tout seuls, sauf le terminé ; il voit tout', r.connexion4 === 'CONNECTE' && j(r.conducteur.mes) === j([T1 + ' ★'])
       && r.conducteur.tous.length === 7 && r.conducteur.tous[6] === FINI + ' (place vide) fini', j(r.conducteur));

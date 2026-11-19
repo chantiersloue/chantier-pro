@@ -1,10 +1,10 @@
 // ═══════════════════════════════════════════════════════════════
 // LOUÉ APP — SERVEUR COMPLET, À COLLER DANS APPS SCRIPT (fichier « Code.gs », tout remplacer)
 // FICHIER GÉNÉRÉ AUTOMATIQUEMENT par « node outils/construire.js » — NE PAS MODIFIER À LA MAIN :
-// les sources sont dans le dossier apps-script/ du dépôt. Version du serveur 2cf9ee2b93 (pages 1ea676f77f)
+// les sources sont dans le dossier apps-script/ du dépôt. Version du serveur ef44a423ae (pages 47f02fa10f)
 // ═══════════════════════════════════════════════════════════════
 
-const EMPREINTE_SERVEUR = '2cf9ee2b93';
+const EMPREINTE_SERVEUR = 'ef44a423ae';
 
 // ████ Config.gs ████
 // ═══════════════════════════════════════════════════════════════
@@ -3725,7 +3725,9 @@ function installerLot8dProduction() { return installerLot8d_('PRODUCTION'); }
 //   - il est LIVRÉ ÉTEINT : sans onglet, sans la ligne, ou case décochée, tout se passe exactement comme avant ce lot ;
 //   - il est lu à chaque requête : cocher ou décocher agit tout de suite, sans rien redéployer ;
 //   - tout ce qui n'est pas « une seule ligne à ce nom, case cochée » vaut ÉTEINT (un texte « oui », deux lignes, un
-//     onglet illisible) : dans le doute, l'appli reste fermée ;
+//     onglet absent) : dans le doute, l'appli reste fermée. À savoir : Google Sheets transforme « VRAI » ou « TRUE »
+//     tapés à la main en case cochée : cela allume le réglage, comme cocher la case (qui peut écrire dans le Sheet
+//     peut de toute façon cocher) ;
 //   - il n'est lu qu'à DEUX endroits : chantiersVisibles_ et peutLireChantier_ (Comptes.gs). Toutes les lectures par
 //     chantier (documents, notes, carnet, récapitulatif) passent par ces deux fonctions ;
 //   - les cases de l'onglet « Accès chantiers » sont GARDÉES : éteindre le réglage leur rend leur effet, telles quelles.
@@ -3738,7 +3740,7 @@ const REGLAGES_ENTETES = ['Réglage', 'Allumé', 'État (écrit par l’appli)']
 const REGLAGE_TOUS = 'Tous les comptes ouvrent tous les chantiers';
 const REGLAGE_PROP_VU = 'REGLAGE_TOUS_VU';     // ce que le dernier passage a vu : « 1|<heure> » ou « 0|<heure> »
 const ACCES_TITRE_REMARQUE = 'Remarque (appli)';
-const ACCES_SANS_EFFET = ACCES_TITRE_REMARQUE + ' — CASES SANS EFFET : le réglage « ' + REGLAGE_TOUS + ' » est allumé (onglet ' + SHEET_REGLAGES + ')';
+const ACCES_SANS_EFFET = ACCES_TITRE_REMARQUE + ' — CASES SANS EFFET SUR LES ACCÈS : le réglage « ' + REGLAGE_TOUS + ' » est allumé (onglet ' + SHEET_REGLAGES + ')';
 
 let REGLAGE_TOUS_LU_ = null;   // lu une fois par requête (remis à zéro par routerV5_ et par traiterComptes)
 
@@ -3751,14 +3753,15 @@ function reglageLigne_() {
   lignes.forEach((r, i) => { if (String(r[0]).trim() === REGLAGE_TOUS) trouvees.push({ sh: sh, ligne: i + 2, coche: r[1] === true }); });
   return trouvees.length === 1 ? trouvees[0] : null;
 }
-// Vrai si le réglage est allumé. Ne lève jamais d'erreur : illisible = éteint.
+// Vrai si le réglage est allumé. Un contenu douteux (texte, ligne en double, onglet absent) vaut ÉTEINT.
+// Une PANNE de lecture du Sheet, elle, n'est pas avalée : elle remonte, et le téléphone reçoit « erreur du serveur »
+// (toujours fermé) au lieu de « ce chantier n'est pas à vous » — sur ce refus-là, il effacerait les plans et les
+// listes qu'il garde pour le hors réseau (après relecture indépendante, I5).
 function tousChantiersOuverts_() {
   if (REGLAGE_TOUS_LU_ !== null) return REGLAGE_TOUS_LU_;
-  let allume = false;
-  try { const l = reglageLigne_(); allume = !!l && l.coche === true; }
-  catch (e) { console.error('tousChantiersOuverts_ :', e.message); }
-  REGLAGE_TOUS_LU_ = allume;
-  return allume;
+  const l = reglageLigne_();
+  REGLAGE_TOUS_LU_ = !!l && l.coche === true;
+  return REGLAGE_TOUS_LU_;
 }
 
 // ── Le passage de 10 minutes écrit ce que l'appli a compris, pour que Franck le voie (appelé par traiterComptes, sous son verrou) ──
@@ -3842,7 +3845,10 @@ const PLANIF_ONGLET = 'APPLI';                  // l'onglet du planning lu par l
 const PLANIF_INTERVALLE_MS = 30 * 60 * 1000;    // une lecture du planning toutes les 30 minutes au plus
 const PLANIF_PLAFOND = 4;                       // favoris nouveaux par gars et par semaine
 const PLANIF_LIGNES_MAX = 3000;                 // lignes lues dans l'onglet du planning, au plus
-const PLANIF_SEMAINES = 4;                      // semaines traitées : de 4 semaines avant à 4 semaines après aujourd'hui
+// Semaines traitées : de la semaine passée à 4 semaines devant. Les semaines plus anciennes ne donnent plus de favori (à la mise
+// en service, tout l'historique du planning ne tombe pas d'un coup dans les téléphones) ; elles servent encore à reconnaître
+// une coupure.
+const PLANIF_SEMAINES_AVANT = 1, PLANIF_SEMAINES_APRES = 4;
 const PLANIF_VISIBLE_JOURS = 56;                // une série terminée depuis plus de 8 semaines n'est plus envoyée au téléphone
 const PLANIF_A_VOIR_MAX = 100;
 
@@ -3859,6 +3865,7 @@ function planifDecaler_(iso, jours) {
   return new Date(Date.UTC(p[0], p[1] - 1, p[2] + jours)).toISOString().slice(0, 10);
 }
 function planifAujourdhui_() { return Utilities.formatDate(new Date(maintenant_()), 'Europe/Paris', 'yyyy-MM-dd'); }
+function planifEnCours_(r) { return String(r[2] || '').trim() !== 'Terminé'; }
 
 // ── L'état gardé d'un passage à l'autre ──
 function planifEtat_() {
@@ -3893,11 +3900,17 @@ function planifPassage_() {
   try {
     const id = PropertiesService.getScriptProperties().getProperty(PLANIF_PROP_ID);
     if (!id) return 'éteint';
-    const etat = planifEtat_(), m = maintenant_();
-    if (etat.dernier && m >= etat.dernier && m - etat.dernier < PLANIF_INTERVALLE_MS) return 'trop tôt';
+    const tropTot = (e, m) => !!e.dernier && m >= e.dernier && m - e.dernier < PLANIF_INTERVALLE_MS;
+    if (tropTot(planifEtat_(), maintenant_())) return 'trop tôt';   // regard rapide, sans verrou
     const verrou = LockService.getScriptLock();
     if (!verrou.tryLock(5000)) return 'occupé';
-    try { return planifTraiter_(String(id), etat, m); } finally { verrou.releaseLock(); }
+    try {
+      // L'état est RELU sous le verrou : deux passages rapprochés (minuterie, et case cochée dans le Sheet) ne traitent
+      // jamais deux fois la même chose, et n'envoient jamais le mail d'alerte en double
+      const etat = planifEtat_(), m = maintenant_();
+      if (tropTot(etat, m)) return 'trop tôt';
+      return planifTraiter_(String(id), etat, m);
+    } finally { verrou.releaseLock(); }
   } catch (e) { console.error('planifPassage_ :', e.message); return 'erreur : ' + e.message; }
 }
 
@@ -3909,6 +3922,9 @@ function planifTraiter_(id, etat, m) {
   try { lu = planifLire_(id, force ? '' : etat.marque); }
   catch (e) { planifEcrireEtat_(etat); console.error('planifLire_ :', e.message); return 'planning illisible : ' + e.message; }
   if (!lu) { planifEcrireEtat_(etat); return 'inchangé'; }
+  // À partir d'ici, une panne (Sheet de l'appli indisponible) ne doit pas faire relire le planning toutes les 10 minutes :
+  // l'heure de ce passage est enregistrée tout de suite ; ce qui a été lu (semaines, marque) ne l'est qu'une fois TOUT écrit.
+  planifEcrireEtat_(etat);
 
   // 1. Ce que dit le planning : semaines publiées, et qui est planifié où
   const publiees = {}, planifs = {};
@@ -3927,7 +3943,7 @@ function planifTraiter_(id, etat, m) {
     planifs[lundi][compte] = planifs[lundi][compte] || {};
     planifs[lundi][compte][numero] = true;
   });
-  const debutFenetre = planifDecaler_(aujourdhui, -7 * PLANIF_SEMAINES), finFenetre = planifDecaler_(aujourdhui, 7 * PLANIF_SEMAINES);
+  const debutFenetre = planifDecaler_(aujourdhui, -7 * PLANIF_SEMAINES_AVANT - 6), finFenetre = planifDecaler_(aujourdhui, 7 * PLANIF_SEMAINES_APRES);
   const aTraiter = Object.keys(publiees).filter(l => l >= debutFenetre && l <= finFenetre && (force || etat.semaines[l] !== publiees[l])).sort();
   // Toutes les semaines publiées connues (déjà lues, ou dans le planning) : elles servent à reconnaître une coupure
   const connues = {};
@@ -3935,10 +3951,10 @@ function planifTraiter_(id, etat, m) {
   Object.keys(publiees).forEach(l => { connues[l] = true; });
   const coupure = (derniere, lundi) => Object.keys(connues).some(x => x > derniere && x < lundi);
 
-  // 2. Ce que le bureau sait : chantiers (un numéro = un seul chantier non terminé) et comptes actifs
+  // 2. Ce que le bureau sait : chantiers (un numéro = un seul chantier NON TERMINÉ) et comptes actifs
   const parNumero = {};
-  lignesChantiers_().forEach(r => { const n = crCleNumero_(r.length > 4 ? r[4] : ''); if (n) (parNumero[n] = parNumero[n] || []).push(r); });
-  const chantierDe = n => { const l = parNumero[n]; return l && l.length === 1 && String(l[0][2] || '').trim() !== 'Terminé' ? String(l[0][0]).trim() : ''; };
+  lignesChantiers_().forEach(r => { const n = crCleNumero_(r.length > 4 ? r[4] : ''); if (n && planifEnCours_(r)) (parNumero[n] = parNumero[n] || []).push(r); });
+  const chantierDe = n => { const l = parNumero[n]; return l && l.length === 1 ? String(l[0][0]).trim() : ''; };
   UTILISATEURS_ = null;
   const u = utilisateurs_();
 
@@ -3947,13 +3963,15 @@ function planifTraiter_(id, etat, m) {
   const derniereLigne = sh.getLastRow();
   const existantes = derniereLigne > 1 ? sh.getRange(2, 1, derniereLigne - 1, COL_PL.derniere).getValues() : [];
   const entrees = {};
+  let derniereSerie = 1;                                           // dernière ligne qui porte une série (la colonne H, « à voir », ne compte pas)
   existantes.forEach((r, i) => {
     const compte = normaliserId_(r[COL_PL.compte - 1]), numero = crCleNumero_(r[COL_PL.numero - 1]);
+    if (String(r[COL_PL.compte - 1] || '').trim() !== '' || String(r[COL_PL.numero - 1] || '').trim() !== '') derniereSerie = i + 2;
     if (compte && numero) entrees[compte + '|' + numero] = { ligne: i + 2, debut: planifIso_(r[COL_PL.debut - 1]), derniere: planifIso_(r[COL_PL.derniere - 1]) };
   });
 
   // 4. Semaine par semaine, de la plus ancienne à la plus récente
-  const aVoir = [], modifiees = {}, nouvelles = [];
+  const aVoir = [], modifiees = {}, nouvelles = [], depassements = [], semainesLues = {};
   const voir = t => { if (aVoir.indexOf(t) < 0 && aVoir.length < PLANIF_A_VOIR_MAX) aVoir.push(t); };
   aTraiter.forEach(lundi => {
     const comptes = planifs[lundi] || {};
@@ -3971,8 +3989,7 @@ function planifTraiter_(id, etat, m) {
       if (nouveaux.length > PLANIF_PLAFOND) {
         // Trop de chantiers nouveaux d'un coup (collage raté, mauvaise ligne) : rien n'est ajouté pour ce gars cette semaine-là
         voir('Semaine du ' + lundi + ' : ' + nouveaux.length + ' chantiers nouveaux pour « ' + compte + ' » (plus de ' + PLANIF_PLAFOND + ') : aucun n’est ajouté');
-        const marque = compte + '|' + lundi;
-        if (!etat.alertes[marque] && planifAlerter_(u.parId[compte].nom || compte, lundi, nouveaux.length)) etat.alertes[marque] = 1;
+        if (!etat.alertes[compte + '|' + lundi]) depassements.push({ marque: compte + '|' + lundi, nom: u.parId[compte].nom || compte, lundi: lundi, nombre: nouveaux.length });
         return;
       }
       nouveaux.forEach(numero => {
@@ -3981,10 +3998,10 @@ function planifTraiter_(id, etat, m) {
         else { entrees[cle] = { ligne: 0, debut: lundi, derniere: lundi }; nouvelles.push(cle); }
       });
     });
-    etat.semaines[lundi] = publiees[lundi];
+    semainesLues[lundi] = publiees[lundi];
   });
 
-  // 5. Écritures : les lignes changées, les lignes nouvelles, la liste « à voir »
+  // 5. Écritures : les lignes changées, les lignes nouvelles (à la suite des séries, sans trou), la liste « à voir »
   const quand = new Date(m);
   Object.keys(modifiees).forEach(cle => {
     const e = entrees[cle];
@@ -3992,29 +4009,43 @@ function planifTraiter_(id, etat, m) {
     sh.getRange(e.ligne, COL_PL.debut, 1, 2).setNumberFormat('@');
     sh.getRange(e.ligne, COL_PL.debut, 1, 3).setValues([[e.debut, e.derniere, quand]]);
   });
-  nouvelles.forEach(cle => {
-    const p = cle.split('|'), e = entrees[cle];
-    noteAjouterLigne_(sh, [p[0], p[1], chantierDe(p[1]), e.debut, e.derniere, quand], [COL_PL.compte, COL_PL.numero, COL_PL.chantier, COL_PL.debut, COL_PL.derniere]);
-  });
+  if (nouvelles.length) {
+    const premiere = derniereSerie + 1, besoin = premiere + nouvelles.length - 1;
+    if (sh.getMaxRows() < besoin) sh.insertRowsAfter(sh.getMaxRows(), besoin - sh.getMaxRows());
+    sh.getRange(premiere, COL_PL.compte, nouvelles.length, COL_PL.derniere).setNumberFormat('@');
+    sh.getRange(premiere, COL_PL.compte, nouvelles.length, COL_PL.maj).setValues(nouvelles.map(cle => {
+      const p = cle.split('|'), e = entrees[cle];
+      return [p[0], p[1], chantierDe(p[1]), e.debut, e.derniere, quand].map(cellule_);
+    }));
+  }
   const hauteur = Math.max(1, sh.getLastRow() - 1, PLANIF_A_VOIR_MAX);
   if (sh.getMaxRows() < hauteur + 1) sh.insertRowsAfter(sh.getMaxRows(), hauteur + 1 - sh.getMaxRows());
   sh.getRange(2, COL_PL.aVoir, hauteur, 1).clearContent();
   if (aVoir.length) sh.getRange(2, COL_PL.aVoir, aVoir.length, 1).setValues(aVoir.map(t => [cellule_(t)]));
 
+  // 6. Tout est écrit : UN SEUL mail d'alerte pour tous les dépassements de ce passage (jamais un mail par gars et par
+  //    semaine d'un coup : un collage raté viderait le quota de mails de la journée), puis l'état
+  if (depassements.length && planifAlerter_(depassements)) depassements.forEach(d => { etat.alertes[d.marque] = 1; });
+  Object.keys(semainesLues).forEach(l => { etat.semaines[l] = semainesLues[l]; });
   etat.marque = lu.marque; etat.jour = aujourdhui;
   planifEcrireEtat_(etat);
   PLANIFIES_LUS_ = null;
   return 'lu : ' + aTraiter.length + ' semaine(s), ' + nouvelles.length + ' nouvelle(s) série(s), ' + Object.keys(modifiees).length + ' prolongée(s)';
 }
 
-// Le mail d'alerte du plafond, à Franck seul. Rend vrai s'il est parti (sinon il sera retenté au prochain passage complet).
-function planifAlerter_(nom, lundi, nombre) {
+// Le mail d'alerte du plafond, à Franck seul : un seul mail, qui liste les dépassements (20 lignes au plus ; le reste est en
+// colonne H). Rend vrai s'il est parti (sinon il sera retenté au prochain passage complet).
+function planifAlerter_(depassements) {
   try {
     if (MailApp.getRemainingDailyQuota() < 1) return false;
-    GmailApp.sendEmail(emailAdmin_(), '[Loué App] Planning : trop de chantiers nouveaux pour ' + nom,
-      'Dans le planning, la semaine du ' + lundi.split('-').reverse().join('/') + ', ' + nom + ' est planifié sur ' + nombre + ' chantiers nouveaux pour lui.\n'
-      + 'C’est plus que ' + PLANIF_PLAFOND + ' : aucun n’a été ajouté à « Mes chantiers » de son appli pour cette semaine (collage raté ? mauvaise ligne ?).\n\n'
-      + 'S’il s’agit d’une erreur : corrige le planning et publie-le de nouveau. Sinon : il peut mettre lui-même ses étoiles dans l’appli (« Tous les chantiers »).\n'
+    const lignes = depassements.slice(0, 20).map(d => '- semaine du ' + d.lundi.split('-').reverse().join('/') + ' : ' + d.nom + ', ' + d.nombre + ' chantiers nouveaux');
+    const sujet = depassements.length === 1 ? '[Loué App] Planning : trop de chantiers nouveaux pour ' + depassements[0].nom
+      : '[Loué App] Planning : trop de chantiers nouveaux (' + depassements.length + ' cas)';
+    GmailApp.sendEmail(emailAdmin_(), sujet,
+      'Dans le planning, ces personnes sont planifiées sur plus de ' + PLANIF_PLAFOND + ' chantiers nouveaux pour elles dans la même semaine :\n\n'
+      + lignes.join('\n') + (depassements.length > 20 ? '\n… et ' + (depassements.length - 20) + ' autre(s)' : '') + '\n\n'
+      + 'Aucun de ces chantiers n’a été ajouté à leur « Mes chantiers » pour ces semaines-là (collage raté ? mauvaise ligne ?).\n'
+      + 'S’il s’agit d’une erreur : corrige le planning et publie-le de nouveau. Sinon : chacun peut mettre lui-même ses étoiles dans l’appli (« Tous les chantiers »).\n'
       + 'Ce mail n’est envoyé qu’une fois par personne et par semaine. Le détail est en colonne H de l’onglet « ' + SHEET_PLANIFIES + ' ».\n\nLoué App',
       { name: NOM_ENTREPRISE });
     return true;
@@ -4041,15 +4072,16 @@ function planifiesDuCompte_(id) {
     return res;
   } catch (e) { console.error('planifiesDuCompte_ :', e.message); return {}; }
 }
-// Ajoute « planifie » aux chantiers rendus à un compte (objets de chantierObjet_). Un numéro porté par deux chantiers ne
-// désigne personne : rien n'est ajouté.
+// Ajoute « planifie » aux chantiers rendus à un compte (objets de chantierObjet_) : au seul chantier NON TERMINÉ qui porte ce
+// numéro. Un numéro porté par deux chantiers en cours ne désigne personne : rien n'est ajouté.
 function planifMarquer_(compte, chantiers) {
   if (!compte || !compte.id || !chantiers.length) return chantiers;
   const series = planifiesDuCompte_(compte.id);
   if (!Object.keys(series).length) return chantiers;
+  const enCours = c => String(c.statut || '').trim() !== 'Terminé';
   const vus = {};
-  chantiers.forEach(c => { const n = crCleNumero_(c.numero); if (n) vus[n] = (vus[n] || 0) + 1; });
-  chantiers.forEach(c => { const n = crCleNumero_(c.numero); if (n && vus[n] === 1 && series[n]) c.planifie = series[n]; });
+  chantiers.forEach(c => { const n = crCleNumero_(c.numero); if (n && enCours(c)) vus[n] = (vus[n] || 0) + 1; });
+  chantiers.forEach(c => { const n = crCleNumero_(c.numero); if (n && enCours(c) && vus[n] === 1 && series[n]) c.planifie = series[n]; });
   return chantiers;
 }
 

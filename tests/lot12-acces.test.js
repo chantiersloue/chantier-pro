@@ -188,6 +188,7 @@ test('le réglage agit tout de suite, dans les deux sens ; les cases reprennent 
 });
 test('tout ce qui n’est pas « une seule ligne, case cochée » vaut ÉTEINT : texte « oui », « VRAI » en texte, deux lignes, ligne renommée', () => {
   const g = environnement();
+  // (chez le vrai Google, « VRAI » ou « TRUE » tapés dans la cellule deviennent une case cochée : cela vaut cocher. Ici, ce sont des textes.)
   ['oui', 'VRAI', 'TRUE', 1, 'x'].forEach(v => { regler(g, v); assert.deepStrictEqual(lectures(g, 'kevin', 'CHANTIER TEST 2'), RIEN, String(v)); });
   regler(g, true);
   R(g).lignes.push([REGLAGE, true, '']);
@@ -399,6 +400,80 @@ test('texte hostile venu du planning (formule dans un compte) : jamais une formu
   planning(g, 'm1', [semaine(S48), planifie(S48, '=IMPORTDATA("x")', '0502'), planifie(S48, 'kevin', '=1+1')]);
   passage(g);
   assert.ok(g.feuilles['Planifiés'].lignes.every(l => l.every(c => typeof c !== 'string' || !/^[=+@]/.test(c))), j(g.feuilles['Planifiés'].lignes));
+});
+
+console.log('Lot 12 — après la relecture indépendante');
+test('une PANNE de lecture de l’onglet Réglages donne « erreur du serveur », jamais « ce chantier n’est pas à vous » (le téléphone effacerait ses plans gardés)', () => {
+  const g = environnement();
+  regler(g, true);
+  const vraie = g.ctx.reglageLigne_;
+  g.ctx.reglageLigne_ = () => { throw new Error('Service Spreadsheets failed'); };
+  const r = appel(g, 'kevin', { action: 'carnet', chantier: 'CHANTIER TEST 2' });
+  assert.ok(!r.ok && r.code !== 'INTERDIT' && r.code !== 'OK', j(r));
+  const n = appel(g, 'kevin', { action: 'notes', chantier: 'CHANTIER TEST 2' });
+  assert.ok(!n.ok && n.code !== 'INTERDIT', j(n));
+  assert.strictEqual(g.ctx.traiterComptes(), 'ok', 'le passage de 10 minutes ne plante pas pour autant');
+  g.ctx.reglageLigne_ = vraie;
+  assert.deepStrictEqual(lectures(g, 'kevin', 'CHANTIER TEST 2'), TOUT);
+});
+test('plafond dépassé pour plusieurs gars et plusieurs semaines : UN SEUL mail par passage, qui les liste tous ; pas de second mail ensuite', () => {
+  const g = environnement({ planning: true });
+  regler(g, true);
+  const cinq = (lundi, compte) => ['0501', '0502', '0504', '0505', '0506'].map(n => planifie(lundi, compte, n));
+  planning(g, 'm1', [semaine(S48), semaine(S49)].concat(cinq(S48, 'kevin'), cinq(S49, 'kevin'), cinq(S48, 'thomas27'), cinq(S49, 'atelier1')));
+  passage(g);
+  const alertes = () => g.mails.filter(m => /Planning : trop de chantiers nouveaux/.test(m.sujet));
+  assert.strictEqual(alertes().length, 1, j(g.mails.map(m => m.sujet)));
+  assert.ok(/\(4 cas\)/.test(alertes()[0].sujet) && alertes()[0].to === 'franck@loue.test', alertes()[0].sujet);
+  ['Kévin ESSAI', 'Thomas ESSAI', 'Marc ESSAI', '23/11/2026', '30/11/2026'].forEach(t => assert.ok(alertes()[0].texte.indexOf(t) > -1, t));
+  g.now += 24 * 3600000; g.ctx.planifPassage_();
+  planning(g, 'm2', [semaine(S48, 'p2'), semaine(S49, 'p2')].concat(cinq(S48, 'kevin'), cinq(S49, 'kevin'), cinq(S48, 'thomas27'), cinq(S49, 'atelier1')));
+  passage(g);
+  assert.strictEqual(alertes().length, 1, 'aucun second mail');
+});
+test('le Sheet de l’appli en panne pendant l’écriture : aucun mail, le planning n’est pas relu toutes les 10 minutes, et tout est repris au passage suivant', () => {
+  const g = environnement({ planning: true });
+  regler(g, true);
+  planning(g, 'm1', [semaine(S48)].concat(['0501', '0502', '0504', '0505', '0506'].map(n => planifie(S48, 'kevin', n)), [planifie(S48, 'thomas27', '0502')]));
+  const vraie = g.ctx.feuille_;
+  g.ctx.feuille_ = (nom, titres) => { if (nom === 'Planifiés') throw new Error('Service Spreadsheets failed'); return vraie(nom, titres); };
+  assert.ok(/^erreur/.test(passage(g)));
+  assert.strictEqual(g.mails.length, 0, 'pas de mail tant que rien n’est écrit');
+  assert.strictEqual(g.ctx.planifPassage_(), 'trop tôt', 'l’heure du passage est enregistrée quand même');
+  assert.strictEqual(passage(g, 10), 'trop tôt');
+  g.ctx.feuille_ = vraie;
+  assert.ok(/^lu/.test(passage(g, 25)), 'repris au passage suivant (rien n’avait été noté comme lu)');
+  assert.deepStrictEqual(P(g), [['thomas27', '0502', 'CHANTIER TEST 2', S48, S48]]);
+  assert.strictEqual(g.mails.filter(m => /trop de chantiers/.test(m.sujet)).length, 1);
+});
+test('un numéro porté par un chantier TERMINÉ et un chantier en cours désigne le chantier en cours', () => {
+  const g = environnement({ planning: true });
+  regler(g, true);
+  g.feuilles['Chantiers'].lignes.push(['ANCIEN CHANTIER 0504', 'LIEU', 'Terminé', 'Franck ESSAI', '0504']);
+  planning(g, 'm1', [semaine(S48), planifie(S48, 'kevin', '0504')]);
+  passage(g);
+  assert.deepStrictEqual(P(g), [['kevin', '0504', 'CHANTIER TEST 4', S48, S48]]);
+  assert.deepStrictEqual(planifies(g, 'kevin'), { 'CHANTIER TEST 4': S48 });
+  assert.strictEqual(aVoir(g).length, 0);
+});
+test('les séries sont écrites à la suite, sans trou, même quand la colonne « à voir » est longue', () => {
+  const g = environnement({ planning: true });
+  regler(g, true);
+  planning(g, 'm1', [semaine(S48), planifie(S48, 'kevin', '0502')].concat(Array.from({ length: 30 }, (_, i) => planifie(S48, 'inconnu' + i, '0502'))));
+  passage(g);
+  assert.strictEqual(aVoir(g).length, 30);
+  planning(g, 'm2', [semaine(S48, 'p2'), planifie(S48, 'kevin', '0502'), planifie(S48, 'thomas27', '0504')]);
+  passage(g);
+  const lignes = g.feuilles['Planifiés'].lignes;
+  assert.deepStrictEqual([lignes[1][0], lignes[2][0]], ['kevin', 'thomas27'], j(lignes.slice(1, 4).map(l => l[0])));
+});
+test('mise en service : les semaines passées de plus d’une semaine ne donnent pas de favori (mais comptent pour reconnaître une coupure)', () => {
+  const g = environnement({ planning: true });
+  regler(g, true);
+  const S45 = '2026-11-02', S46 = '2026-11-09';
+  planning(g, 'm1', [semaine(S45), planifie(S45, 'kevin', '0505'), semaine(S46), planifie(S46, 'kevin', '0506'), semaine(S47), planifie(S47, 'kevin', '0507'), semaine(S48), planifie(S48, 'kevin', '0502')]);
+  passage(g);
+  assert.deepStrictEqual(P(g).map(l => l[1]).sort(), ['0502', '0507'], 'la semaine en cours et la précédente seulement');
 });
 
 console.log('Lot 12 — livraison');

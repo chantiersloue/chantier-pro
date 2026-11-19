@@ -7,7 +7,9 @@
 //   - il est LIVRÉ ÉTEINT : sans onglet, sans la ligne, ou case décochée, tout se passe exactement comme avant ce lot ;
 //   - il est lu à chaque requête : cocher ou décocher agit tout de suite, sans rien redéployer ;
 //   - tout ce qui n'est pas « une seule ligne à ce nom, case cochée » vaut ÉTEINT (un texte « oui », deux lignes, un
-//     onglet illisible) : dans le doute, l'appli reste fermée ;
+//     onglet absent) : dans le doute, l'appli reste fermée. À savoir : Google Sheets transforme « VRAI » ou « TRUE »
+//     tapés à la main en case cochée : cela allume le réglage, comme cocher la case (qui peut écrire dans le Sheet
+//     peut de toute façon cocher) ;
 //   - il n'est lu qu'à DEUX endroits : chantiersVisibles_ et peutLireChantier_ (Comptes.gs). Toutes les lectures par
 //     chantier (documents, notes, carnet, récapitulatif) passent par ces deux fonctions ;
 //   - les cases de l'onglet « Accès chantiers » sont GARDÉES : éteindre le réglage leur rend leur effet, telles quelles.
@@ -20,7 +22,7 @@ const REGLAGES_ENTETES = ['Réglage', 'Allumé', 'État (écrit par l’appli)']
 const REGLAGE_TOUS = 'Tous les comptes ouvrent tous les chantiers';
 const REGLAGE_PROP_VU = 'REGLAGE_TOUS_VU';     // ce que le dernier passage a vu : « 1|<heure> » ou « 0|<heure> »
 const ACCES_TITRE_REMARQUE = 'Remarque (appli)';
-const ACCES_SANS_EFFET = ACCES_TITRE_REMARQUE + ' — CASES SANS EFFET : le réglage « ' + REGLAGE_TOUS + ' » est allumé (onglet ' + SHEET_REGLAGES + ')';
+const ACCES_SANS_EFFET = ACCES_TITRE_REMARQUE + ' — CASES SANS EFFET SUR LES ACCÈS : le réglage « ' + REGLAGE_TOUS + ' » est allumé (onglet ' + SHEET_REGLAGES + ')';
 
 let REGLAGE_TOUS_LU_ = null;   // lu une fois par requête (remis à zéro par routerV5_ et par traiterComptes)
 
@@ -33,14 +35,15 @@ function reglageLigne_() {
   lignes.forEach((r, i) => { if (String(r[0]).trim() === REGLAGE_TOUS) trouvees.push({ sh: sh, ligne: i + 2, coche: r[1] === true }); });
   return trouvees.length === 1 ? trouvees[0] : null;
 }
-// Vrai si le réglage est allumé. Ne lève jamais d'erreur : illisible = éteint.
+// Vrai si le réglage est allumé. Un contenu douteux (texte, ligne en double, onglet absent) vaut ÉTEINT.
+// Une PANNE de lecture du Sheet, elle, n'est pas avalée : elle remonte, et le téléphone reçoit « erreur du serveur »
+// (toujours fermé) au lieu de « ce chantier n'est pas à vous » — sur ce refus-là, il effacerait les plans et les
+// listes qu'il garde pour le hors réseau (après relecture indépendante, I5).
 function tousChantiersOuverts_() {
   if (REGLAGE_TOUS_LU_ !== null) return REGLAGE_TOUS_LU_;
-  let allume = false;
-  try { const l = reglageLigne_(); allume = !!l && l.coche === true; }
-  catch (e) { console.error('tousChantiersOuverts_ :', e.message); }
-  REGLAGE_TOUS_LU_ = allume;
-  return allume;
+  const l = reglageLigne_();
+  REGLAGE_TOUS_LU_ = !!l && l.coche === true;
+  return REGLAGE_TOUS_LU_;
 }
 
 // ── Le passage de 10 minutes écrit ce que l'appli a compris, pour que Franck le voie (appelé par traiterComptes, sous son verrou) ──
