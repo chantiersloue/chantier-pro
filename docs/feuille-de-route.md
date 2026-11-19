@@ -9,8 +9,8 @@
 | 1 | toi, téléphone | sur la copie d'essai (icône « Loué ESSAI », **encore l'ancienne version**) : commence une note de réunion sans l'envoyer, et mets une note **en attente** (mode avion, Envoyer). Dis-moi « prêt » | **fait** |
 | 2 | moi | je publie la copie d'essai avec les pages du lot 8 | **fait à 09 h 27** (appli 10.2, serveur de TEST v11.1 contrôlé) |
 | 3 | toi, téléphone | essais 1 et 2 du lot 8 : **faits**. Puis **tu as retiré les points (8c)** : le lot 8 est adapté (09 h 56), voir la partie 0 ci-dessous | — |
-| 4 | moi, puis toi | je te confirme « dossier prêt, branche lot-5c, serveur v10.1 » ; tu lances `node outils\envoyer-test.js --avec-porte` **depuis le dossier `chantier-pro-lot5c`** (le serveur du lot 8 est alors remplacé sur TEST : c'est voulu) | 2 min |
-| 5 | moi | je publie la copie d'essai avec les pages du 5c ; je vérifie que les fichiers du planning de TEST sont redevenus privés ; j'essaie un PDF de 4,9 Mo | 20 min, sans toi |
+| 4 | moi, puis toi | **fait le 19/11** (serveur v10.1 sur TEST, empreinte 41da7e54c5). Je te confirme « dossier prêt, branche lot-5c, serveur v10.1 » ; tu lances `node outils\envoyer-test.js --avec-porte` **depuis le dossier `chantier-pro-lot5c`** (le serveur du lot 8 est alors remplacé sur TEST : c'est voulu) | 2 min |
+| 5 | moi | **fait le 19/11** : essai réel `tests/reel-lot5c.js`, 13 vérifications réussies (rien sans compte, aucun lien, fichiers privés, PDF de 4,9 Mo servi en 9 à 14 s depuis le PC, 5,2 Mo refusé) ; copie d'essai publiée en 9.1 | — |
 | 6 | toi | **tes essais du 5c** : étape B de `docs/lot5c-procedure.md` (branche `lot-5c`), sur Android **et** iPhone | 10 min |
 | 7 | toi | production du 5c (étape C) : `--sans-porte`, coller `Code.gs` v10.1, `fermerPartagesPlanning`, nouveau déploiement, me donner l'adresse, fusion, **archiver les anciens déploiements** (Lot 3, Lot 4, Lot 7) | 30 min |
 | 8 | moi | je reporte le 5c dans `lot-8`, puis `lot-10a1`, `lot-10a2`, `lot-10b`, `lot-5b` ; je relance les séries de tests ; je te confirme le dossier du lot 8 | sans toi |
