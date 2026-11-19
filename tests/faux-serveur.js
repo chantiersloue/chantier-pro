@@ -39,7 +39,7 @@ const google = creerGoogle({
 google.creerElement('dossier', 'Loué Menuiserie - Chantiers', null, { id: 'RACINE' });
 google.creerElement('dossier', 'Planning', null, { id: 'PLANNING' });
 // Un planning d'essai (lu par l'accueil) ; /etat dit quels fichiers du faux Drive sont partagés par lien
-google.creerElement('fichier', 'Planning S46.pdf', google.elements.PLANNING);
+google.creerElement('fichier', 'Planning S46.pdf', google.elements.PLANNING, { contenu: '%PDF-1.4 planning d’essai', mime: 'application/pdf' });
 const ctx = chargerScript(google);
 let mode = 'normal';
 // Lot 4 : recopie d'un dossier du PC dans le faux Drive (dossiers et fichiers, octets compris)

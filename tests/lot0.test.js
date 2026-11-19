@@ -335,7 +335,7 @@ console.log('Lot 0 — consultation et partages Drive');
 
 test('doGet : version, callback JSONP contrôlé', () => {
   const g = environnement();
-  assert.strictEqual(g.ctx.doGet({ parameter: {} }).contenu, 'Loué App API v10.0 OK');
+  assert.strictEqual(g.ctx.doGet({ parameter: {} }).contenu, 'Loué App API v10.1 OK');
   const r = g.ctx.doGet({ parameter: { action: 'getContacts', callback: 'alert(1);x' } });
   assert.ok(r.contenu.charAt(0) === '{', 'callback invalide ignoré : JSON simple');
 });
@@ -372,20 +372,14 @@ test('getDossiers d’un chantier (anciennes pages) : liste vide sans erreur, do
   assert.strictEqual(typeof g.ctx.lireSousDossier, 'undefined', 'la fonction qui partageait les fichiers de Plans est supprimée');
 });
 
-test('getDossiers du planning : inchangé (documents listés du plus récent au plus ancien, partagés par lien)', () => {
+test('getDossiers du planning SANS compte (lot 5c) : refusé, même pendant la transition ; aucun fichier partagé', () => {
   const g = environnement();
-  const s45 = g.creerElement('fichier', 'S45.pdf', g.elements['PLANNING']); s45.maj = new Date(2026, 10, 2).getTime();
-  const s46 = g.creerElement('fichier', 'S46.xlsx', g.elements['PLANNING'], { mime: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }); s46.maj = new Date(2026, 10, 9).getTime();
-  const plan = g.creerElement('fichier', 'plan.pdf', g.creerElement('dossier', 'Plans', g.creerElement('dossier', 'CHANTIER TEST 1', g.racine)));
+  const s45 = g.creerElement('fichier', 'S45.pdf', g.elements['PLANNING']); s45.acces = 'ANYONE_WITH_LINK'; s45.permission = 'VIEW';
   const appels = espionnerPartages(g);
   const r = JSON.parse(g.ctx.doGet({ parameter: { action: 'getDossiers', chantier: '__PLANNING__' } }).contenu);
-  assert.deepStrictEqual(Object.keys(r.dossiers), ['planning']);
-  assert.deepStrictEqual(r.dossiers.planning.map(d => [d.nom, d.type, d.date]), [['S46.xlsx', 'xls', '09/11/2026'], ['S45.pdf', 'pdf', '02/11/2026']]);
-  assert.ok(r.dossiers.planning.every(d => /^https:\/\/drive\.google\.com\//.test(d.url)));
-  assert.strictEqual(s45.acces, 'ANYONE_WITH_LINK');
-  assert.strictEqual(s46.permission, 'VIEW');
-  assert.deepStrictEqual(appels.sort(), ['S45.pdf → ANYONE_WITH_LINK', 'S46.xlsx → ANYONE_WITH_LINK'], 'seuls les fichiers du planning sont partagés');
-  assert.strictEqual(plan.acces, 'PRIVATE');
+  assert.deepStrictEqual(r, { erreur: 'CONNEXION_REQUISE', message: 'Connectez-vous pour voir le planning' });
+  assert.strictEqual(g.ctx.doGet({ parameter: { action: 'getDossiers', chantier: '__PLANNING__', callback: 'cb2' } }).contenu.indexOf('cb2({"erreur":"CONNEXION_REQUISE"'), 0);
+  assert.deepStrictEqual(appels, [], 'le Drive n’est même pas ouvert');
 });
 
 test('PDF produits : plus jamais partagés publiquement', () => {
@@ -395,7 +389,7 @@ test('PDF produits : plus jamais partagés publiquement', () => {
   assert.strictEqual(quitus.enfants[0].acces, 'PRIVATE');
 });
 
-test('lister / retirer / remettre les partages : Plans et Planning gardés, hors appli intact', () => {
+test('lister / retirer / remettre les partages : Plans gardés, Planning retiré (lot 5c), hors appli intact', () => {
   const g = environnement();
   const partager = el => { el.acces = 'ANYONE_WITH_LINK'; el.permission = 'VIEW'; return el; };
   const ch = g.creerElement('dossier', 'CHANTIER TEST 1', g.racine);
@@ -409,14 +403,14 @@ test('lister / retirer / remettre les partages : Plans et Planning gardés, hors
   assert.strictEqual(lignes.length, 4, 'le fichier perso hors appli n\'est pas listé');
   const decision = nom => lignes.find(l => l[1] === nom)[6];
   assert.strictEqual(decision('plan.pdf'), 'garder');
-  assert.strictEqual(decision('S45.pdf'), 'garder');
+  assert.strictEqual(decision('S45.pdf'), 'à retirer');
   assert.strictEqual(decision('codes.pdf'), 'à retirer');
   assert.strictEqual(decision('Sécurité'), 'à retirer');
   g.ctx.retirerPartages();
   assert.strictEqual(codes.acces, 'PRIVATE');
   assert.strictEqual(dossierSecu.acces, 'PRIVATE');
   assert.strictEqual(plan.acces, 'ANYONE_WITH_LINK');
-  assert.strictEqual(planning.acces, 'ANYONE_WITH_LINK');
+  assert.strictEqual(planning.acces, 'PRIVATE');
   assert.strictEqual(perso.acces, 'ANYONE_WITH_LINK');
   g.ctx.remettrePartages();
   assert.strictEqual(codes.acces, 'ANYONE_WITH_LINK');

@@ -165,7 +165,7 @@ function creerGoogle(options = {}) {
   // ── Blob / HTML → PDF ──
   function blob(contenu, nom, mime) {
     const b = { contenu, nom, mime,
-      setName: n => { b.nom = n; return b; }, getName: () => b.nom,
+      setName: n => { b.nom = n; return b; }, getName: () => b.nom, getContentType: () => b.mime || null,
       getDataAsString: () => Buffer.isBuffer(contenu) ? contenu.toString('utf8') : String(contenu),
       // comme le vrai Apps Script : des octets SIGNÉS, de −128 à 127
       getBytes: () => Array.from(Buffer.from(typeof contenu === 'string' ? contenu : contenu, typeof contenu === 'string' ? 'utf8' : undefined)).map(o => o > 127 ? o - 256 : o),

@@ -438,7 +438,7 @@ test('action « dossiers » : poseur refusé sur un chantier non coché ; sur le
   const p = poster(g, { action: 'dossiers', jeton: jt, chantier: '__PLANNING__' });
   assert.strictEqual(p.code, 'OK');
   assert.deepStrictEqual(p.data.dossiers.planning.map(d => d.nom), ['S46.pdf']);
-  assert.strictEqual(s46.acces, 'ANYONE_WITH_LINK', 'le planning garde son partage par lien');
+  assert.strictEqual(s46.acces, 'PRIVATE', 'lot 5c : le planning n’est plus partagé par lien');
   assert.strictEqual(plan.acces, 'PRIVATE');
 });
 
