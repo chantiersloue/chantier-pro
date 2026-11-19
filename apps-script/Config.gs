@@ -3,7 +3,7 @@
 // Loué Menuiserie
 // ═══════════════════════════════════════════════════════════════
 
-const VERSION_API = 'v11.4';   // 11.4 : lot 10b (le point du vendredi : un mail par semaine à Franck) ; 11.3 : lot 10a-2 (onglet « Articles » : la liste d'articles proposés pendant la frappe) ; 11.2 : lot 10a-1 (« À commander » : onglet « Demandes », récapitulatif de 15 h 45) ; 11.1 : lot 8c (note de réunion en points, reprise des points ouverts) ; 11.0 : lot 8b (onglet « Comptes rendus », une ligne par note de réunion) ; 10.0 : lot 5 (suivi du stockage, purge sur case cochée) ; 9.1 : retrait de la lecture du dossier Plans (lot 4b) ; 9.0 : lot 4a (carnet de chantier) ; 8.0 : lot 3 (notes de chantier) ; 7.0 : lot 7 (signalements) ; 6.0 : lot 2 (comptes)
+const VERSION_API = 'v11.4';   // 11.4 : lot 10b (le point du vendredi : un mail par semaine à Franck) ; 11.3 : lot 10a-2 (onglet « Articles » : la liste d'articles proposés pendant la frappe) ; 11.2 : lot 10a-1 (« À commander » : onglet « Demandes », récapitulatif de 15 h 45) ; la v11.1 (lot 8c, points) a été retirée le 19/11/2026 avant toute mise en production ; 11.0 : lot 8b (onglet « Comptes rendus », une ligne par note de réunion) ; 10.1 : lot 5c (planning lisible par les seuls comptes, plus aucun lien de partage) ; 10.0 : lot 5 (suivi du stockage, purge sur case cochée) ; 9.1 : retrait de la lecture du dossier Plans (lot 4b) ; 9.0 : lot 4a (carnet de chantier) ; 8.0 : lot 3 (notes de chantier) ; 7.0 : lot 7 (signalements) ; 6.0 : lot 2 (comptes)
 
 // ── CONFIGURATION ──
 const SHEET_CONTACTS      = 'Contacts';
