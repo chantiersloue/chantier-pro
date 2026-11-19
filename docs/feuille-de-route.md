@@ -11,10 +11,10 @@
 | 3 | toi, téléphone | essais 1 et 2 du lot 8 : **faits**. Puis **tu as retiré les points (8c)** : le lot 8 est adapté (09 h 56), voir la partie 0 ci-dessous | — |
 | 4 | moi, puis toi | **fait le 19/11** (serveur v10.1 sur TEST, empreinte 41da7e54c5). Je te confirme « dossier prêt, branche lot-5c, serveur v10.1 » ; tu lances `node outils\envoyer-test.js --avec-porte` **depuis le dossier `chantier-pro-lot5c`** (le serveur du lot 8 est alors remplacé sur TEST : c'est voulu) | 2 min |
 | 5 | moi | **fait le 19/11** : essai réel `tests/reel-lot5c.js`, 13 vérifications réussies (rien sans compte, aucun lien, fichiers privés, PDF de 4,9 Mo servi en 9 à 14 s depuis le PC, 5,2 Mo refusé) ; copie d'essai publiée en 9.1 | — |
-| 6 | toi | **tes essais du 5c** : étape B de `docs/lot5c-procedure.md` (branche `lot-5c`), sur Android **et** iPhone | 10 min |
-| 7 | toi | **en cours le 19/11** : serveur v10.1 déployé (« Lot 5c — production », empreinte 1e2318f2a4 vérifiée en ligne), adresse mise dans `commun/config.js`, lien de fusion donné. **Restent : `fermerPartagesPlanning`, la fusion, l'archivage des anciens déploiements.** Rappel de l'étape : `--sans-porte`, coller `Code.gs` v10.1, `fermerPartagesPlanning`, nouveau déploiement, me donner l'adresse, fusion, **archiver les anciens déploiements** (Lot 3, Lot 4, Lot 7) | 30 min |
-| 8 | moi | je reporte le 5c dans `lot-8`, puis `lot-10a1`, `lot-10a2`, `lot-10b`, `lot-5b` ; je relance les séries de tests ; je te confirme le dossier du lot 8 | sans toi |
-| 9 | toi, demain | production du lot 8 (étapes C et D de `docs/lot8-procedure.md`) | 30 min |
+| 6 | toi | tes essais du 5c (étape B de `docs/lot5c-procedure.md`) : **tu es passé à la production sans m'en donner le résultat** ; dis-moi si le PDF s'ouvre bien sur Android et sur iPhone | — |
+| 7 | toi | **fait le 19/11** : lot 5c en production (serveur v10.1, empreinte 1e2318f2a4 ; appli 9.1 en ligne ; fusion n° 16). Vérifié en ligne : les 5 anciennes adresses de production répondent « page introuvable » (archivées). **Reste : archiver « Lot 5 — production » le 26/11** ; d'ici là, cet ancien serveur répond encore | — |
+| 8 | moi | **fait le 19/11 pour `lot-8`** (5c dedans, 21 séries vertes, poussée ; serveur sans la porte : empreinte ee4d3d8df9) **et pour `lot-10a1`** (5c dedans, points retirés). `lot-10a2`, `lot-10b` et `lot-5b` seront mis à jour à leur tour, juste avant leur passage (l'outil du lien de fusion refuse une branche qui ne contient pas la production) | — |
+| 9 | toi, demain | production du lot 8 : étape C (`node outils\envoyer-test.js --sans-porte` **depuis `chantier-pro-lot8`**, empreinte attendue ee4d3d8df9), puis étape D de `docs/lot8-procedure.md` | 30 min |
 
 Avant l'étape 7 : chaque poseur qui lit le planning doit avoir un compte (sans compte, il ne le verra plus).
 
@@ -35,7 +35,7 @@ Avant l'étape 7 : chaque poseur qui lit le planning doit avoir un compte (sans 
 | **4c** (programme du PC) | `lot-5` (ton dossier) | **en service depuis le 18/11** |
 | **4d** retouches du programme du PC | `lot-5` (ton dossier) | **en service depuis le 18/11 à 21 h 18** ; premier passage automatique réussi à 21 h 39 : 46 points → **1 point et 7 lignes « pour information »** |
 | **4e** images du carnet un peu plus compressées | `lot-4e` (dossier `chantier-pro-lot4e`) | construit, 33 + 83 tests verts ; **attend ton essai sur la copie TEST** (partie 2) |
-| **5c** planning lisible par les seuls comptes, serveur v10.1, appli 9.1 | `lot-5c` | construit, relu, corrigé, 19 séries vertes. **Sur TEST aujourd'hui, puis en production avant le lot 8** |
+| **5c** planning lisible par les seuls comptes, serveur v10.1, appli 9.1 | `lot-5c` (fusionnée dans `main`) | **en production depuis le 19/11**. À faire le 26/11 : archiver « Lot 5 — production » |
 | **8** note de réunion (onglet « Comptes rendus », compteur de mails, photos annotées qu'on rouvre), **sans les points**, serveur v11.0, appli 10.1 | `lot-8` (dossier `chantier-pro-lot8`) | **points (8c) retirés le 19/11 sur ta décision** ; toutes les séries de tests relancées ; essais réels verts sur la copie TEST ; **tes 11 essais sont bons (19/11) : validé**. Reste avant sa production : le lot 5c d'abord, puis le second envoi « sans la porte » (étape C) |
 | **8d** récapitulatif des notes de réunion par chantier | — | **plan écrit le 19/11** (`docs/lot8d-plan.md`), rien de construit ; trois points à décider |
 | **12** tous les chantiers ouverts à tous les comptes (réglage), nouvel accueil | — | **plan écrit le 19/11** (`docs/lot12-plan.md`), rien de construit ; deux points à décider (son chapitre 9) |
