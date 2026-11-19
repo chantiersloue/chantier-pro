@@ -1,10 +1,10 @@
 // ═══════════════════════════════════════════════════════════════
 // LOUÉ APP — SERVEUR COMPLET, À COLLER DANS APPS SCRIPT (fichier « Code.gs », tout remplacer)
 // FICHIER GÉNÉRÉ AUTOMATIQUEMENT par « node outils/construire.js » — NE PAS MODIFIER À LA MAIN :
-// les sources sont dans le dossier apps-script/ du dépôt. Version du serveur d7e4627505 (pages cab1afdf89)
+// les sources sont dans le dossier apps-script/ du dépôt. Version du serveur 86da29ba2e (pages cab1afdf89)
 // ═══════════════════════════════════════════════════════════════
 
-const EMPREINTE_SERVEUR = 'd7e4627505';
+const EMPREINTE_SERVEUR = '86da29ba2e';
 
 // ████ Config.gs ████
 // ═══════════════════════════════════════════════════════════════
@@ -3227,7 +3227,7 @@ function listerNotes_(compte, corps) {
   termines.sort((a, b) => noteMs_(b[COL_N.cocheLe - 1]) - noteMs_(a[COL_N.cocheLe - 1]));
   return avecJeton_({ ok: true, code: 'OK', message: aFaire.length + ' élément(s) à faire',
     data: { aFaire: aFaire, termines: termines.slice(0, NOTE_MAX_TERMINES).map(r => noteObjet_(r, compte, vues, !demande, miennes)), nbTermines: termines.length,
-      chantier: chantier, heure: heure, plein: plein } }, compte);
+      chantier: chantier, heure: heure, plein: plein, miennes: miennes } }, compte);
 }
 // Nombre d'éléments nouveaux par chantier visible (chiffres rouges de l'accueil)
 function notesNouvelles_(compte) {

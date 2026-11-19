@@ -175,7 +175,11 @@ function charger() {
     });
   } else $('info').textContent = 'Mise à jour…';
   // Ce qui attend dans le téléphone est relu APRÈS la réponse du serveur (elle peut arriver 20 s plus tard), jamais avant
-  LOUE.notes.lire({ miennes: true }).then(liste => LOUE.notes.enAttente('', true).then(a => [liste, a])).then(r => {
+  LOUE.notes.lire({ miennes: true }).then(liste => {
+    // Un serveur d'avant le lot 13 ne connaît pas « les miennes » : il rendrait la vue « tous chantiers » à un conducteur
+    if (!liste.donnees || liste.donnees.miennes !== true) throw Object.assign(new Error('le serveur n’est pas encore à jour'), { serveur: true });
+    return LOUE.notes.enAttente('', true).then(a => [liste, a]);
+  }).then(r => {
     if (moi !== enCours) return;
     REPONDU = moi;
     DONNEES = r[0].donnees || { aFaire: [], termines: [] }; DU_TELEPHONE = !!r[0].depuisLeTelephone; DATE_LISTE = r[0].date; ATTENTE = r[1]; MESSAGE_LISTE = '';

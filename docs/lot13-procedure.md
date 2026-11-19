@@ -62,7 +62,7 @@ Sur la copie d'essai (icône « Loué ESSAI »), connecté. Touche **Mettre à j
 3. Je mets l'adresse dans `commun/config.js` et je te donne le lien de fusion. Après la fusion : « À propos » affiche **10.4**.
 4. **Anciens déploiements** : le précédent, à archiver une semaine après cette fusion.
 
-**L'ordre compte peu** : la nouvelle page « Mes notes » avec l'ancien serveur dit que la liste est réservée aux conducteurs (elle marchera dès le nouveau serveur) ; le brouillon ne dépend pas du serveur.
+**L'ordre compte peu** : la nouvelle page « Mes notes » avec l'ancien serveur dit « le serveur n'est pas encore à jour » ou « réservée aux conducteurs » (elle marchera dès le nouveau serveur) ; le brouillon ne dépend pas du serveur.
 
 ## Retour arrière
 
