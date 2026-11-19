@@ -24,7 +24,7 @@ Avant l'étape 7 : chaque poseur qui lit le planning doit avoir un compte (sans 
 |---|---|---|
 | a | toi, PC | **fait** (serveur v11.0, empreinte 44dbd21a98). Dans le dossier **`chantier-pro-lot8`** : `node outils\envoyer-test.js --avec-porte` (je t'ai confirmé « dossier prêt, branche lot-8, serveur v11.0 »). Dis-moi « envoi fait » avec l'empreinte |
 | b | moi | **fait** : installation sur TEST, essais réels (15 vérifications réussies ; lancés deux fois, donc **4 mails** à ton adresse), copie d'essai publiée en 10.1. **À éclaircir** : le compteur de mails de Google a baissé de 4 pour 2 mails, deux fois de suite ; cause non établie, à mesurer à part |
-| c | toi, téléphone | « Mettre à jour », vérifier **10.1**, puis les essais 3 à 11 de l'étape B de `docs/lot8-procedure.md` (branche `lot-8`) |
+| c | toi, téléphone | **fait le 19/11 : essais 3 à 11 tous bons, lot 8 validé par toi.** « Mettre à jour », vérifier **10.1**, puis les essais 3 à 11 de l'étape B de `docs/lot8-procedure.md` (branche `lot-8`) |
 | d | ensuite | les étapes 4 à 9 du tableau ci-dessus (lot 5c sur TEST, puis en production ; lot 8 en production le lendemain) |
 
 ## Où en est chaque lot
@@ -36,7 +36,7 @@ Avant l'étape 7 : chaque poseur qui lit le planning doit avoir un compte (sans 
 | **4d** retouches du programme du PC | `lot-5` (ton dossier) | **en service depuis le 18/11 à 21 h 18** ; premier passage automatique réussi à 21 h 39 : 46 points → **1 point et 7 lignes « pour information »** |
 | **4e** images du carnet un peu plus compressées | `lot-4e` (dossier `chantier-pro-lot4e`) | construit, 33 + 83 tests verts ; **attend ton essai sur la copie TEST** (partie 2) |
 | **5c** planning lisible par les seuls comptes, serveur v10.1, appli 9.1 | `lot-5c` | construit, relu, corrigé, 19 séries vertes. **Sur TEST aujourd'hui, puis en production avant le lot 8** |
-| **8** note de réunion (onglet « Comptes rendus », compteur de mails, photos annotées qu'on rouvre), **sans les points**, serveur v11.0, appli 10.1 | `lot-8` (dossier `chantier-pro-lot8`) | **points (8c) retirés le 19/11 sur ta décision** ; toutes les séries de tests relancées. Le serveur v11.0 est à renvoyer sur la copie TEST (partie 0) ; restent 9 essais sur 11 |
+| **8** note de réunion (onglet « Comptes rendus », compteur de mails, photos annotées qu'on rouvre), **sans les points**, serveur v11.0, appli 10.1 | `lot-8` (dossier `chantier-pro-lot8`) | **points (8c) retirés le 19/11 sur ta décision** ; toutes les séries de tests relancées ; essais réels verts sur la copie TEST ; **tes 11 essais sont bons (19/11) : validé**. Reste avant sa production : le lot 5c d'abord, puis le second envoi « sans la porte » (étape C) |
 | **8d** récapitulatif des notes de réunion par chantier | — | **plan écrit le 19/11** (`docs/lot8d-plan.md`), rien de construit ; trois points à décider |
 | **12** tous les chantiers ouverts à tous les comptes (réglage), nouvel accueil | — | **plan écrit le 19/11** (`docs/lot12-plan.md`), rien de construit ; deux points à décider (son chapitre 9) |
 | **10a-1**, **10a-2**, **10b** | `lot-10a1` → `lot-10a2` → `lot-10b` | construits et testés ; 10a-1 relu. Sur TEST après le lot 8 en production |
