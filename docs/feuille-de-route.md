@@ -22,8 +22,8 @@ Avant l'étape 7 : chaque poseur qui lit le planning doit avoir un compte (sans 
 
 | # | Qui | Quoi |
 |---|---|---|
-| a | toi, PC | dans le dossier **`chantier-pro-lot8`** : `node outils\envoyer-test.js --avec-porte` (je t'ai confirmé « dossier prêt, branche lot-8, serveur v11.0 »). Dis-moi « envoi fait » avec l'empreinte |
-| b | moi | installation sur TEST, essais réels (2 mails, à ton adresse seulement), publication de la copie d'essai en 10.1 |
+| a | toi, PC | **fait** (serveur v11.0, empreinte 44dbd21a98). Dans le dossier **`chantier-pro-lot8`** : `node outils\envoyer-test.js --avec-porte` (je t'ai confirmé « dossier prêt, branche lot-8, serveur v11.0 »). Dis-moi « envoi fait » avec l'empreinte |
+| b | moi | **fait** : installation sur TEST, essais réels (15 vérifications réussies ; lancés deux fois, donc **4 mails** à ton adresse), copie d'essai publiée en 10.1. **À éclaircir** : le compteur de mails de Google a baissé de 4 pour 2 mails, deux fois de suite ; cause non établie, à mesurer à part |
 | c | toi, téléphone | « Mettre à jour », vérifier **10.1**, puis les essais 3 à 11 de l'étape B de `docs/lot8-procedure.md` (branche `lot-8`) |
 | d | ensuite | les étapes 4 à 9 du tableau ci-dessus (lot 5c sur TEST, puis en production ; lot 8 en production le lendemain) |
 
