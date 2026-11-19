@@ -40,6 +40,13 @@ Chaque lot : **quoi**, **pourquoi**, **comment déployer**. Procédures détaill
 **Après relecture** : un seul trait à la fois (second doigt ou paume ignorés) ; flèche ou rectangle touché sans glisser : rien n'est gardé ; plafond des traits à 30 000 caractères par photo ; une image qui n'a pas pu être refaite après un brouillon restauré est marquée « ⚠ à vérifier » et retient l'envoi.
 
 **Comment déployer** : `docs/lot8-procedure.md` (pages seules : rien à faire dans Apps Script).
+## Lot 5c — Le planning lisible par les seuls comptes de l'appli — serveur **v10.1**, appli **9.1** — **en production depuis le 19/11/2026** (déploiement « Lot 5c — production » ; essai réel sur la copie TEST : `tests/reel-lot5c.js`)
+
+**Quoi** : le serveur ne met plus aucun fichier du dossier *Planning* en partage par lien, et remet en privé ceux qui le sont (le dossier compris). Le téléphone demande le document au serveur avec son compte (nouvelle action `planningFichier`) ; un premier toucher le télécharge, un second l'ouvre. Sans compte, le planning n'est plus servi, même pendant la période sans compte. 5 Mo au plus par document. La liste montre le poids du document, elle est relue à chaque ouverture et effacée à la déconnexion. Fichiers Google envoyés en PDF, raccourcis écartés. Mail à Franck si un partage ne peut pas être retiré ; fonction `fermerPartagesPlanning` à lancer une fois.
+**Pourquoi** : demande de Franck du 18/11/2026 : « Seuls les comptes de l'appli doivent pouvoir lire le PDF du planning. » Avant, quiconque avait le lien d'un PDF du planning pouvait le lire sans compte.
+**Déployer** : `docs/lot5c-procedure.md` (copie TEST, essais Android et iPhone, production : serveur d'abord, pages ensuite).
+**Relecture indépendante (18/11, un tour)** : un point bloquant, les anciens déploiements (adresses publiques dans l'historique) servent encore le planning sans compte : leur archivage est ajouté à la procédure, étape C. Corrigé aussi : planning resté visible après une déconnexion, messages en anglais et délai trop court sur réseau faible, fichiers Google, partage impossible à retirer sans alerte.
+**Tests** : nouvelle série `tests/lot5c-planning.test.js` (12 tests) ; `lot0`, `lot2-comptes` et `accueil-page` adaptés (planning privé, plus de lien Drive).
 
 ## Lot 5 — Suivi du stockage, alertes et purge sur case cochée — serveur **v10.0**, aucune page ne change — **construit, testé contre le faux serveur seulement** (rien n'a tourné chez Google)
 
