@@ -380,7 +380,6 @@ function alerte_(texte, sorte) {
       erreur : "[Loué App] Fiche non traitée — voir l'onglet Envois",
       notes  : '[Loué App] Listes « Notes » bloquées — titres d’un onglet changés',
       comptesrendus: '[Loué App] Notes de réunion non notées — titres de l’onglet « Comptes rendus » changés',
-      pointscr: '[Loué App] Comptes rendus — points d’un chantier à regarder',
       photos : "[Loué App] Trop de photos aujourd'hui",
       dossiers : '[Loué App] dossiers.json illisible',
       rangement: '[Loué App] Document non rangé dans Drive',
@@ -388,6 +387,7 @@ function alerte_(texte, sorte) {
       connexions: '[Loué App] Beaucoup de connexions ratées',
       transition: '[Loué App] Fin de la période sans compte dans 3 jours',
       demarrage : '[Loué App] Période de transition pas démarrée',
+      planning  : '[Loué App] Planning encore lisible par lien',
     }[sorte] || "[Loué App] Envoi refusé — voir l'onglet Journal";
     GmailApp.sendEmail(emailAdmin_(), sujet,
       texte + "\n\nLes cas suivants de la journée sont notés dans l'onglet « Journal » du Sheet, sans autre mail.\n\nLoué App",

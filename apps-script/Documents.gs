@@ -50,8 +50,8 @@ function infoPdf_(blob) {
 // ═══════════════════════════════════════════════════════════════
 // NOTE DE RÉUNION
 // ═══════════════════════════════════════════════════════════════
-// contexte (lot 8) : { id (numéro de fiche créé par le téléphone), auteurId, auteurNom, compte }. Absent pour une page d'avant le
-// lot 1 (aucun numéro de fiche : la note part comme avant, sans ligne dans l'onglet « Comptes rendus », car on ne saurait pas la reconnaître
+// contexte (lot 8b) : { id (numéro de fiche créé par le téléphone), auteurId, auteurNom }. Absent pour une page d'avant le
+// lot 1 (aucun numéro de fiche : la note part comme avant, sans numéro de compte rendu, car on ne saurait pas la reconnaître
 // si elle était renvoyée).
 function traiterNoteReunion(data, brut, contexte) {
   const now = new Date();
@@ -59,19 +59,12 @@ function traiterNoteReunion(data, brut, contexte) {
   const d = validerImages_(brut);
   if (!d.date) d.date = Utilities.formatDate(now, 'Europe/Paris', 'dd/MM/yyyy');
 
-  // Lot 8 : la note est notée dans l'onglet « Comptes rendus » AVANT le PDF (une ligne, jamais deux fois la même fiche),
-  // et ses gestes sur les points du chantier sont appliqués (lot 8c).
+  // Lot 8 : la note est notée dans l'onglet « Comptes rendus » AVANT le PDF (une ligne, jamais deux fois la même fiche).
   // Serveur occupé (verrou) : rien n'est fabriqué ni envoyé, le téléphone garde la note et réessaie. Onglet illisible :
   // la note part quand même.
   const idFiche = contexte && contexte.id ? String(contexte.id) : '';
   const qui = contexte ? (contexte.auteurId ? (contexte.auteurNom || contexte.auteurId) + ' (' + contexte.auteurId + ')' : 'sans compte') : 'sans compte';
-  const gestes = crGestes_(brut.points);
-  const cr = idFiche ? crEnregistrer_(idFiche, Object.assign({}, brut, { date: d.date }), qui, contexte.compte || null)
-    : { rendu: crRenduSeul_(gestes), remarque: '', liste: null, nonSuivi: '' };
-  // Lot 8c — ce que le modèle imprime vient du SERVEUR : les points tels qu'ils sont après les gestes de cette note, et la
-  // remarque « Rédigé sans connaître le compte rendu du … ». Jamais ce que le téléphone aurait écrit à la place.
-  d.points = cr.rendu;
-  d.remarqueCR = cr.remarque || '';
+  if (idFiche) crEnregistrer_(idFiche, Object.assign({}, brut, { date: d.date }), qui);
   // Nouvelle page : « remarques » est le texte saisi, « commentaires » en est une copie lisible par un ancien serveur.
   // Ancienne page, ancienne fiche en attente : « commentaires » est le texte saisi.
   if (typeof brut.remarques === 'string') d.commentaires = brut.remarques;
@@ -113,9 +106,6 @@ function traiterNoteReunion(data, brut, contexte) {
     texte: 'Bonjour,\n\nVeuillez trouver en pièce jointe la note de réunion — ' + (brut.chantier || '—') + '.\n\nLoué App',
     faireBlob: () => blob,
   });
-  // Rendu au téléphone par recevoirFiche_ : la nouvelle liste des points du chantier (seulement si le compte a le droit de
-  // la lire), la remarque, et « points non suivis » (onglet illisible, chantier hors liste)
-  return { points: cr.liste || null, remarqueCR: cr.remarque || '', pointsNonSuivis: cr.nonSuivi || '' };
 }
 
 

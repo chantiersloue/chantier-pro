@@ -167,12 +167,7 @@
     if (sansMail) texte = '⚠ ' + quoi + ' enregistré, mais aucun mail n’est parti';
     else if (deja) texte = '✓ ' + quoi + ' déjà reçu par le bureau';
     else texte = '✓ ' + quoi + ' envoyé' + (mails ? ' — ' + mails : '');
-    // Lot 8c : ce que le serveur a remarqué en appliquant les points de la note
-    var plus = !!(d.remarqueCR || d.pointsNonSuivis);
-    if (d.remarqueCR) texte += '. ' + d.remarqueCR;
-    if (d.pointsNonSuivis === 'onglet') texte += '. ⚠ Points non suivis pour cette note : le bureau est prévenu';
-    else if (d.pointsNonSuivis) texte += '. Chantier hors liste : ses points ne sont pas suivis';
-    return { texte: texte, duree: sansMail ? 10000 : plus ? 12000 : 8000 };
+    return { texte: texte, duree: sansMail ? 10000 : 8000 };
   };
 
   if (LOUE.surEvenement) {

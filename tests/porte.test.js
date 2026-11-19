@@ -291,7 +291,7 @@ test('porte, lot 8 : installation de l’onglet « Comptes rendus » sur la copi
   const g = serveurLot2();
   const i = geste(g, 'installerLot8');
   assert.ok(i.ok && /Lot 8 — installation — environnement : TEST/.test(i.message) && /installation terminée/.test(i.message), i.message);
-  assert.ok(g.feuilles['Comptes rendus'] && g.feuilles['Comptes rendus'].lignes[0].length === 14, 'onglet créé avec ses 14 titres');
+  assert.ok(g.feuilles['Comptes rendus'] && g.feuilles['Comptes rendus'].lignes[0].length === 10, 'onglet créé avec ses 10 titres');
   assert.ok(geste(g, 'installerLot8').ok, 'relançable');
   // lecture sans nom ni objet, et nettoyage des seules lignes des essais automatiques
   const sh = g.feuilles['Comptes rendus'];

@@ -18,7 +18,9 @@ function doGet(e) {
     try { ouverte = transitionOuverte_(); } catch (err) {}
     if (!ouverte) return sortieJson_({ erreur: 'CONNEXION_REQUISE', message: MSG_CONNEXION }, cb);
     if (action === 'getContacts') { noterSansCompte_('listes'); return getContacts(cb); }
-    noterSansCompte_(e.parameter.chantier === '__PLANNING__' ? 'planning' : 'dossiers');
+    // Lot 5c : le planning n'est plus servi sans compte (seuls les comptes de l'appli le lisent), même pendant la transition
+    if (e.parameter.chantier === '__PLANNING__') return sortieJson_({ erreur: 'CONNEXION_REQUISE', message: 'Connectez-vous pour voir le planning' }, cb);
+    noterSansCompte_('dossiers');
     return getDossiers(e.parameter.chantier, cb);
   }
 
@@ -90,28 +92,97 @@ function lireDossiers_(chantierNom) {
   // La liste vide (sans erreur) est pour les anciennes pages encore gardées dans les téléphones.
   if (chantierNom !== '__PLANNING__') return { plans: [] };
 
-  // Planning de l'équipe — lecture directe par identifiant (comportement inchangé)
+  // Planning de l'équipe (lot 5c) : AUCUN lien de partage. Les fichiers sont lus par le serveur et envoyés au seul
+  // compte connecté (action planningFichier). Un fichier trouvé partagé (par lien, ou public) est remis en privé.
   const result = {};
   try {
     const planningFolder = DriveApp.getFolderById(drivePlanningId_());
+    const restes = [];
+    // Le dossier lui-même partagé par lien ouvrirait tous ses fichiers : il est remis en privé aussi
+    if (!planningPrive_(planningFolder)) restes.push('le dossier « ' + planningFolder.getName() + ' »');
     const files = planningFolder.getFiles();
     const docs = [];
     while(files.hasNext()) {
       const f = files.next();
-      try { f.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); } catch(e){}
+      try { if (f.isTrashed()) continue; } catch(e){}
       const mime = f.getMimeType();
+      if (mime === PLANNING_RACCOURCI) continue;   // un raccourci Drive n'a pas de contenu à envoyer : pas listé
+      if (!planningPrive_(f)) restes.push('« ' + f.getName() + ' »');
       let type = 'link';
       if(mime.includes('pdf'))   type='pdf';
       else if(mime.includes('image')) type='image';
       else if(mime.includes('spreadsheet')||mime.includes('excel')) type='xls';
       else if(mime.includes('presentation')) type='ppt';
       else if(mime.includes('document'))     type='doc';
-      docs.push({ nom:f.getName(), url:f.getUrl(), type, date:Utilities.formatDate(f.getLastUpdated(),'Europe/Paris','dd/MM/yyyy') });
+      let taille = 0;
+      try { taille = f.getSize(); } catch(e){}
+      docs.push({ id:f.getId(), nom:f.getName(), type, taille, date:Utilities.formatDate(f.getLastUpdated(),'Europe/Paris','dd/MM/yyyy') });
     }
     docs.sort(parDateDecroissante_);
     result.planning = docs;
+    // Partage impossible à retirer (fichier d'un autre propriétaire, partage hérité d'un dossier au-dessus) : Franck est prévenu
+    if (restes.length) alerte_('Le planning est encore lisible par lien : ' + restes.join(', ') + '. Le serveur n’a pas pu retirer ce partage. '
+      + 'Dans Drive : clic droit → Partager → « Accès limité », sur ces éléments ET sur les dossiers au-dessus du dossier Planning.', 'planning');
   } catch(err){ console.error('Planning:', err.message); result.planning=[]; }
   return result;
+}
+// Remet en privé un fichier ou un dossier partagé par lien (ou public). Rend true s'il est privé ensuite.
+function planningPrive_(el) {
+  const ouvert = () => { const a = el.getSharingAccess(); return a === DriveApp.Access.ANYONE_WITH_LINK || a === DriveApp.Access.ANYONE; };
+  try {
+    if (!ouvert()) return true;
+    el.setSharing(DriveApp.Access.PRIVATE, DriveApp.Permission.NONE);
+    return !ouvert();   // relu : un partage hérité d'un dossier au-dessus ne se retire pas ici
+  } catch (e) { console.error('Planning, partage :', e.message); return false; }
+}
+// À lancer une fois dans l'éditeur, juste après la mise en production : retire tout de suite les partages du planning
+// (sans attendre qu'un poseur ouvre le planning) et dit ce qui reste ouvert.
+function fermerPartagesPlanning() {
+  const n = (lireDossiers_('__PLANNING__').planning || []).length;
+  const dossier = DriveApp.getFolderById(drivePlanningId_());
+  const encore = [];
+  if (!planningPrive_(dossier)) encore.push('le dossier');
+  const it = dossier.getFiles();
+  while (it.hasNext()) { const f = it.next(); if (!f.isTrashed() && f.getMimeType() !== PLANNING_RACCOURCI && !planningPrive_(f)) encore.push('« ' + f.getName() + ' »'); }
+  let parent = '';
+  try { const p = dossier.getParents(); if (p.hasNext()) { const d = p.next(); if (d.getSharingAccess() !== DriveApp.Access.PRIVATE) parent = d.getName(); } } catch (e) {}
+  const m = (encore.length ? '❌ Encore partagé par lien : ' + encore.join(', ') + '. Retire le partage à la main dans Drive.'
+    : '✅ Planning : ' + n + ' document(s), aucun partagé par lien.')
+    + (parent ? ' ⚠ Le dossier au-dessus (« ' + parent + ' ») est partagé : vérifie qu’il ne donne pas accès au planning.' : '');
+  Logger.log(m);
+  return m;
+}
+
+// ── Lot 5c : un fichier du planning, envoyé au compte connecté (jamais par un lien) ──
+const PLANNING_RACCOURCI = 'application/vnd.google-apps.shortcut';
+const MAX_PLANNING_OCTETS = 5 * 1024 * 1024;   // 5 Mo au plus par fichier (une barre de réseau)
+function planningFichier_(compte, corps) {
+  const id = String(corps.id || '');
+  const refus = (code, message) => avecJeton_({ ok: false, code: code, message: message }, compte);
+  if (!/^[A-Za-z0-9_-]{1,100}$/.test(id)) return refus('DONNEES_INVALIDES', 'Document du planning inconnu');
+  let dossier;
+  try { dossier = DriveApp.getFolderById(drivePlanningId_()); }
+  catch (e) { console.error('Planning:', e.message); return refus('INDISPONIBLE', 'Planning indisponible : voyez avec le bureau.'); }
+  // Le fichier doit être DIRECTEMENT dans le dossier Planning (rien d'autre du Drive ne sort par ici) et pas à la corbeille
+  let fichier = null;
+  const it = dossier.getFiles();
+  while (it.hasNext()) { const f = it.next(); if (f.getId() === id) { fichier = f; break; } }
+  let jete = false;
+  try { jete = !!fichier && fichier.isTrashed(); } catch (e) {}
+  if (!fichier || jete || fichier.getMimeType() === PLANNING_RACCOURCI) return refus('INTROUVABLE', 'Ce document n’est plus dans le planning : rouvrez le planning.');
+  const tropGros = refus.bind(null, 'TROP_GROS', 'Document trop lourd pour le téléphone (plus de 5 Mo) : voyez avec le bureau.');
+  let taille = 0;
+  try { taille = fichier.getSize(); } catch (e) {}
+  if (taille > MAX_PLANNING_OCTETS) return tropGros();
+  // Un fichier Google (Sheets, Docs, Slides) est converti en PDF par getBlob : le type et le nom suivent le contenu réel
+  const blob = fichier.getBlob();
+  const octets = blob.getBytes();
+  if (octets.length > MAX_PLANNING_OCTETS) return tropGros();
+  const mime = String(blob.getContentType() || fichier.getMimeType() || 'application/octet-stream');
+  let nom = fichier.getName();
+  if (mime === 'application/pdf' && !/\.pdf$/i.test(nom)) nom += '.pdf';
+  return avecJeton_({ ok: true, code: 'OK', message: 'Document du planning',
+    data: { id: id, nom: nom, mime: mime, b64: Utilities.base64Encode(octets) } }, compte);
 }
 
 // Tri des documents par date « jj/mm/aaaa », la plus récente en premier
@@ -178,8 +249,7 @@ function repondre_(objet) {
 function traiterFiche_(brut, contexte) {
   const nom = brut && Object.prototype.hasOwnProperty.call(TRAITEMENTS, brut.type) ? TRAITEMENTS[brut.type] : '';
   if (!nom) throw new Error('Type de fiche inconnu');
-  // Lot 8c : ce que rend le traitement (pour une note de réunion : la liste des points du chantier) repart dans la réponse
-  return globalThis[nom](preparerDonnees_(brut), brut, contexte);
+  globalThis[nom](preparerDonnees_(brut), brut, contexte);
 }
 
 // Lot 2 : chaque action (sauf ping, connexion, motDePasse) passe par identifier_ : jeton valable, ou transition ouverte
@@ -200,7 +270,7 @@ function routerV5_(corps) {
     if (corps.action === 'connexion')  return connexion_(corps);
     if (corps.action === 'motDePasse') return motDePasse_(corps);
     if (['photo', 'fiche', 'moi', 'listes', 'dossiers', 'signalements', 'signalementStatut',
-      'notes', 'notesNouvelles', 'notesVues', 'carnet', 'carnetTuiles', 'compteRendu'].indexOf(corps.action) < 0) return { ok: false, code: 'ACTION_INCONNUE', message: 'Action inconnue' };
+      'notes', 'notesNouvelles', 'notesVues', 'carnet', 'carnetTuiles', 'planningFichier'].indexOf(corps.action) < 0) return { ok: false, code: 'ACTION_INCONNUE', message: 'Action inconnue' };
     let qui = identifier_(corps);
     const envoi = corps.action === 'photo' || corps.action === 'fiche';
     // Lot 3 : une note de chantier (ou un geste sur une note) demande TOUJOURS un compte en règle : ni « compte désactivé »,
@@ -227,6 +297,7 @@ function routerV5_(corps) {
     if (corps.action === 'moi')      return moi_(qui.compte);
     if (corps.action === 'listes')   return listes_(qui.compte);
     if (corps.action === 'dossiers') return dossiersCompte_(qui.compte, String(corps.chantier || ''));
+    if (corps.action === 'planningFichier') return planningFichier_(qui.compte, corps);   // lot 5c : tout compte actif
     // Lot 7 : suivi des signalements (réservé aux comptes ; droits vérifiés dans Signalements.gs)
     if (corps.action === 'signalements')      return listerSignalements_(qui.compte, corps);
     if (corps.action === 'signalementStatut') return changerStatutSignalement_(qui.compte, corps);
@@ -237,8 +308,6 @@ function routerV5_(corps) {
     // Lot 4 : carnet de chantier (droits vérifiés dans Carnet.gs)
     if (corps.action === 'carnet')       return carnetLister_(qui.compte, corps);
     if (corps.action === 'carnetTuiles') return carnetTuiles_(qui.compte, corps);
-    // Lot 8c : points ouverts du chantier affiché dans la note de réunion (droits vérifiés dans ComptesRendus.gs)
-    if (corps.action === 'compteRendu')  return crLire_(qui.compte, corps);
   } catch (err) {
     console.error('routerV5_:', err.message);
     return { ok: false, code: 'ERREUR', message: 'Erreur du serveur : ' + err.message };
@@ -407,10 +476,9 @@ function recevoirFiche_(corps, compte) {
 
   // 3. PDF, classement, mails
   RAPPORT_ = {};
-  let resultat = null;
   try {
     // Ce que le serveur sait de la fiche : son numéro, et le compte vérifié par le jeton (vide si sans compte)
-    resultat = traiterFiche_(brut, { id: corps.id, auteurId: compte && compte.id ? compte.id : '',
+    traiterFiche_(brut, { id: corps.id, auteurId: compte && compte.id ? compte.id : '',
       auteurNom: compte ? (compte.nom || compte.etiquette || compte.id) : 'sans compte', compte: compte || null });
   } catch (err) {
     // Lot 3 (notes) : « occupé » → le téléphone réessaie ; « refus » → définitif. Ni l'un ni l'autre ne prévient Franck
@@ -447,16 +515,11 @@ function recevoirFiche_(corps, compte) {
   if (estNote) return { ok: true, code: 'ENREGISTRE', message: 'Enregistré', data: { id: corps.id } };
   if (dossierPhotos) { try { dossierPhotos.setTrashed(true); } catch (e) {} }   // les photos sont dans le PDF
 
-  const reponse = {
+  return {
     ok: true, code: 'ENREGISTRE',
     message: 'Fiche enregistrée. ' + detail.charAt(0).toUpperCase() + detail.slice(1) + '.',
     data: { id: corps.id, envoyes: n('envoyé'), reportes: n('reporté'), refuses: rapport['refusé'] || [] },
   };
-  // Lot 8c — note de réunion : la nouvelle liste des points du chantier, pour que le téléphone la garde (hors réseau)
-  if (resultat && resultat.points) reponse.data.points = resultat.points;
-  if (resultat && resultat.remarqueCR) reponse.data.remarqueCR = resultat.remarqueCR;
-  if (resultat && resultat.pointsNonSuivis) reponse.data.pointsNonSuivis = resultat.pointsNonSuivis;   // « onglet » ou « chantier »
-  return reponse;
 }
 
 // Ligne d'un numéro dans l'onglet Envois (recherche rapide), ou 0

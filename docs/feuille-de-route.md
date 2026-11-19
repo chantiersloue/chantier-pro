@@ -1,88 +1,77 @@
-# Feuille de route — lundi 16/11/2026
+# Feuille de route — mardi 17/11/2026
 
-> Tes actions, dans l'ordre, avec le temps estimé. Une mise en production par lot, sauf le carnet (4a + 4b + retrait de la tuile « Plans » ensemble). Rien n'a été fait ce week-end sur la production, les vraies données ni la copie TEST.
+> Tes actions, dans l'ordre, avec le temps estimé. Une mise en production par lot. Cette nuit, rien n'a été fait sur la production, les vraies données ni la copie TEST ; aucun mail n'est parti.
 
 ## Où en est chaque lot
 
-| Lot | État au 16/11 | Peut partir aujourd'hui ? |
+| Lot | État au 17/11 | Aujourd'hui |
 |---|---|---|
-| **Carnet** (4a + 4b + retrait de la tuile « Plans »), serveur v9.1, appli 9.0 | construit, relu deux fois, poussé sur `lot-4` | **oui** |
-| **4c** (programme du PC : dépôt au carnet depuis les bordereaux, recopie automatique des fiches) | construit et relu ; **corrections de la relecture en cours** | pas encore : après seconde relecture |
-| **5** (stockage, alerte, purge), serveur v10.0 | construit contre le faux serveur ; **relecture indépendante en cours** | pas encore ; et seulement après le carnet |
-| **8a et 8b** (note de réunion : annotation rouvrable, numéro du compte rendu) | **en construction** | non |
-| **8c** (points repris d'une note à l'autre) | plan écrit et critiqué ; **attend tes réponses** | non |
+| **Carnet** (4a + 4b), appli 9.0 | en production | rien |
+| **5** (stockage, purges), serveur v10.0 | serveur en production (ton déploiement « Lot 5 — production ») ; **les pages attendent son adresse** | finir : partie 1 |
+| **4c** (programme du PC) | relu, réuni à `lot-5`, essayé sur la copie TEST (fiches seules) | premier vrai chantier : partie 2 |
+| **8** (note de réunion en points : 8a + 8b sans numéro ni présents + 8c), serveur v11.1, appli 10.2 | construit sur `lot-8`, testé contre le faux serveur, relu une fois. **Jamais essayé chez Google** | essais sur la copie TEST : partie 3 |
+| **Mail unique** (lot 5b) | plan écrit, rien de construit | ta décision : partie 4 |
+| **10** (idées) | 8 idées classées, rien de construit | ta décision : partie 4 |
 
-## 1. Le carnet — à faire aujourd'hui (environ 1 h 15 de ton temps, en trois fois)
-
-| # | Qui | Quoi | Temps |
-|---|---|---|---|
-| 1 | toi, au bureau | `node outils\envoyer-test.js --avec-porte` (serveur v9.1), puis me dire « Envoi fait » | 2 min |
-| 2 | moi | essais réels sur la copie TEST, essai de la liste des partages, republication de la copie d'essai | 20 min, sans toi |
-| 3 | toi, téléphone | essais courts sur https://loue-essai.github.io/chantier-pro/ : la tuile « Plans » a disparu ; le planning s'ouvre ; le carnet s'ouvre, zoome, tourne ; « Tout télécharger » d'un document, puis mode avion | 10 min |
-| 4 | toi, au bureau | `node outils\envoyer-test.js --sans-porte` | 2 min |
-| 5 | toi, navigateur | production : coller `A-COLLER-DANS-APPS-SCRIPT/Code.gs` (v9.1), lancer `verifierConfig` (aucun ❌), **nouveau déploiement** « Lot 4 — production », me donner son adresse | 20 min |
-| 6 | moi, puis toi | je prépare la livraison des pages et le lien de fusion ; tu fusionnes ; l'appli passe en 9.0 | 5 min pour toi |
-| 7 | toi, au bureau | premier dépôt réel au carnet : créer `_prive\depot.json` (je te donne le texte), double-clic sur `outils\deposer.bat` | 15 min |
-| 8 | toi, navigateur | lancer `listerPartagesPlans` en production (lecture seule) ; regarder l'onglet « Partages Plans » ; **c'est toi qui retires les partages** dans Drive | 10 min + le ménage |
-
-Détail : `docs/lot4a-procedure.md` et `docs/lot4b-procedure.md`.
-
-## 2. Tes décisions (20 minutes, quand tu veux ; elles débloquent la suite)
-
-**Lot 4c**
-1. Les noms des deux fichiers ajoutés à tes dossiers de chantier : `CHANTIERPRO - fiches rapatriees.json` (racine de chaque chantier) et `CHANTIERPRO - A VOIR.txt` (racine des chantiers).
-2. Un document refait sous le même indice ne peut pas être redéposé au carnet : il faut l'indice suivant. D'accord ?
-3. Ordre de mise en place proposé : d'abord coller les lignes dans `gestion-documentaire` et vérifier l'état documentaire sur un chantier, **puis** installer la tâche automatique.
-
-**Lot 5**
-4. Purge proposée **30 jours** après « Terminé » (la place est rendue 30 jours plus tard encore).
-5. Alerte à **80 %**, seuil critique à 95 %.
-6. Le carnet d'un chantier clôturé part en même temps que ses fiches.
-7. **Pas de suppression définitive par le serveur** : tout va à la corbeille, annulable 25 jours.
-8. Gmail, le poste qui fait déborder le compte : (a) un seul mail par fiche pour tous les destinataires ; (b) une ligne « Mails envoyés de plus de 3 mois » dans l'onglet des purges. Oui ou non pour chacune.
-
-**Lot 8** (chapitre 11 de `docs/lot8-plan.md`, branche `lot-8`)
-9. Les huit questions du plan, dont : numéro donné dans l'ordre d'arrivée au serveur ; note sans compte numérotée ou non ; nombre d'adresses tapées à la main ; bouton « Reprendre les destinataires de la note précédente » (je recommande non).
-
-**Divers**
-10. Un nom de chantier réel figurait dans deux fichiers de test du dépôt public depuis le lot 1. Je l'ai remplacé, mais il reste dans l'historique de GitHub. L'effacer demande de réécrire l'historique (opération lourde) : le veux-tu ?
-11. Le compte Google « Loué Essais » ne sert plus à rien dans le projet : tu peux le supprimer ou le garder.
-
-## 3. Le lot 4c — quand ses corrections seront relues (1 h 30, en une ou deux fois)
+## 1. Finir le lot 5 (25 min pour toi)
 
 | # | Qui | Quoi | Temps |
 |---|---|---|---|
-| 1 | toi | compléter `_prive\depot.json` (dossier des chantiers sur le PC) | 5 min |
-| 2 | toi et moi | table de passage des anciens numéros de documents aux nouveaux | 15 min |
-| 3 | toi, avec Claude dans LOUE TRAVAIL | valider et coller les lignes dans `gestion-documentaire` (texte : `docs/contrat-skills.md`, chapitre 8) | 30 min |
-| 4 | toi | premier essai **sur un seul chantier** : dépôt d'un document d'un bordereau, recopie des fiches | 15 min |
-| 5 | toi, avec Claude dans LOUE TRAVAIL | « fais-moi l'état documentaire » et la veille des comptes rendus sur ce chantier : aucune fiche de l'appli ne doit apparaître comme un document à toi | 15 min |
-| 6 | toi | double-clic sur `outils\installer-tache.bat` ; vérifier dans le Planificateur de tâches ; lire `CHANTIERPRO - A VOIR.txt` | 5 min |
+| 1 | toi | me donner l'adresse du déploiement « Lot 5 — production » | 1 min |
+| 2 | moi | l'écrire dans `commun/config.js`, refaire la livraison, te donner le lien de fusion | 10 min, sans toi |
+| 3 | toi | ouvrir le lien : **Create pull request**, **Merge pull request**, **Confirm merge** | 3 min |
+| 4 | toi, éditeur Apps Script de production | vérifier que le service **Drive API** est dans « Services » (sans lui, le total de la place est faux) ; lancer `installerLot5Production` puis `verifierConfig` : aucun ❌ | 10 min |
+| 5 | toi | lancer `mesurerStockage` ; ouvrir l'onglet *Stockage* ; comparer le total à one.google.com/storage | 5 min |
+| 6 | toi, téléphone | l'onglet *Stockage* se lit ; l'appli marche comme avant | 5 min |
 
-Ensuite, plus rien à faire au quotidien pour les fiches. Détail : `docs/lot4c-procedure.md`.
+**Dans l'onglet *Purges*, ne coche pas encore** les lignes « Mails envoyés de plus de 3 mois » et « Anciens indices du carnet » : elles n'ont pas été essayées sur le vrai Google (voir partie 5). La purge « Chantier terminé » est essayée : la première vraie sera la tienne, sur un chantier que tu choisis.
 
-## 4. Le lot 5 — après le carnet en production, et après sa relecture (1 h 30)
+Détail : `docs/lot5-procedure.md`.
+
+## 2. Le 4c sur un vrai chantier (45 min, quand tu veux dans la journée)
 
 | # | Qui | Quoi | Temps |
 |---|---|---|---|
-| 1 | toi, au bureau | envoi `--avec-porte` du serveur v10.0 (branche `lot-5`) | 2 min |
-| 2 | moi, avec toi 10 min | mesure sur la copie TEST ; on compare ensemble le chiffre à celui de one.google.com/storage | 30 min, dont 10 avec toi |
-| 3 | moi | purge d'essai d'un faux chantier clôturé de la copie TEST, puis annulation | 20 min, sans toi |
-| 4 | toi, téléphone | regarder les onglets *Stockage* et *Purges*, cocher une case, annuler | 15 min |
-| 5 | toi | envoi `--sans-porte`, production (coller v10.0, `installerLot5Production`, nouveau déploiement) | 30 min |
+| 1 | toi | créer ton fichier de réglages (je te donne le texte) : dossier des chantiers sur le PC, un seul chantier pour commencer | 10 min |
+| 2 | toi | « Voir seulement » : la liste de ce qui serait recopié et déposé, sans rien faire | 5 min |
+| 3 | toi | premier passage réel sur ce chantier : les fiches arrivent dans son dossier sur le PC | 15 min |
+| 4 | toi, avec Claude dans LOUE TRAVAIL | « fais-moi l'état documentaire » : aucune fiche de l'appli ne doit apparaître comme un document à toi | 15 min |
 
-**Aucune purge réelle n'est faite par moi** : la première sera la tienne, sur un chantier que tu choisis. Détail : `docs/lot5-procedure.md` (branche `lot-5`).
+La tâche automatique (`installer-tache.bat`) : seulement après un passage réussi. Détail : `docs/lot4c-procedure.md`.
 
-## 5. Le lot 8 — plus tard dans la semaine
+## 3. Le lot 8 sur la copie TEST (30 min pour toi, en deux fois)
 
-- 8a (annotation des photos) : pages seules, pas d'envoi clasp ; tes essais sur téléphone (10 min), fusion.
-- 8b (numéro du compte rendu, présents) : un envoi, tes essais (10 min), production (30 min).
-- 8c : après tes réponses aux questions.
+À faire **après** la partie 1 : la copie TEST ne porte qu'un lot à la fois.
+
+| # | Qui | Quoi | Temps |
+|---|---|---|---|
+| 1 | moi | préparer ton dossier principal sur la branche `lot-8` et te le confirmer par écrit | 5 min |
+| 2 | toi, au bureau | `node outils\envoyer-test.js --avec-porte` ; la version affichée doit être **v11.1** ; me dire « envoi fait » | 2 min |
+| 3 | moi | installation sur TEST, essais contre le vrai serveur TEST (deux notes au même instant ; **3 mails, tous à ton adresse**) | 30 min, sans toi |
+| 4 | toi, téléphone | avant ma publication : un brouillon de note et une note en attente (mode avion), puis « prêt » ; ensuite les 13 essais de l'étape B | 20 min |
+| 5 | toi | me dire ce qui gêne à l'écran (gants, soleil, texte coupé) | 5 min |
+
+**Pas de production du lot 8 aujourd'hui** : elle vient après tes essais, un autre jour que celle du lot 5. Détail : `docs/lot8-procedure.md` (branche `lot-8`).
+
+## 4. Tes décisions (15 min, quand tu veux)
+
+1. **Mail unique** (`docs/lot5-mail-unique.md`) : d'accord sur le plan ? Si oui, je le fais critiquer puis je le construis. Je recommande de le mettre en service **après** le lot 8, à une semaine d'écart : deux changements d'envoi en même temps seraient difficiles à démêler.
+2. **Lot 10** (`docs/lot10-idees.md`) : quelles idées retiens-tu ? Je recommande la 1 (QR code par chantier) et la 2 (rappel des signalements bloquants non traités).
+3. **Lot 8** : les choix que j'ai pris seul sont dans `DECISIONS.md` (D8-21 à D8-46, branche `lot-8`). Les trois qui te concernent :
+   - l'ordre des comptes rendus d'un chantier est l'ordre d'arrivée au bureau, pas la date de la réunion ;
+   - un point clos peut être rouvert pendant les 3 comptes rendus suivants ;
+   - sans accès au chantier, on peut ajouter des points, pas clore ni compléter ceux des autres.
+
+## 5. Essais qui restent à faire sur la copie TEST
+
+- **« Mails envoyés de plus de 3 mois »** : possible à partir de mercredi 18/11 (il faut un mail d'essai assez ancien).
+- **« Anciens indices du carnet »** (un dossier entier à la corbeille, puis annulation).
+- **iPhone** : `docs/essais-iphone.md`, 12 essais, 20 minutes, avant la remise de l'appli aux poseurs. Le guide à leur donner : `docs/guide-poseurs.md`.
 
 ## 6. Rappels en attente (aucun n'est urgent)
 
+- `listerPartagesPlans` en production (lecture seule), puis le ménage des partages dans Drive : c'est toi qui les retires.
+- Archiver les déploiements « Lot 3 — production » et « Lot 7 — production » (à partir du 20/11) ; plus tard « Lot 4 — production », une semaine après les pages du lot 5.
 - Lot 2 : `demarrerTransition` n'a pas été lancé en production.
-- Archiver les déploiements « Lot 7 — production » (depuis le 20/11) et « Lot 3 — production » (une semaine après la production du carnet).
-- Copie TEST : supprimer les quatre onglets « … (ancienne version …) ».
-- Essai sur **iPhone** (carnet 4a et 4b) avant la remise de l'appli aux poseurs.
-- `CLAUDE.md` : la liste des pages est périmée (signalements, notes, carnet) ; je te proposerai le texte.
+- Copie TEST : supprimer les quatre onglets « … (ancienne version …) » ; le chantier d'essai CHANTIER TEST AUTO est resté à « Terminé ».
+- L'origine des 2 mails reçus en double : pas encore trouvée.
