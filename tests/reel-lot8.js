@@ -3,8 +3,9 @@
 // il parle à Google. Ne jamais le lancer contre la production : il ne connaît que l'adresse de la copie TEST.)
 //
 // Ce qu'il vérifie, et que le faux Google des autres tests ne peut pas prouver : le VRAI verrou de Google.
-//   - deux notes de réunion du même chantier envoyées AU MÊME INSTANT reçoivent deux numéros différents et qui se suivent ;
-//   - une note renvoyée (même numéro de fiche) retrouve son numéro, sans seconde ligne ni second mail.
+//   - deux notes de réunion du même chantier envoyées AU MÊME INSTANT sont notées chacune une fois, sur deux lignes ;
+//   - une note renvoyée (même numéro de fiche) est reconnue, sans seconde ligne ni second mail.
+// Un compte rendu n'a pas de numéro (décision de Franck du 16/11/2026) : il se désigne par sa date de réunion.
 // Garde-fous avant d'écrire quoi que ce soit :
 //   - la porte répond, l'environnement est bien TEST, le serveur est en v11.0 et c'est celui de CETTE branche (empreinte) ;
 //   - il reste au moins 40 mails possibles aujourd'hui (quota partagé avec la production) ;
@@ -77,7 +78,7 @@ const ranger = async () => { try { await geste('purgerComptesRendusEssai'); awai
   const dest = (await geste('destinatairesEssai')).data;
   console.log('    destinataires d’un essai : ' + JSON.stringify(dest));
   if (!dest.racineDriveNommeeTest) throw new Error('le dossier Drive de ce serveur ne s’appelle pas « … TEST … » : essais annulés');
-  if (!dest.chantierEssaiPresent) throw new Error('le chantier d’essai est absent de la copie TEST : essais annulés (la note n’aurait pas de numéro)');
+  if (!dest.chantierEssaiPresent) throw new Error('le chantier d’essai est absent de la copie TEST : essais annulés (la note serait « hors liste »)');
   if (dest.conducteurChantierEssai === 'AUTRE PERSONNE') throw new Error('le chantier d’essai a pour conducteur une autre personne que Franck : essais annulés (elle recevrait un mail d’essai)');
   // Lignes laissées par un essai précédent interrompu : retirées avant de commencer
   const menage = await geste('purgerComptesRendusEssai');
@@ -91,19 +92,17 @@ const ranger = async () => { try { await geste('purgerComptesRendusEssai'); awai
   // « serveur occupé » est une réponse permise (le verrou a fait attendre trop longtemps) : la note est alors renvoyée, comme le ferait le téléphone
   const renvoyer = async (r, id, objet) => { for (let k = 0; k < 5 && !r.ok && r.code === 'SERVEUR_OCCUPE'; k++) { await new Promise(x => setTimeout(x, 5000)); r = await fiche(jeton, id, note(objet)); } return r; };
   const ra = await renvoyer(a, idA, 'ESSAI AUTOMATIQUE A'), rb = await renvoyer(b, idB, 'ESSAI AUTOMATIQUE B');
-  verifier('les deux notes sont enregistrées, chacune avec un numéro', ra.ok && rb.ok && ra.data.numeroCR > 0 && rb.data.numeroCR > 0, court([ra, rb]));
-  const nA = Number((ra.data || {}).numeroCR), nB = Number((rb.data || {}).numeroCR);
-  verifier('VRAI VERROU : deux numéros DIFFÉRENTS et qui se suivent (' + nA + ' et ' + nB + ')', nA > 0 && nB > 0 && Math.abs(nA - nB) === 1, court([nA, nB]));
+  verifier('les deux notes envoyées au même instant sont enregistrées', ra.ok && rb.ok && ra.code === 'ENREGISTRE' && rb.code === 'ENREGISTRE', court([ra, rb]));
   verifier('chaque note : un seul mail (la copie au conducteur du chantier d’essai, ou à Franck), aucun reporté', (ra.data || {}).envoyes === 1 && (rb.data || {}).envoyes === 1
     && !(ra.data || {}).reportes && !(rb.data || {}).reportes, court([ra.data, rb.data]));
   const lu = await geste('lireComptesRendus', { n: 10 });
   const lignes = ((lu.data || {}).lignes || []).filter(l => l[0] === idA || l[0] === idB);
-  verifier('onglet Comptes rendus : une ligne par note, avec son numéro', lu.ok && lignes.length === 2
-    && String((lignes.find(l => l[0] === idA) || [])[2]) === String(nA) && String((lignes.find(l => l[0] === idB) || [])[2]) === String(nB), court(lignes));
+  verifier('VRAI VERROU : onglet Comptes rendus, une ligne par note et une seule (aucune note perdue, aucune en double)', lu.ok && lignes.length === 2
+    && lignes.filter(l => l[0] === idA).length === 1 && lignes.filter(l => l[0] === idB).length === 1, court(lignes));
 
   // ── Rejeu : la même fiche renvoyée ──
   const rejeu = await fiche(jeton, idA, note('ESSAI AUTOMATIQUE A'));
-  verifier('note renvoyée : « déjà reçue », avec le MÊME numéro', rejeu.ok && rejeu.code === 'DEJA_RECU' && Number(rejeu.data.numeroCR) === nA, court(rejeu));
+  verifier('note renvoyée : « déjà reçue »', rejeu.ok && rejeu.code === 'DEJA_RECU', court(rejeu));
   const lu2 = await geste('lireComptesRendus', { n: 10 });
   verifier('… aucune ligne de plus dans l’onglet', ((lu2.data || {}).lignes || []).filter(l => l[0] === idA).length === 1, court((lu2.data || {}).lignes));
   const env = await geste('lireEnvois', { n: 6 });
@@ -118,7 +117,13 @@ const ranger = async () => { try { await geste('purgerComptesRendusEssai'); awai
   await geste('retirerDeclencheurs');
   const etatFin = (await geste('etat')).data;
   verifier('copie TEST en ordre : aucun déclencheur d’essai, transition intacte', !(etatFin.declencheurs || []).length && etatFin.transitionARetablir === false, court(etatFin));
-  verifier('2 mails envoyés par ces essais, pas un de plus (le rejeu n’en envoie pas)', etat.data.mailsPossibles - etatFin.mailsPossibles === 2, etat.data.mailsPossibles + ' avant, ' + etatFin.mailsPossibles + ' après');
+  // Le compteur de Google (mails encore possibles aujourd'hui) est celui de TOUT le compte, production comprise. Mesuré le
+  // 19/11/2026, deux fois de suite : il baisse de 4 pour ces 2 mails. La cause n'est pas établie (à mesurer à part : un mail
+  // avec et sans pièce jointe). Il ne prouve donc ici qu'une chose : au moins 2 mails sont partis. Qu'il n'y en ait pas un
+  // de plus est prouvé plus haut par les réponses du serveur (1 mail par note, aucun pour la note renvoyée).
+  const partis = etat.data.mailsPossibles - etatFin.mailsPossibles;
+  verifier('compteur de mails du compte : au moins 2 de moins (' + etat.data.mailsPossibles + ' avant, ' + etatFin.mailsPossibles + ' après)', partis >= 2, partis);
+  if (partis > 2) console.log('    ℹ ' + (partis - 2) + ' mail(s) de plus au compteur : cause non établie (production, ou façon de compter de Google). À confirmer : Franck a reçu exactement 2 mails « CHANTIER TEST AUTO ».');
   console.log('    (restent dans le Drive de TEST : 2 PDF « COMPTE RENDU ' + CHANTIER + ' … », à supprimer à la main si besoin)');
   console.log('\n' + (resultats.length - echecs) + ' vérification(s) réussie(s) sur ' + resultats.length + (echecs ? ' — DES ESSAIS ÉCHOUENT' : ''));
   if (echecs) process.exitCode = 1;
