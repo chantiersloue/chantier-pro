@@ -1,7 +1,7 @@
 # Lot 12 — Tous les chantiers ouverts à tous les comptes, et nouvel accueil — PLAN
 
 > Plan du 19/11/2026, sur ta décision du jour. **Rien n'est construit ; pas de code avant ta validation.**
-> **Pas encore critiqué par un agent indépendant** : il le sera une fois, quand tu auras répondu aux trois points du chapitre 9 (pour ne pas payer deux critiques). Le relevé du chapitre 3 a été fait par moi, dans le code des lots en service et des branches des lots 8, 10 et 5b.
+> **Pas encore critiqué par un agent indépendant** : il le sera une fois, quand tu auras répondu aux deux points du chapitre 9 (pour ne pas payer deux critiques). Le relevé du chapitre 3 a été fait par moi, dans le code des lots en service et des branches des lots 8, 10 et 5b.
 
 ## 1. Ta décision
 
@@ -42,7 +42,8 @@ Le lot a deux parties : **12a, le réglage** (serveur) ; **12b, l'accueil** (une
 | **Fiches** : la question « ce chantier n'est pas dans votre liste, continuer ? » | posée pour un chantier hors de ses cases | posée seulement pour un chantier « Terminé » ou inconnu |
 | **Signalements** (lot 7) : en envoyer | déjà possible sur tout chantier (avec la question ci-dessus) | pareil, sans la question |
 | **Signalements** : qui les voit, qui change le statut | par **rôle**, pas par chantier : un poseur voit les siens ; conducteur, admin et atelier voient tout et changent le statut | **inchangé** |
-| **Note de réunion** (lot 8) : voir les points ouverts d'un chantier, et les clore ou les rouvrir | tout compte qui a accès au chantier (aucune règle de rôle) | **tout compte, sur tout chantier** : un poseur pourra clore un point d'un chantier où il ne travaille pas (point 2 du chapitre 9) |
+| **Note de réunion** (lot 8) | tout le monde peut en écrire une, sur tout chantier | **inchangé**. Les points (clore, rouvrir) ont été retirés du lot 8 le 19/11 : la question « qui peut clore un point » ne se pose plus |
+| **Récapitulatif des notes** d'un chantier (lot 8d, s'il est validé) | — | lisible par tout compte, sur tout chantier |
 | Planning (tuile, lot 5c) | tous les comptes | inchangé |
 | Mails, purges, stockage, quotas | — | inchangé |
 
@@ -103,11 +104,10 @@ Une nouvelle version du serveur, donc un nouveau déploiement et une nouvelle ad
 **5c → lot 8 → lot 12 → 10a-1 → 10a-2 → 10b → mail unique.** Oui, juste après le lot 8.
 
 - Il est petit côté serveur, et le lot 11.1d (les favoris du planning) a besoin de son accueil.
-- Il se construit sur la branche du lot 8. Après sa mise en production, je le reporte dans les branches des lots 10 et du mail unique, comme pour le 5c.
+- Il se construit sur la branche du lot 8 (sans les points, retirés le 19/11). Après sa mise en production, je le reporte dans les branches des lots 10 et du mail unique, comme pour le 5c.
 - Ce que ça coûte : une mise en production de plus (environ 30 minutes pour toi) et un jour de plus avant le lot 10a-1.
 
 ## 9. Ce qu'il te reste à décider
 
 1. **Les chantiers « Terminé »** restent-ils cachés aux poseurs et à l'atelier, comme aujourd'hui ? Je le recommande : la liste reste courte, et le carnet d'un chantier terminé est purgé 30 jours après.
-2. **Note de réunion** : avec le réglage allumé, tout compte pourra clore ou rouvrir un point de n'importe quel chantier. D'accord, ou veux-tu réserver le suivi des points aux conducteurs ? (Ce serait une règle nouvelle, à ajouter dans ce lot.)
-3. **Ton accueil à toi** (conducteurs et admin) : le même écran. Les chantiers dont tu es le conducteur (colonne D) arrivent tout seuls dans « Mes chantiers », et tu peux en retirer ou en ajouter comme les gars. D'accord ?
+2. **Ton accueil à toi** (conducteurs et admin) : le même écran. Les chantiers dont tu es le conducteur (colonne D) arrivent tout seuls dans « Mes chantiers », et tu peux en retirer ou en ajouter comme les gars. D'accord ?

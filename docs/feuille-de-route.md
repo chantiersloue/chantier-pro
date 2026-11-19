@@ -8,7 +8,7 @@
 |---|---|---|---|
 | 1 | toi, téléphone | sur la copie d'essai (icône « Loué ESSAI », **encore l'ancienne version**) : commence une note de réunion sans l'envoyer, et mets une note **en attente** (mode avion, Envoyer). Dis-moi « prêt » | **fait** |
 | 2 | moi | je publie la copie d'essai avec les pages du lot 8 | **fait à 09 h 27** (appli 10.2, serveur de TEST v11.1 contrôlé) |
-| 3 | toi, téléphone | **les 13 essais du lot 8** : étape B de `docs/lot8-procedure.md` (branche `lot-8`) | 20 min |
+| 3 | toi, téléphone | essais 1 et 2 du lot 8 : **faits**. Puis **tu as retiré les points (8c)** : le lot 8 est adapté (09 h 56), voir la partie 0 ci-dessous | — |
 | 4 | moi, puis toi | je te confirme « dossier prêt, branche lot-5c, serveur v10.1 » ; tu lances `node outils\envoyer-test.js --avec-porte` **depuis le dossier `chantier-pro-lot5c`** (le serveur du lot 8 est alors remplacé sur TEST : c'est voulu) | 2 min |
 | 5 | moi | je publie la copie d'essai avec les pages du 5c ; je vérifie que les fichiers du planning de TEST sont redevenus privés ; j'essaie un PDF de 4,9 Mo | 20 min, sans toi |
 | 6 | toi | **tes essais du 5c** : étape B de `docs/lot5c-procedure.md` (branche `lot-5c`), sur Android **et** iPhone | 10 min |
@@ -17,6 +17,15 @@
 | 9 | toi, demain | production du lot 8 (étapes C et D de `docs/lot8-procedure.md`) | 30 min |
 
 Avant l'étape 7 : chaque poseur qui lit le planning doit avoir un compte (sans compte, il ne le verra plus).
+
+## 0. Lot 8 sans les points : la suite, dans l'ordre
+
+| # | Qui | Quoi |
+|---|---|---|
+| a | toi, PC | dans le dossier **`chantier-pro-lot8`** : `node outils\envoyer-test.js --avec-porte` (je t'ai confirmé « dossier prêt, branche lot-8, serveur v11.0 »). Dis-moi « envoi fait » avec l'empreinte |
+| b | moi | installation sur TEST, essais réels (2 mails, à ton adresse seulement), publication de la copie d'essai en 10.1 |
+| c | toi, téléphone | « Mettre à jour », vérifier **10.1**, puis les essais 3 à 11 de l'étape B de `docs/lot8-procedure.md` (branche `lot-8`) |
+| d | ensuite | les étapes 4 à 9 du tableau ci-dessus (lot 5c sur TEST, puis en production ; lot 8 en production le lendemain) |
 
 ## Où en est chaque lot
 
@@ -27,8 +36,9 @@ Avant l'étape 7 : chaque poseur qui lit le planning doit avoir un compte (sans 
 | **4d** retouches du programme du PC | `lot-5` (ton dossier) | **en service depuis le 18/11 à 21 h 18** ; premier passage automatique réussi à 21 h 39 : 46 points → **1 point et 7 lignes « pour information »** |
 | **4e** images du carnet un peu plus compressées | `lot-4e` (dossier `chantier-pro-lot4e`) | construit, 33 + 83 tests verts ; **attend ton essai sur la copie TEST** (partie 2) |
 | **5c** planning lisible par les seuls comptes, serveur v10.1, appli 9.1 | `lot-5c` | construit, relu, corrigé, 19 séries vertes. **Sur TEST aujourd'hui, puis en production avant le lot 8** |
-| **8** note de réunion en points, serveur v11.1, appli 10.2 | `lot-8` | sur la copie TEST depuis le 18/11 (empreinte 313ebbda57) ; installé ; essais réels faits : 18 sur 19, **et le 19e est levé** (tu as bien reçu exactement 3 mails : l'écart du compteur venait de la production). Restent tes 13 essais |
-| **12** tous les chantiers ouverts à tous les comptes (réglage), nouvel accueil | — | **plan écrit le 19/11** (`docs/lot12-plan.md`), rien de construit ; trois points à décider (son chapitre 9) |
+| **8** note de réunion (onglet « Comptes rendus », compteur de mails, photos annotées qu'on rouvre), **sans les points**, serveur v11.0, appli 10.1 | `lot-8` (dossier `chantier-pro-lot8`) | **points (8c) retirés le 19/11 sur ta décision** ; toutes les séries de tests relancées. Le serveur v11.0 est à renvoyer sur la copie TEST (partie 0) ; restent 9 essais sur 11 |
+| **8d** récapitulatif des notes de réunion par chantier | — | **plan écrit le 19/11** (`docs/lot8d-plan.md`), rien de construit ; trois points à décider |
+| **12** tous les chantiers ouverts à tous les comptes (réglage), nouvel accueil | — | **plan écrit le 19/11** (`docs/lot12-plan.md`), rien de construit ; deux points à décider (son chapitre 9) |
 | **10a-1**, **10a-2**, **10b** | `lot-10a1` → `lot-10a2` → `lot-10b` | construits et testés ; 10a-1 relu. Sur TEST après le lot 8 en production |
 | **Mail unique** (lot 5b) | `lot-5b` | construit, **pas encore relu** ; livré éteint ; passe en dernier |
 | **11** planning, heures, atelier | — | accord donné ; tes retours du 18/11 au soir sont dans l'étude (`_prive\etudes\lot11-etude.md`, chapitre 0 ter) et dans le plan `docs/lot11-1-plan.md` (**version 3, critiquée par un agent indépendant**). **Maquette Google Sheets avec son programme** prête à installer : partie 3 |
@@ -54,7 +64,7 @@ Rien n'est construit ; tout est avec de faux noms, sans lien avec l'appli.
    **À savoir** : il a passé 42 essais contre un faux Google écrit pour l'occasion, mais **il n'a jamais tourné chez le vrai Google**. Si un message d'erreur apparaît, copie-le-moi : je corrige.
 2. **Faire ses essais** (fin de la procédure), surtout : les propositions pendant la frappe ; maltraiter les cases collées ; **l'affiche A3** (cocher « Préparer l'affiche A3 », ouvrir le lien, imprimer en A3 paysage, mesurer une majuscule) ; l'atelier (fabrication → commandes en attente → commandes → reçu).
 3. **Répondre aux 12 points** du chapitre 12 de `docs/lot11-1-plan.md` (version 3, corrigée après une critique indépendante).
-4. **Tes décisions du 19/11** : tous les chantiers ouverts à tous les comptes, avec un réglage allumé / éteint, et un nouvel accueil (« Mes chantiers » = favoris, « Tous les chantiers » replié) : **lot 12, `docs/lot12-plan.md`**, trois points à trancher (chapitre 9). Le planning n'ajoute plus que des favoris : **lot 11.1d, chapitre 13 du plan du lot 11.1**, plus rien à trancher. Rien n'est construit.
+4. **Tes décisions du 19/11** : tous les chantiers ouverts à tous les comptes, avec un réglage allumé / éteint, et un nouvel accueil (« Mes chantiers » = favoris, « Tous les chantiers » replié) : **lot 12, `docs/lot12-plan.md`**, deux points à trancher (chapitre 9). Le planning n'ajoute plus que des favoris : **lot 11.1d, chapitre 13 du plan du lot 11.1**, plus rien à trancher. Rien n'est construit.
 
 Trois choses que la critique a changées, à connaître avant de lire le plan :
 - **Aucune méthode officielle de Google n'exporte un onglet en PDF A3.** Le lien utilisé par tout le monde marche aujourd'hui, sans garantie. Repli sûr : Fichier → Imprimer.
