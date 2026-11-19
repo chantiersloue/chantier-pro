@@ -46,6 +46,18 @@
     var e = propre(etat), change = !etat;
     if (!chantiers || !chantiers.length) return { etat: e, change: change };
     var cles = F.cles(chantiers), presentes = {};
+    // La clé d'un chantier peut CHANGER : un numéro lui est donné après coup, ou un second chantier prend le même numéro.
+    // Ce que le téléphone gardait sous l'ancienne clé (étoile, « déjà vu », série du planning) suit le chantier.
+    chantiers.forEach(function (c) {
+      var k = cles[c.nom], n = numero(c), autre = k.charAt(0) === 'n' ? 'c:' + nom(c) : (n ? 'n:' + n : '');
+      if (!autre || autre === k) return;
+      ['etoiles', 'vus', 'series'].forEach(function (sorte) {
+        if (e[sorte][autre] === undefined) return;
+        if (e[sorte][k] === undefined) e[sorte][k] = e[sorte][autre];
+        delete e[sorte][autre];
+        change = true;
+      });
+    });
     chantiers.forEach(function (c) {
       var k = cles[c.nom];
       presentes[k] = true;

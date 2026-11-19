@@ -6,7 +6,7 @@
 <title>Loué App</title>
 <link rel="icon" type="image/png" href="apple-touch-icon.png">
 <link rel="manifest" href="manifest.json">
-<link rel="stylesheet" href="commun/style.css?v=5d741f7451">
+<link rel="stylesheet" href="commun/style.css?v=0023d69eb6">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -79,7 +79,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .chantier-card:active{background:#F0F5FF;}
 /* Lot 12 : l'étoile, à gauche, large (une zone de 56 px pour un doigt ganté), séparée de la zone qui ouvre le chantier */
 .ch-etoile{flex:0 0 56px;width:56px;min-height:56px;border:0;border-right:1px solid var(--border);background:transparent;font-size:27px;line-height:1;color:#B8860B;cursor:pointer;padding:0;}
-.ch-etoile.vide{color:#8A8580;}
+.ch-etoile.vide{color:#5F5A55;}
 .ch-etoile:active{background:#FFF4D6;}
 .ch-etoile-vide{flex:0 0 56px;width:56px;border-right:1px solid var(--border);}
 .ch-ouvrir{flex:1;min-width:0;min-height:56px;display:flex;align-items:center;gap:10px;padding:12px 14px;border:0;background:transparent;text-align:left;font:inherit;color:inherit;cursor:pointer;}
@@ -526,12 +526,12 @@ body.loue-test .installer{padding-top:calc(56px + env(safe-area-inset-top,0px));
 </div>
 
 
-<script src="commun/config.js?v=5d741f7451"></script>
-<script src="commun/api.js?v=5d741f7451"></script>
-<script src="commun/ui.js?v=5d741f7451"></script>
-<script src="commun/favoris.js?v=5d741f7451"></script>
-<script src="commun/notes.js?v=5d741f7451"></script>
-<script src="commun/hors-ligne.js?v=5d741f7451"></script>
+<script src="commun/config.js?v=0023d69eb6"></script>
+<script src="commun/api.js?v=0023d69eb6"></script>
+<script src="commun/ui.js?v=0023d69eb6"></script>
+<script src="commun/favoris.js?v=0023d69eb6"></script>
+<script src="commun/notes.js?v=0023d69eb6"></script>
+<script src="commun/hors-ligne.js?v=0023d69eb6"></script>
 <script>
 // ── Accueil (lot 2) : connexion, « Mes chantiers », fiches du chantier avec le chantier pré-rempli ──
 // Rien ici n'empêche de remplir une fiche : « Remplir une fiche sans être connecté » est toujours proposé,
@@ -687,12 +687,21 @@ function afficherAccueil() {
   $('bonjour').textContent = c ? 'Bonjour ' + (String(c.profil.nom || '').split(/\s+/)[0] || c.profil.id) : '';
   $('bonjour').hidden = !c;
   if (c && c.chantiers) { CHANTIERS = c.chantiers; renderChantiers(); }
-  else if (c) $('chantiers-container').innerHTML = CHARGEMENT;
+  else {
+    // rien à montrer encore : la liste du compte (ou du mode) précédent ne reste pas à l'écran
+    CHANTIERS = [];
+    $('tous-container').innerHTML = ''; $('tous-chantiers').hidden = true; $('btn-tous-ch').hidden = true;
+    if (c) $('chantiers-container').innerHTML = CHARGEMENT;
+  }
   if (MODE === 'sans') chargerChantiersSansCompte();
 }
 // Profil et chantiers à jour (jeton prolongé) ; hors réseau, la dernière liste gardée suffit
 function rafraichirCompte() {
+  const pour = (LOUE.compte() || { profil: {} }).profil.id;
+  // une réponse qui arrive après un changement de compte (ou un passage sans compte) n'est ni affichée ni reportée dans les étoiles
+  const perime = () => MODE !== 'compte' || !LOUE.compte() || LOUE.compte().profil.id !== pour;
   LOUE.moi().then(rep => {
+    if (perime()) return;
     if (rep.ok) {
       CHANTIERS = rep.data.chantiers || []; renderChantiers();
       chargerBadgesNotes();                    // lot 3 : nombre de notes nouvelles par chantier
@@ -711,6 +720,7 @@ function rafraichirCompte() {
 function chargerChantiersSansCompte() {
   $('chantiers-container').innerHTML = CHARGEMENT;
   LOUE.chargerListes().then(r => {
+    if (MODE !== 'sans') return;   // connecté entre-temps : cette liste (tout « mien ») ne doit pas devenir les étoiles du compte
     CHANTIERS = ((r.donnees && r.donnees.chantiers) || []).map(c => Object.assign({}, c, { mien: true }));
     renderChantiers();
     if (r.depuisLeTelephone) LOUE.message('Pas de réseau : liste gardée dans le téléphone', 5000);
@@ -724,12 +734,16 @@ function chargerChantiersSansCompte() {
 let tousOuvert = false;       // « Tous les chantiers » déplié ; replié à chaque ouverture de l'appli
 let FAVORIS = null;           // les étoiles du compte connecté
 let retrait = null;           // dernière étoile retirée, annulable pendant 6 secondes : { cle, minuteur }
+let favorisEnMemoire = false; // vrai : le téléphone a refusé de garder les étoiles, elles ne vivent qu'à l'écran
+let favorisPour = '';         // le compte dont FAVORIS porte les étoiles
 function majFavoris() {
   const c = LOUE.compte();
-  if (MODE !== 'compte' || !c) { FAVORIS = null; return; }
-  const r = LOUE.favoris.integrer(LOUE.favoris.lire(c.profil.id), CHANTIERS);   // ce que le serveur signale (cases, planning) devient une étoile, une fois
+  if (MODE !== 'compte' || !c) { FAVORIS = null; favorisPour = ''; return; }
+  if (favorisPour !== c.profil.id) { FAVORIS = null; favorisEnMemoire = false; favorisPour = c.profil.id; }   // autre compte : ses étoiles à lui
+  const base = favorisEnMemoire && FAVORIS ? FAVORIS : LOUE.favoris.lire(c.profil.id);
+  const r = LOUE.favoris.integrer(base, CHANTIERS);   // ce que le serveur signale (cases, planning) devient une étoile, une fois
   FAVORIS = r.etat;
-  if (r.change) LOUE.favoris.ecrire(c.profil.id, FAVORIS);
+  if (r.change) garderFavoris(c.profil.id);
   try { localStorage.removeItem('loue_recents_' + LOUE.env + '_' + c.profil.id); } catch (e) {}   // l'ancien classement « derniers ouverts » n'existe plus
 }
 function carteChantier(x, cle, avecEtoile) {
@@ -794,18 +808,35 @@ function renderChantiers() {
 $('recherche').addEventListener('input', renderChantiers);
 function basculerTousChantiers() { tousOuvert = !tousOuvert; renderChantiers(); }
 // Une étoile : ★ retire le chantier de « Mes chantiers » (annulable 6 secondes), ☆ l'y met. Rien n'est envoyé au serveur.
-function basculerEtoile(cle) {
+// carte (facultatif) : la carte touchée dans « Tous les chantiers ». Après le dessin, la page est décalée pour qu'elle
+// reste sous le doigt (« Mes chantiers », au-dessus, vient de gagner ou de perdre une ligne).
+function basculerEtoile(cle, carte) {
   const c = LOUE.compte();
   if (!c || MODE !== 'compte') return;
+  // La liste affichée (même dépliée d'office parce que « Mes chantiers » était vide) reste dépliée : elle ne se
+  // referme pas sous le doigt à la première étoile
+  if (!$('tous-chantiers').hidden) tousOuvert = true;
+  const nomCarte = carte ? carte.getAttribute('data-nom') : '', avant = carte ? carte.getBoundingClientRect().top : 0;
   const avait = LOUE.favoris.aEtoile(FAVORIS, cle);
   FAVORIS = LOUE.favoris.basculer(FAVORIS, cle, !avait);
-  LOUE.favoris.ecrire(c.profil.id, FAVORIS);
+  garderFavoris(c.profil.id);
   cacherAnnulation();
   if (avait) {
     retrait = { cle: cle, minuteur: setTimeout(cacherAnnulation, 6000) };
     $('annuler-favori').hidden = false;
   }
   renderChantiers();
+  if (nomCarte) {
+    const apres = Array.from(document.querySelectorAll('#tous-container .chantier-card')).find(x => x.getAttribute('data-nom') === nomCarte);
+    if (apres) window.scrollBy(0, apres.getBoundingClientRect().top - avant);
+  }
+}
+// Les étoiles vont dans le téléphone. S'il refuse (mémoire pleine, navigation privée), elles restent au moins à l'écran
+// jusqu'à la fermeture de l'appli, et la page le dit une fois.
+function garderFavoris(id) {
+  if (LOUE.favoris.ecrire(id, FAVORIS)) { favorisEnMemoire = false; return; }
+  if (!favorisEnMemoire) LOUE.message('⚠ Le téléphone ne peut pas garder vos étoiles (mémoire pleine ?). Elles resteront jusqu’à la fermeture de l’appli.', 9000);
+  favorisEnMemoire = true;
 }
 function cacherAnnulation() {
   if (retrait) clearTimeout(retrait.minuteur);
@@ -814,13 +845,13 @@ function cacherAnnulation() {
 }
 function annulerRetrait() {
   const c = LOUE.compte();
-  if (retrait && c) { FAVORIS = LOUE.favoris.basculer(FAVORIS, retrait.cle, true); LOUE.favoris.ecrire(c.profil.id, FAVORIS); }
+  if (retrait && c) { FAVORIS = LOUE.favoris.basculer(FAVORIS, retrait.cle, true); garderFavoris(c.profil.id); }
   cacherAnnulation();
   renderChantiers();
 }
 function clicChantier(e) {
   const etoile = e.target.closest('[data-etoile]');
-  if (etoile) { basculerEtoile(etoile.getAttribute('data-etoile')); return; }
+  if (etoile) { basculerEtoile(etoile.getAttribute('data-etoile'), etoile.closest('#tous-container .chantier-card')); return; }
   const carte = e.target.closest('[data-nom]');
   if (!carte) return;
   const ch = CHANTIERS.find(x => x.nom === carte.getAttribute('data-nom'));
@@ -1070,7 +1101,7 @@ async function seDeconnecter() {
   if (!confirm(texte)) return;
   MODE = null;
   LOUE.deconnecter();
-  CHANTIERS = []; tousOuvert = false; FAVORIS = null; cacherAnnulation();
+  CHANTIERS = []; tousOuvert = false; FAVORIS = null; favorisEnMemoire = false; cacherAnnulation();
   allerConnexion();
 }
 // Incidents récents gardés par l'appli (rangement bloqué ou lent…) : à me transmettre s'il y en a

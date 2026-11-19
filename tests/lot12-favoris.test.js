@@ -116,6 +116,29 @@ test('rangé dans le téléphone PAR COMPTE et par mode (test, production) ; un 
   assert.deepStrictEqual(j(a.F.lire('poseur1')), j({ etoiles: {}, vus: {}, series: {}, v: 1 }));
   assert.strictEqual(a.F.ecrire('', a.F.vide()), false);
 });
+test('la clé d’un chantier change (numéro donné après coup, second chantier du même numéro) : l’étoile suit le chantier, et une étoile retirée ne revient pas', () => {
+  // 1. étoile mise à la main sur un chantier sans numéro ; le bureau lui donne ensuite un numéro
+  let e = F.basculer(F.integrer(null, [ch('DUPONT')]).etat, 'c:dupont', true);
+  const numerote = [ch('DUPONT', '901')];
+  e = F.integrer(e, numerote).etat;
+  assert.deepStrictEqual(etoiles(e), ['n:901']);
+  assert.deepStrictEqual(F.ranger(e, numerote).mes.map(c => c.nom), ['DUPONT']);
+  // 2. chantier « mien » dont le gars a RETIRÉ l'étoile ; un numéro lui est donné : l'étoile ne revient pas
+  e = F.integrer(null, [ch('MARTIN', '', { mien: true })]).etat;
+  e = F.basculer(e, 'c:martin', false);
+  e = F.integrer(e, [ch('MARTIN', '902', { mien: true })]).etat;
+  assert.deepStrictEqual(etoiles(e), []);
+  // 3. un second chantier prend le même numéro : l'étoile du premier le suit sous son nom
+  e = F.basculer(F.integrer(null, [ch('LOT A', '0600')]).etat, 'n:0600', true);
+  const doubles = [ch('LOT A', '0600'), ch('LOT B', '0600')];
+  e = F.integrer(e, doubles).etat;
+  assert.deepStrictEqual(F.ranger(e, doubles).mes.map(c => c.nom), ['LOT A']);
+  // 4. la série du planning suit aussi : pas de nouvelle étoile pour la même série après le changement de clé
+  e = F.integrer(null, [ch('DURAND', '', { planifie: '2026-11-23' })]).etat;
+  e = F.basculer(e, 'c:durand', false);
+  e = F.integrer(e, [ch('DURAND', '903', { planifie: '2026-11-23' })]).etat;
+  assert.deepStrictEqual(etoiles(e), []);
+});
 test('la page charge la brique, et le service worker la garde hors réseau', () => {
   const index = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8'), sw = fs.readFileSync(path.join(__dirname, '..', 'sw.js'), 'utf8');
   assert.ok(/<script src="commun\/favoris\.js\?v=[0-9a-f]+"><\/script>/.test(index) && /commun\/favoris\.js\?v=/.test(sw));

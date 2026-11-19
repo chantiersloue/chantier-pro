@@ -2,7 +2,7 @@
 
 > Pour Franck. Plan : `docs/lot12-plan.md` ; tes deux réponses du 19/11/2026 : les chantiers « Terminé » restent **visibles, en bas de la liste, grisés** ; ton accueil est le même écran que celui des gars, et tes chantiers de conducteur arrivent tout seuls dans « Mes chantiers ».
 > Une livraison : le **serveur v11.2** (le programme chez Google) et les **pages, appli 10.3**.
-> **État au 19/11/2026** : construit, testé contre le faux serveur et dans Chrome. **Rien n'a tourné chez Google.**
+> **État au 20/11/2026** : construit, testé contre le faux serveur et dans Chrome, **relu par un agent indépendant (un tour, rien de bloquant) et corrigé**. **Rien n'a tourné chez Google.**
 > **Ne passe à l'étape suivante que si la précédente est verte.** Sinon : arrête-toi et envoie-moi une capture.
 
 ## Ce qui change, en clair
@@ -12,7 +12,7 @@
 - **« Tous les chantiers (32) »**, en dessous, **replié**. Un appui le déplie : tous les chantiers, par numéro, avec la recherche ; les chantiers **terminés en bas, grisés**.
 - **L'étoile est à gauche** de chaque chantier, large pour un doigt ganté. **☆** : le chantier va dans « Mes chantiers ». **★** : il en sort, et un bandeau « Retiré — **Annuler** » reste 6 secondes.
 - Toucher le nom du chantier l'ouvre, comme avant.
-- **Le premier jour, rien ne disparaît** : les chantiers que le gars avait dans « Mes chantiers » ont déjà leur étoile.
+- **Le premier jour, rien ne disparaît** : les chantiers que le gars avait dans « Mes chantiers » ont déjà leur étoile. Une exception, pour toi et les conducteurs : vos chantiers « Terminé » quittent « Mes chantiers » (ils sont en bas de « Tous les chantiers »).
 - Les étoiles sont **dans le téléphone** : elles marchent sans réseau. Sur un téléphone neuf, celles mises à la main sont à remettre.
 - Ce qui disparaît : le classement « derniers chantiers ouverts d'abord » et le bouton « Voir tous les chantiers ».
 
@@ -20,7 +20,8 @@
 - Un nouvel onglet ***Réglages*** dans le Sheet, avec une ligne **« Tous les comptes ouvrent tous les chantiers »** et une **case à cocher**.
 - **Case décochée** (c'est l'état à la livraison) : rien ne change, chacun voit les chantiers cochés dans *Accès chantiers*.
 - **Case cochée** : tout gars qui a un compte actif voit et ouvre **tous les chantiers** (carnet, documents, notes, récapitulatif, fiches). Sans compte : toujours rien.
-- **Ça agit tout de suite**, sans rien redéployer. Dans les 10 minutes, l'appli écrit à côté ce qu'elle a compris (« Allumé depuis le … »), et l'onglet *Accès chantiers* affiche « CASES SANS EFFET » en haut.
+- **Ça agit tout de suite**, sans rien redéployer. Dans les 10 minutes, l'appli écrit à côté ce qu'elle a compris (« Allumé depuis le … »), et l'onglet *Accès chantiers* affiche « CASES SANS EFFET SUR LES ACCÈS » en haut.
+- **Qui peut cocher la case** : toute personne qui a le droit de modifier le Sheet de l'appli (aujourd'hui : toi et le compte de Loué). Ne donne ce droit à personne d'autre.
 - **Revenir en arrière** : décoche. Les cases d'*Accès chantiers* reprennent leur effet, telles que tu les avais laissées.
 
 **Ce que le réglage ne change pas**
@@ -34,10 +35,12 @@
 - **Une case cochée dans *Accès chantiers* met encore le chantier dans « Mes chantiers » du gars**, une fois, même réglage allumé : c'est ta façon de lui pousser un chantier.
 - **Un chantier « Terminé » sort de « Mes chantiers »** ; on le retrouve en bas de « Tous les chantiers ». Son carnet est purgé 30 jours après, comme aujourd'hui.
 - **Ce que tu acceptes en allumant** : un téléphone perdu ou un mot de passe prêté donne accès à tous les chantiers en cours, plus seulement à ceux du gars. La parade existe : décocher « Actif » et cocher « Déconnecter ses téléphones » dans *Utilisateurs*, le jour même.
-- **N'écris rien d'autre que la case** dans la colonne « Allumé ». Un texte (« oui »), deux lignes du même réglage, ou la ligne renommée valent **éteint** : dans le doute, l'appli reste fermée.
+- **N'écris rien d'autre que la case** dans la colonne « Allumé ». Un texte (« oui »), deux lignes du même réglage, ou la ligne renommée valent **éteint** : dans le doute, l'appli reste fermée. Attention : « VRAI » tapé à la main dans la case, Google Sheets en fait une case cochée.
+- **Ne décoche pas « pour voir » une fois les gars habitués.** Pendant que la case est décochée, un gars qui ouvre le carnet ou les notes d'un chantier qui n'est pas coché pour lui reçoit « ce chantier ne fait pas partie de vos chantiers », et son téléphone **efface les plans et les listes de ce chantier qu'il gardait pour le hors réseau** (c'est la règle de sécurité quand un accès est retiré). Ils se retéléchargent quand la case est recochée.
 
 **Les chantiers du planning (prêt, mais éteint)**
-- Le serveur sait déjà lire le futur Sheet « Planning Loué » (lot 11.1) et mettre en favoris les chantiers où un gars est planifié : nouvelle série, retour après une coupure, plafond de 4 par gars et par semaine avec un mail à toi seul.
+- Le serveur sait déjà lire le futur Sheet « Planning Loué » (lot 11.1) et mettre en favoris les chantiers où un gars est planifié : nouvelle série, retour après une coupure, plafond de 4 par gars et par semaine avec un mail à toi seul (un seul mail par lecture du planning, qui liste tous les cas).
+- **Le plafond compte par semaine du planning.** À la mise en service, la semaine passée, la semaine en cours et les quatre suivantes déjà publiées sont lues d'un coup : un gars peut recevoir 4 favoris par semaine publiée ce jour-là.
 - **Rien de cela ne tourne** tant que la propriété `PLANNING_SHEET_ID` n'existe pas dans le projet Apps Script. Elle sera posée à la mise en service du planning.
 
 ---
@@ -60,9 +63,10 @@ Sur la copie d'essai (icône « Loué ESSAI »), connecté avec un compte de **p
 3. Touche une **★** dans « Mes chantiers » : le chantier en sort, le bandeau « Annuler » apparaît. Touche **Annuler** : il revient.
 4. **Avec des gants** : vise l'étoile, puis le nom. Tu ne dois ni ouvrir le chantier en voulant l'étoile, ni l'inverse.
 5. **Mode avion**, ferme l'appli, rouvre-la : tes étoiles sont là ; mets-en une, retire-en une.
-6. Dans le Sheet de TEST, onglet *Réglages* : **coche** la case. Sur le téléphone, tire l'accueil (ou rouvre l'appli) : « Tous les chantiers » en montre plus. Ouvre un chantier qui n'était pas à toi : carnet, notes, récapitulatif s'ouvrent.
-7. **Décoche** la case : ce chantier disparaît de la liste, et son carnet répond « pas dans votre liste ».
-8. Attends 10 minutes : la colonne « État » de l'onglet *Réglages* dit « Éteint depuis le … ».
+6. Dans le Sheet de TEST, onglet *Réglages* : **coche** la case. Sur le téléphone, **ferme complètement l'appli et rouvre-la** : « Tous les chantiers » en montre plus. Ouvre un chantier qui n'était pas à toi : carnet, notes, récapitulatif s'ouvrent.
+7. **Attends que la colonne « État » de l'onglet *Réglages* dise « Allumé depuis le … »** (10 minutes au plus). Ne décoche pas avant : l'état n'est écrit que quand un passage a vu le changement.
+8. **Décoche** la case, ferme et rouvre l'appli : ce chantier disparaît de la liste, et son carnet répond « Ce chantier ne fait pas partie de vos chantiers ».
+9. Dix minutes plus tard : la colonne « État » dit « Éteint depuis le … ».
 
 ## Étape C — production (toi : 15 minutes)
 
@@ -77,7 +81,7 @@ Sur la copie d'essai (icône « Loué ESSAI »), connecté avec un compte de **p
 
 ## Retour arrière
 
-- **Le réglage** : décoche la case. Effet immédiat, rien d'autre à faire.
+- **Le réglage** : décoche la case. Effet immédiat sur le serveur, rien d'autre à faire. Ce qu'un téléphone a déjà téléchargé d'un chantier qui n'est plus le sien n'est effacé que lorsque le gars rouvre ce chantier avec du réseau.
 - **L'accueil** : je remets l'adresse du serveur précédent et les pages d'avant par une fusion. Les étoiles restent dans les téléphones, sans effet.
 
 ## Ce qui n'a pas été vérifié
