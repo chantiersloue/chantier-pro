@@ -1,5 +1,6 @@
 # Lot 8 — Note de réunion : plan
 
+> **19/11/2026 — les points (8c) sont retirés**, sur décision de Franck pendant ses essais : le lot 8 livré est 8a + 8b (sans numéro ni présents). Tout ce qui, dans ce plan, parle de points ouverts, clos ou repris est gardé pour mémoire seulement. Suite : `docs/lot8-procedure.md`, et `docs/lot8d-plan.md` pour le récapitulatif des notes.
 > Commande : `PLAN.md`, exigence 12 et « Lot 8 — Note de réunion » ; décision D9b-5 du 13/11/2026 (`DECISIONS.md`).
 > **Version 3 (16/11/2026)** : Franck a répondu aux questions du chapitre 11. **Ce que ses réponses ont changé est au chapitre 13**, qui l'emporte sur tout ce qui précède ; les chapitres 1 à 12 sont gardés tels qu'ils ont été validés (version 2, après critique par un agent indépendant : chapitre 12).
 > **Rédigée sans interview** : Franck est absent et a demandé d'avancer. Chaque choix fait à sa place est marqué **[Hypothèse]** et repris au chapitre 11. **Aucun code n'est écrit avant sa validation**, sauf accord pour 8a et 8b (chapitre 2).

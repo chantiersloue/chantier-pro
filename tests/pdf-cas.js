@@ -65,14 +65,6 @@ module.exports = function (cas, x) {
       delaiPrecision: 'ligne 1\nligne 2\nligne 3' }), page1(PAYSAGE_A4));
   cas('fabrication — commentaire agrandi', 'modele_fabrication', fab([divers(1, 2)], [PAYSAGE()],
     { commentaires: '<span style="font-size:1.4em">Attention</span><br><span style="font-size:1.4em">Chants plaqués</span><br>Livrer avant la pose' }), page1(PAYSAGE_A4));
-  // Lot 8c : la note en points (textes fictifs)
-  const pts = (n, long) => Array.from({ length: n }, (_, i) => ({ t: 'Point ' + (i + 1) + ' : ' + (long ? Array(6).fill('reprise des jeux de la porte palière et réglage de la serrure').join(', ') : 'joint du châssis à reprendre'),
-    etat: i % 3 === 1 ? 'clos' : 'ouvert', mention: i % 3 === 1 ? 'clos · ouvert depuis le 23/10/2026' : i % 3 === 2 ? 'nouveau point' : 'ouvert depuis le 23/10/2026' }));
-  cas('note — 3 points + 1 photo', 'modele_note', note([PAYSAGE()], { points: pts(3), commentaires: '' }), page1(DEBOUT_A4));
-  cas('note — remarque en tête + 6 points + remarques générales + 1 photo en hauteur', 'modele_note',
-    note([PORTRAIT()], { points: pts(6), remarqueCR: 'Rédigé sans connaître le compte rendu du 07/11/2026' }), page1(DEBOUT_A4));
-  cas('note — 15 points longs (2 pages) + 2 photos de points', 'modele_note', note([Object.assign(PAYSAGE(), { label: 'Point 3 — vue du châssis' }), Object.assign(PAYSAGE(), { label: 'Point 7' })], { points: pts(15, true) }), Object.assign({ pagesContenu: 2 }, DEBOUT_A4));
-  cas('note — 40 points courts + 1 photo', 'modele_note', note([PAYSAGE()], { points: pts(40), commentaires: '' }), Object.assign({ pagesContenu: 2 }, DEBOUT_A4));
   cas('note — chantier et rédacteur longs', 'modele_note', note([PAYSAGE()], { chantier: '999-EXEMPLE / RESIDENCE ESSAI — VILLE EXEMPLE DE VIE', auteur: 'Jean-Christophe De La Fontaine-Martin' }), page1(DEBOUT_A4));
   cas('bordereau — preneur, entreprise et type longs', 'modele_bordereau', bord('bordereau-materiaux', [PAYSAGE()], { preneur: 'Jean-Christophe Martin',
     fonction: 'Conducteur de travaux', entreprise: 'Entreprise Générale de Bâtiment du Littoral', chantier: '999-EXEMPLE / RESIDENCE ESSAI — VILLE EXEMPLE DE VIE',
