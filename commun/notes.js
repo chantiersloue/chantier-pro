@@ -108,10 +108,11 @@
   // La liste d'un chantier (sans filtre) est gardée dans le téléphone et sert quand il n'y a pas de réseau.
   N.lire = function (o) {
     o = o || {};
-    var gardable = !!o.chantier && !o.recherche && !o.nouveau;
-    var cle = 'elements|' + cleChantier(o.chantier), qui = moi();
+    // Lot 13 — o.miennes : « Mes notes » (tous chantiers), gardée dans le téléphone sous sa propre clé
+    var gardable = (!!o.chantier || !!o.miennes) && !o.recherche && !o.nouveau;
+    var cle = 'elements|' + (o.miennes && !o.chantier ? N.CLE_MIENNES : cleChantier(o.chantier)), qui = moi();
     var depart = Date.now();
-    return appel({ action: 'notes', chantier: o.chantier || '', recherche: o.recherche || '', nouveau: !!o.nouveau, termines: !!o.termines }, 20000, 'Notes indisponibles').then(function (d) {
+    return appel({ action: 'notes', chantier: o.chantier || '', recherche: o.recherche || '', nouveau: !!o.nouveau, termines: !!o.termines, miennes: !!o.miennes && !o.chantier }, 20000, 'Notes indisponibles').then(function (d) {
       // gardée seulement si aucun envoi n'a été confirmé depuis le départ de la demande : une réponse partie avant un ajout
       // et arrivée après ne doit pas remplacer la liste gardée par une liste sans cet ajout
       if (gardable && qui === moi() && depart > dernierEnvoi) misesAJour = misesAJour.then(function () { return ecrireEntree(cle, 'elements', d); });
@@ -119,9 +120,10 @@
     }, function (err) {
       if (err && err.code === 'INTERDIT' && gardable) effacerEntree(cle);   // accès retiré : la liste gardée ne doit plus se lire hors réseau
       if (err && (err.connexion || err.serveur) || !gardable) throw err;
-      return N.gardee(o.chantier).then(function (g) { if (g) return g; throw err; });   // pas de réseau : la dernière liste de CE compte
+      return N.gardee(o.miennes && !o.chantier ? N.CLE_MIENNES : o.chantier).then(function (g) { if (g) return g; throw err; });   // pas de réseau : la dernière liste de CE compte
     });
   };
+  N.CLE_MIENNES = '__mes notes__';   // jamais le nom d'un chantier
   // La dernière liste gardée dans le téléphone pour ce chantier (ou null) : affichée tout de suite, avant la réponse du serveur
   N.gardee = function (chantier) {
     return lireEntree('elements|' + cleChantier(chantier)).then(function (e) { return e && e.valeur ? { donnees: e.valeur, date: e.date, depuisLeTelephone: true } : null; });
@@ -188,12 +190,13 @@
   N.effacerTexte = function (chantier) { return effacerEntree('texte|' + cleChantier(chantier)); };
 
   // ── Ajouts et gestes encore dans la file d'envoi, pour CE compte et ce chantier (du plus ancien au plus récent) ──
-  N.enAttente = function (chantier) {
+  // tous (lot 13) : vrai = tous chantiers confondus (« Mes notes »)
+  N.enAttente = function (chantier, tous) {
     var id = moi(), cle = cleChantier(chantier);
     if (!id || !LOUE.stockage) return Promise.resolve([]);
     return LOUE.stockage.tout('file').then(function (liste) {
       return liste.filter(function (e) {
-        return /^note-/.test(e.type || '') && (!e.env || e.env === CONFIG.env) && e.saisiPar === id && e.donnees && cleChantier(e.donnees.chantier) === cle;
+        return /^note-/.test(e.type || '') && (!e.env || e.env === CONFIG.env) && e.saisiPar === id && e.donnees && (tous === true || cleChantier(e.donnees.chantier) === cle);
       }).sort(function (a, b) { return a.cree - b.cree; });
     }).catch(function () { return []; });
   };

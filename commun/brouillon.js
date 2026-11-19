@@ -88,10 +88,39 @@
           .sort(function (x, y) { return y.t - x.t; });
       });
     }
+    // Lot 13 : un brouillon GARDÉ EXPRÈS (« Garder pour plus tard », marque « garde ») n'est jamais poussé dehors par les
+    // brouillons mis de côté tout seuls : ceux-ci gardent leur limite de 5 (les plus anciens laissent la place), ceux-là
+    // ont la leur (GARDES_MAX, tenue au moment de garder : au-delà, la page refuse au lieu d'effacer).
+    var GARDES_MAX = 5;
+    function borner(liste) {
+      var autos = 0;
+      return liste.filter(function (e) { if (e.garde) return true; autos++; return autos <= 5; });   // liste triée du plus récent au plus ancien
+    }
     function ecrireListe(liste) {
-      liste = liste.slice(0, 5);
+      liste = borner(liste);
       try { localStorage.setItem(cleListeLocale, JSON.stringify(liste.map(sansPhotos))); } catch (e) {}
       return LOUE.stockage.ecrire('brouillons', { cle: cleListe, liste: liste }).catch(function () {});
+    }
+    // Écriture VÉRIFIÉE de la liste (avant d'effacer quoi que ce soit ailleurs) : vrai seulement si la copie complète
+    // (avec photos) est rangée, ou si la copie texte l'est et qu'aucun brouillon de la liste ne contient de photo
+    function ecrireListeSure(liste) {
+      liste = borner(liste);
+      var okLocal = true;
+      try { localStorage.setItem(cleListeLocale, JSON.stringify(liste.map(sansPhotos))); } catch (e) { okLocal = false; }
+      var sansPhoto = liste.every(function (e) { return empreinte(e).indexOf('"blob:') < 0; });
+      return LOUE.stockage.ecrire('brouillons', { cle: cleListe, liste: liste }).then(function () { return true; }, function () { return okLocal && sansPhoto; });
+    }
+    // Garde un brouillon exprès. Rend 'ok', 'plein' (déjà GARDES_MAX brouillons gardés) ou 'echec' (le téléphone refuse).
+    // enPartance (facultatif) : l'heure d'un brouillon gardé qui va sortir de la liste juste après (celui qu'on reprend) ;
+    // il n'est pas compté dans la limite, mais il RESTE dans la liste tant qu'il n'est pas remis dans la fiche.
+    function garderExpres(e, enPartance) {
+      return lireListe().then(function (liste) {
+        liste = liste.filter(function (x) { return x.t !== e.t; });
+        if (liste.filter(function (x) { return x.garde && x.t !== enPartance; }).length >= GARDES_MAX) return 'plein';
+        liste.unshift(Object.assign({}, e, { cle: cle, garde: true }));
+        liste.sort(function (x, y) { return y.t - x.t; });
+        return ecrireListeSure(liste).then(function (ok) { return ok ? 'ok' : 'echec'; });
+      });
     }
     function ajouterALaListe(e) {
       return lireListe().then(function (liste) {
@@ -270,10 +299,30 @@
       bar.innerHTML = '<span>📝 ' + (proposition.source === 'liste' ? 'Brouillon mis de côté' : 'Brouillon retrouvé') + ' (' + quand(sauve.t) + ')'
         + (chantierSauve ? ' — chantier <strong>' + LOUE.esc(chantierSauve) + '</strong>' + (autre ? ' (pas celui ouvert : ' + LOUE.esc(chantierIci) + ')' : '') : '')
         + '. Le restaurer ?</span>'
-        + '<button type="button" data-oui>Restaurer</button><button type="button" data-non>Repartir à zéro</button>';
+        + '<button type="button" data-oui>Restaurer</button><button type="button" data-garder>Garder pour plus tard</button>'
+        + '<button type="button" data-non>Repartir à zéro</button>';
+      // Lot 13 — « Garder pour plus tard » : le brouillon proposé est rangé dans les brouillons gardés (il n'est plus proposé à
+      // chaque ouverture, il attend dans la liste) ; la page reste telle qu'elle est, pour une autre fiche
+      bar.querySelector('[data-garder]').onclick = function () {
+        var bouton = this;
+        bouton.disabled = true;
+        garderExpres(sauve).then(function (resultat) {
+          bouton.disabled = false;
+          if (resultat !== 'ok') { if (LOUE.message) LOUE.message(resultat === 'plein' ? TEXTE_PLEIN : TEXTE_REFUS, 9000); return; }
+          bar.remove(); enAttente = null;
+          var suite = Promise.resolve();
+          // Proposé comme brouillon courant, page encore vierge : il est maintenant dans la liste, il n'est plus « le courant »
+          if (proposition.source === 'courant' && !deCote) suite = effacerCourant().then(function () { derniere = empreinte(etat()); });
+          suite.then(function () {
+            if (LOUE.message) LOUE.message('📝 Brouillon gardé. Vous le retrouverez dans « Brouillons gardés », en haut de cette fiche.', 7000);
+            majPastille();
+          });
+        }, function () { bouton.disabled = false; if (LOUE.message) LOUE.message(TEXTE_REFUS, 9000); });
+      };
       bar.querySelector('[data-oui]').onclick = function () {
         bar.remove();
         enAttente = null;
+        majPastille();
         // Déjà tapé quelque chose avant de répondre : on le garde de côté au lieu de l'écraser,
         // et le brouillon restauré sort de la liste (sinon il serait reproposé après l'envoi : double envoi)
         var maintenant = etat();
@@ -292,6 +341,7 @@
       bar.querySelector('[data-non]').onclick = function () {
         if (!confirm('Effacer ce brouillon ? Ce qui y était saisi (photos et signatures comprises) sera perdu.')) return;
         bar.remove(); enAttente = null;
+        majPastille();
         // Brouillon proposé déjà mis de côté (on avait commencé à taper) : il sort de la liste ; ce qui est à l'écran reste
         if (proposition.source === 'liste' || deCote) { retirerDeLaListe(sauve.t).then(function () { derniere = null; sauver(); }); return; }
         // Sinon la page est vierge : on efface, et l'état vierge devient la référence (rien n'est réenregistré,
@@ -301,6 +351,128 @@
       document.body.appendChild(bar);
     }
 
+    // ══ Lot 13 — « Garder pour plus tard » et « Brouillons gardés » ══
+    // Une ligne discrète en haut de la fiche : « 📝 Brouillons gardés (2) » dès qu'il y en a (elle ouvre la liste) ; sinon
+    // « 📝 Garder pour plus tard » dès que la fiche contient quelque chose. Cachée tant que le bandeau attend une réponse.
+    // RIEN N'EST JAMAIS ÉCRASÉ : garder la fiche en cours ou reprendre un brouillon commence toujours par ranger, et par
+    // VÉRIFIER qu'il est rangé, ce qui est à l'écran ; au moindre doute, rien n'est effacé et la page le dit.
+    var TEXTE_PLEIN = '⚠ Déjà ' + GARDES_MAX + ' brouillons gardés pour cette fiche : reprenez-en un ou effacez-en un d’abord (« Brouillons gardés »).';
+    var TEXTE_REFUS = '⚠ Le téléphone n’a pas pu garder ce brouillon (mémoire pleine ?). Rien n’a été effacé.';
+    var cleReprise = cleLocale + '_reprendre';     // « reprendre ce brouillon » : posé juste avant de recharger la page
+    var pastille = null;
+    function limite(t) { var d = new Date(t + 30 * 24 * 3600 * 1000), p = function (n) { return ('0' + n).slice(-2); }; return p(d.getDate()) + '/' + p(d.getMonth() + 1); }
+    function chantierDe(e) {
+      return options.champChantier && e.champs && e.champs[options.champChantier] ? String(e.champs[options.champChantier].v || '').trim() : '';
+    }
+    function majPastille() {
+      if (!vierge) return Promise.resolve();
+      return lireListe().then(function (liste) {
+        var utiles = liste.filter(contientQuelqueChose);
+        if (!pastille) {
+          pastille = document.createElement('button');
+          pastille.type = 'button'; pastille.className = 'loue-brouillons-pastille no-print'; pastille.hidden = true;
+          pastille.onclick = function () { if (pastille.dataset.mode === 'liste') ouvrirPanneau(); else garderEnCours(); };
+          var ou = document.querySelector('.main') || document.body;
+          ou.insertBefore(pastille, ou.firstChild);
+        }
+        var plein = actif && contientQuelqueChose(etat());
+        pastille.dataset.mode = utiles.length ? 'liste' : 'garder';
+        pastille.textContent = utiles.length ? '📝 Brouillons gardés (' + utiles.length + ')' : '📝 Garder pour plus tard';
+        pastille.hidden = !!enAttente || !actif || (!utiles.length && !plein);
+      }).catch(function () {});
+    }
+    // Recharger la fiche sans que le départ de la page ne réenregistre ce qui vient d'être rangé ailleurs
+    function repartir() { actif = false; clearTimeout(minuteur); location.reload(); }
+    // « Garder la fiche en cours pour plus tard » : rangée (vérifié), puis la fiche repart vide
+    function garderEnCours() {
+      var e = etat();
+      if (!contientQuelqueChose(e)) { if (LOUE.message) LOUE.message('Cette fiche est vide : rien à garder.', 4000); return Promise.resolve(false); }
+      if (!confirm('Garder cette fiche pour plus tard ?\n\nElle sera rangée dans « Brouillons gardés » (30 jours) et la fiche repartira vide.')) return Promise.resolve(false);
+      return garderExpres(e).then(function (resultat) {
+        if (resultat !== 'ok') { if (LOUE.message) LOUE.message(resultat === 'plein' ? TEXTE_PLEIN : TEXTE_REFUS, 9000); return false; }
+        actif = false; clearTimeout(minuteur);
+        return effacerCourant().then(function () { repartir(); return true; });
+      }, function () { if (LOUE.message) LOUE.message(TEXTE_REFUS, 9000); return false; });
+    }
+    // « Reprendre » un brouillon gardé : ce qui est à l'écran est d'abord gardé à son tour (dans la même écriture, vérifiée),
+    // puis la fiche est rechargée et le brouillon choisi y est remis (voir reprise au démarrage)
+    function reprendre(e) {
+      var maintenant = etat(), aGarder = contientQuelqueChose(maintenant);
+      var avant = aGarder ? garderExpres(maintenant, e.t) : Promise.resolve('ok');
+      return avant.then(function (resultat) {
+        if (resultat !== 'ok') { if (LOUE.message) LOUE.message(resultat === 'plein' ? TEXTE_PLEIN : TEXTE_REFUS, 9000); return false; }
+        actif = false; clearTimeout(minuteur);
+        return (aGarder ? effacerCourant() : Promise.resolve()).then(function () {
+          try { sessionStorage.setItem(cleReprise, String(e.t)); } catch (x) {}
+          repartir();
+          return true;
+        });
+      }, function () { if (LOUE.message) LOUE.message(TEXTE_REFUS, 9000); return false; });
+    }
+    function ouvrirPanneau() {
+      var ancien = document.getElementById('loue-brouillons-panneau'); if (ancien) ancien.remove();
+      lireListe().then(function (liste) {
+        var utiles = liste.filter(contientQuelqueChose);
+        var fond = document.createElement('div');
+        fond.id = 'loue-brouillons-panneau'; fond.className = 'loue-brouillons-fond no-print';
+        fond.setAttribute('role', 'dialog'); fond.setAttribute('aria-modal', 'true'); fond.setAttribute('aria-label', 'Brouillons gardés');
+        var boite = document.createElement('div'); boite.className = 'loue-brouillons-boite';
+        var titre = document.createElement('h2'); titre.textContent = 'Brouillons gardés de cette fiche';
+        boite.appendChild(titre);
+        var fermer = function () { fond.remove(); majPastille(); };
+        if (!utiles.length) { var rien = document.createElement('p'); rien.textContent = 'Aucun brouillon gardé.'; boite.appendChild(rien); }
+        utiles.forEach(function (e) {
+          var ligne = document.createElement('div'); ligne.className = 'loue-brouillons-ligne';
+          var texte = document.createElement('div'); texte.className = 'loue-brouillons-texte';
+          var quoi = document.createElement('strong'); quoi.textContent = chantierDe(e) || 'Sans chantier';
+          var detail = document.createElement('span'); detail.textContent = 'du ' + quand(e.t) + ' — gardé jusqu’au ' + limite(e.t);
+          texte.appendChild(quoi); texte.appendChild(detail);
+          var b1 = document.createElement('button'); b1.type = 'button'; b1.className = 'loue-brouillons-reprendre'; b1.textContent = 'Reprendre';
+          b1.onclick = function () { b1.disabled = true; reprendre(e).then(function (ok) { if (!ok) b1.disabled = false; }); };
+          var b2 = document.createElement('button'); b2.type = 'button'; b2.className = 'loue-brouillons-effacer'; b2.textContent = 'Effacer';
+          b2.onclick = function () {
+            if (!confirm('Effacer ce brouillon gardé ? Ce qui y était saisi (photos et signatures comprises) sera perdu.')) return;
+            retirerDeLaListe(e.t).then(function () { ouvrirPanneau(); });
+          };
+          ligne.appendChild(texte); ligne.appendChild(b1); ligne.appendChild(b2);
+          boite.appendChild(ligne);
+        });
+        var bas = document.createElement('div'); bas.className = 'loue-brouillons-bas';
+        if (actif && contientQuelqueChose(etat())) {
+          var g = document.createElement('button'); g.type = 'button'; g.className = 'loue-brouillons-garder'; g.textContent = 'Garder la fiche en cours pour plus tard';
+          g.onclick = function () { garderEnCours(); };
+          bas.appendChild(g);
+        }
+        var f = document.createElement('button'); f.type = 'button'; f.className = 'loue-brouillons-fermer'; f.textContent = 'Fermer';
+        f.onclick = fermer;
+        bas.appendChild(f);
+        boite.appendChild(bas);
+        fond.appendChild(boite);
+        fond.addEventListener('click', function (ev) { if (ev.target === fond) fermer(); });
+        document.body.appendChild(fond);
+      });
+    }
+    // Au démarrage : « reprendre ce brouillon » demandé juste avant le rechargement. Le brouillon est remis dans la fiche,
+    // enregistré comme brouillon courant, et il ne sort de la liste qu'UNE FOIS cet enregistrement réussi.
+    function repriseDemandee(liste) {
+      var t = 0;
+      try { t = Number(sessionStorage.getItem(cleReprise) || 0); sessionStorage.removeItem(cleReprise); } catch (x) {}
+      if (!t) return null;
+      return liste.filter(function (e) { return e.t === t; })[0] || null;
+    }
+    function remettre(e) {
+      return Promise.resolve(options.pret).catch(function () {}).then(function () {
+        remettreChamps(e.champs);
+        if (options.restaurer) options.restaurer(e.extra || {});
+        derniere = null;
+        return sauver();
+      }).then(function () {
+        if (enEchec) { if (LOUE.message) LOUE.message('Brouillon repris. Il reste aussi dans « Brouillons gardés » (le téléphone n’a pas pu l’enregistrer ici).', 9000); return; }
+        if (LOUE.message) LOUE.message('Brouillon repris');
+        return retirerDeLaListe(e.t);
+      });
+    }
+
     // Démarrage : attendre les pré-remplissages (date…), puis prendre l'état de référence
     setTimeout(function () {
       vierge = etat();
@@ -308,14 +480,20 @@
       document.addEventListener('input', differer, true);
       document.addEventListener('change', differer, true);
       setInterval(sauver, 4000);
+      setInterval(majPastille, 4000);
       window.addEventListener('pagehide', sauver);
       document.addEventListener('loue-avant-maj', sauver);   // mise à jour de l'appli : on sauve avant de recharger
       document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'hidden') sauver(); });
       Promise.all([lireCourant(), lireListe()]).then(function (r) {
         var courant = r[0], liste = r[1];
         var utiles = liste.filter(contientQuelqueChose);
+        var aReprendre = repriseDemandee(utiles);
+        if (aReprendre && !contientQuelqueChose(courant)) return remettre(aReprendre).then(majPastille, majPastille);
+        // Un brouillon gardé exprès n'est pas reproposé par le bandeau : il attend dans « Brouillons gardés »
+        var aProposer = utiles.filter(function (e) { return !e.garde; });
         if (contientQuelqueChose(courant)) banniere({ etat: courant, source: 'courant' });
-        else if (utiles.length) banniere({ etat: utiles[0], source: 'liste' });   // le plus récent des brouillons mis de côté
+        else if (aProposer.length) banniere({ etat: aProposer[0], source: 'liste' });   // le plus récent des brouillons mis de côté tout seuls
+        majPastille();
       });
     }, 500);
 

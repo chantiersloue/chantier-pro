@@ -285,12 +285,22 @@ function marquerNotesVues_(compte, corps) {
 
 // ── Lecture ──
 // Ce que l'appli reçoit d'un élément : son numéro, son texte, s'il est fait, s'il est nouveau. Ni auteur, ni date.
-function noteObjet_(r, compte, vues, avecChantier) {
+function noteObjet_(r, compte, vues, avecChantier, avecDate) {
   const o = { id: String(r[COL_N.id - 1]), texte: String(r[COL_N.texte - 1] || ''), fait: noteFaite_(r), nouveau: noteNouvelle_(r, compte, vues) };
   if (avecChantier) o.chantier = String(r[COL_N.chantier - 1] || '');
+  if (avecDate) o.cree = noteMs_(r[COL_N.cree - 1]);   // lot 13 : la date de l'élément, pour « Mes notes »
   return o;
 }
-// corps : { chantier?, recherche?, nouveau?, termines? }.
+// Lot 13 — l'identifiant du compte qui a CRÉÉ l'élément : le serveur écrit « Nom (identifiant) » à la création (noteQui_),
+// l'identifiant est donc toujours la dernière parenthèse. Jamais lu dans ce que dit le téléphone.
+function noteAuteurId_(r) {
+  const m = /\(([^()\s]+)\)\s*$/.exec(String(r[COL_N.creePar - 1] || ''));
+  return m ? normaliserId_(m[1]) : '';
+}
+// corps : { chantier?, recherche?, nouveau?, termines?, miennes? }.
+// Lot 13 — miennes: true (sans chantier) : « Mes notes », pour tout compte : les éléments que CE compte a créés, sur les
+// chantiers qu'il peut encore lire et qui ne sont pas « Terminé », le plus récent en haut, avec le chantier et la date ;
+// les éléments terminés sont rendus aussi.
 // Avec un chantier (accès au chantier) : ses éléments à faire (dans l'ordre où ils ont été ajoutés), puis ses éléments terminés
 // (les derniers cochés en haut). Sans chantier : vue « Tous chantiers », réservée aux conducteurs et à l'admin ;
 // les éléments terminés n'y sont rendus que sur demande (termines: true).
@@ -302,12 +312,18 @@ function listerNotes_(compte, corps) {
   if (demande) {
     chantier = noteChantierConnu_(demande);
     if (!chantier || !notePeutLire_(compte, chantier)) return avecJeton_(REFUS, compte);
-  } else if (!noteChef_(compte)) {
+  } else if (corps.miennes !== true && !noteChef_(compte)) {
     return avecJeton_({ ok: false, code: 'INTERDIT', message: 'La vue « Tous chantiers » est réservée aux conducteurs : ouvrez les notes depuis un chantier.' }, compte);
   }
   const minus = v => String(v || '').toLowerCase();
   const recherche = typeof corps.recherche === 'string' ? minus(corps.recherche.trim().slice(0, 100)) : '';
-  const nouveau = corps.nouveau === true, avecTermines = !!demande || corps.termines === true;
+  const miennes = !demande && corps.miennes === true;
+  const nouveau = corps.nouveau === true, avecTermines = !!demande || corps.termines === true || miennes;
+  let lisibles = null;
+  if (miennes) {
+    lisibles = {};
+    chantiersVisibles_(compte).forEach(c => { if (String(c.statut || '').trim() !== 'Terminé') lisibles[cleChantier_(c.nom)] = true; });
+  }
   const heure = Date.now();   // heure du serveur de cette liste : la page la renvoie dans « notesVues »
   const vues = notesVues_(compte.id), lignes = lignesNotes_();
   const maxAFaire = demande ? NOTE_MAX_A_FAIRE : NOTE_MAX_TOUS, aFaire = [], termines = [];
@@ -315,16 +331,19 @@ function listerNotes_(compte, corps) {
   for (let i = lignes.length - 1; i >= 0; i--) {   // du plus récent au plus ancien : au-delà du plafond, ce sont les plus anciens qui manquent
     const r = lignes[i];
     if (demande && cleChantier_(r[COL_N.chantier - 1]) !== cleChantier_(chantier)) continue;
+    if (miennes && (noteAuteurId_(r) !== compte.id || !lisibles[cleChantier_(r[COL_N.chantier - 1])])) continue;
     if (recherche && minus(r[COL_N.texte - 1]).indexOf(recherche) < 0 && minus(r[COL_N.chantier - 1]).indexOf(recherche) < 0) continue;
     if (nouveau && !noteNouvelle_(r, compte, vues)) continue;
     if (noteFaite_(r)) { if (avecTermines) termines.push(r); continue; }
-    if (aFaire.length < maxAFaire) aFaire.push(noteObjet_(r, compte, vues, !demande)); else plein = true;
+    if (aFaire.length < maxAFaire) aFaire.push(noteObjet_(r, compte, vues, !demande, miennes)); else plein = true;
   }
-  aFaire.reverse();   // affichés comme une liste dictée : le plus ancien en haut, le dernier ajouté en bas
+  // La liste d'un chantier s'affiche comme une liste dictée : le plus ancien en haut, le dernier ajouté en bas.
+  // « Mes notes » : le plus récent en haut (ce qu'on vient d'écrire est sous les yeux).
+  if (!miennes) aFaire.reverse();
   // Éléments terminés : les derniers cochés en haut ; le nombre total est rendu même au-delà du plafond
   termines.sort((a, b) => noteMs_(b[COL_N.cocheLe - 1]) - noteMs_(a[COL_N.cocheLe - 1]));
   return avecJeton_({ ok: true, code: 'OK', message: aFaire.length + ' élément(s) à faire',
-    data: { aFaire: aFaire, termines: termines.slice(0, NOTE_MAX_TERMINES).map(r => noteObjet_(r, compte, vues, !demande)), nbTermines: termines.length,
+    data: { aFaire: aFaire, termines: termines.slice(0, NOTE_MAX_TERMINES).map(r => noteObjet_(r, compte, vues, !demande, miennes)), nbTermines: termines.length,
       chantier: chantier, heure: heure, plein: plein } }, compte);
 }
 // Nombre d'éléments nouveaux par chantier visible (chiffres rouges de l'accueil)

@@ -56,6 +56,32 @@ body.loue-test .loue-envoi:not(.compact) { top: 48px; }
 .loue-brouillon button { min-height: 44px; padding: 8px 16px; border-radius: 8px; font: 700 15px system-ui, sans-serif; cursor: pointer; }
 .loue-brouillon [data-oui] { background: #0D7A6B; color: #fff; border: 0; }
 .loue-brouillon [data-non] { background: transparent; color: #fff; border: 1px solid rgba(255,255,255,.6); }
+.loue-brouillon [data-garder] { background: #fff; color: #1A2B4A; border: 0; }
+/* Lot 13 — « Garder pour plus tard » et « Brouillons gardés » : la ligne en haut de la fiche, et la liste */
+.loue-brouillons-pastille {
+  display: block; width: 100%; min-height: 48px; margin: 0 0 12px; padding: 8px 14px; border: 1.5px dashed #9AA3B2; border-radius: 10px;
+  background: #F4F6FA; color: #1A2B4A; font: 700 15px system-ui, -apple-system, 'Segoe UI', sans-serif; text-align: left; cursor: pointer;
+}
+.loue-brouillons-pastille[hidden] { display: none; }
+.loue-brouillons-fond {
+  position: fixed; inset: 0; z-index: 900; background: rgba(20, 18, 16, .55); display: flex; align-items: flex-end; justify-content: center;
+  font: 15px/1.4 system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+.loue-brouillons-boite {
+  width: 100%; max-width: 560px; max-height: 88vh; overflow-y: auto; background: #fff; color: #141210; border-radius: 16px 16px 0 0;
+  padding: 18px 16px calc(16px + env(safe-area-inset-bottom, 0px));
+}
+.loue-brouillons-boite h2 { font: 800 18px/1.3 system-ui, sans-serif; margin: 0 0 12px; }
+.loue-brouillons-ligne { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 12px 0; border-top: 1px solid #E1DCD6; }
+.loue-brouillons-texte { flex: 1 1 100%; min-width: 0; }
+.loue-brouillons-texte strong { display: block; font-size: 16px; overflow-wrap: anywhere; }
+.loue-brouillons-texte span { display: block; font-size: 13.5px; color: #6A6460; }
+.loue-brouillons-boite button { min-height: 48px; padding: 8px 16px; border-radius: 10px; font: 700 15px system-ui, sans-serif; cursor: pointer; }
+.loue-brouillons-reprendre { flex: 1; background: #0D7A6B; color: #fff; border: 0; }
+.loue-brouillons-effacer { background: #fff; color: #B32E2E; border: 1.5px solid #E6B8B8; }
+.loue-brouillons-bas { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; padding-top: 14px; border-top: 1px solid #E1DCD6; }
+.loue-brouillons-garder { background: #F4F6FA; color: #1A2B4A; border: 1.5px dashed #9AA3B2; }
+.loue-brouillons-fermer { background: #1A2B4A; color: #fff; border: 0; }
 .loue-brouillon-alerte {
   position: fixed; left: 0; right: 0; top: 0; z-index: 700; display: flex; flex-wrap: wrap; align-items: center; gap: 10px;
   padding: calc(10px + env(safe-area-inset-top, 0px)) 16px 10px; background: #A11B1B; color: #fff;
