@@ -22,7 +22,7 @@ ChantierPro est l'application web de chantier de **Loué Menuiserie** (menuiseri
 - Notes de chantier : `notes.html` (la liste des choses à faire d'un chantier, utilisable hors réseau).
 - Carnet de chantier : `carnet.html` (les plans du chantier en images, zoom et rotation, téléchargeables pour le hors réseau). Les plans y sont déposés par le programme du PC (`outils/appli_pc.py`), jamais par le serveur.
 - Hors chantier : `absence.html` (demande d'absence d'un salarié).
-- Briques communes dans `commun/` : `config.js` (adresse du serveur), `api.js` (appels et file d'attente), `brouillon.js`, `signature.js`, `photos.js`, `destinataires.js`, `adresses.js`, `hors-ligne.js`, `ui.js`, `notes.js`, `carnet.js`.
+- Briques communes dans `commun/` : `config.js` (adresse du serveur), `api.js` (appels et file d'attente), `brouillon.js`, `signature.js`, `photos.js`, `destinataires.js`, `adresses.js`, `hors-ligne.js`, `ui.js`, `notes.js`, `carnet.js`, `favoris.js` (les étoiles de « Mes chantiers »).
 - Côté Google Sheets (pas des pages) : onglets *Stockage* et *Purges* (place du compte, mise à la corbeille sur case cochée).
 - Toutes les fiches ont : un bouton Retour, un brouillon automatique avec bannière de restauration, des signatures sur canvas 300×150, un chargement via `chargerAppsScript` / `chargerJSONP` / `_parseRep`.
 

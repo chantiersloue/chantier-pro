@@ -256,6 +256,7 @@ function traiterFiche_(brut, contexte) {
 function routerV5_(corps) {
   try {
     UTILISATEURS_ = null;   // l'onglet Utilisateurs est relu à chaque requête (un changement agit tout de suite)
+    REGLAGE_TOUS_LU_ = null; PLANIFIES_LUS_ = null;   // lot 12 : le réglage « tous les chantiers » et l'onglet Planifiés aussi
     if (corps.action === 'ping') {
       let fin = null;
       try { fin = finTransition_(); } catch (e) {}

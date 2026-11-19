@@ -15,7 +15,7 @@ function creerGoogle(options = {}) {
     const f = { nom, lignes: (lignes || []).map(l => l.slice()) };
     const largeur = () => Math.max(1, ...f.lignes.map(l => l.length));
     const cellule = (r, c) => (f.lignes[r - 1] || [])[c - 1];
-    const ecrire = (r, c, v) => { while (f.lignes.length < r) f.lignes.push([]); f.lignes[r - 1][c - 1] = v; };
+    const ecrire = (r, c, v) => { f.ecritures = (f.ecritures || 0) + 1; while (f.lignes.length < r) f.lignes.push([]); f.lignes[r - 1][c - 1] = v; };
     // Comme Sheets : une plage qui dépasse la taille de la feuille (1000 lignes, 26 colonnes au départ) lève une erreur
     f.maxLignes = f.maxLignes || 1000;
     const plage = (r, c, nr, nc) => {
@@ -49,7 +49,7 @@ function creerGoogle(options = {}) {
       setName: n => { if (feuilles[n]) throw new Error('Un onglet porte déjà ce nom'); delete feuilles[f.nom]; f.nom = n; feuilles[n] = f; return f.api; },
       deleteRow: r => { f.lignes.splice(r - 1, 1); },
       getMaxColumns: () => 26, isSheetHidden: () => false,
-      appendRow: l => { f.lignes.push(l.slice()); },
+      appendRow: l => { f.ecritures = (f.ecritures || 0) + 1; f.lignes.push(l.slice()); },
       getDataRange: () => plage(1, 1, Math.max(1, f.lignes.length), largeur()),
       getRange: (r, c, nr = 1, nc = 1) => plage(r, c, nr, nc),
       getMaxRows: () => Math.max(f.maxLignes, f.lignes.length),
@@ -231,8 +231,21 @@ function creerGoogle(options = {}) {
       forSpreadsheet: () => ({ onEdit: () => ({ create: () => declencheurs.push(fn) }) }),
     }),
   };
+  // Lot 12 : d'autres classeurs (le planning), ouverts par leur identifiant : options.classeurs = { ID: { 'Onglet': [[…]] } }.
+  // Chaque onglet compte ses écritures (f.ecritures) : un test vérifie que l'appli n'écrit jamais dans le planning.
+  const classeurs = {};
+  Object.entries(options.classeurs || {}).forEach(([id, onglets]) => {
+    classeurs[id] = { feuilles: {}, ouvertures: 0 };
+    Object.entries(onglets).forEach(([n, l]) => { classeurs[id].feuilles[n] = creerFeuille(n, l); });
+  });
+  const ouvrirClasseur = id => {
+    const c = classeurs[id];
+    if (!c || c.enPanne) throw new Error('Document ' + id + ' is missing (perhaps it was deleted, or you don’t have read access?)');
+    c.ouvertures++;
+    return { getName: () => 'Planning', getSheetByName: n => (c.feuilles[n] ? c.feuilles[n].api : null), getSheets: () => Object.keys(c.feuilles).map(n => c.feuilles[n].api) };
+  };
   const contexte = {
-    SpreadsheetApp: { getActiveSpreadsheet: () => ss, flush: () => { etat.flush++; },
+    SpreadsheetApp: { getActiveSpreadsheet: () => ss, openById: ouvrirClasseur, flush: () => { etat.flush++; },
       newDataValidation: () => { const v = { liste: null, invalide: true,
         requireValueInList: l => { v.liste = l; return v; }, requireValueInRange: () => v, requireCheckbox: () => { v.liste = [true, false]; return v; },
         setAllowInvalid: b => { v.invalide = b; return v; }, setHelpText: () => v, build: () => v }; return v; } },
@@ -296,7 +309,7 @@ function creerGoogle(options = {}) {
       untrash: (moi, id) => { const m = trouver(id); m.labels = m.labels.filter(l => l !== 'TRASH'); etat.corbeillesMail.push({ id: id, valeur: false }); return { id: id }; },
     } } };
   }
-  return { contexte, feuilles, elements, mails, etat, proprietes, creerElement, declencheurs, cache };
+  return { contexte, feuilles, elements, mails, etat, proprietes, creerElement, declencheurs, cache, classeurs };
 }
 
 // Charge tous les fichiers .gs du dossier apps-script dans un contexte simulé

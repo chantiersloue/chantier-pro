@@ -19,10 +19,13 @@
 
 ## Mes chantiers
 
-- L'accueil montre **tes chantiers** (ceux que le bureau t'a donnés), les derniers ouverts en premier. Une recherche apparaît s'il y en a beaucoup.
+- En haut de l'accueil, **« Mes chantiers »** : les chantiers marqués d'une **étoile ★**, classés par numéro. Ceux que le bureau t'a donnés, et ceux où tu es planifié, y arrivent tout seuls.
+- En dessous, **« Tous les chantiers »** : touche pour déplier. Une recherche apparaît s'il y en a beaucoup. Les chantiers terminés sont en bas, en gris.
+- **L'étoile est à gauche du nom.** Touche **☆** : le chantier va dans « Mes chantiers ». Touche **★** : il en sort (bouton **Annuler** pendant 6 secondes si tu t'es trompé). Ça marche sans réseau.
+- Une étoile que tu as retirée ne revient pas toute seule, sauf si tu es de nouveau planifié sur ce chantier après une coupure.
 - Touche un chantier : son **Carnet** (les plans), ses **Signalements**, ses **Notes** et ses **fiches** (le chantier est **déjà rempli**).
 - Un chantier manque ? Demande au bureau de te le cocher. En attendant : **« Fiche sans chantier choisi »** (tu tapes le chantier ; l'appli te demande de confirmer s'il n'est pas dans tes chantiers).
-- Conducteurs : bouton **« Voir tous les chantiers »**.
+- Conducteurs : « Mes chantiers » reçoit tout seuls les chantiers dont tu es le conducteur ; les autres sont dans « Tous les chantiers ».
 
 ## Envoyer une fiche
 

@@ -95,6 +95,10 @@ function outilTest_(corps) {
       case 'viderColonnesPoints': return ok('Colonnes des points (lot 8c) de l’onglet Comptes rendus', outilTestSousVerrou_(outilTestViderColonnesPoints_));
       // … et une LECTURE : combien de récapitulatifs dans le dossier des notes du chantier d'essai, combien de chantiers en attente (aucun nom)
       case 'lireRecap': return ok('Récapitulatif des notes du chantier d’essai (lecture seule)', outilTestRecap_());
+      // Lot 12 : poser l'onglet Réglages (relançable, case décochée) ; lire, allumer ou éteindre le réglage « tous les chantiers »
+      // de la copie TEST (valeur absente : lecture seule)
+      case 'installerLot12': { const r = installer_('Lot 12', 'TEST', etapesLot12_()); if (!r.ok) throw new Error('installation du lot 12 non terminée : ' + r.texte); return ok(r.texte); }
+      case 'reglerTousChantiers': return ok('Réglage « tous les chantiers » de la copie TEST', outilTestSousVerrou_(() => outilTestReglerTous_(corps.valeur)));
       case 'installerLot5': { const r = installer_('Lot 5', 'TEST', etapesLot5_()); if (!r.ok) throw new Error('installation du lot 5 non terminée : ' + r.texte); return ok(r.texte); }
       // Lot 5 — LECTURES seulement (aucun geste de cette porte ne met quoi que ce soit à la corbeille, pas même dans le chantier d'essai) :
       //   placeCompte        : la place du compte vue par les deux sources (à comparer avec one.google.com/storage) ;
@@ -347,6 +351,15 @@ function outilTestTitresNotes_() {
     }
     return o;
   });
+}
+// Lot 12 — la copie TEST seulement : lit le réglage « tous les chantiers », et le change si « valeur » est vrai ou faux
+function outilTestReglerTous_(valeur) {
+  const l = reglageLigne_();
+  if (!l) throw new Error('onglet Réglages absent, ou ligne du réglage en double : lancer installerLot12');
+  const avant = l.coche === true, change = valeur === true || valeur === false;
+  if (change) { l.sh.getRange(l.ligne, 2).setValue(valeur); SpreadsheetApp.flush(); }
+  REGLAGE_TOUS_LU_ = null;
+  return { avant: avant, maintenant: change ? valeur : avant, etat: String(l.sh.getRange(l.ligne, 3).getValue()) };
 }
 // Lot 8d — la copie TEST seulement : vide les colonnes K à N de l'onglet Comptes rendus si (et seulement si) elles portent les
 // titres des points du lot 8c. Sans cela, l'installation du lot 8d refuse la colonne K (« contient déjà autre chose »).

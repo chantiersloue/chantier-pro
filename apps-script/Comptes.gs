@@ -377,19 +377,32 @@ function chantierObjet_(r) {
   return { nom: String(r[0] || '').trim(), reference: String(r[1] || ''), statut: String(r[2] || ''), conducteur: String(r[3] || ''),
     numero: String(r[4] || ''), nomCourt: String(r[5] || ''), adresse: String(r[6] || '') };
 }
+// LES DEUX SEULES FONCTIONS qui décident quels chantiers un compte peut voir et lire (documents, notes, carnet,
+// récapitulatif passent tous par elles). Lot 12 : le réglage « Tous les comptes ouvrent tous les chantiers »
+// (Reglages.gs) n'est lu qu'ici. Éteint (ou illisible) : exactement le comportement d'avant le lot 12.
+//   « mien » = le chantier va tout seul dans « Mes chantiers » de l'accueil (une fois : le téléphone tient les étoiles) ;
+//   « planifie » (Planifies.gs) = le gars y est planifié : même effet, à chaque nouvelle série.
 function chantiersVisibles_(compte) {
   const lignes = lignesChantiers_();
   if (compte.tous) {
     const moi = String(compte.nom || '').trim().toLowerCase();
-    return lignes.map(r => Object.assign(chantierObjet_(r), {
-      mien: compte.conducteur ? String(r[3] || '').trim().toLowerCase() === moi : String(r[2] || '').trim() !== 'Terminé' }));
+    return planifMarquer_(compte, lignes.map(r => Object.assign(chantierObjet_(r), {
+      mien: compte.conducteur ? String(r[3] || '').trim().toLowerCase() === moi : String(r[2] || '').trim() !== 'Terminé' })));
   }
   const coches = chantiersCoches_(compte.id);
-  return lignes.filter(r => coches[cleChantier_(r[0])] && String(r[2] || '').trim() !== 'Terminé')
-    .map(r => Object.assign(chantierObjet_(r), { mien: true }));
+  const enCours = r => String(r[2] || '').trim() !== 'Terminé';
+  // Réglage allumé : TOUS les chantiers, « Terminé » compris (décision de Franck du 19/11/2026 : visibles, en bas de la
+  // liste, grisés — c'est la page qui les range). Une case cochée met encore le chantier dans « Mes chantiers ».
+  if (tousChantiersOuverts_()) {
+    return planifMarquer_(compte, lignes.map(r => Object.assign(chantierObjet_(r), { mien: !!coches[cleChantier_(r[0])] && enCours(r) })));
+  }
+  return planifMarquer_(compte, lignes.filter(r => coches[cleChantier_(r[0])] && enCours(r))
+    .map(r => Object.assign(chantierObjet_(r), { mien: true })));
 }
 function peutLireChantier_(compte, nom) {
   if (compte.tous) return true;
+  // Réglage allumé : tout chantier DE LA LISTE (un nom inconnu reste refusé)
+  if (tousChantiersOuverts_()) return !!ligneChantier_(nom);
   return !!chantiersCoches_(compte.id)[cleChantier_(nom)];
 }
 
@@ -402,7 +415,9 @@ function moi_(compte) {
 }
 function listes_(compte) {
   const d = donneesListes_();
-  d.chantiers = chantiersVisibles_(compte);
+  // Les fiches ne proposent pas un chantier « Terminé » à un poseur (comme avant le lot 12) : s'il en tape un, la page
+  // lui demande de confirmer, comme pour tout chantier hors de sa liste
+  d.chantiers = chantiersVisibles_(compte).filter(c => compte.tous || String(c.statut || '').trim() !== 'Terminé');
   d.partiel = !compte.tous;   // la page demande confirmation pour un chantier hors de la liste
   return avecJeton_({ ok: true, code: 'OK', message: 'Listes', data: d }, compte);
 }
@@ -576,6 +591,7 @@ function traiterComptes() {
       if (etat !== etatAvant) u.sh.getRange(ligne, COL_U.etat).setValue(cellule_(etat));
     });
     synchroniserAcces_(u);
+    reglagesEtat_();           // lot 12 : ce que l'appli a compris du réglage « tous les chantiers », écrit dans l'onglet Réglages
     recopierCompteursSansCompte_();
     alerteFinTransition_();
     if (transitionOublieeDepuis_()) alerte_('Les comptes Loué App servent depuis le ' + texteDate_(transitionOublieeDepuis_())
@@ -590,6 +606,9 @@ function traiterComptes() {
     verrou.releaseLock();
     // Lot 8d : les récapitulatifs des notes à refaire, APRÈS avoir rendu le verrou (une note peut partir pendant ce temps)
     recapPassage_();
+    // Lot 12 : les chantiers du planning (éteint tant que la propriété PLANNING_SHEET_ID n'existe pas)
+    REGLAGE_TOUS_LU_ = null; PLANIFIES_LUS_ = null;
+    planifPassage_();
   }
 }
 

@@ -48,6 +48,28 @@ Les empreintes des mots de passe ne sont **pas** dans le Sheet (Propriétés du 
 
 Ligne 1 : « Chantier », « Remarque (appli) », puis un identifiant de poseur / atelier par colonne. Une ligne par chantier, une case par personne. Lignes et colonnes ajoutées par l'appli, jamais supprimées.
 
+Lot 12 : quand le réglage « Tous les comptes ouvrent tous les chantiers » est allumé, la case B1 affiche « CASES SANS EFFET » ; les cases sont gardées telles quelles (éteindre le réglage leur rend leur effet). Une case cochée met encore le chantier, une fois, dans « Mes chantiers » de la personne.
+
+## Onglet « Réglages » (lot 12 — créé par `installerLot12Test` / `installerLot12Production`)
+
+|Colonne|Titre|Contenu|
+|-|-|-|
+|A|Réglage|« Tous les comptes ouvrent tous les chantiers »|
+|B|Allumé|**Une case à cocher.** Cochée : tout compte actif voit et ouvre tous les chantiers. Décochée (livraison) : chacun voit ses chantiers cochés|
+|C|État (écrit par l'appli)|« Allumé depuis le … » / « Éteint depuis le … », mis à jour dans les 10 minutes|
+
+- La case agit **tout de suite** (elle est lue à chaque demande d'un téléphone).
+- Tout ce qui n'est pas « une seule ligne à ce nom, case cochée » vaut **éteint** : un texte (« oui »), la ligne en double, la ligne renommée, l'onglet absent.
+- Ne change pas le texte de la colonne A.
+
+## Onglet « Planifiés » (lot 12 — créé par l'appli au premier passage, quand le planning existera)
+
+Une ligne par gars et par chantier où il a été planifié : Compte, N° du chantier, Chantier, Série commencée le (lundi), Dernière semaine planifiée (lundi), Mis à jour le. En colonne H, « À voir » : ce que l'appli a ignoré dans le planning (compte inconnu, numéro qui n'est pas celui d'un seul chantier en cours, plus de 4 chantiers nouveaux pour un gars). **Écrit par l'appli seulement** ; ne rien y modifier.
+
+- **Propriété du script `PLANNING_SHEET_ID`** : l'identifiant du Sheet « Planning Loué ». Tant qu'elle n'existe pas, l'appli ne lit aucun planning et cet onglet n'est pas créé.
+- **Propriété `PLANIF_ETAT`** : ce que l'appli retient d'une lecture à l'autre (semaines déjà lues, mails d'alerte déjà envoyés). Ne pas la modifier.
+- L'appli **lit** l'onglet « APPLI » du planning ; elle n'écrit **jamais** dans le planning.
+
 ## Onglet « Intervenants » (lot 2, 9a)
 
 Chantier, Nom, Société, Lot / fonction, Mail, Téléphone, Mis à jour le. Vide pour l'instant : la transmission des intervenants par les skills a été abandonnée le 13/11/2026 (D9b-5). La note de réunion (lot 8) laissera ajouter les intervenants à la main.

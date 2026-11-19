@@ -320,6 +320,19 @@ test('porte, lot 8 : installation de l’onglet « Comptes rendus » sur la copi
   assert.ok(p.ok && p.data.lignesRetirees === 1, JSON.stringify(p));
   assert.deepStrictEqual(sh.lignes.slice(1).filter(l => l[0]).map(l => l[0]), ['fiche-vraie-000001']);
 });
+test('porte, lot 12 : installation de l’onglet Réglages (case décochée) ; lecture, allumage et extinction du réglage', () => {
+  const g = serveurLot2();
+  assert.ok(!geste(g, 'reglerTousChantiers').ok, 'avant l’installation : refus clair');
+  const i = geste(g, 'installerLot12');
+  assert.ok(i.ok && /Lot 12 — installation — environnement : TEST/.test(i.message) && /installation terminée/.test(i.message), i.message);
+  assert.ok(geste(g, 'installerLot12').ok, 'relançable');
+  assert.strictEqual(JSON.stringify(geste(g, 'reglerTousChantiers').data), JSON.stringify({ avant: false, maintenant: false, etat: 'Éteint' }));
+  assert.strictEqual(JSON.stringify(geste(g, 'reglerTousChantiers', { valeur: true }).data), JSON.stringify({ avant: false, maintenant: true, etat: 'Éteint' }));
+  assert.strictEqual(g.feuilles['Réglages'].lignes[1][1], true);
+  assert.strictEqual(geste(g, 'reglerTousChantiers', { valeur: 'oui' }).data.maintenant, true, 'une valeur qui n’est ni vrai ni faux ne change rien');
+  assert.strictEqual(geste(g, 'reglerTousChantiers', { valeur: false }).data.avant, true);
+  assert.strictEqual(g.feuilles['Réglages'].lignes[1][1], false);
+});
 test('porte, lot 7 : installation, lecture des signalements sans texte saisi, destinataires d’un essai sans aucune adresse', () => {
   const g = serveurLot2();
   g.feuilles['Contacts'].lignes.push(['Vrai Chef', 'Chef atelier', 'vrai.chef@loue.test', 'N', 'N', 'N', 'O', 'N']);
@@ -407,7 +420,7 @@ test('porte complète hors de TEST : tous les gestes sont refusés, rien n’est
   const avant = JSON.stringify([U(g), g.proprietes, g.declencheurs]);
   ['etat', 'preparerComptes', 'session', 'fermerSessions', 'cocher', 'poserDeclencheurs', 'retirerDeclencheurs', 'traiterComptes', 'finirTransition', 'prolongerTransition',
     'lireEnvois', 'lireBilan', 'lireChantiers', 'lireCompte', 'controlerLot2', 'essaiDeclencheur', 'retablirTransition', 'preparerChantier',
-    'installerLot7', 'installerLot8', 'installerLot8d', 'lireRecap', 'viderColonnesPoints', 'lireComptesRendus', 'purgerComptesRendusEssai', 'lireSignalements', 'destinatairesEssai', 'installerLot3', 'accesChantier', 'rangerAnciennesNotes', 'purgerNotesEssai', 'dossierChantierEssai', 'titresNotes', 'carnetFauxDepot', 'carnetRetirerFauxDepot'].forEach(nom =>
+    'installerLot7', 'installerLot8', 'installerLot8d', 'lireRecap', 'viderColonnesPoints', 'installerLot12', 'reglerTousChantiers', 'lireComptesRendus', 'purgerComptesRendusEssai', 'lireSignalements', 'destinatairesEssai', 'installerLot3', 'accesChantier', 'rangerAnciennesNotes', 'purgerNotesEssai', 'dossierChantierEssai', 'titresNotes', 'carnetFauxDepot', 'carnetRetirerFauxDepot'].forEach(nom =>
     assert.deepStrictEqual(geste(g, nom, { id: 'auto-admin', case: 'actif', valeur: true }), { ok: false, code: 'REFUSE', message: 'Refusé' }, nom));
   assert.strictEqual(JSON.stringify([U(g), g.proprietes, g.declencheurs]), avant);
 });

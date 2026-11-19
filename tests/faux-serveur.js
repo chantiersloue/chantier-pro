@@ -94,9 +94,38 @@ http.createServer((req, res) => {
       if (l) { l[7] = true; ctx.traiterComptes(); }
       res.writeHead(200, entetes); return res.end('{"deconnecte":' + !!l + '}');
     }
+    // Lot 12 — /reglage?mode=lot12 : prépare le monde du lot 12 (numéros de chantier, cinq chantiers de plus dont un terminé,
+    //   onglet Réglages). mode=tous-chantiers&valeur=1|0 : allume ou éteint le réglage. mode=planifie&id=…&numero=…&debut=AAAA-MM-JJ :
+    //   pose une ligne dans l'onglet Planifiés, comme l'aurait fait la lecture du planning (testée côté serveur, sans page).
+    if (m === 'lot12') {
+      const C = google.feuilles['Chantiers'].lignes;
+      if (C.length < 5) {
+        C[1][4] = '0501'; C[2][4] = '0502';
+        C.push(['CHANTIER TEST 3', 'LIEU 3', 'En cours', 'Franck TEST', '90'], ['CHANTIER TEST 4', 'LIEU 4', 'En cours', 'Franck TEST', '1201'],
+          ['CHANTIER SANS NUMERO', 'LIEU 5', 'En cours', 'Franck TEST', ''], ['CHANTIER TEST 5', 'LIEU 7', 'En cours', 'Franck TEST', '0700'], ['CHANTIER FINI', 'LIEU 6', 'Terminé', 'Sébastien TEST', '0400']);
+        ctx.installerLot12Production();
+        ctx.traiterComptes();
+      }
+      res.writeHead(200, entetes); return res.end('{"lot12":true}');
+    }
+    if (m === 'tous-chantiers') {
+      const l = (google.feuilles['Réglages'] || { lignes: [] }).lignes.find(x => /Tous les comptes/.test(String(x[0])));
+      if (l) l[1] = url.searchParams.get('valeur') === '1';
+      res.writeHead(200, entetes); return res.end('{"reglage":' + !!l + '}');
+    }
+    if (m === 'planifie') {
+      google.proprietes.PLANNING_SHEET_ID = 'PLAN';
+      const sh = ctx.feuille_('Planifiés', ['Compte', 'N° du chantier', 'Chantier', 'Série commencée le (lundi)', 'Dernière semaine planifiée (lundi)', 'Mis à jour le', '', 'À voir (écrit par l’appli)']);
+      const P = google.feuilles['Planifiés'].lignes, id = url.searchParams.get('id'), numero = url.searchParams.get('numero'), debut = url.searchParams.get('debut');
+      const aujourdhui = new Date().toISOString().slice(0, 10);
+      const ligne = P.find(x => x[0] === id && x[1] === numero);
+      if (ligne) { ligne[3] = debut; ligne[4] = aujourdhui; } else P.push([id, numero, '', debut, aujourdhui, new Date()]);
+      res.writeHead(200, entetes); return res.end('{"planifie":' + !!sh + '}');
+    }
     if (m === 'acces') {
       const col = A.lignes[0].indexOf(url.searchParams.get('id'));
-      if (col > 1) A.lignes.forEach(l => { if (l[0] === 'CHANTIER TEST 1') l[col] = url.searchParams.get('valeur') === '1'; });
+      const lequel = url.searchParams.get('chantier') || 'CHANTIER TEST 1';   // lot 12 : &chantier=… pour une autre case
+      if (col > 1) A.lignes.forEach(l => { if (l[0] === lequel) l[col] = url.searchParams.get('valeur') === '1'; });
       res.writeHead(200, entetes); return res.end('{"acces":' + (col > 1) + '}');
     }
     if (m === 'recharger-carnet') { chargerCarnet(); viderCacheCarnet(); res.writeHead(200, entetes); return res.end('{"carnet":"relu"}'); }
