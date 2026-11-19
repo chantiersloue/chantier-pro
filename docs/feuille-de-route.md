@@ -12,7 +12,7 @@
 | 4 | moi, puis toi | **fait le 19/11** (serveur v10.1 sur TEST, empreinte 41da7e54c5). Je te confirme « dossier prêt, branche lot-5c, serveur v10.1 » ; tu lances `node outils\envoyer-test.js --avec-porte` **depuis le dossier `chantier-pro-lot5c`** (le serveur du lot 8 est alors remplacé sur TEST : c'est voulu) | 2 min |
 | 5 | moi | **fait le 19/11** : essai réel `tests/reel-lot5c.js`, 13 vérifications réussies (rien sans compte, aucun lien, fichiers privés, PDF de 4,9 Mo servi en 9 à 14 s depuis le PC, 5,2 Mo refusé) ; copie d'essai publiée en 9.1 | — |
 | 6 | toi | **tes essais du 5c** : étape B de `docs/lot5c-procedure.md` (branche `lot-5c`), sur Android **et** iPhone | 10 min |
-| 7 | toi | production du 5c (étape C) : `--sans-porte`, coller `Code.gs` v10.1, `fermerPartagesPlanning`, nouveau déploiement, me donner l'adresse, fusion, **archiver les anciens déploiements** (Lot 3, Lot 4, Lot 7) | 30 min |
+| 7 | toi | **en cours le 19/11** : serveur v10.1 déployé (« Lot 5c — production », empreinte 1e2318f2a4 vérifiée en ligne), adresse mise dans `commun/config.js`, lien de fusion donné. **Restent : `fermerPartagesPlanning`, la fusion, l'archivage des anciens déploiements.** Rappel de l'étape : `--sans-porte`, coller `Code.gs` v10.1, `fermerPartagesPlanning`, nouveau déploiement, me donner l'adresse, fusion, **archiver les anciens déploiements** (Lot 3, Lot 4, Lot 7) | 30 min |
 | 8 | moi | je reporte le 5c dans `lot-8`, puis `lot-10a1`, `lot-10a2`, `lot-10b`, `lot-5b` ; je relance les séries de tests ; je te confirme le dossier du lot 8 | sans toi |
 | 9 | toi, demain | production du lot 8 (étapes C et D de `docs/lot8-procedure.md`) | 30 min |
 
