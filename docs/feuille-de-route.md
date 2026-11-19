@@ -92,3 +92,17 @@ Rien n'est construit ni planifié en détail : ce sont mes premières réponses.
 
 - **« Notes » au lieu de « Notes de chantier », et une tuile « Notes » sur l'accueil** (toutes les notes du gars, tous chantiers confondus, avec le chantier, la date et une case à cocher dans la liste ; les notes faites en bas). **Faisable, y compris hors réseau** : le téléphone garde déjà la dernière liste reçue, et une case cochée sans réseau part toute seule au retour du réseau (c'est la file d'attente des notes d'aujourd'hui). **Ta réponse du 19/11 : « seulement les siennes » = les notes qu'il a écrites lui-même.** Je propose un **lot 13**, après le lot 12 (les deux touchent l'accueil).
 - **Un brouillon par chantier** : étudié. Le vrai « un brouillon par chantier » coûte cher : il touche la brique anti-perte et les 9 fiches, et le chantier d'une fiche peut changer en cours de saisie. Je propose plus simple, pour beaucoup moins de travail (à chiffrer dans le plan) : un troisième bouton **« Garder pour plus tard »** à côté de « Restaurer » et « Repartir à zéro », et une petite liste « Brouillons gardés » (chantier et date) pour reprendre celui qu'on veut. Le rangement existe déjà (5 brouillons mis de côté, 30 jours) : la protection anti-perte n'est pas touchée. Un petit lot, à placer après le lot 13.
+
+## État au 19/11/2026 au soir (travail en autonomie interrompu par la limite d'utilisation)
+
+| Lot | Branche | État |
+|---|---|---|
+| **8** | `lot-8` | serveur v11.0 en production (adresse dans `commun/config.js`) ; **il te reste la fusion** (lien donné dans la conversation) |
+| **8d** récapitulatif des notes | `lot-8d` (dossier `chantier-pro-lot8d`) | **construit, testé, relu par un agent indépendant, corrigé, poussé**. Procédure : `docs/lot8d-procedure.md` de la branche. Rien n'a tourné chez Google |
+| **12** accès ouverts, nouvel accueil, favoris du planning | `lot-12` (dossier `chantier-pro-lot12`) | **construit, testé (27 séries vertes), poussé**. **La relecture indépendante a été lancée puis arrêtée (limite atteinte) : elle est à refaire** avant tout envoi sur TEST. Procédure : `docs/lot12-procedure.md` de la branche |
+| **13** tuile « Notes », « Garder pour plus tard » | `lot-13` (dossier `chantier-pro-lot13`) | branche créée, **rien d'écrit** (ni plan, ni code) |
+| 10a-2, 10b, mail unique (5b) | — | **pas remis à jour** ; relecture du mail unique pas faite |
+| **11.1** Sheet « Planning Loué » | — | **pas commencé** |
+| **14** absence reliée au planning | — | **pas commencé** (ta demande du 19/11 est notée) |
+
+Ordre de production prévu : 8 (fusion) → 8d → 12 → 13 → 10a-1 → 10a-2 → 10b → mail unique.
