@@ -2,6 +2,21 @@
 
 Chaque lot : **quoi**, **pourquoi**, **comment déployer**. Procédures détaillées dans `docs/lotN-procedure.md`.
 
+## Lot 11.1 — Le Sheet « Planning Loué » (deux programmes, hors de l'appli) — **construit, testé contre un faux Google seulement ; rien n'est installé chez Google**
+
+**Quoi**
+- **Nouveau dossier `planning/`** : les règles (`Regles.gs`, aucun appel à Google), l'écriture de l'affiche (`Affiche.gs`), le programme attaché au Sheet (`Planning.gs`) et le programme de publication (`Publication.gs`). `outils/construire-planning.js` fabrique les deux fichiers à coller de `A-COLLER-PLANNING/`.
+- **Le planning** : un onglet par semaine (« 2026-S48 »), **une case par jour** (jamais de cases collées) ; saisie complétée (`901` → « 901 LES TILLEULS », `901 + 903` → deux demi-journées) ; saisie libre toujours acceptée ; couleurs par véhicule, véhicule du jour ; mots de santé en rouge ; menu *Créer la semaine suivante*, *Ajouter / Retirer un gars*, *Vérifier la semaine*, *Préparer l'affiche A3* (une seule A3 en paysage, pose et atelier, texte le plus gros possible).
+- **La publication** (programme à part, compte de Loué) : case « Publier » → dans les 10 minutes, le PDF de la semaine dans le dossier *Planning* de l'appli ; avertissement si la semaine est modifiée ensuite ; chaque nuit : liste des chantiers recopiée de l'appli (lecture seule), PDF des semaines finies retirés, semaines de plus de deux mois rangées dans *HISTORIQUE* (effacé à 12 mois). Onglet *APPLI* tenu pour l'appli (favoris du lot 12).
+- **Rien ne change dans l'appli** : ni serveur, ni pages, ni numéro de version.
+- Tests : `tests/lot11-regles.test.js` (34), `tests/lot11-planning.test.js` (23), `tests/lot11-publication.test.js` (22, dont un essai de bout en bout avec le vrai serveur de l'appli), `tests/lot11-livraison.test.js` (4) ; `tests/faux-google-planning.js`.
+
+**Pourquoi** : remplacer l'onglet de planning du fichier Excel par un Google Sheets tenu à deux, d'où sortent l'affiche de l'atelier et le PDF des gars (demande de Franck ; plan `docs/lot11-1-plan.md`).
+
+**Pas vérifié** : tout ce qui dépend du vrai Google (export en PDF, tailles réelles sur une A3, temps des passages, téléphone, listes de choix). Les essais du chapitre 10 du plan restent à faire avant toute installation.
+
+**Comment déployer** : `docs/lot11-procedure.md` (rien à faire tant que les essais de l'étape 0 ne sont pas faits). Mode d'emploi : `docs/guide-planning.md`.
+
 ## Lot 13 — La tuile « Notes » (mes notes) et « Garder pour plus tard » — serveur **v11.3**, appli **10.4** — **construit, testé contre le faux serveur et dans Chrome ; rien n'a tourné chez Google**
 
 **Quoi**
