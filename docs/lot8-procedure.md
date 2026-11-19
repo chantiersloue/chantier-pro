@@ -81,6 +81,7 @@ C'est le fichier qui ira en production. Je revérifie par l'empreinte.
 3. Dans l'éditeur, choisis la fonction **`installerLot8Production`** et clique ▶. Le journal doit finir par `✅ Lot 8 : installation terminée.` Elle crée l'onglet *Comptes rendus* avec ses 10 colonnes ; on peut la relancer sans danger.
 4. Ouvre le lien de fusion que je te donne : **Create pull request**, **Merge pull request**, **Confirm merge**.
 5. Vérification : dans l'appli, « À propos » affiche **10.1** ; l'adresse du serveur ouverte dans un navigateur affiche `Loué App API v11.0 OK`.
+6. **Anciens déploiements** (Apps Script → Déployer → Gérer les déploiements → Archiver) : « Lot 5 — production » le **26/11/2026** (une semaine après la fusion du lot 5c), « Lot 5c — production » **une semaine après la fusion du lot 8**. D'ici là, ne les archive pas : les téléphones qui n'ont pas encore pris la mise à jour s'en servent.
 
 **L'ordre compte peu** : la nouvelle page marche avec l'ancien serveur (la note part, elle n'est simplement pas notée dans l'onglet), et l'ancienne page marche avec le nouveau serveur (ses notes sont notées dans l'onglet).
 
