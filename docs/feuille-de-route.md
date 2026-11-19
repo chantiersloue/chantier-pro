@@ -52,7 +52,8 @@ Rien n'est construit ; tout est avec de faux noms, sans lien avec l'appli.
 1. **Installer la maquette Google Sheets** : `_prive\planning\maquette\google-sheets\PROCEDURE.md` (créer un Sheet vide, coller `Code-maquette.gs`, lancer `installerMaquette`, autoriser). 10 minutes. Le programme ne peut toucher que ce fichier-là.
    **À savoir** : il a passé 42 essais contre un faux Google écrit pour l'occasion, mais **il n'a jamais tourné chez le vrai Google**. Si un message d'erreur apparaît, copie-le-moi : je corrige.
 2. **Faire ses essais** (fin de la procédure), surtout : les propositions pendant la frappe ; maltraiter les cases collées ; **l'affiche A3** (cocher « Préparer l'affiche A3 », ouvrir le lien, imprimer en A3 paysage, mesurer une majuscule) ; l'atelier (fabrication → commandes en attente → commandes → reçu).
-3. **Répondre aux 11 points** du chapitre 12 de `docs/lot11-1-plan.md` (version 3, corrigée après une critique indépendante).
+3. **Répondre aux 12 points** du chapitre 12 de `docs/lot11-1-plan.md` (version 3, corrigée après une critique indépendante).
+4. **Ton idée du 19/11** (les chantiers du planning ouverts tout seuls dans l'appli, et en favoris) est dans le plan : **chapitre 13, lot 11.1d**. Cinq points à trancher au 13.8 (critiqué une fois par un agent indépendant). Rien n'est construit.
 
 Trois choses que la critique a changées, à connaître avant de lire le plan :
 - **Aucune méthode officielle de Google n'exporte un onglet en PDF A3.** Le lien utilisé par tout le monde marche aujourd'hui, sans garantie. Repli sûr : Fichier → Imprimer.
