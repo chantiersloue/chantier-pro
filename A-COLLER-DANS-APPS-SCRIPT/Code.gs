@@ -1,10 +1,10 @@
 // ═══════════════════════════════════════════════════════════════
 // LOUÉ APP — SERVEUR COMPLET, À COLLER DANS APPS SCRIPT (fichier « Code.gs », tout remplacer)
 // FICHIER GÉNÉRÉ AUTOMATIQUEMENT par « node outils/construire.js » — NE PAS MODIFIER À LA MAIN :
-// les sources sont dans le dossier apps-script/ du dépôt. Version du serveur b9b90428bb (pages f3973925e4)
+// les sources sont dans le dossier apps-script/ du dépôt. Version du serveur 8b062a8c21 (pages 8db70c0b89)
 // ═══════════════════════════════════════════════════════════════
 
-const EMPREINTE_SERVEUR = 'b9b90428bb';
+const EMPREINTE_SERVEUR = '8b062a8c21';
 
 // ████ Config.gs ████
 // ═══════════════════════════════════════════════════════════════
@@ -12,7 +12,7 @@ const EMPREINTE_SERVEUR = 'b9b90428bb';
 // Loué Menuiserie
 // ═══════════════════════════════════════════════════════════════
 
-const VERSION_API = 'v11.3';   // 11.3 : lot 10a-2 (onglet « Articles » : la liste d'articles proposés pendant la frappe) ; 11.2 : lot 10a-1 (« À commander » : onglet « Demandes », récapitulatif de 15 h 45) ; 11.1 : lot 8c (note de réunion en points, reprise des points ouverts) ; 11.0 : lot 8b (onglet « Comptes rendus », une ligne par note de réunion) ; 10.0 : lot 5 (suivi du stockage, purge sur case cochée) ; 9.1 : retrait de la lecture du dossier Plans (lot 4b) ; 9.0 : lot 4a (carnet de chantier) ; 8.0 : lot 3 (notes de chantier) ; 7.0 : lot 7 (signalements) ; 6.0 : lot 2 (comptes)
+const VERSION_API = 'v11.3';   // 11.3 : lot 10a-2 (onglet « Articles » : la liste d'articles proposés pendant la frappe) ; 11.2 : lot 10a-1 (« À commander » : onglet « Demandes », récapitulatif de 15 h 45) ; la v11.1 (lot 8c, points) a été retirée le 19/11/2026 avant toute mise en production ; 11.0 : lot 8b (onglet « Comptes rendus », une ligne par note de réunion) ; 10.1 : lot 5c (planning lisible par les seuls comptes, plus aucun lien de partage) ; 10.0 : lot 5 (suivi du stockage, purge sur case cochée) ; 9.1 : retrait de la lecture du dossier Plans (lot 4b) ; 9.0 : lot 4a (carnet de chantier) ; 8.0 : lot 3 (notes de chantier) ; 7.0 : lot 7 (signalements) ; 6.0 : lot 2 (comptes)
 
 // ── CONFIGURATION ──
 const SHEET_CONTACTS      = 'Contacts';
@@ -410,7 +410,6 @@ function alerte_(texte, sorte) {
       erreur : "[Loué App] Fiche non traitée — voir l'onglet Envois",
       notes  : '[Loué App] Listes « Notes » bloquées — titres d’un onglet changés',
       comptesrendus: '[Loué App] Notes de réunion non notées — titres de l’onglet « Comptes rendus » changés',
-      pointscr: '[Loué App] Comptes rendus — points d’un chantier à regarder',
       demandes: '[Loué App] « À commander » bloqué — titres de l’onglet « Demandes » changés',
       photos : "[Loué App] Trop de photos aujourd'hui",
       dossiers : '[Loué App] dossiers.json illisible',
@@ -419,6 +418,7 @@ function alerte_(texte, sorte) {
       connexions: '[Loué App] Beaucoup de connexions ratées',
       transition: '[Loué App] Fin de la période sans compte dans 3 jours',
       demarrage : '[Loué App] Période de transition pas démarrée',
+      planning  : '[Loué App] Planning encore lisible par lien',
     }[sorte] || "[Loué App] Envoi refusé — voir l'onglet Journal";
     GmailApp.sendEmail(emailAdmin_(), sujet,
       texte + "\n\nLes cas suivants de la journée sont notés dans l'onglet « Journal » du Sheet, sans autre mail.\n\nLoué App",
@@ -1246,7 +1246,9 @@ function doGet(e) {
     try { ouverte = transitionOuverte_(); } catch (err) {}
     if (!ouverte) return sortieJson_({ erreur: 'CONNEXION_REQUISE', message: MSG_CONNEXION }, cb);
     if (action === 'getContacts') { noterSansCompte_('listes'); return getContacts(cb); }
-    noterSansCompte_(e.parameter.chantier === '__PLANNING__' ? 'planning' : 'dossiers');
+    // Lot 5c : le planning n'est plus servi sans compte (seuls les comptes de l'appli le lisent), même pendant la transition
+    if (e.parameter.chantier === '__PLANNING__') return sortieJson_({ erreur: 'CONNEXION_REQUISE', message: 'Connectez-vous pour voir le planning' }, cb);
+    noterSansCompte_('dossiers');
     return getDossiers(e.parameter.chantier, cb);
   }
 
@@ -1318,28 +1320,97 @@ function lireDossiers_(chantierNom) {
   // La liste vide (sans erreur) est pour les anciennes pages encore gardées dans les téléphones.
   if (chantierNom !== '__PLANNING__') return { plans: [] };
 
-  // Planning de l'équipe — lecture directe par identifiant (comportement inchangé)
+  // Planning de l'équipe (lot 5c) : AUCUN lien de partage. Les fichiers sont lus par le serveur et envoyés au seul
+  // compte connecté (action planningFichier). Un fichier trouvé partagé (par lien, ou public) est remis en privé.
   const result = {};
   try {
     const planningFolder = DriveApp.getFolderById(drivePlanningId_());
+    const restes = [];
+    // Le dossier lui-même partagé par lien ouvrirait tous ses fichiers : il est remis en privé aussi
+    if (!planningPrive_(planningFolder)) restes.push('le dossier « ' + planningFolder.getName() + ' »');
     const files = planningFolder.getFiles();
     const docs = [];
     while(files.hasNext()) {
       const f = files.next();
-      try { f.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); } catch(e){}
+      try { if (f.isTrashed()) continue; } catch(e){}
       const mime = f.getMimeType();
+      if (mime === PLANNING_RACCOURCI) continue;   // un raccourci Drive n'a pas de contenu à envoyer : pas listé
+      if (!planningPrive_(f)) restes.push('« ' + f.getName() + ' »');
       let type = 'link';
       if(mime.includes('pdf'))   type='pdf';
       else if(mime.includes('image')) type='image';
       else if(mime.includes('spreadsheet')||mime.includes('excel')) type='xls';
       else if(mime.includes('presentation')) type='ppt';
       else if(mime.includes('document'))     type='doc';
-      docs.push({ nom:f.getName(), url:f.getUrl(), type, date:Utilities.formatDate(f.getLastUpdated(),'Europe/Paris','dd/MM/yyyy') });
+      let taille = 0;
+      try { taille = f.getSize(); } catch(e){}
+      docs.push({ id:f.getId(), nom:f.getName(), type, taille, date:Utilities.formatDate(f.getLastUpdated(),'Europe/Paris','dd/MM/yyyy') });
     }
     docs.sort(parDateDecroissante_);
     result.planning = docs;
+    // Partage impossible à retirer (fichier d'un autre propriétaire, partage hérité d'un dossier au-dessus) : Franck est prévenu
+    if (restes.length) alerte_('Le planning est encore lisible par lien : ' + restes.join(', ') + '. Le serveur n’a pas pu retirer ce partage. '
+      + 'Dans Drive : clic droit → Partager → « Accès limité », sur ces éléments ET sur les dossiers au-dessus du dossier Planning.', 'planning');
   } catch(err){ console.error('Planning:', err.message); result.planning=[]; }
   return result;
+}
+// Remet en privé un fichier ou un dossier partagé par lien (ou public). Rend true s'il est privé ensuite.
+function planningPrive_(el) {
+  const ouvert = () => { const a = el.getSharingAccess(); return a === DriveApp.Access.ANYONE_WITH_LINK || a === DriveApp.Access.ANYONE; };
+  try {
+    if (!ouvert()) return true;
+    el.setSharing(DriveApp.Access.PRIVATE, DriveApp.Permission.NONE);
+    return !ouvert();   // relu : un partage hérité d'un dossier au-dessus ne se retire pas ici
+  } catch (e) { console.error('Planning, partage :', e.message); return false; }
+}
+// À lancer une fois dans l'éditeur, juste après la mise en production : retire tout de suite les partages du planning
+// (sans attendre qu'un poseur ouvre le planning) et dit ce qui reste ouvert.
+function fermerPartagesPlanning() {
+  const n = (lireDossiers_('__PLANNING__').planning || []).length;
+  const dossier = DriveApp.getFolderById(drivePlanningId_());
+  const encore = [];
+  if (!planningPrive_(dossier)) encore.push('le dossier');
+  const it = dossier.getFiles();
+  while (it.hasNext()) { const f = it.next(); if (!f.isTrashed() && f.getMimeType() !== PLANNING_RACCOURCI && !planningPrive_(f)) encore.push('« ' + f.getName() + ' »'); }
+  let parent = '';
+  try { const p = dossier.getParents(); if (p.hasNext()) { const d = p.next(); if (d.getSharingAccess() !== DriveApp.Access.PRIVATE) parent = d.getName(); } } catch (e) {}
+  const m = (encore.length ? '❌ Encore partagé par lien : ' + encore.join(', ') + '. Retire le partage à la main dans Drive.'
+    : '✅ Planning : ' + n + ' document(s), aucun partagé par lien.')
+    + (parent ? ' ⚠ Le dossier au-dessus (« ' + parent + ' ») est partagé : vérifie qu’il ne donne pas accès au planning.' : '');
+  Logger.log(m);
+  return m;
+}
+
+// ── Lot 5c : un fichier du planning, envoyé au compte connecté (jamais par un lien) ──
+const PLANNING_RACCOURCI = 'application/vnd.google-apps.shortcut';
+const MAX_PLANNING_OCTETS = 5 * 1024 * 1024;   // 5 Mo au plus par fichier (une barre de réseau)
+function planningFichier_(compte, corps) {
+  const id = String(corps.id || '');
+  const refus = (code, message) => avecJeton_({ ok: false, code: code, message: message }, compte);
+  if (!/^[A-Za-z0-9_-]{1,100}$/.test(id)) return refus('DONNEES_INVALIDES', 'Document du planning inconnu');
+  let dossier;
+  try { dossier = DriveApp.getFolderById(drivePlanningId_()); }
+  catch (e) { console.error('Planning:', e.message); return refus('INDISPONIBLE', 'Planning indisponible : voyez avec le bureau.'); }
+  // Le fichier doit être DIRECTEMENT dans le dossier Planning (rien d'autre du Drive ne sort par ici) et pas à la corbeille
+  let fichier = null;
+  const it = dossier.getFiles();
+  while (it.hasNext()) { const f = it.next(); if (f.getId() === id) { fichier = f; break; } }
+  let jete = false;
+  try { jete = !!fichier && fichier.isTrashed(); } catch (e) {}
+  if (!fichier || jete || fichier.getMimeType() === PLANNING_RACCOURCI) return refus('INTROUVABLE', 'Ce document n’est plus dans le planning : rouvrez le planning.');
+  const tropGros = refus.bind(null, 'TROP_GROS', 'Document trop lourd pour le téléphone (plus de 5 Mo) : voyez avec le bureau.');
+  let taille = 0;
+  try { taille = fichier.getSize(); } catch (e) {}
+  if (taille > MAX_PLANNING_OCTETS) return tropGros();
+  // Un fichier Google (Sheets, Docs, Slides) est converti en PDF par getBlob : le type et le nom suivent le contenu réel
+  const blob = fichier.getBlob();
+  const octets = blob.getBytes();
+  if (octets.length > MAX_PLANNING_OCTETS) return tropGros();
+  const mime = String(blob.getContentType() || fichier.getMimeType() || 'application/octet-stream');
+  let nom = fichier.getName();
+  if (mime === 'application/pdf' && !/\.pdf$/i.test(nom)) nom += '.pdf';
+  return avecJeton_({ ok: true, code: 'OK', message: 'Document du planning',
+    data: { id: id, nom: nom, mime: mime, b64: Utilities.base64Encode(octets) } }, compte);
 }
 
 // Tri des documents par date « jj/mm/aaaa », la plus récente en premier
@@ -1410,7 +1481,7 @@ function repondre_(objet) {
 function traiterFiche_(brut, contexte) {
   const nom = brut && Object.prototype.hasOwnProperty.call(TRAITEMENTS, brut.type) ? TRAITEMENTS[brut.type] : '';
   if (!nom) throw new Error('Type de fiche inconnu');
-  // Lot 8c : ce que rend le traitement (pour une note de réunion : la liste des points du chantier) repart dans la réponse
+  // Lot 10 : ce que rend le traitement (pour une demande : le récapitulatif où elle part) repart dans la réponse
   return globalThis[nom](preparerDonnees_(brut), brut, contexte);
 }
 
@@ -1432,7 +1503,7 @@ function routerV5_(corps) {
     if (corps.action === 'connexion')  return connexion_(corps);
     if (corps.action === 'motDePasse') return motDePasse_(corps);
     if (['photo', 'fiche', 'moi', 'listes', 'dossiers', 'signalements', 'signalementStatut',
-      'notes', 'notesNouvelles', 'notesVues', 'carnet', 'carnetTuiles', 'compteRendu', 'demandes'].indexOf(corps.action) < 0) return { ok: false, code: 'ACTION_INCONNUE', message: 'Action inconnue' };
+      'notes', 'notesNouvelles', 'notesVues', 'carnet', 'carnetTuiles', 'planningFichier', 'demandes'].indexOf(corps.action) < 0) return { ok: false, code: 'ACTION_INCONNUE', message: 'Action inconnue' };
     let qui = identifier_(corps);
     const envoi = corps.action === 'photo' || corps.action === 'fiche';
     // Lot 3 : une note de chantier (ou un geste sur une note) demande TOUJOURS un compte en règle : ni « compte désactivé »,
@@ -1460,6 +1531,7 @@ function routerV5_(corps) {
     if (corps.action === 'moi')      return moi_(qui.compte);
     if (corps.action === 'listes')   return listes_(qui.compte);
     if (corps.action === 'dossiers') return dossiersCompte_(qui.compte, String(corps.chantier || ''));
+    if (corps.action === 'planningFichier') return planningFichier_(qui.compte, corps);   // lot 5c : tout compte actif
     // Lot 7 : suivi des signalements (réservé aux comptes ; droits vérifiés dans Signalements.gs)
     if (corps.action === 'signalements')      return listerSignalements_(qui.compte, corps);
     if (corps.action === 'signalementStatut') return changerStatutSignalement_(qui.compte, corps);
@@ -1470,8 +1542,6 @@ function routerV5_(corps) {
     // Lot 4 : carnet de chantier (droits vérifiés dans Carnet.gs)
     if (corps.action === 'carnet')       return carnetLister_(qui.compte, corps);
     if (corps.action === 'carnetTuiles') return carnetTuiles_(qui.compte, corps);
-    // Lot 8c : points ouverts du chantier affiché dans la note de réunion (droits vérifiés dans ComptesRendus.gs)
-    if (corps.action === 'compteRendu')  return crLire_(qui.compte, corps);
     // Lot 10 : « Mes demandes » (seulement celles du compte ; Demandes.gs) ; lot 10a-2 : avec la liste « Articles »
     if (corps.action === 'demandes')     return listerDemandes_(qui.compte, corps);
   } catch (err) {
@@ -1693,16 +1763,11 @@ function recevoirFiche_(corps, compte) {
   }
   if (dossierPhotos) { try { dossierPhotos.setTrashed(true); } catch (e) {} }   // les photos sont dans le PDF
 
-  const reponse = {
+  return {
     ok: true, code: 'ENREGISTRE',
     message: 'Fiche enregistrée. ' + detail.charAt(0).toUpperCase() + detail.slice(1) + '.',
     data: { id: corps.id, envoyes: n('envoyé'), reportes: n('reporté'), refuses: rapport['refusé'] || [] },
   };
-  // Lot 8c — note de réunion : la nouvelle liste des points du chantier, pour que le téléphone la garde (hors réseau)
-  if (resultat && resultat.points) reponse.data.points = resultat.points;
-  if (resultat && resultat.remarqueCR) reponse.data.remarqueCR = resultat.remarqueCR;
-  if (resultat && resultat.pointsNonSuivis) reponse.data.pointsNonSuivis = resultat.pointsNonSuivis;   // « onglet » ou « chantier »
-  return reponse;
 }
 
 // Ligne d'un numéro dans l'onglet Envois (recherche rapide), ou 0
@@ -1770,8 +1835,8 @@ function infoPdf_(blob) {
 // ═══════════════════════════════════════════════════════════════
 // NOTE DE RÉUNION
 // ═══════════════════════════════════════════════════════════════
-// contexte (lot 8) : { id (numéro de fiche créé par le téléphone), auteurId, auteurNom, compte }. Absent pour une page d'avant le
-// lot 1 (aucun numéro de fiche : la note part comme avant, sans ligne dans l'onglet « Comptes rendus », car on ne saurait pas la reconnaître
+// contexte (lot 8b) : { id (numéro de fiche créé par le téléphone), auteurId, auteurNom }. Absent pour une page d'avant le
+// lot 1 (aucun numéro de fiche : la note part comme avant, sans numéro de compte rendu, car on ne saurait pas la reconnaître
 // si elle était renvoyée).
 function traiterNoteReunion(data, brut, contexte) {
   const now = new Date();
@@ -1779,19 +1844,12 @@ function traiterNoteReunion(data, brut, contexte) {
   const d = validerImages_(brut);
   if (!d.date) d.date = Utilities.formatDate(now, 'Europe/Paris', 'dd/MM/yyyy');
 
-  // Lot 8 : la note est notée dans l'onglet « Comptes rendus » AVANT le PDF (une ligne, jamais deux fois la même fiche),
-  // et ses gestes sur les points du chantier sont appliqués (lot 8c).
+  // Lot 8 : la note est notée dans l'onglet « Comptes rendus » AVANT le PDF (une ligne, jamais deux fois la même fiche).
   // Serveur occupé (verrou) : rien n'est fabriqué ni envoyé, le téléphone garde la note et réessaie. Onglet illisible :
   // la note part quand même.
   const idFiche = contexte && contexte.id ? String(contexte.id) : '';
   const qui = contexte ? (contexte.auteurId ? (contexte.auteurNom || contexte.auteurId) + ' (' + contexte.auteurId + ')' : 'sans compte') : 'sans compte';
-  const gestes = crGestes_(brut.points);
-  const cr = idFiche ? crEnregistrer_(idFiche, Object.assign({}, brut, { date: d.date }), qui, contexte.compte || null)
-    : { rendu: crRenduSeul_(gestes), remarque: '', liste: null, nonSuivi: '' };
-  // Lot 8c — ce que le modèle imprime vient du SERVEUR : les points tels qu'ils sont après les gestes de cette note, et la
-  // remarque « Rédigé sans connaître le compte rendu du … ». Jamais ce que le téléphone aurait écrit à la place.
-  d.points = cr.rendu;
-  d.remarqueCR = cr.remarque || '';
+  if (idFiche) crEnregistrer_(idFiche, Object.assign({}, brut, { date: d.date }), qui);
   // Nouvelle page : « remarques » est le texte saisi, « commentaires » en est une copie lisible par un ancien serveur.
   // Ancienne page, ancienne fiche en attente : « commentaires » est le texte saisi.
   if (typeof brut.remarques === 'string') d.commentaires = brut.remarques;
@@ -1832,9 +1890,6 @@ function traiterNoteReunion(data, brut, contexte) {
     texte: 'Bonjour,\n\nVeuillez trouver en pièce jointe la note de réunion — ' + (brut.chantier || '—') + '.\n\nLoué App',
     faireBlob: () => blob,
   });
-  // Rendu au téléphone par recevoirFiche_ : la nouvelle liste des points du chantier (seulement si le compte a le droit de
-  // la lire), la remarque, et « points non suivis » (onglet illisible, chantier hors liste)
-  return { points: cr.liste || null, remarqueCR: cr.remarque || '', pointsNonSuivis: cr.nonSuivi || '' };
 }
 
 
@@ -3699,7 +3754,7 @@ function installerLot10Production() { return installerLot10_('PRODUCTION'); }
 
 // ████ ComptesRendus.gs ████
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
-// LOT 8 — COMPTES RENDUS : l'onglet « Comptes rendus » (une ligne par note de réunion) et les POINTS suivis
+// LOT 8 — COMPTES RENDUS : l'onglet « Comptes rendus », une ligne par note de réunion reçue
 //
 // Un compte rendu se désigne par sa DATE DE RÉUNION (« compte rendu du 06/11/2026 ») : il n'a pas de numéro
 // (décision de Franck du 16/11/2026).
@@ -3711,48 +3766,20 @@ function installerLot10Production() { return installerLot10_('PRODUCTION'); }
 //     (minuscules, espaces retirés). Un chantier renommé garde donc sa suite s'il a un N° ;
 //   - onglet aux titres changés ou illisible : rien n'y est lu ni écrit, la note part quand même (PDF et mails normaux),
 //     Franck est prévenu une fois par jour. Un onglet de suivi ne bloque jamais l'envoi d'une note.
-//
-// LES POINTS (lot 8c). Une note est faite de points, ouverts ou clos. Les points ouverts d'un chantier sont gardés dans la
-// ligne du DERNIER compte rendu arrivé (colonnes « Données de l'appli »). Le téléphone n'envoie pas « l'état des points »
-// mais CE QUE LA PERSONNE A FAIT, point par point : « rien », « complete », « clos », « rouvert », « nouveau ». Le serveur
-// prend la liste de la dernière ligne du chantier, applique les gestes, écrit la nouvelle liste dans la nouvelle ligne.
-// Une liste périmée dans un téléphone ne peut donc rien défaire : elle ne porte aucun geste sur ce qu'elle ignore.
-//   - « le compte rendu d'où venait la liste » est désigné par son NUMÉRO DE FICHE (champ « base » de la note) ;
-//   - gestes sur des points existants : seulement avec un compte qui a accès au chantier ; sinon seuls les nouveaux points
-//     sont pris. Une note n'est JAMAIS refusée ;
-//   - un point clos reste « rouvrable » pendant les 3 comptes rendus suivants du chantier.
 // Plan : docs/lot8-plan.md. Décisions : D8-… (DECISIONS.md).
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 const SHEET_CR = 'Comptes rendus';
-const CR_ENTETES_8B = ['Numéro de fiche', 'Chantier', 'N° du chantier', 'Date de la réunion', 'Objet',
+const CR_ENTETES = ['Numéro de fiche', 'Chantier', 'N° du chantier', 'Date de la réunion', 'Objet',
   'Rédigé par', 'Compte qui a envoyé', 'Nom du PDF', 'Reçu le', 'Remarque de l’appli'];
-const CR_ENTETES = CR_ENTETES_8B.concat(['Points ouverts après cette note', 'Points clos par cette note',
-  'Données de l’appli (ne pas modifier)', 'Données de l’appli (suite)']);
-const COL_CR = { fiche: 1, chantier: 2, numChantier: 3, date: 4, objet: 5, auteur: 6, compte: 7, pdf: 8, recu: 9, remarque: 10,
-  ouverts: 11, clos: 12, donnees: 13, suite: 14 };
+const COL_CR = { fiche: 1, chantier: 2, numChantier: 3, date: 4, objet: 5, auteur: 6, compte: 7, pdf: 8, recu: 9, remarque: 10 };
 // Tout ce qui est du texte saisi reste du texte (une date « 12/11 » ou un numéro « 0403 » ne sont pas transformés)
-const CR_COLONNES_TEXTE = [COL_CR.fiche, COL_CR.chantier, COL_CR.numChantier, COL_CR.date, COL_CR.objet, COL_CR.auteur, COL_CR.compte, COL_CR.pdf,
-  COL_CR.remarque, COL_CR.ouverts, COL_CR.clos, COL_CR.donnees, COL_CR.suite];
-const CR_GESTES = ['rien', 'complete', 'clos', 'rouvert', 'nouveau'];
-const CR_MAX_TEXTE = 2000;        // caractères par point
-const CR_MAX_NOUVEAUX = 40;       // nouveaux points suivis par note
-const CR_MAX_GESTES = 400;        // gestes lus par note (points repris + nouveaux)
-const CR_CLOS_GARDES = 3;         // un point clos reste rouvrable pendant ce nombre de comptes rendus
-const CR_MAX_CELLULE = 45000;     // caractères par cellule (Google en accepte 50 000)
-const CR_MAX_FERMES = 300;        // identifiants des points clos depuis longtemps, gardés pour ne pas les rouvrir par erreur
-const CR_REFUS_LECTURE = 'Ce chantier ne fait pas partie de vos chantiers : voyez avec le bureau.';
+const CR_COLONNES_TEXTE = [COL_CR.fiche, COL_CR.chantier, COL_CR.numChantier, COL_CR.date, COL_CR.objet, COL_CR.auteur, COL_CR.compte, COL_CR.pdf, COL_CR.remarque];
 
 // ── Petits outils ──
 function crOccupe_(message) { return Object.assign(new Error(message || 'Serveur occupé, nouvel essai automatique'), { occupe: true }); }
 // Texte d'une ligne : ni retour à la ligne, ni caractère invisible
 function crLigne_(v, max) {
   return typeof v === 'string' ? v.replace(/[\u0000-\u001f\u007f-\u009f\u2028\u2029]+/g, ' ').replace(/ {2,}/g, ' ').trim().slice(0, max) : '';
-}
-// Texte d'un point : les retours à la ligne sont gardés, les caractères invisibles retirés, 2 000 caractères au plus
-function crTexte_(v) {
-  if (typeof v !== 'string') return '';
-  return v.replace(/\r\n?|[\u2028\u2029]/g, '\n').replace(/[\u0000-\u0009\u000b-\u001f\u007f-\u009f]+/g, ' ').replace(/[ ]{2,}/g, ' ')
-    .replace(/ *\n */g, '\n').replace(/\n{3,}/g, '\n\n').trim().slice(0, CR_MAX_TEXTE).trim();
 }
 // Clé d'un nom de chantier : minuscules, espaces retirés
 function crCleNom_(nom) { return String(nom || '').toLowerCase().replace(/\s+/g, ''); }
@@ -3762,11 +3789,9 @@ function crJour_(texte) {
   const m = String(texte || '').match(/^\s*(\d{1,2})\/(\d{1,2})\/(\d{4})\s*$/);
   return m ? Number(m[3]) * 10000 + Number(m[2]) * 100 + Number(m[1]) : 0;
 }
-// Heure (millisecondes) d'une cellule de date, 0 si ce n'en est pas une
-function crMs_(v) { return Object.prototype.toString.call(v) === '[object Date]' && !isNaN(v.getTime()) ? v.getTime() : 0; }
-// Identifiant d'un point : créé une fois par le téléphone, le même d'une note à l'autre
-function crIdPoint_(v) { const s = typeof v === 'string' ? v : ''; return /^[A-Za-z0-9-]{6,40}$/.test(s) ? s : ''; }
-function crNouvelId_() { return 'pt-srv-' + Utilities.getUuid().replace(/-/g, '').slice(0, 16); }
+
+// Heure (millisecondes) d’une cellule de date, 0 si ce n’en est pas une
+function crMs_(v) { return Object.prototype.toString.call(v) === "[object Date]" && !isNaN(v.getTime()) ? v.getTime() : 0; }
 
 // ── Onglet : créé s'il n'existe pas, VÉRIFIÉ avant toute lecture et toute écriture ──
 function crTitresBons_(sh) {
@@ -3787,24 +3812,10 @@ function crFeuille_() {
   if (crTitresBons_(sh)) return sh;
   let fonction = 'installerLot8Production';
   try { if (environnementReel_().env === 'TEST') fonction = 'installerLot8Test'; } catch (e) {}
-  alerte_('Les notes de réunion ne sont plus notées dans l’onglet « ' + SHEET_CR + ' », et leurs points ne sont plus suivis : sa ligne de titres n’est plus celle attendue ('
+  alerte_('Les notes de réunion ne sont plus notées dans l’onglet « ' + SHEET_CR + ' » : sa ligne de titres n’est plus celle attendue ('
     + CR_ENTETES.join(' | ') + '). Remettez ces titres, ou renommez l’onglet puis lancez ' + fonction + '. '
-    + 'Les notes sont envoyées normalement (PDF et mails) ; seuls la ligne de l’onglet et le suivi des points manquent.', 'comptesrendus');
+    + 'Les notes sont envoyées normalement (PDF et mails) ; seule la ligne de l’onglet manque.', 'comptesrendus');
   return null;
-}
-// Le même onglet, pour LIRE seulement : jamais créé, jamais d'alerte. null s'il est absent ou si ses titres ont changé.
-function crFeuilleLue_() {
-  const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_CR);
-  return sh && crTitresBons_(sh) ? sh : null;
-}
-// Les lignes de l'onglet SANS les colonnes des points (elles sont lourdes) : colonnes A à J seulement
-function crLignes_(sh) {
-  const derniere = sh.getLastRow();
-  return derniere > 1 ? sh.getRange(2, 1, derniere - 1, CR_ENTETES_8B.length).getValues() : [];
-}
-function crIndexDeLaFiche_(lignes, idFiche) {
-  for (let i = 0; i < lignes.length; i++) if (String(lignes[i][COL_CR.fiche - 1]) === String(idFiche)) return i;
-  return -1;
 }
 // Ligne d'une note d'après son numéro de fiche (colonne A), ou 0. Jamais par position : Franck peut trier l'onglet.
 function crChercher_(sh, idFiche) {
@@ -3820,257 +3831,46 @@ function crChantier_(nom) {
   return { nom: l ? String(l[0]).trim() : '',
     numero: l && l.length > 4 ? String(l[4] === undefined || l[4] === null ? '' : l[4]).trim() : '' };
 }
-// La dernière ligne ARRIVÉE pour ce chantier (la plus récente en « Reçu le » ; à égalité, la plus basse de l'onglet) :
-// son rang dans « lignes », ou -1.
+// La dernière ligne ARRIVÉE pour ce chantier (la plus récente en « Reçu le » ; à égalité, la plus basse de l'onglet), ou null.
 // lignes : les valeurs de l'onglet sans la ligne de titres ; sauf : numéro de fiche à ne pas compter (la note elle-même).
 function crDerniereLigne_(lignes, chantier, sauf) {
   const cleNum = crCleNumero_(chantier.numero), cleNom = crCleNom_(chantier.nom);
-  let meilleure = -1, quand = -1;
-  lignes.forEach((r, i) => {
+  let meilleure = null, quand = -1;
+  lignes.forEach(r => {
     if (!String(r[COL_CR.fiche - 1]) || String(r[COL_CR.fiche - 1]) === String(sauf || '')) return;
     const numLigne = crCleNumero_(r[COL_CR.numChantier - 1]);
     // même N° de chantier (quand les deux sont remplis), sinon même nom
     const meme = cleNum && numLigne ? numLigne === cleNum : crCleNom_(r[COL_CR.chantier - 1]) === cleNom;
     if (!meme) return;
-    // une note arrivée pendant que le chantier était hors de la liste n'a rien suivi : elle ne sert pas de point de départ
-    if (String(r[COL_CR.remarque - 1] || '').indexOf('chantier hors liste') > -1) return;
     const t = crMs_(r[COL_CR.recu - 1]);
-    if (t >= quand) { quand = t; meilleure = i; }
+    if (t >= quand) { quand = t; meilleure = r; }
   });
   return meilleure;
 }
 
-// ── Les points gardés dans une ligne (« Données de l'appli ») ──
-// { o: points OUVERTS [{ i: identifiant, t: texte, d: date de la réunion qui l'a ouvert }],
-//   c: points CLOS récemment [{ i, t, d, k: date de la réunion qui l'a clos, n: comptes rendus arrivés depuis }],
-//   f: identifiants des points clos depuis plus longtemps,
-//   b: numéro de fiche de la ligne d'où venait cette liste (sert à refaire le même PDF si la note est renvoyée) }
-function crEtatVide_() { return { o: [], c: [], f: [], b: '' }; }
-// Les points gardés dans UNE ligne (rang dans crLignes_ ; -1 : aucune ligne) : deux cellules lues, pas tout l'onglet
-function crEtatLu_(sh, index) {
-  if (index < 0) return crEtatVide_();
-  const v = sh.getRange(index + 2, COL_CR.donnees, 1, 2).getValues()[0];
-  return crEtatDuTexte_(String(v[0] || '') + String(v[1] || '').replace(/^~/, ''));
-}
-function crEtatDuTexte_(texte) {
-  const vide = crEtatVide_();
-  if (!texte) return vide;
-  try {
-    const e = JSON.parse(texte);
-    const point = p => p && crIdPoint_(p.i) && typeof p.t === 'string';
-    return { o: (Array.isArray(e.o) ? e.o : []).filter(point).map(p => ({ i: p.i, t: p.t, d: String(p.d || '') })),
-      c: (Array.isArray(e.c) ? e.c : []).filter(point).map(p => ({ i: p.i, t: p.t, d: String(p.d || ''), k: String(p.k || ''), n: Number(p.n) > 0 ? Number(p.n) : 0 })),
-      f: (Array.isArray(e.f) ? e.f : []).filter(crIdPoint_), b: typeof e.b === 'string' ? e.b : '' };
-  } catch (err) { return Object.assign(vide, { illisible: true }); }
-}
-// Les gestes d'une note, nettoyés (jamais un refus : la note part toujours)
-function crGestes_(points) {
-  const brut = points && typeof points === 'object' && Array.isArray(points.gestes) ? points.gestes : [];
-  const vus = {}, liste = [];
-  brut.slice(0, CR_MAX_GESTES).forEach(x => {
-    if (!x || typeof x !== 'object' || CR_GESTES.indexOf(x.g) < 0) return;
-    const t = crTexte_(x.t);
-    let id = crIdPoint_(x.id);
-    if (!id) { if (!t) return; id = crNouvelId_(); }   // identifiant illisible : le texte devient un nouveau point
-    if (vus[id]) return;
-    vus[id] = true;
-    liste.push({ id: id, g: x.g, t: t, m: x.m === true, regle: x.regle === true });
-  });
-  return liste;
-}
-// Les points d'une note qui n'est PAS suivie (chantier hors liste, onglet illisible, page sans numéro de fiche) : imprimés tels quels
-function crRenduSeul_(gestes) {
-  return gestes.filter(g => g.t).map(g => ({ t: g.t, etat: g.g === 'clos' || (g.g === 'nouveau' && g.regle) ? 'clos' : 'ouvert',
-    mention: g.g === 'nouveau' ? 'nouveau point' : '' }));
-}
-// LE CŒUR : applique les gestes d'une note à la liste du chantier. Ne lit ni n'écrit rien (fonction « pure »).
-//   avant  : la liste de la dernière ligne du chantier ;
-//   gestes : ceux de la note (crGestes_) ;
-//   ctx    : { date (réunion de cette note), acces (le compte a-t-il accès au chantier ?) }.
-// Rend { etat (la nouvelle liste), rendu (ce que le PDF imprime, dans l'ordre de la note), closIci, remarques }.
-function crAppliquer_(avant, gestes, ctx) {
-  const ouverts = avant.o.map(p => ({ i: p.i, t: p.t, d: p.d }));
-  const clos = avant.c.map(p => ({ i: p.i, t: p.t, d: p.d, k: p.k, n: p.n }));
-  let fermes = avant.f.slice();
-  const rendu = [], closIci = [], remarques = [];
-  const noter = r => { if (remarques.indexOf(r) < 0) remarques.push(r); };
-  const depuis = d => d ? 'ouvert depuis le ' + d : 'point ouvert';
-  let nouveaux = 0;
-  gestes.forEach(g => {
-    let id = g.id;
-    let io = ouverts.findIndex(p => p.i === id), ic = clos.findIndex(p => p.i === id), ifm = fermes.indexOf(id);
-    let connu = io > -1 || ic > -1 || ifm > -1;
-    // « nouveau » sous un identifiant déjà pris (téléphone trompé, identifiant forgé) : le point est créé sous un autre
-    if (g.g === 'nouveau' && connu) { id = crNouvelId_(); io = ic = ifm = -1; connu = false; }
-    if (!connu) {
-      // Nouveau point. Un geste sur un identifiant INCONNU (point d'une note précédente jamais arrivée, identifiant d'un
-      // autre chantier) devient aussi un nouveau point, avec son texte : rien n'est perdu.
-      if (!g.t) return;
-      const regle = g.g === 'clos' || (g.g === 'nouveau' && g.regle);
-      if (nouveaux >= CR_MAX_NOUVEAUX) {
-        rendu.push({ t: g.t, etat: regle ? 'clos' : 'ouvert', mention: 'point non suivi (plus de ' + CR_MAX_NOUVEAUX + ' nouveaux points dans cette note)' });
-        noter('plus de ' + CR_MAX_NOUVEAUX + ' nouveaux points : les suivants sont dans le PDF mais ne sont pas suivis');
-        return;
-      }
-      nouveaux++;
-      const origine = g.g === 'nouveau' ? 'nouveau point' : 'nouveau point (repris d’une note que le bureau n’a pas reçue)';
-      if (regle) {
-        clos.push({ i: id, t: g.t, d: ctx.date, k: ctx.date, n: -1 });
-        closIci.push(g.t);
-        rendu.push({ t: g.t, etat: 'clos', mention: g.g === 'nouveau' ? 'nouveau point, réglé pendant la réunion' : origine + ', clos' });
-      } else {
-        ouverts.push({ i: id, t: g.t, d: ctx.date });
-        rendu.push({ t: g.t, etat: 'ouvert', mention: origine });
-      }
-      return;
-    }
-    // Point existant : il faut un compte qui a accès au chantier
-    if (!ctx.acces) {
-      if (!g.t) return;
-      // imprimé tel que le téléphone l'a envoyé (une ligne par geste : les numéros « Point 3 — » des photos restent justes), sans rien changer au bureau
-      rendu.push({ t: g.t, etat: 'ouvert', mention: (g.g === 'rien' ? 'point repris, non vérifié' : 'geste non pris en compte') + ' : ce compte n’a pas accès aux points de ce chantier' });
-      if (g.g !== 'rien') noter('gestes sur des points existants ignorés (pas d’accès au chantier)');
-      return;
-    }
-    const texteNeuf = !!g.t && (g.g === 'complete' || g.m);
-    if (io > -1) {
-      const p = ouverts[io];
-      if (g.g === 'clos') {
-        if (texteNeuf) p.t = g.t;
-        ouverts.splice(io, 1);
-        clos.push({ i: p.i, t: p.t, d: p.d, k: ctx.date, n: -1 });
-        closIci.push(p.t);
-        rendu.push({ t: p.t, etat: 'clos', mention: 'clos · ' + depuis(p.d) });
-      } else {
-        // « rien », « complete », ou « rouvert » sur un point déjà rouvert par quelqu'un d'autre
-        const change = texteNeuf && g.t !== p.t;
-        if (change) p.t = g.t;
-        rendu.push({ t: p.t, etat: 'ouvert', mention: (change ? 'complété · ' : '') + depuis(p.d) });
-      }
-      return;
-    }
-    if (ic > -1) {
-      const p = clos[ic];
-      if (g.g === 'rouvert') {
-        if (texteNeuf) p.t = g.t;
-        clos.splice(ic, 1);
-        ouverts.push({ i: p.i, t: p.t, d: p.d });
-        rendu.push({ t: p.t, etat: 'ouvert', mention: 'rouvert (clos par le compte rendu du ' + p.k + ') · ' + depuis(p.d) });
-      } else if (g.g === 'complete' && g.t && g.t !== p.t) {
-        // complété par quelqu'un qui ne savait pas le point clos : le texte reste dans CE compte rendu, le point reste clos
-        rendu.push({ t: g.t, etat: 'clos', mention: 'déjà clos par le compte rendu du ' + p.k + ' : ce texte n’est gardé que dans ce compte rendu' });
-        noter('un point complété était déjà clos (compte rendu du ' + p.k + ')');
-      } else {
-        rendu.push({ t: p.t, etat: 'clos', mention: 'déjà clos par le compte rendu du ' + p.k });
-      }
-      return;
-    }
-    // Clos depuis plus de 3 comptes rendus : seul « rouvert » le rouvre
-    if (g.g === 'rouvert' && g.t) {
-      fermes.splice(ifm, 1);
-      ouverts.push({ i: id, t: g.t, d: ctx.date });
-      rendu.push({ t: g.t, etat: 'ouvert', mention: 'rouvert (clos par un compte rendu précédent)' });
-    } else if (g.g === 'complete' && g.t) {
-      rendu.push({ t: g.t, etat: 'clos', mention: 'déjà clos par un compte rendu précédent : ce texte n’est gardé que dans ce compte rendu' });
-      noter('un point complété était déjà clos');
-    } else if (g.t) {
-      rendu.push({ t: g.t, etat: 'clos', mention: 'déjà clos par un compte rendu précédent' });
-    }
-  });
-  // Les points clos AVANT cette note vieillissent d'un compte rendu ; au-delà de 3, il ne reste que leur identifiant
-  const gardes = [];
-  clos.forEach(p => {
-    if (p.n < 0) { p.n = 0; gardes.push(p); return; }
-    p.n++;
-    if (p.n >= CR_CLOS_GARDES) fermes.push(p.i); else gardes.push(p);
-  });
-  if (fermes.length > CR_MAX_FERMES) fermes = fermes.slice(fermes.length - CR_MAX_FERMES);
-  return { etat: { o: ouverts, c: gardes, f: fermes, b: '' }, rendu: rendu, closIci: closIci, remarques: remarques };
-}
-// La liste d'un chantier → les deux cellules « Données de l'appli ». Trop longue pour deux cellules : les textes gardés
-// pour la suite sont raccourcis (chaque PDF garde le texte complet), jamais un refus.
-function crDecouper_(etat) {
-  let json = JSON.stringify(etat), raccourci = false;
-  const max = 2 * CR_MAX_CELLULE;
-  [1000, 500, 250, 120].forEach(limite => {
-    if (json.length <= max) return;
-    raccourci = true;
-    etat.o.concat(etat.c).forEach(p => { if (p.t.length > limite) p.t = p.t.slice(0, limite - 1) + '…'; });
-    json = JSON.stringify(etat);
-  });
-  if (json.length > max) { etat.f = []; json = JSON.stringify(etat); }
-  while (json.length > max && etat.c.length) { etat.c.shift(); json = JSON.stringify(etat); }
-  while (json.length > max && etat.o.length > 1) { etat.o.shift(); json = JSON.stringify(etat); }   // jamais vu : plus de 700 points ouverts
-  return { donnees: json.slice(0, CR_MAX_CELLULE), suite: json.length > CR_MAX_CELLULE ? '~' + json.slice(CR_MAX_CELLULE) : '', raccourci: raccourci };
-}
-// Une liste de textes dans une cellule lisible par Franck : un point par ligne
-function crCelluleLisible_(textes) {
-  const t = textes.map(x => '• ' + String(x).replace(/\n+/g, ' / ')).join('\n');
-  return t.length > CR_MAX_CELLULE ? t.slice(0, CR_MAX_CELLULE - 30) + '\n… (la suite est dans le PDF)' : t;
-}
-// Ce que la page reçoit pour un chantier : la liste telle qu'elle est après la ligne r
-function crListePourLaPage_(r, etat) {
-  return { base: r ? String(r[COL_CR.fiche - 1]) : '', date: r ? String(r[COL_CR.date - 1] || '') : '',
-    ouverts: etat.o.map(p => ({ id: p.i, t: p.t, d: p.d })),
-    clos: etat.c.map(p => ({ id: p.i, t: p.t, d: p.d, k: p.k })) };
-}
-
-// ── Noter la note dans l'onglet et appliquer ses gestes (à appeler AVANT de fabriquer le PDF) ──
-// idFiche : numéro de fiche créé par le téléphone ; brut : données de la note ; qui : texte « compte qui a envoyé » ;
-// compte : le compte vérifié par le serveur (null : sans compte).
-// Rend { rendu (les points à imprimer), remarque (ligne en tête du PDF), liste (pour le téléphone, si le compte a le droit
-// de lire), nonSuivi ('' | 'onglet' | 'chantier'), dejaLa }. Lève « occupé » si le verrou n'est pas disponible (passager :
-// le téléphone réessaie). Onglet illisible : pas d'erreur, la note part sans être notée.
-function crEnregistrer_(idFiche, brut, qui, compte) {
-  const avecPoints = !!(brut.points && typeof brut.points === 'object');
-  const gestes = crGestes_(brut.points);
-  const base = avecPoints && typeof brut.points.base === 'string' ? brut.points.base.slice(0, 64) : '';
+// ── Noter la note dans l'onglet (à appeler AVANT de fabriquer le PDF) ──
+// idFiche : numéro de fiche créé par le téléphone ; brut : données de la note ; qui : texte « compte qui a envoyé ».
+// Rend { horsListe, sansOnglet, dejaLa }. Lève « occupé » si le verrou n'est pas disponible (passager : le téléphone
+// réessaie). Onglet illisible : pas d'erreur, la note part sans être notée.
+function crEnregistrer_(idFiche, brut, qui) {
   const verrou = LockService.getScriptLock();
   if (!verrou.tryLock(15000)) throw crOccupe_();
   try {
     let sh = null;
     try { sh = crFeuille_(); } catch (e) { console.error('crEnregistrer_ :', e.message); }
-    if (!sh) return { rendu: crRenduSeul_(gestes), remarque: '', liste: null, nonSuivi: 'onglet', dejaLa: false };
+    if (!sh) return { horsListe: false, sansOnglet: true, dejaLa: false };
+    // Note renvoyée par le téléphone : sa ligne existe déjà, aucune ligne n'est ajoutée
+    if (crChercher_(sh, idFiche)) return { horsListe: false, sansOnglet: false, dejaLa: true };
     const chantier = crChantier_(brut.chantier);
-    // Chantier hors liste : la note est notée, ses points sont imprimés, mais rien n'est suivi (aucun droit vérifiable)
-    const acces = !!(chantier.nom && compte && compte.id && compte.role && peutLireChantier_(compte, chantier.nom));
-    const lignes = crLignes_(sh);
-    const iMoi = crIndexDeLaFiche_(lignes, idFiche), maLigne = iMoi > -1 ? lignes[iMoi] : null;
-    // Note renvoyée par le téléphone : sa ligne existe déjà. Rien n'est écrit ; le même PDF est refait en rejouant ses
-    // gestes sur la liste d'où elle était partie (notée dans sa ligne).
-    if (maLigne) {
-      const moi = crEtatLu_(sh, iMoi);
-      const rejoue = chantier.nom ? crAppliquer_(crEtatLu_(sh, moi.b ? crIndexDeLaFiche_(lignes, moi.b) : -1), gestes, { date: crLigne_(brut.date, 20), acces: acces }) : { rendu: crRenduSeul_(gestes) };
-      const rem = String(maLigne[COL_CR.remarque - 1] || '').split(' ; ').filter(x => /^Rédigé sans connaître/.test(x))[0] || '';
-      return { rendu: rejoue.rendu, remarque: rem, liste: acces ? crListePourLaPage_(maLigne, moi) : null, nonSuivi: chantier.nom || !gestes.length ? '' : 'chantier', dejaLa: true };
-    }
-    const remarques = [];
-    let resultat = { etat: crEtatVide_(), rendu: crRenduSeul_(gestes), closIci: [], remarques: [] };
+    let remarque = '';
     if (!chantier.nom) {
-      remarques.push(gestes.length ? 'chantier hors liste : points non suivis' : 'chantier hors liste');
+      remarque = 'chantier hors liste';
     } else {
-      const iAvant = crDerniereLigne_(lignes, chantier, idFiche), avant = iAvant > -1 ? lignes[iAvant] : null;
-      const dateAvant = avant ? String(avant[COL_CR.date - 1] || '') : '';
       // L'ordre est celui de l'arrivée : une note restée sans réseau peut porter une date plus ancienne que la précédente
-      if (crJour_(brut.date) && crJour_(dateAvant) && crJour_(brut.date) < crJour_(dateAvant)) remarques.push('reçu après le compte rendu du ' + dateAvant);
-      // La page (lot 8c) dit d'où venait sa liste. Si un autre compte rendu est arrivé entre-temps, c'est écrit.
-      if (avecPoints && avant && base !== String(avant[COL_CR.fiche - 1])) remarques.push('Rédigé sans connaître le compte rendu du ' + dateAvant);
-      const etatAvant = crEtatLu_(sh, iAvant);
-      if (etatAvant.illisible) {
-        remarques.push('données du compte rendu précédent illisibles : ses points ouverts ne sont repris que s’ils sont dans cette note');
-        alerte_('Dans l’onglet « ' + SHEET_CR + ' », la cellule « Données de l’appli » de la note « ' + String(avant[COL_CR.fiche - 1]) + ' » n’est plus lisible (modifiée à la main ?). '
-          + 'Les points ouverts de ce chantier ne reviennent que s’ils étaient affichés dans le téléphone qui a écrit la note suivante.', 'pointscr');
-      }
-      resultat = crAppliquer_(etatAvant, gestes, { date: crLigne_(brut.date, 20), acces: acces });
-      resultat.etat.b = avant ? String(avant[COL_CR.fiche - 1]) : '';
-      resultat.remarques.forEach(x => remarques.push(x));
-    }
-    const cellules = chantier.nom ? crDecouper_(resultat.etat) : { donnees: '', suite: '', raccourci: false };
-    if (cellules.suite || cellules.raccourci) {
-      if (cellules.raccourci) remarques.push('beaucoup de points ouverts : les textes gardés pour la suite sont raccourcis (les PDF gardent le texte complet)');
-      alerte_('Le chantier « ' + chantier.nom + ' » a beaucoup de points ouverts dans ses comptes rendus (' + resultat.etat.o.length + '). '
-        + (cellules.raccourci ? 'Les textes gardés pour la note suivante sont raccourcis ; chaque PDF garde le texte complet. ' : 'Tout est encore gardé en entier. ')
-        + 'Pensez à clore les points réglés.', 'pointscr');
+      const derniere = sh.getLastRow();
+      const avant = crDerniereLigne_(derniere > 1 ? sh.getRange(2, 1, derniere - 1, CR_ENTETES.length).getValues() : [], chantier, idFiche);
+      const dateAvant = avant ? String(avant[COL_CR.date - 1] || '') : '';
+      if (crJour_(brut.date) && crJour_(dateAvant) && crJour_(brut.date) < crJour_(dateAvant)) remarque = 'reçu après le compte rendu du ' + dateAvant;
     }
     const ligne = [];
     for (let c = 0; c < CR_ENTETES.length; c++) ligne.push('');
@@ -4082,49 +3882,24 @@ function crEnregistrer_(idFiche, brut, qui, compte) {
     ligne[COL_CR.auteur - 1] = crLigne_(brut.auteur, 150);
     ligne[COL_CR.compte - 1] = String(qui || 'sans compte');
     ligne[COL_CR.recu - 1] = new Date();
-    ligne[COL_CR.remarque - 1] = remarques.join(' ; ');
-    ligne[COL_CR.ouverts - 1] = crCelluleLisible_(resultat.etat.o.map(p => p.t));
-    ligne[COL_CR.clos - 1] = crCelluleLisible_(resultat.closIci);
-    ligne[COL_CR.donnees - 1] = cellules.donnees;
-    ligne[COL_CR.suite - 1] = cellules.suite;
+    ligne[COL_CR.remarque - 1] = remarque;
     // La ligne entière en une écriture (colonnes de texte en « texte brut » avant d'écrire)
     noteAjouterLigne_(sh, ligne, CR_COLONNES_TEXTE);
     // Écriture poussée dans le Sheet AVANT de rendre le verrou : la note suivante du même chantier doit lire cette ligne
     // (sans cela, Google peut la garder en attente jusqu'à la fin de la fabrication du PDF)
     SpreadsheetApp.flush();
-    return { rendu: resultat.rendu, remarque: remarques.filter(x => /^Rédigé sans connaître/.test(x))[0] || '',
-      liste: acces ? crListePourLaPage_(ligne, resultat.etat) : null, nonSuivi: chantier.nom || !gestes.length ? '' : 'chantier', dejaLa: false };
+    return { horsListe: !chantier.nom, sansOnglet: false, dejaLa: false };
   } finally { verrou.releaseLock(); }
 }
 // Nom du PDF rangé dans Drive, noté après le rangement (la ligne est retrouvée par le numéro de fiche).
 // Un échec ici ne fait jamais échouer la note : le PDF est rangé et les mails partent.
 function crNoterPdf_(idFiche, nom) {
   try {
-    const sh = crFeuilleLue_();
-    if (!sh) return;
+    const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_CR);
+    if (!sh || !crTitresBons_(sh)) return;
     const ligne = crChercher_(sh, idFiche);
     if (ligne) sh.getRange(ligne, COL_CR.pdf).setValue(cellule_(String(nom || '')));
   } catch (e) { console.error('crNoterPdf_ :', e.message); }
-}
-
-// ── Lecture (action « compteRendu ») : les points ouverts du chantier affiché, pour la page de la note de réunion ──
-// Réservée aux comptes qui ont accès au chantier. « Chantier inconnu » et « chantier interdit » : la même réponse.
-function crLire_(compte, corps) {
-  const demande = typeof corps.chantier === 'string' ? corps.chantier.trim().slice(0, 150) : '';
-  const chantier = demande ? crChantier_(demande) : { nom: '', numero: '' };
-  if (!chantier.nom || !compte || !compte.id || !peutLireChantier_(compte, chantier.nom)) return avecJeton_({ ok: false, code: 'INTERDIT', message: CR_REFUS_LECTURE }, compte);
-  const existe = !!SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_CR);
-  const sh = crFeuilleLue_();
-  // Onglet aux titres changés : la page le dit (« points indisponibles ») ; onglet pas encore créé : aucun compte rendu
-  if (existe && !sh) return avecJeton_({ ok: false, code: 'INDISPONIBLE', message: 'Les points des comptes rendus sont indisponibles pour l’instant : le bureau est prévenu.' }, compte);
-  const lignes = sh ? crLignes_(sh) : [], iDerniere = sh ? crDerniereLigne_(lignes, chantier, '') : -1;
-  const derniere = iDerniere > -1 ? lignes[iDerniere] : null;
-  const etat = sh ? crEtatLu_(sh, iDerniere) : crEtatVide_();
-  let reste = null;
-  try { reste = MailApp.getRemainingDailyQuota(); } catch (e) {}
-  const liste = crListePourLaPage_(derniere, etat);
-  return avecJeton_({ ok: true, code: 'OK', message: liste.ouverts.length + ' point(s) ouvert(s)',
-    data: Object.assign(liste, { chantier: chantier.nom, mailsRestants: reste, heure: Date.now() }) }, compte);
 }
 
 // ── Installation du lot 8 (une fonction par environnement ; relançable sans danger) ──
@@ -4136,20 +3911,10 @@ function etapesLot8_() {
     action: () => {
       const sh = ss.getSheetByName(SHEET_CR);
       if (!sh) { feuille_(SHEET_CR, CR_ENTETES); crFormats_(ss.getSheetByName(SHEET_CR)); return 'onglet créé'; }
-      const titres = sh.getRange(1, 1, 1, Math.max(CR_ENTETES.length, sh.getLastColumn())).getValues()[0];
-      // Onglet du lot 8b (10 colonnes), colonnes suivantes libres : les 4 colonnes des points sont ajoutées, rien n'est effacé
-      const debut8b = CR_ENTETES_8B.every((t, i) => String(titres[i]) === t);
-      const suiteLibre = titres.slice(CR_ENTETES_8B.length).every(t => String(t === undefined || t === null ? '' : t).trim() === '');
-      if (debut8b && suiteLibre) {
-        if (sh.getMaxColumns() < CR_ENTETES.length) sh.insertColumnsAfter(sh.getMaxColumns(), CR_ENTETES.length - sh.getMaxColumns());
-        sh.getRange(1, 1, 1, CR_ENTETES.length).setValues([CR_ENTETES]);
-        sh.getRange(1, 1, 1, CR_ENTETES.length).setFontWeight('bold').setBackground('#1A2B4A').setFontColor('white');
-        crFormats_(sh);
-        return 'colonnes des points ajoutées';
-      }
       // Onglet déjà là : jamais rien réécrire par-dessus des données (un onglet d'un essai précédent, avec d'autres
       // titres, se renomme à la main : l'installation en crée alors un neuf)
-      if (sh.getLastRow() > 1 || titres.some(t => String(t === undefined || t === null ? '' : t).trim() !== '')) throw new Error('un onglet « ' + SHEET_CR + ' » existe déjà avec d’autres titres : le renommer, puis relancer');
+      const titres = sh.getRange(1, 1, 1, Math.max(CR_ENTETES.length, sh.getLastColumn())).getValues()[0];
+      if (sh.getLastRow() > 1 || titres.some(t => String(t).trim() !== '')) throw new Error('un onglet « ' + SHEET_CR + ' » existe déjà avec d’autres titres : le renommer, puis relancer');
       sh.getRange(1, 1, 1, CR_ENTETES.length).setValues([CR_ENTETES]);
       crFormats_(sh);
       return 'onglet prêt';
@@ -6345,7 +6110,8 @@ function listerPartages() {
       const chemin = cheminDansAppli_(el, rootId, planningId, cache);
       if (!chemin) continue;  // fichier hors de l'appli : on n'y touche pas
       const morceaux = chemin.split(' › ');
-      const garder = morceaux[0] === 'PLANNING' || (morceaux[0] === 'RACINE' && SOUS_DOSSIERS_PARTAGES.indexOf(morceaux[2]) > -1);
+      // Lot 5c : le planning n'est plus gardé partagé (il est envoyé par le serveur aux seuls comptes de l'appli)
+      const garder = morceaux[0] === 'RACINE' && SOUS_DOSSIERS_PARTAGES.indexOf(morceaux[2]) > -1;
       lignes.push([phase === 'fichiers' ? 'fichier' : 'dossier', el.getName(), chemin, el.getId(),
         String(el.getSharingAccess()), String(el.getSharingPermission()),
         garder ? 'garder' : 'à retirer', ''].map(cellule_));
@@ -7438,60 +7204,23 @@ function mep_texteBrut(html) {
 // Règles : tableaux et styles en ligne seulement (le convertisseur PDF de Google ne connaît ni flex ni grid),
 // pas de backticks imbriqués, tout texte saisi passe par esc().
 // d : données de la fiche (textes bruts ; images déjà contrôlées) ; esc : fonction d'échappement
-// Lot 8c : d.points = [{ t: texte, etat: 'ouvert' | 'clos', mention: « ouvert depuis le 23/10/2026 », … }], dans l'ordre de
-// la note (écrit par le serveur pour le PDF, par la page pour l'aperçu) ; d.remarqueCR = ligne en tête
-// (« Rédigé sans connaître le compte rendu du 07/11/2026 »). Une note sans point s'imprime comme avant le lot 8.
 // ═══════════════════════════════════════════════════════════════
 function modele_note(d, esc) {
   var TEXTE = 'white-space:pre-wrap;word-break:break-word;overflow-wrap:break-word;';
   var ETIQ = 'font-size:7.5px;font-weight:700;text-transform:uppercase;color:#6A6460;margin-bottom:2px';
-  var texteDe = function (v) { return typeof v === 'string' ? v : ''; };
 
-  // ── Points de la note ──
-  var points = (Object.prototype.toString.call(d.points) === '[object Array]' ? d.points : [])
-    .filter(function (p) { return p && texteDe(p.t); });
-  var hauteurPoints = 0;
-  var lignesPoints = points.map(function (p, i) {
-    var clos = p.etat === 'clos', mention = texteDe(p.mention);
-    // hauteur estimée (mm), mesurée dans Chrome : 4,94 par ligne de texte, 2,65 par ligne de mention, 2,9 de marges (arrondis au-dessus)
-    hauteurPoints += 4.94 * mep_lignes(p.t, 148, 11) + (mention ? 2.7 * mep_lignes(mention, 148, 8) : 0) + 3.2;
-    return '<tr>'
-      + '<td style="width:26px;padding:5px 6px;border-bottom:1px solid #E1DCD6;vertical-align:top;font-size:11px;font-weight:700;color:#1A2B4A">' + (i + 1) + '</td>'
-      + '<td style="padding:5px 6px;border-bottom:1px solid #E1DCD6;vertical-align:top">'
-      + '<div style="font-size:11px;line-height:1.7;' + (clos ? 'color:#6A6460;' : '') + TEXTE + '">' + esc(p.t) + '</div>'
-      + (mention ? '<div style="font-size:8px;color:#6A6460;margin-top:1px;' + TEXTE + '">' + esc(mention) + '</div>' : '')
-      + '</td>'
-      + '<td style="width:58px;padding:5px 6px;border-bottom:1px solid #E1DCD6;vertical-align:top;text-align:center;font-size:8.5px;font-weight:700;color:'
-      + (clos ? '#196B3B' : '#B45309') + '">' + (clos ? 'CLOS' : 'OUVERT') + '</td>'
-      + '</tr>';
-  }).join('');
-  var nbOuverts = points.filter(function (p) { return p.etat !== 'clos'; }).length;
-  var blocPoints = points.length
-    ? '<div style="font-size:8px;font-weight:700;text-transform:uppercase;color:#0D7A6B;margin-bottom:3px;letter-spacing:.5px">Points (' + points.length + ') — '
-      + nbOuverts + (nbOuverts > 1 ? ' ouverts' : ' ouvert') + ', ' + (points.length - nbOuverts) + ' clos' + '</div>'
-      + '<table style="width:100%;border-collapse:collapse;border:1.5px solid #D8D4CE;margin-bottom:10px">' + lignesPoints + '</table>'
-    : '';
-  var remarque = texteDe(d.remarqueCR)
-    ? '<div style="padding:5px 10px;border:1px solid #B45309;border-radius:4px;margin-bottom:8px;font-size:9.5px;color:#B45309;' + TEXTE + '">' + esc(d.remarqueCR) + '</div>'
-    : '';
 
   var commentaires = d.commentaires
     ? '<div style="padding:10px 12px;background:#F0F5F4;border:1.5px solid #0D7A6B;border-radius:5px;margin-bottom:10px">'
-      + '<div style="font-size:8px;font-weight:700;text-transform:uppercase;color:#0D7A6B;margin-bottom:6px;letter-spacing:.5px">'
-      + (points.length ? 'Remarques générales' : 'Notes &amp; commentaires') + '</div>'
+      + '<div style="font-size:8px;font-weight:700;text-transform:uppercase;color:#0D7A6B;margin-bottom:6px;letter-spacing:.5px">Notes &amp; commentaires</div>'
       + '<div style="font-size:11px;line-height:1.7;' + TEXTE + '">' + esc(d.commentaires) + '</div></div>'
     : '';
 
   // ── Photos (modeles/mise-en-page.js) : la 1re sous les notes si elles tiennent sur la page 1, dans toute la place
   // restante ; les autres en pleine page (deux par page si elles y gardent leur taille). Hauteur mesurée dans Chrome :
   // en-tête 36 mm (chantier long : 4,5 par ligne en plus, rédacteur : 3,2 ; objet long : 4,2) ; notes 12,5 + 4,94 par ligne.
-  // Points : titre et bordures 6,1 mm mesurés (6,5 comptés) + chaque ligne du tableau ; remarque en tête : 8,2 mm mesurés.
-  // Estimation toujours un peu AU-DESSUS du réel (photo de la page 1 un peu plus petite, jamais de débordement) : le moteur
-  // PDF de Google n'a pas été mesuré.
   var estime = 36 + Math.max(4.5 * (mep_lignes(d.chantier || '—', 35, 12) - 1) + 3.2 * (mep_lignes(d.auteur || '—', 39, 11) - 1),
     4.2 * (d.objet ? mep_lignes(d.objet, 100, 11) - 1 : 0))
-    + (remarque ? 5 + 4.2 * mep_lignes(d.remarqueCR, 170, 9.5) : 0)
-    + (points.length ? 6.5 + hauteurPoints : 0)
     + (d.commentaires ? 12.5 + 4.94 * mep_lignes(d.commentaires, 168, 11) : 0);
   var zone = mep_zone(d, 210, 297, 15);
   var photosHtml = mep_photos(d.photosBase64, { largeur: zone.largeur, hauteur: zone.hauteur, reste: mep_reste(zone, estime), estime: estime, esc: esc,
@@ -7514,8 +7243,6 @@ function modele_note(d, esc) {
     + '<div style="font-weight:800;font-size:14px;color:#0D7A6B">NOTE DE RÉUNION</div>'
     + (d.objet ? '<div style="margin-top:5px;font-size:11px;font-weight:600;color:#141210;' + TEXTE + '">' + esc(d.objet) + '</div>' : '')
     + '</td></tr></table>'
-    + remarque
-    + blocPoints
     + commentaires
     + photosHtml
     + '</body></html>';

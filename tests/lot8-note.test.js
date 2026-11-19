@@ -54,8 +54,7 @@ const envoyer = (g, qui, donnees, id) => poster(g, Object.assign({ action: 'fich
 const CR = g => (g.feuilles['Comptes rendus'] ? g.feuilles['Comptes rendus'].lignes.slice(1).filter(l => l[0]) : []);
 const E = g => (g.feuilles['Envois'] ? g.feuilles['Envois'].lignes.slice(1) : []);
 const C = { fiche: 0, chantier: 1, numChantier: 2, date: 3, objet: 4, auteur: 5, compte: 6, pdf: 7, recu: 8, remarque: 9 };
-const TITRES = ['Numéro de fiche', 'Chantier', 'N° du chantier', 'Date de la réunion', 'Objet', 'Rédigé par', 'Compte qui a envoyé', 'Nom du PDF', 'Reçu le', 'Remarque de l’appli',
-  'Points ouverts après cette note', 'Points clos par cette note', 'Données de l’appli (ne pas modifier)', 'Données de l’appli (suite)'];
+const TITRES = ['Numéro de fiche', 'Chantier', 'N° du chantier', 'Date de la réunion', 'Objet', 'Rédigé par', 'Compte qui a envoyé', 'Nom du PDF', 'Reçu le', 'Remarque de l’appli'];
 const dernierPdf = g => { const m = g.mails[g.mails.length - 1]; return m ? String(m.opts.attachments[0].contenu) : ''; };
 const fichiersRanges = g => Object.values(g.elements).filter(e => e.type === 'fichier' && /^COMPTE RENDU /.test(e.nom) && !e.corbeille).map(e => e.nom).sort();
 const numeroChantier = (g, nom, n) => { const l = g.feuilles['Chantiers'].lignes.find(x => x[0] === nom); l[4] = n; };

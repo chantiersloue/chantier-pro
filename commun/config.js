@@ -6,11 +6,11 @@
 // au réseau d'abord : la nouvelle adresse leur arrive à l'ouverture suivante.
 // ═══════════════════════════════════════════════════════════════
 (function () {
-  var URL_PRODUCTION = 'https://script.google.com/macros/s/AKfycbzMhfyGoVdRq-T5IeQbiwucbozfhcwVeJP-ONGM1xoUyBm_6ZpIoRq_OgQ79Rqt3JN7vw/exec';
+  var URL_PRODUCTION = 'https://script.google.com/macros/s/AKfycbwz86op-qkw5r-p8xFtkpdxXJiwClYAIgCz17VLvUhFuzOl8pZxrcaKNW9MVp6Ig3okhQ/exec';
   // Copie de test (Sheet « ChantierPro TEST ») : s'active en ouvrant l'appli avec ?env=test, se coupe avec ?env=prod
   var URL_TEST = 'https://script.google.com/macros/s/AKfycby2f8c3dSG8ZNHNFOf3xFmd-75jytlBBK-Ji87YpqhDU8V8nMjYSB66VhnRGepRykMZTg/exec';
 
-  var VERSION_APPLI = '10.4';   // lot 10a-2 (« À commander » : gros boutons des articles habituels, propositions pendant la frappe, liste « Articles ») ; 10.3 : lot 10a-1 (« À commander » : demandes de petit matériel, « Mes demandes ») ; 10.2 : lot 8c (note de réunion en points, reprise des points ouverts) ; 10.1 : lot 8b (onglet « Comptes rendus », compteur de mails) ; 10.0 : lot 8a (annotation des photos qu'on peut rouvrir) ; 9.0 : lot 4a (carnet de chantier) ; 8.0 : lot 3 (notes de chantier) ; 7.0 : lot 7 (signalements) ; 6.0 : lot 2 (comptes)
+  var VERSION_APPLI = '10.4';   // lot 10a-2 (« À commander » : gros boutons des articles habituels, propositions pendant la frappe, liste « Articles ») ; 10.3 : lot 10a-1 (« À commander » : demandes de petit matériel, « Mes demandes ») ; la 10.2 (lot 8c, note de réunion en points) a été retirée le 19/11/2026 avant toute mise en production ; 10.1 : lot 8b (onglet « Comptes rendus », compteur de mails) ; 10.0 : lot 8a (annotation des photos qu'on peut rouvrir) ; 9.1 : lot 5c (planning envoyé par le serveur aux seuls comptes) ; 9.0 : lot 4a (carnet de chantier) ; 8.0 : lot 3 (notes de chantier) ; 7.0 : lot 7 (signalements) ; 6.0 : lot 2 (comptes)
 
   function lire(cle) { try { return localStorage.getItem(cle); } catch (e) { return null; } }
   function ecrire(cle, v) { try { if (v === null) localStorage.removeItem(cle); else localStorage.setItem(cle, v); } catch (e) {} }
