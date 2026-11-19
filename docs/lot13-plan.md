@@ -1,6 +1,6 @@
 # Lot 13 — La tuile « Notes » de l'accueil, et « Garder pour plus tard » — PLAN COURT
 
-> Plan du 20/11/2026, sur tes deux remarques du 19/11 et ta consigne « plan, puis construction ». Construit dans la foulée, en autonomie ; les choix faits pendant la construction sont dans `DECISIONS.md` (D13-…).
+> Plan du 20/11/2026, sur tes deux remarques du 19/11 et ta consigne « plan, puis construction ». **Construit le 20/11/2026**, en autonomie (procédure : `docs/lot13-procedure.md`) ; les choix faits pendant la construction sont dans `DECISIONS.md` (D13-…).
 > Pas de critique du plan par un agent séparé (règle d'économie) ; une relecture indépendante du résultat, un tour, parce que le lot touche au brouillon automatique.
 > Pages seules pour le brouillon ; une petite retouche du serveur pour les notes. Il vient après le lot 12.
 

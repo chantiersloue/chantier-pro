@@ -127,11 +127,25 @@ Dans un chantier, la tuile **« Carnet »** donne les plans validés par le bure
 - **Android** : en Wi-Fi, les plans du chantier que vous ouvrez se téléchargent tout seuls (case « Télécharger les plans tout seul quand le téléphone est en Wi-Fi »). Attention : un partage de connexion depuis un autre téléphone compte comme du Wi-Fi ; décochez la case si votre forfait est limité.
 - **iPhone** : rien ne part tout seul ; appuyez sur « Tout télécharger ».
 
+## Mes notes : tout ce que j'ai écrit
+
+- Sur l'accueil, la tuile **Notes** ouvre **Mes notes** : toutes les notes que **tu as écrites toi-même** dans les listes des chantiers, la plus récente en haut. Sous chaque note : le chantier et la date.
+- **Coche la grande case** quand c'est fait : la note descend dans **« Faites »**, en bas. Tu peux l'y décocher.
+- Touche le nom du chantier pour ouvrir sa liste (modifier un texte, ajouter une note).
+- Ça marche **sans réseau** : ce que tu coches part tout seul au retour du réseau (⏳ en attendant).
+
 ## Ne rien perdre : le brouillon
 
 - Tout ce que tu tapes est **gardé automatiquement** dans le téléphone, photos et signatures comprises.
 - Si tu fermes la page sans envoyer, à la prochaine ouverture : **« Brouillon retrouvé — chantier X — Le restaurer ? »**. Touche **Restaurer** pour reprendre, ou **Repartir à zéro**. **Regarde le chantier écrit dans le bandeau** : si tu as ouvert la fiche depuis un autre chantier, il le dit.
 - **Bandeau rouge « Brouillon NON enregistré »** ou « Photos non gardées » : le téléphone manque de place (ou tu es en navigation privée). **Envoie la fiche avant de fermer la page.**
+
+### Garder une fiche pour plus tard
+
+- Tu as commencé une fiche et tu dois en faire une autre de la même sorte ? En haut de la fiche, touche **« 📝 Garder pour plus tard »** : elle est rangée, et la fiche repart vide.
+- Quand tu rouvres une fiche qui a un brouillon, le bandeau propose aussi **Garder pour plus tard**.
+- Pour la retrouver : **« 📝 Brouillons gardés »**, en haut de la même fiche, puis **Reprendre**. Si une fiche est en cours à ce moment-là, elle est gardée à son tour : rien n'est écrasé.
+- 5 brouillons gardés au plus par sorte de fiche, pendant 30 jours. Au-delà, la page te demande d'en reprendre ou d'en effacer un.
 
 ## Destinataires
 

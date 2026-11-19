@@ -432,3 +432,22 @@ Choix de construction, là où le plan ne tranchait pas. Construit et testé con
 | D12-23 | Après relecture (I1, M9, M10, M11) : la liste dépliée reste dépliée après une étoile ; la carte touchée reste sous le doigt ; si le téléphone refuse de garder les étoiles, elles vivent à l'écran et la page le dit ; une réponse arrivée après un changement de compte est ignorée | — | Points d'usage relevés par le relecteur ; « VRAI » tapé à la main qui allume le réglage est seulement documenté (qui peut écrire peut cocher) |
 | D12-24 | Relecture, points laissés : la double lecture de l'onglet *Chantiers* par requête quand le réglage est allumé (coût faible) ; une seule annulation gardée pour l'étoile retirée | Les traiter | Sans effet visible ; la simplicité d'abord |
 
+## Lot 13 (tuile « Notes », « Garder pour plus tard ») — branche `lot-13`, partie de `lot-12` (20/11/2026)
+
+> Construit en autonomie sur la consigne de Franck du 19/11/2026 (« plan, puis construction »). Plan : `docs/lot13-plan.md`.
+
+| # | Décision | Options écartées | Pourquoi |
+|---|---|---|---|
+| D13-1 | « Mes notes » est **une page à part** (`mes-notes.html`) | Un troisième mode dans `notes.html` | La page des notes d'un chantier gère déjà l'ajout, la modification et la vue des conducteurs : on ne risque pas ce qui marche |
+| D13-2 | « Les siennes » = les notes dont **le compte est l'auteur**, d'après l'identifiant écrit par le serveur à la création (dernière parenthèse de « Créé par ») | Se fier au téléphone ; comparer le nom | Réponse de Franck (« les notes qu'il a écrites lui-même ») ; un nom de compte ne peut pas imiter l'identifiant d'un autre |
+| D13-3 | Seules les notes des chantiers que le compte **peut encore lire** et qui ne sont **pas « Terminé »** | Toutes ses notes, pour toujours | Mêmes droits que la liste du chantier (aucun droit nouveau) ; une note d'un chantier terminé n'est plus à faire |
+| D13-4 | Ordre : **la plus récente en haut** ; les notes faites dans « Faites (n) », repliées | Par chantier ; la plus ancienne en haut comme dans la liste d'un chantier | Ce qu'on vient d'écrire est sous les yeux ; Franck a demandé « en bas (grisées) ou dans une partie Faites » |
+| D13-5 | Ni ajout ni modification depuis « Mes notes » : le nom du chantier ouvre sa liste | Ajouter avec un choix de chantier | Hors de la demande ; une note appartient à un chantier |
+| D13-6 | La tuile « Notes » de l'accueil est pour **tout compte** ; le chiffre rouge (notes nouvelles des autres) n'y reste que pour les conducteurs, qui retrouvent la vue « tous chantiers » par un bouton | Garder deux tuiles pour les conducteurs | Une seule tuile, comme demandé ; aucune fonctionnalité retirée |
+| D13-7 | « Garder pour plus tard » **s'appuie sur la liste « mis de côté » existante** (une liste par sorte de fiche), avec une marque « gardé exprès » | Un brouillon par chantier ; une liste commune sur l'accueil | Le rangement à deux copies (avec photos) est éprouvé ; un brouillon par chantier obligeait à réécrire la protection anti-perte |
+| D13-8 | Un brouillon **gardé exprès n'est plus reproposé** par le bandeau ; un brouillon mis de côté tout seul l'est toujours | Tout reproposer | Garder exprès, c'est vouloir faire autre chose d'abord ; l'automatique reste un filet |
+| D13-9 | **5 brouillons gardés exprès au plus** par sorte de fiche : au sixième, refus avec un message, rien n'est effacé ; les brouillons automatiques gardent leur propre limite de 5 et ne poussent jamais dehors un brouillon gardé exprès | Effacer le plus ancien | Jamais d'effacement silencieux de ce que le gars a décidé de garder |
+| D13-10 | Garder la fiche en cours, ou reprendre un brouillon : **ranger d'abord, vérifier l'écriture, puis seulement effacer le brouillon courant et recharger la page** ; le brouillon repris ne sort de la liste qu'une fois enregistré comme brouillon courant | Remettre les champs sans recharger | Une page rechargée est une page propre (même chemin que la restauration du bandeau) ; au moindre doute, le brouillon existe en double plutôt que pas du tout |
+| D13-11 | La ligne « 📝 … » est **dans la page, en haut de la fiche**, et cachée tant que le bandeau attend une réponse | Un bouton fixe en bas | Le bas des fiches est pris par les boutons d'envoi ; pas deux questions en même temps |
+| D13-12 | Numéros : serveur **v11.3**, appli **10.4** | — | Voir D8d-12 |
+

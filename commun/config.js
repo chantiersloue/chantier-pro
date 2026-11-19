@@ -10,7 +10,7 @@
   // Copie de test (Sheet « ChantierPro TEST ») : s'active en ouvrant l'appli avec ?env=test, se coupe avec ?env=prod
   var URL_TEST = 'https://script.google.com/macros/s/AKfycby2f8c3dSG8ZNHNFOf3xFmd-75jytlBBK-Ji87YpqhDU8V8nMjYSB66VhnRGepRykMZTg/exec';
 
-  var VERSION_APPLI = '10.3';   // lot 12 (accueil « Mes chantiers » / « Tous les chantiers », étoiles) ; 10.2 : lot 8d (récapitulatif des notes de réunion ; ce numéro avait servi aux essais du lot 8c, les points, retirés le 19/11/2026 avant toute mise en production) ; 10.1 : lot 8b (onglet « Comptes rendus », compteur de mails) ; 10.0 : lot 8a (annotation des photos qu'on peut rouvrir) ; 9.1 : lot 5c (planning envoyé par le serveur aux seuls comptes) ; 9.0 : lot 4a (carnet de chantier) ; 8.0 : lot 3 (notes de chantier) ; 7.0 : lot 7 (signalements) ; 6.0 : lot 2 (comptes)
+  var VERSION_APPLI = '10.4';   // lot 13 (tuile « Notes » : mes notes ; « Garder pour plus tard » et « Brouillons gardés ») ; 10.3 : lot 12 (accueil « Mes chantiers » / « Tous les chantiers », étoiles) ; 10.2 : lot 8d (récapitulatif des notes de réunion ; ce numéro avait servi aux essais du lot 8c, les points, retirés le 19/11/2026 avant toute mise en production) ; 10.1 : lot 8b (onglet « Comptes rendus », compteur de mails) ; 10.0 : lot 8a (annotation des photos qu'on peut rouvrir) ; 9.1 : lot 5c (planning envoyé par le serveur aux seuls comptes) ; 9.0 : lot 4a (carnet de chantier) ; 8.0 : lot 3 (notes de chantier) ; 7.0 : lot 7 (signalements) ; 6.0 : lot 2 (comptes)
 
   function lire(cle) { try { return localStorage.getItem(cle); } catch (e) { return null; } }
   function ecrire(cle, v) { try { if (v === null) localStorage.removeItem(cle); else localStorage.setItem(cle, v); } catch (e) {} }

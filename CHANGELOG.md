@@ -2,6 +2,21 @@
 
 Chaque lot : **quoi**, **pourquoi**, **comment déployer**. Procédures détaillées dans `docs/lotN-procedure.md`.
 
+## Lot 13 — La tuile « Notes » (mes notes) et « Garder pour plus tard » — serveur **v11.3**, appli **10.4** — **construit, testé contre le faux serveur et dans Chrome ; rien n'a tourné chez Google**
+
+**Quoi**
+- **« Notes de chantier » s'appelle « Notes »** partout.
+- **Tuile « Notes » de l'accueil, pour tout compte** : elle ouvre « Mes notes » (`mes-notes.html`), les notes que la personne a écrites elle-même dans les listes des chantiers, la plus récente en haut, avec le chantier et la date. Une grande case à cocher par note ; les notes cochées descendent dans « Faites ». Hors réseau : dernière liste gardée, cases cochées mises en file d'attente. Conducteurs : un bouton vers la vue « tous chantiers » d'avant, inchangée.
+- **Serveur** : la lecture des notes accepte « les miennes ». L'auteur est l'identifiant du compte noté par le serveur à la création ; seules les notes des chantiers que le compte peut encore lire, non « Terminé », sont rendues.
+- **Brouillon — « Garder pour plus tard »** : troisième bouton du bandeau de restauration ; en haut de chaque fiche, une ligne « 📝 Garder pour plus tard » (dès que la fiche contient quelque chose) ou « 📝 Brouillons gardés (n) », qui ouvre la liste (Reprendre, Effacer, Garder la fiche en cours). Un brouillon gardé exprès n'est plus reproposé à chaque ouverture ; il n'est jamais poussé dehors par les brouillons mis de côté tout seuls ; 5 au plus par sorte de fiche (au-delà : refus, rien n'est effacé), 30 jours. Reprendre ou garder commence toujours par ranger, et vérifier qu'il est rangé, ce qui est à l'écran.
+- Fichiers : `apps-script/Notes.gs` ; `mes-notes.html` (nouvelle), `commun/notes.js`, `index.html`, `notes.html`, `sw.js` ; `commun/brouillon.js`, `commun/style.css` ; tests : `tests/lot13-notes.test.js` (9), `tests/lot13-page.test.js` (21).
+
+**Pourquoi** : remarques de Franck du 19/11/2026 après ses essais sur téléphone.
+
+**Pas vérifié** : rien n'a tourné chez Google ; « Garder pour plus tard » essayé sur la note de réunion seulement (la brique est commune aux neuf fiches) ; aucun vrai téléphone.
+
+**Comment déployer** : `docs/lot13-procedure.md` (serveur puis pages ; le brouillon ne dépend pas du serveur).
+
 ## Lot 12 — Tous les chantiers ouverts à tous les comptes (réglage), nouvel accueil, favoris du planning — serveur **v11.2**, appli **10.3** — **construit, testé contre le faux serveur et dans Chrome, relu par un agent indépendant et corrigé ; rien n'a tourné chez Google**
 
 **Quoi**

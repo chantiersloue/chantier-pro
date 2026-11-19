@@ -24,7 +24,6 @@ function scenario() {
   const BASE = ${JSON.stringify(SITE)}, SERVEUR = ${JSON.stringify(SERVEUR)}, q = 'api=${API}&sw=1', MDP = 'Essai-' + '2026';
   const MES = BASE + 'mes-notes.html?' + q, NOTE = BASE + 'note-reunion.html?' + q + '&chantier=CHANTIER%20TEST%201';
   const ctx = page.context(), r = {};
-  page.on('dialog', d => d.accept());   // les « confirm » de la page : on répond « OK »
   const connecter = id => page.evaluate(a => { LOUE.deconnecter(); return LOUE.connexion(a[0], a[1]).then(x => x.code); }, [id, MDP]);
   const serveur = () => page.evaluate(u => fetch(u + '/etat').then(x => x.json()).then(e => e.notes.slice(1).map(l => [l[2], l[3]])), SERVEUR);
   const file = () => page.evaluate(() => LOUE.stockage.tout('file').then(l => l.filter(e => e.etat !== 'erreur').length));
@@ -116,8 +115,10 @@ function scenario() {
       message: (document.querySelector('#loue-message.visible') || {}).textContent || '',
       pastilleHaute: p && !p.hidden ? Math.round(p.getBoundingClientRect().height) : 0, largeur: document.documentElement.scrollWidth <= innerWidth };
   });
-  const clic = sel => page.evaluate(s => { const e = document.querySelector(s); if (e) e.click(); return !!e; }, sel);
+  // les « confirm » de la page : on répond « OK » (posé avant chaque geste : la page se recharge toute seule entre deux)
+  const clic = sel => page.evaluate(s => { window.confirm = () => true; const e = document.querySelector(s); if (e) e.click(); return !!e; }, sel);
   const reprendre = objetVoulu => page.evaluate(async o => {
+    window.confirm = () => true;
     const liste = ((await LOUE.stockage.lire('brouillons', 'brouillon_note_mis_de_cote')) || {}).liste || [];
     const rang = liste.filter(e => true).sort((a, b) => b.t - a.t).findIndex(e => ((e.champs['meta-objet'] || {}).v || '') === o);
     const b = document.querySelectorAll('#loue-brouillons-panneau .loue-brouillons-reprendre')[rang]; if (b) b.click(); return rang;

@@ -1,10 +1,10 @@
 // ═══════════════════════════════════════════════════════════════
 // LOUÉ APP — SERVEUR COMPLET, À COLLER DANS APPS SCRIPT (fichier « Code.gs », tout remplacer)
 // FICHIER GÉNÉRÉ AUTOMATIQUEMENT par « node outils/construire.js » — NE PAS MODIFIER À LA MAIN :
-// les sources sont dans le dossier apps-script/ du dépôt. Version du serveur ef44a423ae (pages 47f02fa10f)
+// les sources sont dans le dossier apps-script/ du dépôt. Version du serveur d7e4627505 (pages cab1afdf89)
 // ═══════════════════════════════════════════════════════════════
 
-const EMPREINTE_SERVEUR = 'ef44a423ae';
+const EMPREINTE_SERVEUR = 'd7e4627505';
 
 // ████ Config.gs ████
 // ═══════════════════════════════════════════════════════════════
@@ -12,7 +12,7 @@ const EMPREINTE_SERVEUR = 'ef44a423ae';
 // Loué Menuiserie
 // ═══════════════════════════════════════════════════════════════
 
-const VERSION_API = 'v11.2';   // 11.2 : lot 12 (réglage « tous les comptes ouvrent tous les chantiers », chantiers du planning en favoris) ; 11.1 : lot 8d (récapitulatif des notes de réunion par chantier ; ce numéro avait servi aux essais du lot 8c, les points, retirés le 19/11/2026 avant toute mise en production) ; 11.0 : lot 8b (onglet « Comptes rendus », une ligne par note de réunion) ; 10.1 : lot 5c (planning lisible par les seuls comptes, plus aucun lien de partage) ; 10.0 : lot 5 (suivi du stockage, purge sur case cochée) ; 9.1 : retrait de la lecture du dossier Plans (lot 4b) ; 9.0 : lot 4a (carnet de chantier) ; 8.0 : lot 3 (notes de chantier) ; 7.0 : lot 7 (signalements) ; 6.0 : lot 2 (comptes)
+const VERSION_API = 'v11.3';   // 11.3 : lot 13 (« Mes notes » : les notes écrites par le compte, tous chantiers) ; 11.2 : lot 12 (réglage « tous les comptes ouvrent tous les chantiers », chantiers du planning en favoris) ; 11.1 : lot 8d (récapitulatif des notes de réunion par chantier ; ce numéro avait servi aux essais du lot 8c, les points, retirés le 19/11/2026 avant toute mise en production) ; 11.0 : lot 8b (onglet « Comptes rendus », une ligne par note de réunion) ; 10.1 : lot 5c (planning lisible par les seuls comptes, plus aucun lien de partage) ; 10.0 : lot 5 (suivi du stockage, purge sur case cochée) ; 9.1 : retrait de la lecture du dossier Plans (lot 4b) ; 9.0 : lot 4a (carnet de chantier) ; 8.0 : lot 3 (notes de chantier) ; 7.0 : lot 7 (signalements) ; 6.0 : lot 2 (comptes)
 
 // ── CONFIGURATION ──
 const SHEET_CONTACTS      = 'Contacts';
