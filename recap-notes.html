@@ -76,7 +76,8 @@ function afficher() {
   $('entete').textContent = 'Notes de réunion — ' + ((DONNEES && DONNEES.chantier) || CHANTIER);
   const lignes = [];
   if (MESSAGE) lignes.push(MESSAGE);
-  if (DU_TELEPHONE) lignes.push('Pas de réseau : liste gardée dans le téléphone le ' + heureTexte(DATE_LISTE) + '.');
+  // « Pas de réseau » seulement quand c'est vrai : après une erreur du serveur, le message d'erreur est déjà affiché
+  if (DU_TELEPHONE) lignes.push((MESSAGE ? 'Liste' : 'Pas de réseau : liste') + ' gardée dans le téléphone le ' + heureTexte(DATE_LISTE) + '.');
   else if (notes.length) lignes.push(notes.length + (notes.length > 1 ? ' notes' : ' note') + ', la plus récente en haut.');
   $('info').textContent = lignes.join(' ');
   if (!notes.length) { vide(MESSAGE ? 'Rien à afficher pour l’instant.' : 'Aucune note de réunion pour ce chantier.'); return; }
@@ -94,6 +95,7 @@ function charger() {
   if (!CHANTIER) { $('info').textContent = ''; vide('Ouvrez le récapitulatif depuis un chantier.', true); return; }
   if (!LOUE.compte()) { $('info').textContent = ''; vide('Connectez-vous pour voir le récapitulatif.', true); return; }
   $('btn-actualiser').disabled = true;
+  if (DONNEES) $('info').textContent = 'Mise à jour…';   // « Actualiser » : on voit qu'il se passe quelque chose
   // La liste gardée dans le téléphone s'affiche TOUT DE SUITE (avec une barre de réseau, le serveur peut mettre 20 secondes)
   if (!DONNEES) {
     $('entete').textContent = 'Notes de réunion — ' + CHANTIER;

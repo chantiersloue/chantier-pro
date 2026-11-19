@@ -48,40 +48,63 @@ function recapEcrireAttente_(attente) {
   if (Object.keys(attente).length) props.setProperty(RECAP_PROP, JSON.stringify(attente));
   else props.deleteProperty(RECAP_PROP);
 }
-function recapCle_(chantier) { return crCleNumero_(chantier.numero) ? 'n:' + crCleNumero_(chantier.numero) : 'c:' + crCleNom_(chantier.nom); }
+// Le chantier vu par le récapitulatif : { nom, numero, cleNum, cleNom } (nom vide : hors liste).
+// cleNum n'est rempli que si ce N° est porté par UNE SEULE ligne de l'onglet Chantiers. Deux chantiers de même N° (deux
+// lots d'une même opération) ne partagent donc jamais leurs notes : chacun est suivi par son NOM EXACT, celui sur
+// lequel les droits d'accès sont vérifiés (cleChantier_, comme peutLireChantier_). Après relecture indépendante (B1).
+function recapNumeroLigne_(r) { return crCleNumero_(r.length > 4 ? r[4] : ''); }
+function recapChantier_(nom) {
+  const c = crChantier_(nom);
+  if (!c.nom) return { nom: '', numero: '', cleNum: '', cleNom: '' };
+  const num = crCleNumero_(c.numero);
+  const memes = num ? lignesChantiers_().filter(r => recapNumeroLigne_(r) === num).length : 0;
+  return { nom: c.nom, numero: c.numero, cleNum: memes === 1 ? num : '', cleNom: cleChantier_(c.nom) };
+}
+// Le chantier d'une entrée de la liste d'attente : retrouvé par son N° s'il a été renommé entre la note et le passage
+function recapChantierEntree_(entree) {
+  const c = recapChantier_(entree.nom);
+  if (c.nom || !entree.numero) return c;
+  const num = crCleNumero_(entree.numero);
+  const lignes = lignesChantiers_().filter(r => recapNumeroLigne_(r) === num);
+  return lignes.length === 1 ? recapChantier_(String(lignes[0][0]).trim()) : c;
+}
+function recapCle_(chantier) { return chantier.cleNum ? 'n:' + chantier.cleNum : 'c:' + chantier.cleNom; }
 // À appeler SOUS VERROU (crEnregistrer_ le tient) : le fichier de ce chantier sera refait au prochain passage.
 // Ne lève jamais d'erreur : une note ne doit pas échouer à cause du récapitulatif.
-function recapDemander_(chantier) {
+function recapDemander_(chantierNote) {
   try {
+    const chantier = chantierNote && chantierNote.nom ? recapChantier_(chantierNote.nom) : null;
     if (!chantier || !chantier.nom) return;
-    const attente = recapAttente_(), cle = recapCle_(chantier);
-    // Une propriété du script contient 9 000 caractères au plus : au-delà de 60 chantiers en attente (jamais vu), on
-    // ne note plus ; la prochaine note du chantier le redemandera
-    if (!attente[cle] && Object.keys(attente).length >= 60) return;
-    attente[cle] = { nom: chantier.nom.slice(0, 100), n: Number((attente[cle] || {}).n || 0) + 1, essais: 0 };
+    const attente = recapAttente_(), cle = recapCle_(chantier), avant = attente[cle] || {};
+    // Les essais ratés ne repartent pas de zéro à chaque note : sinon, sur un chantier actif en panne, l'alerte ne partirait jamais
+    attente[cle] = { nom: chantier.nom.slice(0, 100), numero: chantier.cleNum ? String(chantier.numero).slice(0, 30) : '',
+      n: Number(avant.n || 0) + 1, essais: Number(avant.essais || 0) };
+    // Une propriété du script contient 9 000 caractères au plus : au-delà de 8 000 (des dizaines de chantiers en attente,
+    // jamais vu), ce chantier n'est pas noté ; sa prochaine note le redemandera
+    if (JSON.stringify(attente).length > 8000) return;
     recapEcrireAttente_(attente);
   } catch (e) { console.error('recapDemander_ :', e.message); }
 }
 
 // ── Les notes d'un chantier, la plus récente en haut ──
-// Rend [{ date, objet, auteur, texte, sansTexte }] ; chantier : { nom, numero } (crChantier_).
+// Rend [{ date, objet, auteur, texte, sansTexte, pdf }] ; chantier : { nom, numero, cleNum, cleNom } (recapChantier_).
 function recapNotes_(sh, chantier) {
   const derniere = sh.getLastRow();
   if (derniere < 2) return [];
   const avecTexte = recapAvecTexte_(sh);
   const lignes = sh.getRange(2, 1, derniere - 1, avecTexte ? COL_CR_TEXTE : CR_ENTETES.length).getValues();
-  const cleNum = crCleNumero_(chantier.numero), cleNom = crCleNom_(chantier.nom);
+  // (un texte qui commence par « - », « = », « + » ou « @ » est écrit avec une apostrophe devant, pour ne jamais devenir
+  // une formule : cellule_. Sheets ne la rend pas à la lecture ; si elle est là quand même, elle est retirée.)
+  const lu = v => String(v === undefined || v === null ? '' : v).replace(/^'(?=[=+@-])/, '');
   const notes = [];
   lignes.forEach((r, i) => {
     if (!String(r[COL_CR.fiche - 1])) return;
     const numLigne = crCleNumero_(r[COL_CR.numChantier - 1]);
-    // même règle que l'onglet : même N° de chantier quand les deux sont remplis, sinon même nom
-    const meme = cleNum && numLigne ? numLigne === cleNum : crCleNom_(r[COL_CR.chantier - 1]) === cleNom;
+    // même N° de chantier quand ce N° est celui d'un seul chantier et que la ligne en porte un ; sinon même nom EXACT
+    const meme = chantier.cleNum && numLigne ? numLigne === chantier.cleNum : cleChantier_(r[COL_CR.chantier - 1]) === chantier.cleNom;
     if (!meme) return;
-    // (un texte qui commence par « - », « = », « + » ou « @ » est écrit avec une apostrophe devant, pour ne jamais devenir
-    // une formule : cellule_. Sheets ne la rend pas à la lecture ; si elle est là quand même, elle est retirée.)
-    const texte = avecTexte ? String(r[COL_CR_TEXTE - 1] === undefined || r[COL_CR_TEXTE - 1] === null ? '' : r[COL_CR_TEXTE - 1]).replace(/^'(?=[=+@-])/, '') : '';
-    notes.push({ date: String(r[COL_CR.date - 1] || ''), objet: String(r[COL_CR.objet - 1] || ''), auteur: String(r[COL_CR.auteur - 1] || ''),
+    const texte = avecTexte ? lu(r[COL_CR_TEXTE - 1]) : '';
+    notes.push({ date: String(r[COL_CR.date - 1] || ''), objet: lu(r[COL_CR.objet - 1]), auteur: lu(r[COL_CR.auteur - 1]),
       texte: texte, sansTexte: !texte, pdf: String(r[COL_CR.pdf - 1] || ''), jour: crJour_(r[COL_CR.date - 1]), recu: crMs_(r[COL_CR.recu - 1]), rang: i });
   });
   // date de réunion la plus récente d'abord ; même jour : la dernière arrivée d'abord ; sinon la plus basse de l'onglet
@@ -119,12 +142,13 @@ function recapHtml_(nomChantier, notes, quand) {
 }
 
 // ── Refaire le fichier d'un chantier ──
-// Rend 'fait', ou 'rien' (chantier sorti de la liste, aucune note). Lève une erreur si le fichier n'a pas pu être fait.
-function recapRefaire_(nomDemande) {
+// entree : { nom, numero } (liste d'attente). Rend 'fait', ou 'rien' (chantier sorti de la liste, aucune note).
+// Lève une erreur si le fichier n'a pas pu être fait.
+function recapRefaire_(entree) {
   const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_CR);
   if (!sh || !crTitresBons_(sh)) throw new Error('onglet « ' + SHEET_CR + ' » illisible');
   if (!recapAvecTexte_(sh)) return 'rien';
-  const chantier = crChantier_(nomDemande);
+  const chantier = recapChantierEntree_(entree);
   if (!chantier.nom) return 'rien';
   const notes = recapNotes_(sh, chantier);
   if (!notes.length) return 'rien';
@@ -157,6 +181,11 @@ function recapPassage_() {
   try {
     const props = PropertiesService.getScriptProperties();
     if (!props.getProperty(RECAP_PROP)) return 0;           // rien en attente : une seule lecture, et c'est tout
+    // Un seul passage à la fois (traiterComptes peut être lancé deux fois de suite : minuterie, et case cochée dans le
+    // Sheet) : sans cela, deux passages feraient deux fichiers du même nom. La marque tombe seule au bout de 6 minutes.
+    const cache = cacheScript_();
+    if (cache.get('recap:passage')) return 0;
+    cache.put('recap:passage', '1', 360);
     const debut = Date.now();
     let traites = 0;
     const cles = Object.keys(recapAttente_());
@@ -165,12 +194,13 @@ function recapPassage_() {
       const entree = recapAttente_()[cles[i]];
       if (!entree) continue;
       let erreur = '';
-      try { recapRefaire_(entree.nom); } catch (e) { erreur = String(e && e.message || e); console.error('recapRefaire_ (' + entree.nom + ') :', erreur); }
+      try { recapRefaire_(entree); } catch (e) { erreur = String(e && e.message || e); console.error('recapRefaire_ (' + entree.nom + ') :', erreur); }
       recapSolder_(cles[i], entree, erreur);
       traites++;
     }
+    cache.remove('recap:passage');
     return traites;
-  } catch (e) { console.error('recapPassage_ :', e.message); return 0; }
+  } catch (e) { console.error('recapPassage_ :', e.message); try { cacheScript_().remove('recap:passage'); } catch (x) {} return 0; }
 }
 // Retire le chantier de la liste d'attente (fichier fait), ou compte un essai raté. Sous verrou, très court.
 function recapSolder_(cle, traitee, erreur) {
@@ -204,7 +234,7 @@ function recapLire_(compte, corps) {
   const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_CR);
   // Onglet absent (aucune note encore) ou titres changés : une liste vide, jamais une erreur pour le poseur
   const lisible = !!sh && crTitresBons_(sh);
-  const notes = lisible ? recapNotes_(sh, crChantier_(nom)) : [];
+  const notes = lisible ? recapNotes_(sh, recapChantier_(nom)) : [];
   return avecJeton_({ ok: true, code: 'OK', message: notes.length + ' note(s)',
     data: { chantier: nom, notes: notes.map(n => ({ date: n.date, objet: n.objet, auteur: n.auteur, texte: n.texte, sansTexte: n.sansTexte })),
       heure: Date.now() } }, compte);

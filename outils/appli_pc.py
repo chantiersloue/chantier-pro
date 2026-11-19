@@ -1073,10 +1073,11 @@ def plan_rapatriement(reglages, numero, sous=None, maintenant=None):
                 sur_pc = os.stat(cible)
                 # Lot 8d — le récapitulatif des notes : la copie du PC est REMPLACÉE par la nouvelle version du Drive, à une
                 # condition : c'est bien la copie faite par ce programme (même taille et même date que dans la liste de
-                # provenance). Modifiée à la main, ou inconnue de la liste : elle n'est pas touchée, et c'est signalé
+                # provenance ; une entrée sans date ne prouve rien). Modifiée à la main, ou inconnue de la liste : elle
+                # n'est pas touchée, et c'est signalé
                 # comme pour tout autre fichier.
                 if est_recapitulatif(relatif, sous) and note is not None and note.get("taille") == sur_pc.st_size \
-                        and ("date" not in note or meme_date(sur_pc.st_mtime, note["date"])) \
+                        and "date" in note and meme_date(sur_pc.st_mtime, note["date"]) \
                         and (sur_pc.st_size != taille or not meme_date(etat.st_mtime, sur_pc.st_mtime)):
                     entree.update(remplace=True, inscrit=False, pc_avant=(sur_pc.st_size, int(sur_pc.st_mtime)))
                     plan["a_copier"].append(entree)
@@ -1217,6 +1218,11 @@ def rapatrier(reglages, numero, sous=None, dire=print, maintenant=None, simuler=
         for a in plan["a_copier"]:
             try:
                 copier_fichier(a["source"], a["cible"], remplacer=a["pc_avant"] if a.get("remplace") else None)
+                if est_recapitulatif(a["chemin"].split("/"), sous):
+                    # Lot 8d — le serveur peut refaire ce fichier entre le plan et la copie : la liste note la taille et la
+                    # date de ce qui est RÉELLEMENT sur le PC (sinon ce fichier ne serait plus jamais remplacé)
+                    fait = os.stat(a["cible"])
+                    a["taille"], a["date"] = fait.st_size, int(fait.st_mtime)
                 plan["copies"].append(a)
                 inscrire(a)
                 dire("    %s : %s — %s (%s)" % ("remplacé" if a.get("remplace") else "copié", plan["dossier_pc"], a["chemin"], mo(a["taille"])))

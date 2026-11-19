@@ -2,7 +2,7 @@
 
 > Pour Franck. Plan : `docs/lot8d-plan.md` ; tes trois réponses du 19/11/2026 : le programme du PC remplace ce fichier-là, et lui seul ; une page légère dans l'appli ; le 8d passe avant le lot 12.
 > Une livraison en trois morceaux : le **serveur v11.1** (le programme chez Google), les **pages, appli 10.2**, et le **programme du PC** (`outils/appli_pc.py`).
-> **État au 19/11/2026** : construit et testé contre le faux serveur et dans Chrome seulement. **Rien n'a encore tourné chez Google** : c'est l'étape A.
+> **État au 19/11/2026** : construit, testé contre le faux serveur et dans Chrome, **relu par un agent indépendant (un tour) et corrigé**. **Rien n'a encore tourné chez Google** : c'est l'étape A.
 > **Ne passe à l'étape suivante que si la précédente est verte.** Sinon : arrête-toi et envoie-moi une capture.
 
 ## Ce qui change, en clair
@@ -24,6 +24,8 @@
 - **Ne mets pas d'autre fichier dont le nom commence par « RÉCAPITULATIF DES NOTES - »** et finit par `.pdf` dans le dossier `COMPTE RENDU` du Drive : l'appli le prendrait pour un ancien récapitulatif et le mettrait à la corbeille de Drive (il y reste 30 jours).
 - **Chantier renommé** : le récapitulatif suit le chantier s'il a un numéro (colonne E). Le fichier à l'ancien nom part à la corbeille de Drive ; sur ton PC, l'ancien reste (le programme ne supprime jamais rien) : tu peux le jeter.
 - **Chantier tapé à la main, absent de la liste** : la note part, mais n'entre dans aucun récapitulatif.
+- **Deux chantiers qui portent le même numéro** (colonne E) : chacun a son récapitulatif, suivi par son nom exact. Dans ce cas, renommer l'un des deux lui fait perdre ses anciennes notes dans le récapitulatif (elles restent dans leurs PDF). Un numéro par chantier évite ça.
+- **Accès retiré à un gars** : la liste déjà gardée dans son téléphone reste lisible sans réseau jusqu'à ce qu'il rouvre la page avec du réseau ; elle est alors effacée.
 - **Tant que l'installation n'est pas faite** (étape D, point 3), le nouveau serveur se comporte exactement comme celui du lot 8.
 - Coût : un petit PDF refait par note (quelques secondes sur les 90 minutes par jour du compte gratuit), aucun mail en plus.
 
@@ -36,7 +38,7 @@
    node outils\envoyer-test.js --avec-porte
    ```
    Attends `✅ Envoi réussi`, version **v11.1**. Dis-moi « envoi fait ».
-2. Je fais le reste sans toi : installation sur TEST (`installerLot8d`), essai réel `tests/reel-lot8d.js` (**3 mails, tous à ton adresse**), publication de la copie d'essai en **10.2**. Cet essai est le seul qui prouve que le vrai Google fabrique le fichier, le remplace, et garde le texte tel qu'il a été tapé.
+2. Je fais le reste sans toi : les quatre colonnes des points restées sur la copie TEST (K à N) sont vidées par la porte de service (`viderColonnesPoints`, qui ne touche à rien d'autre), puis installation sur TEST (`installerLot8d`), essai réel `tests/reel-lot8d.js` (**3 mails, tous à ton adresse**), publication de la copie d'essai en **10.2**. Cet essai est le seul qui prouve que le vrai Google fabrique le fichier, le remplace, et garde le texte tel qu'il a été tapé.
 3. Tu regardes dans le Drive de TEST, dossier du chantier d'essai, `05 - CHANTIER/COMPTE RENDU` : le fichier « RÉCAPITULATIF DES NOTES - CHANTIER TEST AUTO.pdf ». Dis-moi si la présentation te va.
 
 ## Étape B — tes essais sur téléphone (5 minutes)
@@ -60,16 +62,16 @@ Choisis la recopie des fiches en **simulation** : la ligne « à remplacer : …
 
 1. Dans le dossier `chantier-pro-lot8d` : `node outils\envoyer-test.js --sans-porte` (c'est le fichier qui ira en production ; je vérifie son empreinte).
 2. Éditeur Apps Script de production : remplace tout `Code.gs` par `A-COLLER-DANS-APPS-SCRIPT/Code.gs` **du dossier `chantier-pro-lot8d`** (la ligne `VERSION_API` dit `v11.1`). **Enregistre.** **Déployer → Nouveau déploiement** (« Lot 8d — production »). Donne-moi l'adresse.
-3. Dans l'éditeur, choisis la fonction **`installerLot8dProduction`** et clique ▶. Le journal doit finir par `✅ Lot 8d : installation terminée.` Elle pose la colonne K ; on peut la relancer sans danger. **C'est elle qui met le récapitulatif en marche.**
-4. Je mets l'adresse dans `commun/config.js` et je te donne le lien de fusion. Après la fusion : « À propos » affiche **10.2**.
-5. **Le programme du PC** : je mets à jour ton dossier principal (une seule commande, que je te donne) ; la tâche automatique prend le nouveau programme au passage suivant.
+3. Je mets l'adresse dans `commun/config.js` et je te donne le lien de fusion. Après la fusion : « À propos » affiche **10.2**.
+4. **Le programme du PC** : je mets à jour ton dossier principal (une seule commande, que je te donne) ; la tâche automatique prend le nouveau programme au passage suivant. **À faire avant le point 5** : l'ancien programme ne sait pas remplacer le récapitulatif, il le signalerait dans « A VOIR » dès la deuxième note.
+5. **En dernier**, dans l'éditeur Apps Script : choisis la fonction **`installerLot8dProduction`** et clique ▶. Le journal doit finir par `✅ Lot 8d : installation terminée.` Elle pose la colonne K ; on peut la relancer sans danger. **C'est elle qui met le récapitulatif en marche** : tant qu'elle n'est pas lancée, rien ne change.
 6. **Anciens déploiements** : « Lot 8 — production » à archiver une semaine après cette fusion.
 
 **L'ordre compte peu** : la nouvelle page avec l'ancien serveur dit « le serveur n'est pas encore à jour » ; l'ancienne page avec le nouveau serveur marche comme avant.
 
 ## Retour arrière
 
-- **Arrêter le récapitulatif sans rien redéployer** : dans l'onglet *Comptes rendus*, change le titre de la colonne K (par exemple « Texte de la note (arrêté) »). Le serveur ne garde plus de texte et ne refait plus de fichier ; les notes partent comme avant. Remets le titre exact pour reprendre.
+- **Arrêter le récapitulatif sans rien redéployer** : dans l'onglet *Comptes rendus*, change le titre de la colonne K (par exemple « Texte de la note (arrêté) »). Le serveur ne garde plus de texte et ne refait plus de fichier ; les notes partent comme avant. La page de l'appli montre alors les notes sans leur texte (« dans son PDF »). Remets le titre exact pour reprendre.
 - **Revenir au serveur du lot 8** : je remets son adresse dans `commun/config.js` (tant que « Lot 8 — production » n'est pas archivé).
 - Les fichiers déjà faits restent dans les dossiers ; rien n'est supprimé.
 
@@ -80,3 +82,4 @@ Choisis la recopie des fiches en **simulation** : la ligne « à remplacer : …
 - La page sur un vrai téléphone, en plein soleil, avec des gants (étape B).
 - Le remplacement du fichier sur ton PC pendant que MEGA le synchronise : si MEGA tient le fichier, le programme note une erreur et réessaie à l'heure suivante.
 - Un chantier avec plus de 300 notes de réunion : seules les 300 plus récentes sont reprises.
+- **Ton onglet *Chantiers* réel** : je ne l'ai pas regardé (deux chantiers de même numéro ?). Le programme tient les deux cas.

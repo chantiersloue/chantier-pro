@@ -144,7 +144,7 @@ setTimeout(() => {
       && /Pas de réseau : liste gardée dans le téléphone le \d\d\/\d\d à \d\d h \d\d/.test(r.horsReseau.info), j(r.horsReseau));
     verifier('réseau lent : la liste gardée s’affiche tout de suite, puis celle du serveur la remplace', r.lentAvant.titres.length === 3 && /gardée dans le téléphone/.test(r.lentAvant.info)
       && r.lentApres.titres.length === 3 && /3 notes, la plus récente en haut/.test(r.lentApres.info), j([r.lentAvant.info, r.lentApres.info]));
-    verifier('téléphone partagé : un poseur sans accès au chantier ne voit rien, en ligne comme hors réseau', r.connexion2 === 'CONNECTE' && r.autre.titres.length === 0
+    verifier('un autre poseur, sans accès au chantier, se connecte sur le même téléphone : il ne voit rien, en ligne comme hors réseau', r.connexion2 === 'CONNECTE' && r.autre.titres.length === 0
       && /n’est pas dans votre liste/.test(r.autre.vide) && r.autreHorsReseau.titres.length === 0 && r.autreHorsReseau.textes.length === 0, j([r.autre, r.autreHorsReseau]));
     verifier('accès retiré : la liste gardée dans le téléphone est effacée (plus rien hors réseau)', r.connexion3 === 'CONNECTE' && r.avantRetrait === 3 && r.retire.titres.length === 0
       && /n’est pas dans votre liste/.test(r.retire.vide) && r.retireHorsReseau.titres.length === 0, j([r.avantRetrait, r.retire, r.retireHorsReseau]));

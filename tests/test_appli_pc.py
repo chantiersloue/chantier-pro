@@ -1032,6 +1032,50 @@ class Rapatriement(Monde):
             self.assertEqual(f.read(), "Franck vient de l'ouvrir et de l'enregistrer")
         self.assertFalse(os.path.exists(sur_pc + ap.PARTIEL), "la copie inachevée est retirée")
 
+    def test_recapitulatif_refait_pendant_la_copie_la_liste_note_ce_qui_est_sur_le_pc(self):
+        # Après relecture (I3) : le serveur refait le fichier entre le plan et la copie. La liste de provenance doit noter la
+        # taille et la date du fichier RÉELLEMENT copié ; sinon le récapitulatif resterait figé sur le PC pour toujours.
+        recap = "05 - CHANTIER/COMPTE RENDU/" + ap.RECAP_PREFIXE + "CHANTIER ESSAI UN.pdf"
+        source = self.fiche(recap, "version 1")
+        self.rapatrier()
+        sur_pc = os.path.join(self.pc, PC_1, *recap.split("/"))
+        ecrire(source, "version 2, plus longue")
+        vrai_plan = ap.plan_rapatriement
+
+        def plan_puis_serveur_refait(*a, **k):
+            plan = vrai_plan(*a, **k)
+            ecrire(source, "version 3, encore plus longue que la deuxième")      # refait juste après le plan
+            os.utime(source, (1800000500, 1800000500))
+            return plan
+
+        with mock.patch.object(ap, "plan_rapatriement", plan_puis_serveur_refait):
+            self.rapatrier(maintenant=self.instant + datetime.timedelta(hours=1))
+        with open(sur_pc, encoding="utf-8") as f:
+            self.assertEqual(f.read(), "version 3, encore plus longue que la deuxième")
+        entree = [e for e in self.provenance()["fichiers"] if e["chemin"] == recap][0]
+        self.assertEqual((entree["taille"], entree["date"]), (os.path.getsize(sur_pc), 1800000500), "ce qui est sur le PC, pas ce que le plan avait vu")
+        # … et le remplacement suivant marche (il serait refusé pour toujours si la liste avait gardé la taille du plan)
+        ecrire(source, "version 4")
+        os.utime(source, (1800001000, 1800001000))
+        plan = self.rapatrier(maintenant=self.instant + datetime.timedelta(hours=2))
+        self.assertEqual(([a.get("remplace") for a in plan["copies"]], plan["signales"]), ([True], []))
+        with open(sur_pc, encoding="utf-8") as f:
+            self.assertEqual(f.read(), "version 4")
+
+    def test_recapitulatif_note_sans_date_dans_la_liste_jamais_remplace(self):
+        # Après relecture (M4) : une entrée de la liste sans date (ancienne forme) ne suffit pas à prouver que la copie du PC
+        # est celle du programme : un fichier de Franck de la même taille ne doit pas être remplacé.
+        recap = "05 - CHANTIER/COMPTE RENDU/" + ap.RECAP_PREFIXE + "CHANTIER ESSAI UN.pdf"
+        source = self.fiche(recap, "récapitulatif du serveur, plus long")
+        sur_pc = self.dans_pc(recap, "fichier Franck")
+        ecrire(os.path.join(self.pc, PC_1, ap.PROVENANCE), json.dumps({"version": 1, "chantier": "Chantier Essai Un", "numero": "901",
+               "fichiers": [{"chemin": recap, "taille": os.path.getsize(sur_pc), "copie_le": "x"}]}))
+        plan = self.rapatrier()
+        self.assertEqual((plan["copies"], [x["motif"] for x in plan["signales"]]), ([], ["taille-differente"]))
+        with open(sur_pc, encoding="utf-8") as f:
+            self.assertEqual(f.read(), "fichier Franck")
+        self.assertTrue(os.path.getsize(source) != os.path.getsize(sur_pc))
+
     def test_fiche_nouvelle_sous_le_nom_d_une_ancienne(self):
         source = self.fiche(COTES + "/QUITUS.pdf", "premier quitus")
         self.rapatrier()

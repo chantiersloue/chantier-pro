@@ -72,6 +72,9 @@ const ranger = async () => { try { await geste('purgerComptesRendusEssai'); awai
   }
   verifier('le serveur de cette branche (empreinte ' + attendue + ') répond 6 fois de suite', suite >= 6, 'empreinte lue : ' + etat.data.empreinte);
   if (suite < 6) throw new Error('le serveur en ligne n’est pas celui de cette branche : refaire l’envoi « --avec-porte », ou attendre');
+  // La copie TEST a gardé les colonnes K à N des points (lot 8c) : elles sont vidées (seulement si leurs titres sont ceux-là)
+  const vide = await geste('viderColonnesPoints');
+  verifier('colonnes des points (lot 8c) de la copie TEST : vidées, ou déjà absentes', vide.ok, court(vide));
   const inst = await geste('installerLot8d');
   verifier('installation du lot 8d sur TEST (colonne « Texte de la note »)', inst.ok, inst.message);
   const pc = await geste('preparerComptes'), ch = await geste('preparerChantier');
@@ -90,12 +93,12 @@ const ranger = async () => { try { await geste('purgerComptesRendusEssai'); awai
   // ── Deux notes, puis le passage : un récapitulatif ──
   const jeton = await session('auto-poseur');
   const ra = await fiche(jeton, numero('a'), note('03/11/2026', 'ESSAI AUTOMATIQUE A', TEXTES.a));
-  const rb = await fiche(jeton, numero('b'), note('17/11/2026', 'ESSAI AUTOMATIQUE B', TEXTES.b));
+  const rb = await fiche(jeton, numero('b'), note('17/11/2026', '- ESSAI AUTOMATIQUE B', TEXTES.b));
   verifier('deux notes enregistrées, un mail chacune', ra.ok && rb.ok && (ra.data || {}).envoyes === 1 && (rb.data || {}).envoyes === 1, court([ra, rb]));
   const lu1 = await poster({ action: 'recapNotes', chantier: CHANTIER, jeton: jeton });
-  const notes1 = ((lu1.data || {}).notes || []).filter(n => /^ESSAI AUTOMATIQUE [AB]$/.test(n.objet));
-  verifier('lecture par l’appli : les deux notes, la plus récente en haut', lu1.ok && notes1.map(n => n.objet).join() === 'ESSAI AUTOMATIQUE B,ESSAI AUTOMATIQUE A', court(lu1));
-  verifier('VRAI SHEET : le texte est rendu tel qu’il a été tapé (retours à la ligne, tiret en tête)', notes1.length === 2 && notes1[0].texte === TEXTES.b && notes1[1].texte === TEXTES.a, court(notes1));
+  const notes1 = ((lu1.data || {}).notes || []).filter(n => /^(- )?ESSAI AUTOMATIQUE [AB]$/.test(n.objet));
+  verifier('lecture par l’appli : les deux notes, la plus récente en haut', lu1.ok && notes1.map(n => n.objet).join() === '- ESSAI AUTOMATIQUE B,ESSAI AUTOMATIQUE A', court(lu1));
+  verifier('VRAI SHEET : le texte et l’objet sont rendus tels qu’ils ont été tapés (retours à la ligne, tiret en tête)', notes1.length === 2 && notes1[0].texte === TEXTES.b && notes1[1].texte === TEXTES.a, court(notes1));
   const attente1 = (await geste('lireRecap')).data || {};
   verifier('le fichier n’est pas fait pendant l’envoi : le chantier est en attente', attente1.enAttente >= 1 && attente1.fichiers === (avant.fichiers || 0), court(attente1));
   const p1 = await geste('traiterComptes');

@@ -2,17 +2,19 @@
 
 Chaque lot : **quoi**, **pourquoi**, **comment déployer**. Procédures détaillées dans `docs/lotN-procedure.md`.
 
-## Lot 8d — Le récapitulatif des notes de réunion par chantier — serveur **v11.1**, appli **10.2**, programme du PC — **construit, testé contre le faux serveur et dans Chrome seulement**
+## Lot 8d — Le récapitulatif des notes de réunion par chantier — serveur **v11.1**, appli **10.2**, programme du PC — **construit, testé contre le faux serveur et dans Chrome, relu par un agent indépendant et corrigé ; rien n'a tourné chez Google**
 
 **Quoi**
 - **Le texte de chaque note de réunion est gardé** dans l'onglet *Comptes rendus*, colonne K « Texte de la note » (posée par `installerLot8dTest` / `installerLot8dProduction`). Tant que la colonne n'existe pas, le serveur se comporte comme celui du lot 8.
 - **Un fichier « RÉCAPITULATIF DES NOTES - <chantier>.pdf »** par chantier, dans `05 - CHANTIER/COMPTE RENDU` : la date, l'objet, le rédacteur et le texte de chaque note, la plus récente en haut, sans les photos. Refait dans les 10 minutes par le passage qui existe déjà (jamais pendant l'envoi d'une note) ; l'ancien part à la corbeille de Drive ; un échec est retenté, et te prévient par mail au bout d'une heure.
 - **Dans l'appli** : une ligne « Récapitulatif des notes » sur l'écran du chantier, et une page légère `recap-notes.html` (lecture seule, gardée dans le téléphone pour le hors réseau, effacée à la déconnexion et quand l'accès au chantier est retiré). Réservée aux comptes qui ont accès au chantier.
 - **Programme du PC** : il remplace ce fichier-là dans le dossier du chantier, et lui seul, si la copie du PC est bien celle qu'il avait faite.
-- Fichiers : `apps-script/Recapitulatif.gs` (nouveau), `ComptesRendus.gs`, `Api.gs`, `Comptes.gs`, `Securite.gs`, `Config.gs` ; `recap-notes.html` (nouveau), `index.html`, `commun/notes.js`, `sw.js` ; `outils/appli_pc.py` ; porte de service de TEST (`installerLot8d`, `lireRecap`) ; tests : `tests/lot8d-recap.test.js` (24), `tests/lot8d-page.test.js` (11), 5 tests de plus pour le programme du PC (84), `tests/reel-lot8d.js` (essai réel, à lancer sur la copie TEST).
+- Fichiers : `apps-script/Recapitulatif.gs` (nouveau), `ComptesRendus.gs`, `Api.gs`, `Comptes.gs`, `Securite.gs`, `Config.gs` ; `recap-notes.html` (nouveau), `index.html`, `commun/notes.js`, `sw.js` ; `outils/appli_pc.py` ; porte de service de TEST (`installerLot8d`, `lireRecap`) ; tests : `tests/lot8d-recap.test.js` (31), `tests/lot8d-page.test.js` (11), 7 tests de plus pour le programme du PC (86), `tests/reel-lot8d.js` (essai réel, à lancer sur la copie TEST).
 - Les tests ne citent plus le numéro de version du serveur : ils le lisent dans `apps-script/Config.gs`.
 
 **Pourquoi** : demande de Franck du 19/11/2026, après le retrait des points : retrouver d'un coup d'œil tout ce qui s'est dit sur un chantier.
+
+**Après relecture indépendante (un tour)** : deux chantiers de même numéro ne partagent plus leurs notes (un compte qui n'a droit qu'à l'un ne lit plus l'autre) ; un chantier renommé entre la note et le passage garde son fichier ; un seul passage à la fois ; la liste de provenance du PC note ce qui est réellement copié ; une entrée sans date ne permet plus de remplacer ; porte de TEST : `viderColonnesPoints`.
 
 **Pas vérifié** : rien n'a tourné chez Google (fabrication et remplacement du PDF, texte gardé par le vrai Sheet) ; la présentation du PDF ; la page sur un vrai téléphone ; le remplacement sur le PC pendant une synchronisation de MEGA.
 

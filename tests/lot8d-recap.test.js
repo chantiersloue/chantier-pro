@@ -327,6 +327,84 @@ test('compte désactivé : refusé', () => {
   assert.ok(!r.ok && !r.data, j(r));
 });
 
+console.log('Lot 8d — après la relecture indépendante');
+test('deux chantiers de MÊME N° (deux lots d’une opération) : chacun son récapitulatif, et un compte qui n’a droit qu’à l’un ne lit jamais les notes de l’autre', () => {
+  const g = environnement();
+  const ch = g.feuilles['Chantiers'].lignes;
+  ch.find(x => x[0] === 'CHANTIER TEST 1')[4] = '0700';
+  ch.find(x => x[0] === 'CHANTIER TEST 2')[4] = '0700';
+  envoyer(g, 'seb', note({ chantier: 'CHANTIER TEST 1', remarques: 'TEXTE-DU-UN' }));
+  envoyer(g, 'seb', note({ chantier: 'CHANTIER TEST 2', remarques: 'SECRET-DU-DEUX' }));
+  const un = lire(g, 'thomas27', 'CHANTIER TEST 1');              // thomas27 n'a que CHANTIER TEST 1
+  assert.deepStrictEqual(un.data.notes.map(n => n.texte), ['TEXTE-DU-UN'], j(un));
+  assert.strictEqual(lire(g, 'thomas27', 'CHANTIER TEST 2').code, 'INTERDIT');
+  assert.strictEqual(Object.keys(attente(g)).length, 2, 'deux chantiers en attente, pas un');
+  g.ctx.traiterComptes();
+  const f = recaps(g).map(e => [e.nom, String(e.contenu)]);
+  assert.strictEqual(f.length, 2, j(f.map(x => x[0])));
+  const duUn = f.find(x => x[0] === PREFIXE + 'CHANTIER TEST 1.pdf')[1], duDeux = f.find(x => x[0] === PREFIXE + 'CHANTIER TEST 2.pdf')[1];
+  assert.ok(/TEXTE-DU-UN/.test(duUn) && !/SECRET-DU-DEUX/.test(duUn) && /SECRET-DU-DEUX/.test(duDeux) && !/TEXTE-DU-UN/.test(duDeux));
+});
+test('deux chantiers sans N° dont les noms ne diffèrent que par une espace (« LOT 1 2 » et « LOT 12 ») : jamais confondus', () => {
+  const g = environnement();
+  g.feuilles['Chantiers'].lignes.push(['LOT 1 2', 'LIEU', 'En cours', 'Franck ESSAI'], ['LOT 12', 'LIEU', 'En cours', 'Franck ESSAI']);
+  envoyer(g, 'seb', note({ chantier: 'LOT 1 2', remarques: 'TEXTE-LOT-1-2' }));
+  envoyer(g, 'seb', note({ chantier: 'LOT 12', remarques: 'TEXTE-LOT-12' }));
+  assert.deepStrictEqual(lire(g, 'seb', 'LOT 1 2').data.notes.map(n => n.texte), ['TEXTE-LOT-1-2']);
+  assert.deepStrictEqual(lire(g, 'seb', 'LOT 12').data.notes.map(n => n.texte), ['TEXTE-LOT-12']);
+  g.ctx.traiterComptes();
+  assert.strictEqual(recaps(g).length, 2);
+});
+test('chantier renommé ENTRE la note et le passage (il a un N°) : le fichier est fait quand même, au nouveau nom', () => {
+  const g = environnement();
+  numeroChantier(g, 'CHANTIER TEST 3', '0803');
+  envoyer(g, 'seb', note({ chantier: 'CHANTIER TEST 3', remarques: 'AVANT-LE-PASSAGE' }));
+  g.feuilles['Chantiers'].lignes.find(x => x[0] === 'CHANTIER TEST 3')[0] = 'CHANTIER TROIS RENOMMÉ';
+  Object.values(g.elements).filter(e => e.type === 'dossier' && e.nom === 'CHANTIER TEST 3').forEach(e => { e.nom = 'CHANTIER TROIS RENOMMÉ'; });
+  g.ctx.traiterComptes();
+  const f = recaps(g);
+  assert.deepStrictEqual(f.map(e => e.nom), [PREFIXE + 'CHANTIER TROIS RENOMMÉ.pdf']);
+  assert.ok(/AVANT-LE-PASSAGE/.test(String(f[0].contenu)));
+});
+test('deux passages en même temps : le second ne fait rien (jamais deux fichiers du même nom) ; la marque tombe quand le premier a fini', () => {
+  const g = environnement();
+  envoyer(g, 'seb');
+  g.ctx.cacheScript_().put('recap:passage', '1', 360);            // un passage est en cours
+  assert.strictEqual(g.ctx.recapPassage_(), 0);
+  assert.strictEqual(recaps(g, true).length, 0);
+  g.ctx.cacheScript_().remove('recap:passage');
+  assert.strictEqual(g.ctx.recapPassage_(), 1);
+  assert.strictEqual(recaps(g).length, 1);
+  assert.strictEqual(g.ctx.cacheScript_().get('recap:passage'), null, 'la marque est retirée à la fin');
+});
+test('objet et rédacteur qui commencent par un tiret ou un « + » : rendus tels qu’ils ont été tapés', () => {
+  const g = environnement();
+  envoyer(g, 'seb', note({ objet: '- point sécurité', auteur: '+33 Dupont' }));
+  const n = lire(g, 'seb', 'CHANTIER TEST 1').data.notes[0];
+  assert.deepStrictEqual([n.objet, n.auteur], ['- point sécurité', '+33 Dupont']);
+});
+test('une nouvelle note ne remet pas à zéro le compteur d’échecs : l’alerte part même sur un chantier où les notes arrivent sans arrêt', () => {
+  const g = environnement();
+  envoyer(g, 'seb');
+  g.ctx.traiterComptes();
+  const dossier = dossierNotes(g);
+  dossier.api.createFile = () => { throw new Error('Drive en panne'); };
+  g.mails.length = 0;
+  for (let i = 0; i < 6; i++) { envoyer(g, 'seb', note({ date: '1' + i + '/11/2026' })); g.ctx.traiterComptes(); }
+  assert.strictEqual(g.mails.filter(m => /Récapitulatif des notes en retard/.test(m.sujet)).length, 1, j(g.mails.map(m => m.sujet)));
+});
+test('liste d’attente trop longue pour une propriété du script (9 000 caractères) : le chantier de trop n’est pas noté, rien ne casse', () => {
+  const g = environnement();
+  const gros = {};
+  for (let i = 0; i < 70; i++) gros['c:chantier au nom très long numéro ' + i + ' ' + 'x'.repeat(60)] = { nom: 'CHANTIER AU NOM TRÈS LONG NUMÉRO ' + i + ' ' + 'X'.repeat(60), numero: '', n: 1, essais: 29 };
+  g.proprietes.RECAP_A_REFAIRE = JSON.stringify(gros);
+  const avant = g.proprietes.RECAP_A_REFAIRE.length;
+  assert.ok(avant > 8000);
+  const r = envoyer(g, 'seb');
+  assert.strictEqual(r.ok, true, j(r));
+  assert.strictEqual(g.proprietes.RECAP_A_REFAIRE.length, avant, 'rien n’est ajouté au-delà de la limite');
+});
+
 console.log('Lot 8d — livraison');
 test('livraison : le serveur à coller contient le lot 8d, dans la version de Config.gs, Recapitulatif.gs après ComptesRendus.gs, sans les outils d’essai', () => {
   const code = fs.readFileSync(path.join(__dirname, '..', 'A-COLLER-DANS-APPS-SCRIPT', 'Code.gs'), 'utf8');

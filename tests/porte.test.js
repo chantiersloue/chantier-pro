@@ -293,6 +293,15 @@ test('porte, lot 8 : installation de l’onglet « Comptes rendus » sur la copi
   assert.ok(i.ok && /Lot 8 — installation — environnement : TEST/.test(i.message) && /installation terminée/.test(i.message), i.message);
   assert.ok(g.feuilles['Comptes rendus'] && g.feuilles['Comptes rendus'].lignes[0].length === 10, 'onglet créé avec ses 10 titres');
   assert.ok(geste(g, 'installerLot8').ok, 'relançable');
+  // lot 8d : la copie TEST a gardé les colonnes des points (K à N) ; la porte les vide, et seulement elles
+  const cr = g.feuilles['Comptes rendus'].lignes;
+  ['Points ouverts après cette note', 'Points clos par cette note', 'Données de l’appli (ne pas modifier)', 'Données de l’appli (suite)'].forEach((t, i) => { cr[0][10 + i] = t; });
+  assert.ok(!geste(g, 'installerLot8d').ok, 'colonne K occupée : l’installation refuse');
+  const v = geste(g, 'viderColonnesPoints');
+  assert.ok(v.ok && v.data.videes === 4 && cr[0].slice(10, 14).every(x => x === '') && cr[0][9] === 'Remarque de l’appli', JSON.stringify([v, cr[0]]));
+  cr[0][10] = 'Colonne de Franck';
+  assert.ok(!geste(g, 'viderColonnesPoints').ok && cr[0][10] === 'Colonne de Franck', 'autres titres : rien n’est vidé');
+  cr[0][10] = '';
   // lot 8d : la colonne du texte, posée par la porte, relançable
   const i8d = geste(g, 'installerLot8d');
   assert.ok(i8d.ok && /Lot 8d — installation — environnement : TEST/.test(i8d.message) && /installation terminée/.test(i8d.message), i8d.message);
@@ -398,7 +407,7 @@ test('porte complète hors de TEST : tous les gestes sont refusés, rien n’est
   const avant = JSON.stringify([U(g), g.proprietes, g.declencheurs]);
   ['etat', 'preparerComptes', 'session', 'fermerSessions', 'cocher', 'poserDeclencheurs', 'retirerDeclencheurs', 'traiterComptes', 'finirTransition', 'prolongerTransition',
     'lireEnvois', 'lireBilan', 'lireChantiers', 'lireCompte', 'controlerLot2', 'essaiDeclencheur', 'retablirTransition', 'preparerChantier',
-    'installerLot7', 'installerLot8', 'installerLot8d', 'lireRecap', 'lireComptesRendus', 'purgerComptesRendusEssai', 'lireSignalements', 'destinatairesEssai', 'installerLot3', 'accesChantier', 'rangerAnciennesNotes', 'purgerNotesEssai', 'dossierChantierEssai', 'titresNotes', 'carnetFauxDepot', 'carnetRetirerFauxDepot'].forEach(nom =>
+    'installerLot7', 'installerLot8', 'installerLot8d', 'lireRecap', 'viderColonnesPoints', 'lireComptesRendus', 'purgerComptesRendusEssai', 'lireSignalements', 'destinatairesEssai', 'installerLot3', 'accesChantier', 'rangerAnciennesNotes', 'purgerNotesEssai', 'dossierChantierEssai', 'titresNotes', 'carnetFauxDepot', 'carnetRetirerFauxDepot'].forEach(nom =>
     assert.deepStrictEqual(geste(g, nom, { id: 'auto-admin', case: 'actif', valeur: true }), { ok: false, code: 'REFUSE', message: 'Refusé' }, nom));
   assert.strictEqual(JSON.stringify([U(g), g.proprietes, g.declencheurs]), avant);
 });
