@@ -28,11 +28,12 @@ Avant l'étape 7 : chaque poseur qui lit le planning doit avoir un compte (sans 
 | **4e** images du carnet un peu plus compressées | `lot-4e` (dossier `chantier-pro-lot4e`) | construit, 33 + 83 tests verts ; **attend ton essai sur la copie TEST** (partie 2) |
 | **5c** planning lisible par les seuls comptes, serveur v10.1, appli 9.1 | `lot-5c` | construit, relu, corrigé, 19 séries vertes. **Sur TEST aujourd'hui, puis en production avant le lot 8** |
 | **8** note de réunion en points, serveur v11.1, appli 10.2 | `lot-8` | sur la copie TEST depuis le 18/11 (empreinte 313ebbda57) ; installé ; essais réels faits : 18 sur 19, **et le 19e est levé** (tu as bien reçu exactement 3 mails : l'écart du compteur venait de la production). Restent tes 13 essais |
+| **12** tous les chantiers ouverts à tous les comptes (réglage), nouvel accueil | — | **plan écrit le 19/11** (`docs/lot12-plan.md`), rien de construit ; trois points à décider (son chapitre 9) |
 | **10a-1**, **10a-2**, **10b** | `lot-10a1` → `lot-10a2` → `lot-10b` | construits et testés ; 10a-1 relu. Sur TEST après le lot 8 en production |
 | **Mail unique** (lot 5b) | `lot-5b` | construit, **pas encore relu** ; livré éteint ; passe en dernier |
 | **11** planning, heures, atelier | — | accord donné ; tes retours du 18/11 au soir sont dans l'étude (`_prive\etudes\lot11-etude.md`, chapitre 0 ter) et dans le plan `docs/lot11-1-plan.md` (**version 3, critiquée par un agent indépendant**). **Maquette Google Sheets avec son programme** prête à installer : partie 3 |
 
-**Ordre de mise en production** : 5c → lot 8 → 10a-1 → 10a-2 → 10b → mail unique, une à la fois, un jour d'écart au moins. Chaque branche contient les précédentes ; le 5c, parti de la production, est reporté dans les autres après sa mise en production.
+**Ordre de mise en production** : 5c → lot 8 → **lot 12** (s'il est validé et construit d'ici là) → 10a-1 → 10a-2 → 10b → mail unique, une à la fois, un jour d'écart au moins. Chaque branche contient les précédentes ; le 5c, parti de la production, est reporté dans les autres après sa mise en production.
 
 ## 2. Le programme du PC : les retouches sont en service, reste l'essai des images (lot 4e)
 
@@ -53,7 +54,7 @@ Rien n'est construit ; tout est avec de faux noms, sans lien avec l'appli.
    **À savoir** : il a passé 42 essais contre un faux Google écrit pour l'occasion, mais **il n'a jamais tourné chez le vrai Google**. Si un message d'erreur apparaît, copie-le-moi : je corrige.
 2. **Faire ses essais** (fin de la procédure), surtout : les propositions pendant la frappe ; maltraiter les cases collées ; **l'affiche A3** (cocher « Préparer l'affiche A3 », ouvrir le lien, imprimer en A3 paysage, mesurer une majuscule) ; l'atelier (fabrication → commandes en attente → commandes → reçu).
 3. **Répondre aux 12 points** du chapitre 12 de `docs/lot11-1-plan.md` (version 3, corrigée après une critique indépendante).
-4. **Ton idée du 19/11** (les chantiers du planning ouverts tout seuls dans l'appli, et en favoris) est dans le plan : **chapitre 13, lot 11.1d**. Cinq points à trancher au 13.8 (critiqué une fois par un agent indépendant). Rien n'est construit.
+4. **Tes décisions du 19/11** : tous les chantiers ouverts à tous les comptes, avec un réglage allumé / éteint, et un nouvel accueil (« Mes chantiers » = favoris, « Tous les chantiers » replié) : **lot 12, `docs/lot12-plan.md`**, trois points à trancher (chapitre 9). Le planning n'ajoute plus que des favoris : **lot 11.1d, chapitre 13 du plan du lot 11.1**, plus rien à trancher. Rien n'est construit.
 
 Trois choses que la critique a changées, à connaître avant de lire le plan :
 - **Aucune méthode officielle de Google n'exporte un onglet en PDF A3.** Le lien utilisé par tout le monde marche aujourd'hui, sans garantie. Repli sûr : Fichier → Imprimer.

@@ -1,6 +1,6 @@
 # Lot 11.1 — Le Sheet « Planning Loué » — PLAN
 
-> Plan du 18/11/2026, **version 3** : tes décisions du 18/11 au soir (chapitre 2), puis **corrigé après une critique indépendante** (un tour ; ce qu'elle a changé : chapitre 11). **Ajout du 19/11 : les chantiers du planning ouverts tout seuls dans l'appli et mis en favoris (chapitre 13, lot 11.1d).** **Rien n'est construit**, sauf une maquette de démonstration avec de faux noms, sans lien avec l'appli.
+> Plan du 18/11/2026, **version 3** : tes décisions du 18/11 au soir (chapitre 2), puis **corrigé après une critique indépendante** (un tour ; ce qu'elle a changé : chapitre 11). **Ajout du 19/11 : les chantiers du planning mis tout seuls en favoris dans l'appli (chapitre 13, lot 11.1d) ; le planning ne donne aucun accès (les accès : lot 12, `docs/lot12-plan.md`).** **Rien n'est construit**, sauf une maquette de démonstration avec de faux noms, sans lien avec l'appli.
 > L'étude et la maquette sont dans `_prive\` (hors du dépôt public). Tous les exemples d'ici sont inventés.
 
 ## 1. Le but
@@ -26,8 +26,8 @@ Ce plan couvre le planning (lots 11.1). Les onglets de l'atelier sont le lot 11.
 | PDF publié | **la semaine en cours et la suivante** dès qu'elle est prête ; tous les poseurs voient tout ; **même présentation que l'affiche compacte** (une page par semaine, décision du 18/11 au soir) |
 | Qui fait quoi | toi et le chef d'atelier modifiez ; la direction lit |
 | Semaines passées | deux mois dans le Sheet, puis un onglet « Historique » |
-| Mails | aucun en plus |
-| Accès et favoris (19/11) | un gars planifié sur un chantier y a accès tout seul dans l'appli, et le chantier passe en favori en tête de sa liste (chapitre 13) |
+| Mails | aucun en plus, sauf le mail d'alerte du plafond des favoris, à toi seul (chapitre 13) |
+| Favoris (19/11) | un chantier où un gars est planifié arrive tout seul dans « Mes chantiers » de son appli ; le planning ne donne aucun accès (chapitre 13) |
 
 ## 3. Ce que tu verras
 
@@ -119,7 +119,7 @@ La critique l'a vérifié : la seule méthode officielle (`getAs`) exporte **tou
 | `planning/` dans le dépôt (nouveau dossier) | les deux programmes, sans aucun nom ni identifiant |
 | `tests/` | les règles testées sans Google : découpages, complétion, semaine suivante (2026 a 53 semaines), noms des fichiers publiés |
 | `docs/` | procédure pas à pas, guide d'une page pour toi et le chef d'atelier, journal |
-| Serveur et pages de l'appli | **rien jusqu'au lot 11.1c** ; au lot 11.1d : le serveur (lecture du planning, onglets *Accès chantiers* et *Planifiés*) et la page d'accueil (favoris) |
+| Serveur et pages de l'appli | **rien jusqu'au lot 11.1c** ; au lot 11.1d : le serveur (lecture du planning, onglet *Planifiés*, mail d'alerte) et la page d'accueil (favoris du planning) |
 
 ## 6. Données personnelles (prénoms, initiales, absences)
 
@@ -170,7 +170,7 @@ Le lot 11.3 est trop gros pour une seule livraison : **11.3a** les commandes ; *
 | **11.1a** | le Sheet, les listes, la semaine, *Couper la journée*, *Créer la semaine suivante*, *Ajouter / Retirer un gars*, *Vérifier la semaine* | 11.1-0 |
 | **11.1b** | l'affiche A3 | 11.1a |
 | **11.1c** | le programme de publication : *Publier*, liste des chantiers chaque nuit, *Historique* | le lot 5c en production |
-| **11.1d** | les chantiers du planning ouverts tout seuls dans l'appli, et en favoris (chapitre 13) : d'abord les accès, puis les favoris | 11.1a et 11.1c ; le serveur de l'appli à jour |
+| **11.1d** | les chantiers du planning mis tout seuls en favoris dans l'appli (chapitre 13) | 11.1a, 11.1c, et le lot 12 en production |
 | **11.3a, b, c** | l'atelier | 11.1a |
 
 Tests sans Google : découpages, complétion, semaine suivante (S53 puis 2027-S01), noms de fichiers, règles de l'atelier. Sur « Planning Loué TEST » : chaque commande ; deux personnes en même temps ; collage de plusieurs cases ; saisie rapide ; une case cochée depuis l'appli Sheets du téléphone ; publication demandée par le compte du chef d'atelier ; panne de la recopie de nuit. Relecture par un agent indépendant : oui.
@@ -214,30 +214,32 @@ Tests sans Google : découpages, complétion, semaine suivante (S53 puis 2027-S0
 8. **Les comptes Google** : le Sheet et le programme de publication appartiendront au compte de Loué. Avec quel compte ouvres-tu le Sheet au bureau ? Qui lit la boîte du compte de Loué ?
 9. **Atelier** : la liste des types de fabrication et de ce que chacun fait commander ; les délais de tes fournisseurs ; l'option « à commander avant le … ».
 10. **Feuille d'heures, le vendredi** : lieu d'embauche et de débauche.
-11. **Accès et favoris depuis le planning** : les cinq points du 13.8.
+11. **Favoris depuis le planning** : *tranché le 19/11* (chapitre 13). Les accès : lot 12, trois points à décider (`docs/lot12-plan.md`, chapitre 9).
 12. **Avant de commencer** : un numéro pour chaque chantier en cours (colonne E de l'onglet *Chantiers*) ; retirer le mot de santé de ton fichier Excel actuel ; la note d'information aux salariés, avec la direction.
 
-## 13. Les chantiers du planning ouverts tout seuls dans l'appli, et mis en favoris (lot 11.1d)
+## 13. Les chantiers du planning mis tout seuls en favoris dans l'appli (lot 11.1d)
 
-> Ton idée du 19/11/2026, **critiquée une fois par un agent indépendant** (ce qu'il a changé : 13.9). **Rien n'est construit ; pas de code avant ta validation.** Tous les exemples sont inventés.
+> Ton idée du 19/11/2026, **critiquée une fois par un agent indépendant** dans sa première forme, puis **simplifiée le même jour par ta décision** : l'appli n'a plus d'accès par chantier à gérer (lot 12, `docs/lot12-plan.md`), donc **le planning n'ajoute plus que des favoris, aucun accès, et ne retire jamais rien**. Cette version simplifiée n'a pas été relue par un agent indépendant ; elle le sera avant la construction. **Rien n'est construit.** Tous les exemples sont inventés.
 
-**13.1 Ce que tu as demandé**
+**13.1 Tes règles**
 
 | Sujet | Ta règle |
 |---|---|
-| Accès | ajouté tout seul quand le gars est planifié sur le chantier ; **retiré seulement par toi** |
-| Favori | apparaît tout seul dès que le gars est planifié ; **ne disparaît pas tout seul** ; le gars le retire d'un appui ; il revient s'il est de nouveau planifié plus tard |
-| Qui est qui | une colonne « Compte de l'appli » dans la liste des gars du planning, remplie une fois par toi |
+| Favori | un chantier où le gars est planifié arrive tout seul dans « Mes chantiers » ; il n'en part pas tout seul ; le gars le retire d'un appui |
+| Retour d'un favori retiré | seulement après une **coupure** : une semaine publiée sans lui sur ce chantier, puis une nouvelle planification |
+| Accès | **le planning n'en donne aucun** : c'est le réglage du lot 12 |
+| Qui est qui | une colonne « Compte de l'appli » dans la liste des gars du planning, remplie une fois par toi, **verrouillée** (toi et le compte de Loué seuls) |
 | Sens de lecture | **le serveur de l'appli lit le planning** ; le planning n'écrit jamais dans le Sheet de l'appli |
 | Ignorés | les saisies sans numéro (SAV, M. DUPONT, Absent, Congés…) et les lignes de l'atelier |
-| Quand | à la publication de la semaine, et chaque jour pour la semaine en cours |
+| Quand | à la publication de la semaine (**30 minutes au plus** après le « Publié le … »), et chaque matin pour la semaine en cours |
+| Plafond | **4 favoris nouveaux au plus par gars et par semaine** ; au-delà, rien n'est ajouté pour ce gars et tu reçois un mail d'alerte |
 
 **13.2 Comment ça marche**
 
-1. Dans l'onglet *Salariés* du planning, une colonne « Compte de l'appli » : tu y écris l'identifiant du gars (celui de l'onglet *Utilisateurs* de l'appli, par exemple « poseur01 »). Case vide : le gars est ignoré, sans rien signaler (un gars sans téléphone, c'est normal). **Cette colonne est verrouillée** : toi et le compte de Loué seuls pouvez la modifier (une « plage protégée », réglage ordinaire de Google Sheets).
+1. Dans l'onglet *Salariés* du planning, la colonne « Compte de l'appli » : tu y écris l'identifiant du gars (celui de l'onglet *Utilisateurs* de l'appli, par exemple « poseur01 »). Case vide : le gars est ignoré, sans rien signaler. La colonne est une « plage protégée » (réglage ordinaire de Google Sheets) : le chef d'atelier ne peut pas la modifier.
 2. Le serveur de l'appli ouvre le planning **en lecture**. Pour chaque gars de la pose qui a un compte, il lit les cases de la semaine. Dans une case, il regarde chaque ligne de texte (une journée coupée peut en avoir plusieurs) : si **le premier mot est exactement un numéro de chantier** de l'onglet *Chantiers* (colonne E), chantier non « Terminé », le chantier est retenu. « 90 » ne vaut pas pour « 901 ». Tout le reste est ignoré.
-3. **Accès** : il coche la case du gars pour ce chantier dans l'onglet *Accès chantiers* (celui que tu remplis aujourd'hui à la main). Il ne décoche jamais rien.
-4. **Favori** : il tient, dans un nouvel onglet *Planifiés* du Sheet de l'appli, une ligne par gars et par chantier : la date de début de la série, la dernière semaine planifiée, la date où l'accès a été coché. Le téléphone reçoit ces informations avec la liste des chantiers, et affiche l'étoile.
+3. Il tient, dans un nouvel onglet *Planifiés* du Sheet de l'appli, une ligne par gars et par chantier : le début de la série et la dernière semaine planifiée.
+4. Le téléphone reçoit ces lignes avec la liste des chantiers. Un chantier dont la série est nouvelle pour lui passe dans « Mes chantiers » (l'accueil du lot 12).
 
 **Une série** = des semaines publiées qui se suivent, où le gars est planifié sur ce chantier. Une **coupure** = une semaine publiée où il n'y est pas. Une semaine que tu as oublié de publier ne compte pas comme une coupure. Les semaines sont notées par la date de leur lundi (pas de problème au passage d'année).
 
@@ -245,14 +247,14 @@ Tests sans Google : découpages, complétion, semaine suivante (S53 puis 2027-S0
 
 | Cas | Ce qui se passe |
 |---|---|
-| **Tu décoches un accès** alors que le gars est encore au planning | ta décision tient **tant que la série continue**, même si la semaine suivante est publiée avec lui dessus. L'accès revient tout seul seulement après une coupure suivie d'une nouvelle planification. Entre-temps, tu peux toujours recocher à la main |
-| **Le gars retire un favori** alors qu'il est encore planifié | même règle : le favori revient après une coupure suivie d'une nouvelle planification |
+| Le gars retire un favori alors qu'il est encore planifié | le favori ne revient pas tant que la série continue ; il revient après une coupure suivie d'une nouvelle planification |
 | Un gars retiré du planning le mardi et remis le jeudi de la même semaine | la série continue : rien ne revient tout seul |
+| Le gars n'est plus planifié sur le chantier | le favori reste : c'est lui qui le retire |
+| Plus de 4 chantiers nouveaux pour un même gars dans la semaine (collage raté, mauvaise ligne) | rien n'est ajouté **pour ce gars-là cette semaine-là** ; les autres gars sont traités ; **un mail à toi seul**, une seule fois par gars et par semaine. Le gars peut toujours mettre ses étoiles lui-même |
 | Compte inconnu ou inactif, deux gars du planning avec le même compte ou le même nom, numéro de chantier en double dans l'onglet *Chantiers* | ignoré, et listé en haut de l'onglet *Planifiés* (« à voir ») |
-| Compte qui voit déjà tous les chantiers (conducteur, case « Tous les chantiers ») | rien à cocher ; le favori s'affiche quand même |
-| Chantier passé à « Terminé » | il sort de « Mes chantiers », comme aujourd'hui ; le favori avec lui |
-| Chantier renommé | l'onglet *Accès chantiers* range par nom : le serveur coche la ligne du nouveau nom, si la case de l'ancien nom était encore cochée |
-| Plus de **8 chantiers nouveaux pour un même gars dans la semaine** (collage raté, mauvaise ligne) | le serveur ne coche rien **pour ce gars-là**, l'écrit dans « à voir » ; les autres gars sont traités. Pour débloquer : tu coches à la main |
+| Chantier passé à « Terminé » | il sort de l'accueil des poseurs, comme aujourd'hui ; le favori avec lui |
+| Chantier renommé | sans effet : c'est le numéro qui fait le lien |
+| Tu éteins un jour le réglage du lot 12 | un favori du planning sur un chantier dont la case n'est pas cochée ne s'affiche pas : le planning ne donne pas d'accès |
 
 **13.4 Deux choix techniques comparés**
 
@@ -260,14 +262,14 @@ Tests sans Google : découpages, complétion, semaine suivante (S53 puis 2027-S0
 
 | Solution | Pour | Contre |
 |---|---|---|
-| **A. Le serveur dit « planifié, série commencée le … », le téléphone retient les étoiles retirées** (retenue) | aucun envoi quand le gars retire une étoile : ça marche **sans réseau** ; rien de plus à mettre en file d'attente ; le serveur n'a qu'une lecture en plus | sur un téléphone neuf, une étoile retirée revient une fois, et une étoile mise à la main par le gars est perdue (les favoris du planning, eux, reviennent tous) |
-| B. Tout dans le Sheet de l'appli (onglet *Favoris*, une action « retirer ») | suit le compte d'un téléphone à l'autre ; tu vois les favoris de chacun | une action de plus côté serveur, une file d'attente hors réseau de plus, plus de choses à casser |
+| **A. Le serveur dit « planifié, série commencée le … », le téléphone tient la liste des étoiles** (retenue, ton accord du 19/11) | aucun envoi quand le gars met ou retire une étoile : ça marche **sans réseau** ; rien de plus à mettre en file d'attente ; le serveur n'a qu'une lecture en plus | sur un téléphone neuf, une étoile retirée revient une fois, et une étoile mise à la main est à remettre (celles du planning reviennent toutes) |
+| B. Tout dans le Sheet de l'appli (onglet *Favoris*, des actions « ajouter » et « retirer ») | suit le compte d'un téléphone à l'autre ; tu vois les favoris de chacun | des actions de plus côté serveur, une file d'attente hors réseau de plus, plus de choses à casser |
 
 *Quand le serveur lit le planning*
 
 | Solution | Pour | Contre |
 |---|---|---|
-| **A. Un passage toutes les 30 minutes, plus un passage chaque matin vers 5 h** (retenue) | le planning n'a rien à envoyer à l'appli : ta règle est respectée à la lettre | l'accès arrive jusqu'à 30 minutes après le « Publié le … » (lui-même jusqu'à 10 minutes après ta coche) |
+| **A. Un passage toutes les 30 minutes, plus un passage chaque matin vers 5 h** (retenue, ton accord du 19/11) | le planning n'a rien à envoyer à l'appli : ta règle est respectée à la lettre | le favori arrive jusqu'à 30 minutes après le « Publié le … » (lui-même jusqu'à 10 minutes après ta coche), et à la première ouverture de l'appli avec du réseau |
 | B. Le programme de publication prévient l'appli dès qu'il a publié | immédiat | il faudrait écrire l'adresse du serveur à un deuxième endroit (elle change à chaque déploiement) et un mot de passe entre les deux programmes |
 
 **Coût sur les 90 minutes par jour du compte** : 48 passages par jour. Un passage s'arrête tout de suite si le planning n'a pas changé depuis le précédent ; sinon il lit deux onglets au plus (semaine en cours et suivante), sur une zone bornée, et s'arrête de lui-même au bout de 20 secondes. Estimation : **1 à 3 minutes par jour, à mesurer sur la copie TEST**.
@@ -276,68 +278,48 @@ Le serveur sait qu'une semaine est publiée en lisant la case d'état « Publié
 
 **« Lecture seule »** : le serveur de l'appli tourne avec le compte de Loué, qui sera propriétaire du planning ; Google ne sait pas lui interdire d'écrire. La garantie est dans le programme : une seule fonction ouvre le planning, elle ne fait que lire, et un test vérifie qu'aucune commande d'écriture ne vise le planning. Les règles de lecture sont **dans le serveur**, testées sans Google : il ne se fie pas au programme du planning (*Vérifier la semaine*), que les éditeurs peuvent modifier. L'identifiant du Sheet du planning va dans les « Propriétés du script », jamais dans le dépôt.
 
-**Écriture dans *Accès chantiers*** : le planning est lu d'abord ; ensuite, sous le verrou du serveur (pour ne pas croiser un autre passage), le serveur vérifie que la ligne du chantier et la colonne du gars existent, relit les titres, puis coche. Il ne note « fait » que si la case est vraiment cochée ; sinon il recommence au passage suivant.
-
 **Autorisation Google** : d'après le code actuel, le serveur a déjà le droit « voir et modifier les feuilles de calcul » ; ouvrir un deuxième Sheet ne devrait rien demander de plus. **À vérifier sur la copie TEST avant tout** : si Google redemandait une autorisation en production, l'appli entière s'arrêterait tant que tu ne l'as pas validée. Si c'est le cas sur TEST, je te le dis avant d'aller plus loin.
 
 **13.5 Ce que ça change pour les poseurs, à l'écran**
 
-Une seule page change : l'accueil.
-
-- En tête de « Mes chantiers », un bloc **« Favoris »** : les chantiers où le gars est ou a été planifié, le plus récent en premier. Sous le nom, en petit : « Cette semaine », « Semaine prochaine », ou « Planifié en S48 ».
-- **À gauche du nom, une étoile pleine ★.** Un appui dessus retire le favori ; un message « Retiré des favoris — Annuler » reste 6 secondes. Le chantier ne disparaît pas : il redescend dans la liste, l'accès reste.
-- Dans la liste du dessous, chaque chantier a une **étoile vide ☆** : un appui le met en favori. C'est ce qui permet de rattraper un retrait fait par erreur. (Ce point n'était pas dans ta demande : 13.8, point 3.)
-- L'étoile est une zone d'appui à part, large (environ 1 cm), placée à gauche, loin de l'endroit où le pouce ouvre le chantier : avec des gants, on ne retire pas un favori en voulant ouvrir.
-- Sous les favoris, la liste d'aujourd'hui, inchangée (derniers chantiers ouverts d'abord). La recherche cherche dans les deux. Le bouton « Voir tous les chantiers » ne change pas. Sans compte : pas de favoris.
-- Un chantier **nouveau pour lui apparaît tout seul**, à la première ouverture avec du réseau après la publication. Sans réseau, il garde la dernière liste reçue, favoris compris ; mettre ou retirer une étoile marche sans réseau.
-- Les favoris **ne partent pas tout seuls** (ta règle) : au fil des mois, le bloc grossit si le gars ne fait pas le ménage. Seul un chantier « Terminé » en sort.
-- Rien d'autre ne change : fiches, notes, carnet, signalements. Les plans du carnet d'un nouveau favori **ne se téléchargent pas tout seuls** (poids et forfait) : le gars appuie comme aujourd'hui.
+Presque rien de plus que l'accueil du lot 12 : **les chantiers où le gars est planifié arrivent tout seuls dans « Mes chantiers »**, à la première ouverture de l'appli avec du réseau après la publication. Pas de sous-titre, pas de message : juste la liste, classée par numéro. Il retire une étoile quand il veut, même sans réseau. Les plans du carnet d'un nouveau favori ne se téléchargent pas tout seuls (poids et forfait) : il appuie comme aujourd'hui.
 
 **13.6 Ce que ça change pour toi**
 
 - Une colonne à remplir une fois (« Compte de l'appli »), et à compléter à chaque nouveau gars.
-- L'onglet *Accès chantiers* se coche tout seul pour les gars planifiés. Tu gardes la main pour cocher en plus (un gars hors planning) et pour **décocher**.
-- Un onglet *Planifiés* en plus dans le Sheet de l'appli, écrit par le serveur seulement : qui est planifié où, la date de chaque accès coché, et en haut les « à voir ».
-- **À savoir, sans détour** : toute personne qui peut modifier le planning (toi, le chef d'atelier, ou quelqu'un qui aurait volé l'un de vos deux comptes Google) peut, en écrivant un numéro sur la ligne d'un gars et en publiant, **ouvrir n'importe quel chantier en cours à n'importe quel gars du planning qui a un compte**. C'est le principe même de ta demande. Ce qui limite les dégâts : on ne peut rien retirer par ce chemin ; on ne peut pas viser un compte hors de la colonne verrouillée ; le rôle du compte ne change pas (un poseur reste un poseur) ; 8 chantiers nouveaux au plus par gars et par semaine ; chaque ajout est daté dans *Planifiés* ; tu décoches.
+- Un onglet *Planifiés* en plus dans le Sheet de l'appli, écrit par le serveur seulement : qui est planifié où, et en haut les « à voir ».
+- **Côté sécurité, il n'y a presque plus de risque** : une erreur ou une malveillance dans le planning ne peut qu'ajouter des étoiles sur l'accueil d'un gars, 4 par semaine au plus. Elle n'ouvre rien et ne retire rien.
 
 **13.7 Risques et parades**
 
 | Risque | Parade |
 |---|---|
-| Une erreur dans le planning ouvre un chantier à la mauvaise personne | ajouts seulement, chantiers en cours seulement, comptes actifs seulement ; chaque ajout daté ; plafond par gars ; tu décoches, et ça tient |
-| Quelqu'un change la colonne « Compte de l'appli » | colonne verrouillée (toi et le compte de Loué) ; un même compte sur deux lignes est refusé |
+| Une erreur dans le planning remplit « Mes chantiers » d'un gars | plafond de 4 par semaine, mail d'alerte ; le gars retire d'un appui |
+| Quelqu'un change la colonne « Compte de l'appli » | colonne verrouillée ; un même compte sur deux lignes est refusé |
 | Un numéro tapé dans une saisie libre (« 12 rue des Lilas ») pris pour un chantier | seul un numéro **existant** compte, en premier mot, comparé en entier |
-| Cases déréglées, semaine illisible | une ligne que le serveur ne sait pas lire est ignorée et listée « à voir » ; aucun accès n'est jamais retiré |
+| Cases déréglées, semaine illisible | une ligne que le serveur ne sait pas lire est ignorée et listée « à voir » |
 | Un planning énorme (collage) qui ferait durer les passages et mangerait les 90 minutes | zone de lecture bornée, arrêt à 20 secondes |
-| Un texte du planning recopié dans le Sheet de l'appli qui serait une formule | tout texte venu du planning passe par la protection déjà en place dans le serveur (il est écrit comme du texte, jamais comme une formule) |
+| Un texte du planning recopié dans le Sheet de l'appli qui serait une formule | tout texte venu du planning passe par la protection déjà en place dans le serveur (écrit comme du texte, jamais comme une formule) |
+| Le mail d'alerte envoyé en boucle | une fois par gars et par semaine ; il compte dans les 100 destinataires par jour du compte (1 à chaque fois) |
 | Le planning indisponible ou déplacé | le passage ne fait rien et recommence au suivant |
 | Données personnelles : l'onglet *Planifiés* dit qui a travaillé où | une ligne par gars et par chantier (la dernière série seulement), lue par toi seul ; à ajouter dans la note d'information aux salariés (chapitre 6) |
 
-**13.8 Où dans le découpage, et ce qu'il te reste à décider**
+**13.8 Où dans le découpage**
 
-**Lot 11.1d**, après le 11.1c (la publication). Il dépend du 11.1a (l'onglet *Salariés* et la forme des semaines) et du 11.1c (la case « Publié le … »). La colonne « Compte de l'appli » est créée dès le 11.1a : elle ne coûte rien et tu peux la remplir tôt.
+**Lot 11.1d**, après le 11.1c (la publication). Il dépend du 11.1a (l'onglet *Salariés* et la forme des semaines), du 11.1c (la case « Publié le … ») et du **lot 12 en production** (l'accueil avec « Mes chantiers » et les étoiles). La colonne « Compte de l'appli » est créée dès le 11.1a : tu peux la remplir tôt.
 
-C'est **le premier lot du planning qui touche l'appli** (serveur et page d'accueil) : il passe donc par la copie TEST, une nouvelle version du serveur, un nouveau déploiement, et une relecture par un agent indépendant (il touche aux accès). Il se livre en deux temps, chacun utilisable seul : **d'abord les accès** (serveur seul ; à l'écran, seuls les chantiers apparaissent), **puis les favoris** (page d'accueil, dont les cartes des chantiers sont à refaire pour loger l'étoile).
+Il touche le serveur de l'appli (lecture du planning, onglet *Planifiés*, mail d'alerte) et un peu la page d'accueil (recevoir les favoris du planning). Il passe donc par la copie TEST, une nouvelle version du serveur, un nouveau déploiement, et une relecture par un agent indépendant.
 
-À décider :
+**Tes cinq réponses du 19/11** : colonne verrouillée, oui ; retour après une coupure seulement, oui ; étoile vide ☆ dans « Tous les chantiers », oui ; délai de 30 minutes, oui ; plafond de 4 par gars et par semaine, avec mail d'alerte. **Il ne reste aucune décision pour ce lot.**
 
-1. **Colonne « Compte de l'appli » verrouillée** : toi et le compte de Loué seuls. Le chef d'atelier ne pourra pas la modifier. D'accord ?
-2. **Une seule règle pour l'accès et le favori** : ce que tu as décoché, ou ce que le gars a retiré, ne revient qu'après une coupure. Ou préfères-tu que **l'accès** revienne à chaque nouvelle semaine publiée où le gars est planifié (au risque de recocher ce que tu viens de décocher) ?
-3. **L'étoile vide**, pour que le gars mette ou remette un favori lui-même : d'accord ? (Gardée dans le téléphone seulement.)
-4. **Délai** : accès dans les 30 minutes après la publication, d'accord ?
-5. **Un gars bloqué par le plafond de 8** : c'est écrit dans « à voir », que tu ne regardes pas tous les jours. Un mail à toi seul, uniquement dans ce cas ?
+**13.9 Ce que la critique indépendante avait changé (19/11, première forme)**
 
-**13.9 Ce que la critique indépendante a changé (19/11)**
-
-| Constat | Correction |
+| Constat | Ce qu'il en reste |
 |---|---|
-| La colonne « Compte de l'appli » et un plafond global n'étaient pas de vrais garde-fous | colonne verrouillée ; plafond par gars ; le risque est écrit sans détour (13.6) |
+| La colonne « Compte de l'appli » et un plafond global n'étaient pas de vrais garde-fous | colonne verrouillée ; plafond par gars |
 | « Le serveur se souvient » ne tenait pas avec deux semaines publiées, au passage d'année, ou avec une semaine non publiée | définition de la série et de la coupure, dates du lundi, semaines lues retenues par le serveur |
-| « Chantier renommé : sans effet » était faux, l'onglet des accès range par nom | règle du 13.3 |
 | La lecture des cases était floue (« 90 » dans « 901 », doublons, plusieurs chantiers par case) | premier mot entier, chaque ligne de la case, doublons refusés |
 | Le serveur ne peut pas se fier à *Vérifier la semaine* | ses propres règles de lecture, testées |
-| Ligne ou colonne absente de l'onglet des accès, verrou | 13.4, « Écriture dans *Accès chantiers* » |
-| Un plafond global aurait tout bloqué à la mise en service | plafond par gars, déblocage en cochant à la main |
 | Chiffrage trop optimiste | 48 passages, arrêt immédiat si rien n'a changé, 1 à 3 minutes à mesurer |
-| Étoile à droite sous le pouce ; retrait par erreur sans retour possible | étoile à gauche, étoile vide pour remettre |
-| Les favoris s'empilent | tri par semaine la plus récente, libellés clairs, dit au 13.5 |
+| Étoile à droite sous le pouce ; retrait par erreur sans retour possible | étoile à gauche, étoile vide pour remettre (lot 12) |
+| Tout ce qui touchait à l'onglet *Accès chantiers* (renommage, verrou, lignes absentes) | **sans objet** : le planning ne donne plus d'accès |
