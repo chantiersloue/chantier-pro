@@ -1,10 +1,10 @@
 // ═══════════════════════════════════════════════════════════════
 // LOUÉ APP — SERVEUR COMPLET, À COLLER DANS APPS SCRIPT (fichier « Code.gs », tout remplacer)
 // FICHIER GÉNÉRÉ AUTOMATIQUEMENT par « node outils/construire.js » — NE PAS MODIFIER À LA MAIN :
-// les sources sont dans le dossier apps-script/ du dépôt. Version du serveur d4b9589fd0 (pages ce8167d0eb)
+// les sources sont dans le dossier apps-script/ du dépôt. Version du serveur e74556e875 (pages ce8167d0eb)
 // ═══════════════════════════════════════════════════════════════
 
-const EMPREINTE_SERVEUR = 'd4b9589fd0';
+const EMPREINTE_SERVEUR = 'e74556e875';
 
 // ████ Config.gs ████
 // ═══════════════════════════════════════════════════════════════
@@ -337,6 +337,7 @@ function modeMailUnique_() {
 // Envoie UN mail à toutes les adresses connues d'une fiche, en copie cachée. Rend true si le mail est parti.
 // Rend false sans rien envoyer — l'appelant fait alors comme avant, un mail par adresse — quand :
 //  - le réglage est « non » ;
+//  - la fiche est une demande d'absence (jamais groupée : fiche de données personnelles, et son envoi est refait au lot 14) ;
 //  - il n'y a qu'une adresse (rien à grouper), ou plus de MAX_GROUPE_MAIL ;
 //  - le quota du jour ne suffit pas pour tout le groupe, ou l'envoi entamerait la réserve de Franck (RESERVE_ADMIN) :
 //    par le chemin d'avant, les premiers partent, les autres sont reportés, et le mail à Franck part toujours ;
@@ -346,9 +347,12 @@ function modeMailUnique_() {
 // m = { sujet, texte, html } : ceux du mail d'avant.
 function envoyerGroupe_(o, adresses, m) {
   const n = adresses.length;
+  // Le réglage est lu HORS du bloc ci-dessous : si sa lecture échoue, rien n'était allumé — on fait comme avant, sans
+  // écrire au Journal une ligne « repli » qui ferait croire à un mail groupé manqué
+  let mode = 'non';
+  try { mode = modeMailUnique_(); } catch (err) { console.error('Réglage MAIL_UNIQUE illisible :', err.message); }
+  if (mode === 'non' || o.fiche === 'absence' || n < 2 || n > MAX_GROUPE_MAIL) return false;
   try {
-    const mode = modeMailUnique_();
-    if (mode === 'non' || n < 2 || n > MAX_GROUPE_MAIL) return false;
     let reste = 0;
     try { reste = MailApp.getRemainingDailyQuota(); } catch (e) {}
     if (reste < n || reste - n < RESERVE_ADMIN) return false;
@@ -5567,7 +5571,7 @@ function verifierConfig() {
       conducteur: 'conducteur — un seul mail par fiche pour les adresses connues, « À » = le conducteur du chantier s’il est destinataire, les autres en copie cachée',
     }[mailUnique]);
   }
-  lignes.push("Mails encore possibles aujourd'hui : " + MailApp.getRemainingDailyQuota());
+  lignes.push("Destinataires de mails encore possibles aujourd'hui : " + MailApp.getRemainingDailyQuota());
   Logger.log(lignes.join('\n'));
   return lignes.join('\n');
 }
@@ -5591,6 +5595,11 @@ function essaiMailUnique() {
   const lignes = ['Essai du mail unique (' + VERSION_API + ') — un mail sans « À », en copie cachée à : ' + adresses.join(', ')];
   let avant = -1, apres = -1;
   try { avant = MailApp.getRemainingDailyQuota(); } catch (e) {}
+  // Quota du jour trop bas : l'essai ne dirait rien (Google refuserait pour une autre raison que le « À » vide)
+  if (avant >= 0 && avant < adresses.length + RESERVE_ADMIN) {
+    return fin(['Essai non lancé : il ne reste que ' + avant + ' destinataire(s) de mail possible(s) aujourd’hui (il en faut au moins '
+      + (adresses.length + RESERVE_ADMIN) + '). Ce n’est pas un refus de Google : refais l’essai demain. Aucun mail envoyé.']);
+  }
   try {
     const pdf = HtmlService.createHtmlOutput('<p>Essai du mail unique — Loué App</p>').getAs('application/pdf').setName('essai-mail-unique.pdf');
     GmailApp.sendEmail('', '[Loué App] Essai du mail unique',

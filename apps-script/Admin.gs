@@ -157,7 +157,7 @@ function verifierConfig() {
       conducteur: 'conducteur — un seul mail par fiche pour les adresses connues, « À » = le conducteur du chantier s’il est destinataire, les autres en copie cachée',
     }[mailUnique]);
   }
-  lignes.push("Mails encore possibles aujourd'hui : " + MailApp.getRemainingDailyQuota());
+  lignes.push("Destinataires de mails encore possibles aujourd'hui : " + MailApp.getRemainingDailyQuota());
   Logger.log(lignes.join('\n'));
   return lignes.join('\n');
 }
@@ -181,6 +181,11 @@ function essaiMailUnique() {
   const lignes = ['Essai du mail unique (' + VERSION_API + ') — un mail sans « À », en copie cachée à : ' + adresses.join(', ')];
   let avant = -1, apres = -1;
   try { avant = MailApp.getRemainingDailyQuota(); } catch (e) {}
+  // Quota du jour trop bas : l'essai ne dirait rien (Google refuserait pour une autre raison que le « À » vide)
+  if (avant >= 0 && avant < adresses.length + RESERVE_ADMIN) {
+    return fin(['Essai non lancé : il ne reste que ' + avant + ' destinataire(s) de mail possible(s) aujourd’hui (il en faut au moins '
+      + (adresses.length + RESERVE_ADMIN) + '). Ce n’est pas un refus de Google : refais l’essai demain. Aucun mail envoyé.']);
+  }
   try {
     const pdf = HtmlService.createHtmlOutput('<p>Essai du mail unique — Loué App</p>').getAs('application/pdf').setName('essai-mail-unique.pdf');
     GmailApp.sendEmail('', '[Loué App] Essai du mail unique',

@@ -720,6 +720,27 @@ test('envoi : un fichier en trop dans le dossier clasp, ou un manifeste inattend
   r = await envoi.envoyer(m.options());
   assert.ok(!r.ok && /en trop : Vieux\.js/.test(r.erreur));
 });
+test('lireMailsEssai (lot 5b) : les mails du chantier d’essai lus comme la purge les lit — des nombres, jamais une adresse', () => {
+  const boite = [
+    { id: 'groupe', labels: ['SENT'], taille: 200000, date: Date.now() - 3600000, de: 'Loué Menuiserie <appli@loue.test>', a: '', cc: '', cci: 'a@moi.test, b@moi.test, c@moi.test',
+      objet: '[Loué App] Quitus — CHANTIER TEST AUTO — 30/10/2026', pj: true },
+    { id: 'seul', labels: ['SENT'], taille: 200000, date: Date.now() - 7200000, de: 'Loué Menuiserie <appli@loue.test>', a: 'a@moi.test', cc: '', cci: '',
+      objet: '[Loué App] Quitus — CHANTIER TEST AUTO — 29/10/2026', pj: true },
+    { id: 'ailleurs', labels: ['SENT'], taille: 200000, date: Date.now() - 7200000, de: 'Loué Menuiserie <appli@loue.test>', a: 'x@moi.test', cc: '', cci: '',
+      objet: '[Loué App] Quitus — UN AUTRE CHANTIER — 29/10/2026', pj: true },
+  ];
+  const g = creerGoogle({ nomSheet: 'ChantierPro TEST', gmail: boite,
+    proprietes: { ENVIRONNEMENT: 'TEST', CLE_OUTILS_TEST: CLE, DRIVE_ROOT_ID: 'R', DRIVE_PLANNING_ID: 'P' },
+    feuilles: { 'Chantiers': [['Nom', 'Référence', 'Statut', 'Conducteur']] } });
+  g.ctx = chargerScript(g);
+  vm.runInContext(fs.readFileSync(path.join(RACINE, construire.PORTE), 'utf8'), g.ctx, { filename: 'OutilsTest.gs' });
+  const r = geste(g, 'lireMailsEssai');
+  assert.strictEqual(r.code, 'OK', JSON.stringify(r));
+  const vus = JSON.parse(JSON.stringify(r.data.mails)).map(m => [m.a, m.copie, m.copieCachee, m.adressesLuesParLaPurge, m.piecesJointes]);
+  assert.deepStrictEqual(vus, [[0, 0, 3, 3, 1], [1, 0, 0, 1, 1]]);
+  assert.ok(JSON.stringify(r).indexOf('@') < 0, 'aucune adresse dans la réponse');
+  assert.ok(boite.every(m => m.labels.indexOf('TRASH') < 0), 'lecture seule');
+});
 test('envoi : si le manifeste devait changer, clasp n’envoie rien et la commande s’arrête', async () => {
   const m = monde({ question: true }), r = await envoi.envoyer(m.options());
   assert.ok(!r.ok && /refusé d’envoyer \(le manifeste/.test(r.erreur), r.erreur);

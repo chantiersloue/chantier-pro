@@ -313,7 +313,41 @@ test('une ligne en attente écrite AVANT le mail unique est renvoyée telle quel
   assert.ok(journal(g).filter(l => l[4] === 'envoyé').every(l => /mail reporté, envoyé au 1e essai/.test(l[5])));
 });
 
+console.log('Lot 5b — ce qui n’est jamais groupé, et un réglage illisible');
+test('demande d’absence : JAMAIS de mail groupé, en « cache » comme en « conducteur » — un mail par adresse, comme aujourd’hui', () => {
+  ['cache', 'conducteur'].forEach(mode => {
+    const g = environnement({ mode: mode });
+    // Franck est le contact prévenu des absences ; l'adresse personnelle donnée est connue du Sheet (celle de Sébastien)
+    poster(g, { type: 'absence', nom: 'Killian', dateDepot: '09/11/2026', dateAbsence: '30/11/2026', emailPerso: SEB, destinataires: [] });
+    assert.deepStrictEqual(resume(g), unParAdresse([FRANCK, SEB]), mode);
+    assert.strictEqual(journal(g).length, 0, mode + ' : rien au Journal');
+  });
+});
+test('le réglage ne peut pas être lu (panne) : comme « non », un mail par adresse, et AUCUNE ligne « repli » au Journal', () => {
+  const g = environnement({ mode: 'cache' });
+  g.contexte.modeMailUnique_ = () => { throw new Error('Service indisponible'); };
+  const r = envoyer(g, quitus([FRANCK, ARCHI]));
+  assert.deepStrictEqual(resume(g), unParAdresse([FRANCK, ARCHI, SEB]));
+  assert.deepStrictEqual([r.code, r.data.envoyes, journal(g).length], ['ENREGISTRE', 3, 0]);
+});
+test('signalement (une autre sorte de fiche) : groupé comme les autres en mode « cache »', () => {
+  const g = environnement({ mode: 'cache' });
+  // un signalement va au conducteur du chantier (Sébastien) et au chef d'atelier (Thomas) : deux adresses connues
+  const r = envoyer(g, { type: 'signalement', chantier: CHANTIER, date: '12/11/2026', heure: '14h05', type_signalement: 'Casse', urgence: 'Bloquant',
+    repere: 'Porte P12, 2e étage', commentaire: 'Vitrage fêlé à la livraison', atelier: true, photosBase64: [] });
+  assert.strictEqual(r.code, 'ENREGISTRE', JSON.stringify(r));
+  assert.deepStrictEqual(resume(g).map(m => [m[0], m[1].slice().sort()]), [['', [ATELIER, SEB].sort()]]);
+  assert.strictEqual(g.etat.quota, 98);
+});
+
 console.log('Lot 5b — mode « conducteur » : « À » = le conducteur du chantier s’il est destinataire, les autres en copie cachée');
+test('le conducteur écrit autrement dans la fiche (majuscules) : reconnu, il est en « À », compté une seule fois', () => {
+  const g = environnement({ mode: 'conducteur' });
+  const r = envoyer(g, quitus([SEB.toUpperCase(), ARCHI]));
+  assert.strictEqual(fiches(g).length, 1);
+  assert.strictEqual(fiches(g)[0].to.toLowerCase(), SEB);
+  assert.deepStrictEqual([adresses(fiches(g)[0].opts.bcc), g.etat.quota, r.data.envoyes], [[ARCHI], 98, 2]);
+});
 test('le conducteur du chantier est dans la liste : il est en « À », les autres en copie cachée ; aucun destinataire de plus', () => {
   const g = environnement({ mode: 'conducteur' });
   const r = envoyer(g, quitus([FRANCK, ARCHI]));
@@ -374,10 +408,11 @@ test('le conducteur déjà choisi dans la page : compté une fois (la page annon
 
 console.log('Lot 5b — la protection du lot 0 et la livraison');
 // Le texte d'une fonction du serveur (de « function nom( » à la ligne « } » qui la ferme)
+const LOT8 = '767a653';   // le serveur du lot 8 tel qu'il est en production (v11.0)
 const fonction = (code, nom) => { const d = code.indexOf('\nfunction ' + nom + '('); const f = code.indexOf('\n}\n', d); return d < 0 || f < 0 ? null : code.slice(d, f + 3); };
 test('envoyer_, differer_ et la boucle des adresses tapées à la main : texte identique à celui du serveur d’avant (lot 8)', () => {
-  const avant = spawnSync('git', ['show', '01e9956:apps-script/Securite.gs'], { cwd: RACINE, encoding: 'utf8' });
-  if (avant.status !== 0 || !avant.stdout) { console.log('    (historique Git absent : comparaison sautée)'); return; }
+  const avant = spawnSync('git', ['show', LOT8 + ':apps-script/Securite.gs'], { cwd: RACINE, encoding: 'utf8' });
+  if (avant.status !== 0 || !avant.stdout) { console.log('    ⚠ ATTENTION : historique Git absent, la comparaison avec le serveur du lot 8 N’A PAS ÉTÉ FAITE'); return; }
   const norm = t => String(t).replace(/\r\n/g, '\n');
   const ancien = norm(avant.stdout), nouveau = norm(fs.readFileSync(path.join(RACINE, 'apps-script', 'Securite.gs'), 'utf8'));
   ['envoyer_', 'differer_', 'reserverLibre_', 'journal_', 'noter_'].forEach(f => {
@@ -391,7 +426,7 @@ test('envoyer_, differer_ et la boucle des adresses tapées à la main : texte i
   const ligne = "servies.forEach(email => envoyer_(o, email, { sujet: o.sujet, texte: o.texte, html: o.html || '', bcc: '' }, 'connue'));";
   assert.ok(ancien.indexOf(ligne) > -1 && nouveau.indexOf(ligne) > -1);
   // renvoyerMailsEnAttente (Admin.gs) : inchangée elle aussi
-  const adminAvant = spawnSync('git', ['show', '01e9956:apps-script/Admin.gs'], { cwd: RACINE, encoding: 'utf8' });
+  const adminAvant = spawnSync('git', ['show', LOT8 + ':apps-script/Admin.gs'], { cwd: RACINE, encoding: 'utf8' });
   assert.strictEqual(fonction(norm(fs.readFileSync(path.join(RACINE, 'apps-script', 'Admin.gs'), 'utf8')), 'renvoyerMailsEnAttente'), fonction(norm(adminAvant.stdout), 'renvoyerMailsEnAttente'));
 });
 test('essai E1 (essaiMailUnique) : refusé hors de la copie TEST ; sur la copie TEST, un mail sans « À » aux seules adresses de la propriété ESSAI_MAIL_UNIQUE', () => {
@@ -411,6 +446,11 @@ test('essai E1 (essaiMailUnique) : refusé hors de la copie TEST ; sur la copie 
   const refus = t({ ESSAI_MAIL_UNIQUE: 'a@moi.test, b@moi.test' });
   refus.etat.avantMail = to => { if (!to) throw new Error('Failed to send email: no recipient'); };
   assert.ok(/E1 : ❌ .*no recipient.*laisser MAIL_UNIQUE à « non »/.test(refus.ctx.essaiMailUnique()));
+  // quota du jour trop bas : l'essai n'est pas lancé, et ne dit surtout pas « Google a refusé »
+  const bas = environnement({ quota: 21, options: { nomSheet: 'ChantierPro TEST' } });
+  bas.proprietes.ENVIRONNEMENT = 'TEST'; bas.proprietes.ESSAI_MAIL_UNIQUE = 'a@moi.test, b@moi.test';
+  const texteBas = bas.ctx.essaiMailUnique();
+  assert.ok(/Essai non lancé : il ne reste que 21 destinataire/.test(texteBas) && !/E1/.test(texteBas) && bas.mails.length === 0, texteBas);
 });
 test('livraison : le serveur à coller contient le lot 5b, en version v11.2, éteint par défaut', () => {
   const code = fs.readFileSync(path.join(RACINE, 'A-COLLER-DANS-APPS-SCRIPT', 'Code.gs'), 'utf8');

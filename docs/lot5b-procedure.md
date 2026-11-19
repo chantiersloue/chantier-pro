@@ -2,7 +2,8 @@
 
 > Pour Franck. Le plan et ses raisons sont dans `docs/lot5-mail-unique.md` (version 2).
 > Cette livraison se compose du **serveur v11.2** (le programme chez Google) et des **pages, appli 10.3** (deux textes changés).
-> **État au 17/11/2026 : construit et testé contre le faux Google seulement** (un faux Google qui tourne sur mon ordinateur). Rien n'a touché la copie TEST ni la production. Aucun mail n'est parti.
+> **État au 19/11/2026 : construit et testé contre le faux Google seulement** (un faux Google qui tourne sur mon ordinateur), **remis à jour sur le lot 8 en production, relu par un agent indépendant (un tour, rien de bloquant) et corrigé**. Rien n'a touché la copie TEST ni la production. Aucun mail n'est parti.
+> **Les numéros v11.2 / 10.3 seront réattribués** au moment de sa mise en production (d'autres lots passent avant) : je te donnerai les bons.
 > **Le mail unique est livré ÉTEINT.** Tant que tu n'as pas ajouté le réglage `MAIL_UNIQUE`, le serveur envoie les mails exactement comme aujourd'hui.
 > **Ne passe à l'étape suivante que si la précédente est verte.** Sinon : arrête-toi et envoie-moi une capture.
 
@@ -10,6 +11,7 @@
 
 - **Aujourd'hui** : une fiche envoyée à 4 personnes de tes listes = 4 mails, donc 4 fois le PDF gardé dans « Messages envoyés » de Gmail.
 - **Avec le mail unique** : 1 seul mail, les 4 personnes en **copie cachée** (« Cci » : chacun reçoit le mail, personne ne voit l'adresse des autres). Le PDF n'est gardé qu'une fois.
+- **Les demandes d'absence ne sont jamais groupées** : un mail par personne, comme aujourd'hui (fiche personnelle, et son envoi sera refait avec le lot 14).
 - **Ce qui ne change pas** : les adresses **tapées à la main** gardent leur mail séparé, au texte imposé, 2 par fiche, 10 par jour, avec le conducteur en copie cachée. Tes alertes, la réserve de 20 destinataires par jour pour toi, l'onglet *Mails en attente* : pareil qu'avant.
 - **Le quota ne change pas** : Google compte les destinataires, pas les mails. 4 copies cachées = 4.
 - **Deux textes changent dans l'appli** (ils parlaient de « mails », ils parlent de « destinataires », ce qui est vrai avant comme après) :
@@ -22,9 +24,9 @@
 |---|---|
 | `non` (ou pas de réglage du tout, ou une valeur mal tapée) | comme aujourd'hui : un mail par adresse |
 | `cache` | un seul mail, « À » vide, tout le monde en copie cachée |
-| `conducteur` | un seul mail, « À » = le conducteur du chantier (son adresse est alors **visible** des autres), les autres en copie cachée. **À n'utiliser qu'après en avoir parlé ensemble** |
+| `conducteur` | un seul mail, « À » = le conducteur du chantier (son adresse est alors **visible** des autres), les autres en copie cachée. **C'est la solution de secours** si `cache` échoue aux essais E1 ou E2 (tu l'as validée le 18/11) ; elle demande l'essai **E3 bis** avant d'être allumée |
 
-Dans tous les cas, le serveur revient tout seul à « un mail par adresse » pour une fiche quand le mail groupé n'est pas possible : une seule adresse, plus de 40 adresses, quota du jour trop bas, ou refus de Google.
+Dans tous les cas, le serveur revient tout seul à « un mail par adresse » pour une fiche quand le mail groupé n'est pas possible : une demande d'absence, une seule adresse, plus de 40 adresses, quota du jour trop bas, ou refus de Google.
 
 ## Avant de commencer (2 minutes) : est-ce que ça vaut le coup ?
 
@@ -46,7 +48,7 @@ Ouvre le Sheet de production, onglet ***Stockage***, et lis la ligne de **Gmail*
 2. Dans l'éditeur Apps Script **de la copie TEST** : choisis la fonction `verifierConfig` dans la liste en haut, clique **Exécuter**, ouvre le **Journal d'exécution**. Tu dois lire la ligne :
    `✅ Mail unique (propriété MAIL_UNIQUE) : non — un mail par adresse connue, comme avant le lot 5b`
 
-## Étape B — les cinq essais sur la copie TEST (toi : 30 minutes) — **avec TES adresses seulement**
+## Étape B — les essais sur la copie TEST (toi : 30 minutes) — **avec TES adresses seulement**
 
 Ces essais disent ce que mon faux Google ne peut pas dire. Aucun mail ne doit partir vers quelqu'un d'autre que toi. Il te faut **deux adresses à toi** : ton adresse Outlook du bureau, et une adresse Gmail personnelle (ou une autre boîte à toi). Compte une dizaine de destinataires pris sur le quota du jour (100).
 
@@ -61,6 +63,7 @@ Ces essais disent ce que mon faux Google ne peut pas dire. Aucun mail ne doit pa
 3. Lis le résultat :
    - `E1 : ✅` → Google accepte un mail sans « À ». On continue.
    - `E1 : ❌` → Google le refuse. **On s'arrête là** : laisse `MAIL_UNIQUE` à `non`, envoie-moi la ligne.
+   - `Essai non lancé : il ne reste que N destinataire(s)…` → ce n'est pas un refus : trop de mails sont déjà partis aujourd'hui. Refais l'essai demain.
    - `E4 : ✅ … 2 destinataire(s)` → Google a bien compté 2. Si la ligne dit `⚠`, envoie-la-moi (le compteur de Google a parfois du retard).
 
 ### E2 — le mail arrive-t-il bien ?
@@ -77,10 +80,24 @@ Regarde tes deux boîtes. Note pour chacune : **boîte de réception ou indésir
 
 1. **Vérifie d'abord les onglets *Contacts* et *Contacts notes* du Sheet « ChantierPro TEST »** : il ne doit y avoir **que tes adresses**. Si tu y vois l'adresse de quelqu'un d'autre, arrête-toi et dis-le-moi.
 2. Ajoute la propriété `MAIL_UNIQUE`, valeur `cache`. Relance `verifierConfig` : `✅ Mail unique (propriété MAIL_UNIQUE) : cache — …`.
-3. Sur ton téléphone, avec la copie d'essai (icône « Loué ESSAI ») : envoie un **quitus** du chantier d'essai avec deux destinataires de la liste. Message attendu : « … Envoyé à 3 destinataire(s). » (ou 2 si le conducteur du chantier d'essai est l'un des deux).
+3. Sur ton téléphone, avec la copie d'essai (icône « Loué ESSAI ») : envoie un **quitus** du chantier **« CHANTIER TEST AUTO »** (ce chantier-là : c'est le seul que mon contrôle du point 7 sait lire) avec deux destinataires de la liste. Message attendu : « … Envoyé à 3 destinataire(s). » (ou 2 si le conducteur du chantier d'essai est l'un des deux).
 4. Ouvre Gmail avec le compte de Loué → **Messages envoyés** : **un seul** mail pour ce quitus, avec le PDF. Ouvre-le, clique sur la petite flèche sous l'objet : la ligne **Cci** doit montrer toutes les adresses. Envoie-moi une capture.
 5. Dans la même fiche, essaie aussi une adresse **tapée à la main** (une autre adresse à toi) : elle doit recevoir **son propre mail**, au texte « Veuillez trouver ci-joint le document… », avec le conducteur en copie cachée — comme avant.
 6. Supprime le mail d'essai `[Loué App] Essai du mail unique` de « Messages envoyés » (l'appli ne le supprimera jamais toute seule).
+7. **Mon contrôle de la purge (moi, 1 minute)** : dis-moi « quitus envoyé ». Je demande au serveur de la copie TEST de relire ce mail **comme le fera la purge des mails de plus de 3 mois** (geste `lireMailsEssai` : il ne me rend que des nombres, aucune adresse). Il doit retrouver les adresses en copie cachée. S'il n'en retrouve aucune, les mails groupés ne seraient **jamais** purgés : on reste à `non` et je corrige d'abord.
+
+### E3 bis — seulement si on doit passer au mode `conducteur`
+
+À faire **uniquement** si je te dis que `cache` ne convient pas (E1 refusé, ou mail classé en indésirable à l'essai E2).
+
+1. Dans le Sheet « ChantierPro TEST », onglet *Chantiers* : le conducteur de « CHANTIER TEST AUTO » doit être une personne dont l'adresse est **à toi**.
+2. Propriété `MAIL_UNIQUE`, valeur `conducteur`. Relance `verifierConfig` : `✅ … : conducteur — …`.
+3. Envoie un **quitus** de « CHANTIER TEST AUTO » avec deux destinataires de la liste.
+4. Dans « Messages envoyés » : **un seul** mail, « À » = l'adresse du conducteur, les autres en **Cci**.
+5. Dans la boîte d'un destinataire en copie cachée (une autre adresse à toi) : il voit l'adresse du conducteur en « À », et **aucune autre**. Boîte de réception ou indésirables ?
+6. Dis-moi « quitus envoyé » : je refais le contrôle de la purge (point 7 de E3).
+
+À savoir : même en `conducteur`, le « À » reste **vide** quand le conducteur du chantier n'est pas destinataire de la fiche, ou quand le chantier n'a pas de conducteur connu. Les essais E1 et E2 restent donc obligatoires.
 
 Dis-moi « essais faits », avec tes notes. **Je te réponds « on peut allumer » ou « on reste à non ».**
 
@@ -94,8 +111,8 @@ Dis-moi « essais faits », avec tes notes. **Je te réponds « on peut allumer 
 
 ## Étape D — allumer le mail unique (toi : 5 minutes) — seulement après mon « on peut allumer »
 
-1. Éditeur Apps Script **de production** → **Paramètres du projet** → **Propriétés du script** → **Modifier** → **Ajouter une propriété du script** : Propriété `MAIL_UNIQUE`, Valeur `cache` → **Enregistrer**.
-2. Exécute `verifierConfig` : `✅ Mail unique (propriété MAIL_UNIQUE) : cache — un seul mail par fiche pour les adresses connues, « À » vide, tout le monde en copie cachée`.
+1. Éditeur Apps Script **de production** → **Paramètres du projet** → **Propriétés du script** → **Modifier** → **Ajouter une propriété du script** : Propriété `MAIL_UNIQUE`, Valeur **celle que je t'aurai donnée après les essais** (`cache`, sauf si les essais ont montré qu'il faut `conducteur`) → **Enregistrer**.
+2. Exécute `verifierConfig` : `✅ Mail unique (propriété MAIL_UNIQUE) : cache — un seul mail par fiche pour les adresses connues, « À » vide, tout le monde en copie cachée` (ou `conducteur — …`).
 3. À la prochaine fiche envoyée à plusieurs personnes : un seul mail dans « Messages envoyés ». Demande à un destinataire s'il l'a bien reçu en boîte de réception.
 4. Pendant une semaine, jette un œil à l'onglet ***Journal*** : une ligne au statut **« repli »** veut dire que Google a refusé un mail groupé et que la fiche est partie par un mail par adresse (personne n'a rien perdu). S'il y en a, dis-le-moi.
 

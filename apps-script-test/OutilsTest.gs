@@ -99,6 +99,8 @@ function outilTest_(corps) {
       case 'placeCompte':        return ok('Place du compte (octets)', outilTestPlaceCompte_());
       case 'lireStockage':       return ok('Haut de l’onglet Stockage', outilTestLireStockage_());
       case 'mesurerStockage':    return ok(mesurerStockage());
+      // Lot 5b (essai E3) : les derniers mails envoyés du chantier d'essai, lus comme la purge les lit (nombres seulement)
+      case 'lireMailsEssai':     return ok('Derniers mails envoyés du chantier d’essai, tels que la purge les lit (aucune adresse n’est donnée)', outilTestLireMailsEssai_());
       case 'lirePurgesEssai':    return ok('Lignes de l’onglet Purges du chantier d’essai', outilTestLirePurges_());
       case 'examinerPurgeEssai': return ok('Examen de la purge du chantier d’essai (lecture seule)', outilTestExaminerPurge_());
       case 'poserDeclencheurs':    return ok(outilTestPoserDeclencheurs_());
@@ -388,6 +390,21 @@ function outilTestLireStockage_() {
   // la ligne « Dossiers de l'appli » et les lignes d'ensemble ne contiennent aucun nom de chantier ; le tableau n'est pas rendu
   return { present: true, titresBons: stkTitresBons_(sh), lignesDuTableau: Math.max(0, sh.getLastRow() - STK_LIGNE_TITRES),
     resume: stkTitresBons_(sh) ? sh.getRange(1, 1, STK_RESUME.length, 2).getDisplayValues() : [], tourEnCours: !!stkSuite_() };
+}
+// Lot 5b, essai E3 : Gmail rend-il l'en-tête « Cci » d'un mail groupé sans « À » ? La purge des mails en dépend (elle refuse un
+// mail aux « destinataires illisibles », qui resterait alors pour toujours). Les 5 derniers mails envoyés dont l'objet nomme le
+// chantier d'essai sont lus par la fonction même de la purge (prgMailLu_). LECTURE SEULE. Ne rend que l'objet et des NOMBRES
+// d'adresses (aucune adresse).
+function outilTestLireMailsEssai_() {
+  if (!prgGmailPresent_()) throw new Error('service avancé Gmail non activé dans l’éditeur de la copie TEST');
+  const compter = t => (String(t || '').match(/[^\s<>,;"]+@[^\s<>,;"]+/g) || []).length;
+  const rep = Gmail.Users.Messages.list('me', { q: 'in:sent has:attachment subject:"' + PRG_MAILS_OBJET.trim() + '" subject:"' + PRG_MAILS_CHANTIER_TEST + '"', maxResults: 5 }) || {};
+  return { mails: (rep.messages || []).map(x => {
+    const id = String(x.id), lu = prgMailLu_(id), brut = Gmail.Users.Messages.get('me', id, { format: 'full' }) || {};
+    const entete = nom => ((brut.payload && brut.payload.headers) || []).filter(h => String(h.name || '').toLowerCase() === nom).map(h => h.value).join(', ');
+    return { objet: lu.objet, date: lu.date, a: compter(entete('to')), copie: compter(entete('cc')), copieCachee: compter(entete('bcc')),
+      adressesLuesParLaPurge: compter(lu.a), piecesJointes: lu.pj.length };
+  }) };
 }
 function outilTestLirePurges_() {
   const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_PURGES);

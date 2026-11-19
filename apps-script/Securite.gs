@@ -250,6 +250,7 @@ function modeMailUnique_() {
 // Envoie UN mail à toutes les adresses connues d'une fiche, en copie cachée. Rend true si le mail est parti.
 // Rend false sans rien envoyer — l'appelant fait alors comme avant, un mail par adresse — quand :
 //  - le réglage est « non » ;
+//  - la fiche est une demande d'absence (jamais groupée : fiche de données personnelles, et son envoi est refait au lot 14) ;
 //  - il n'y a qu'une adresse (rien à grouper), ou plus de MAX_GROUPE_MAIL ;
 //  - le quota du jour ne suffit pas pour tout le groupe, ou l'envoi entamerait la réserve de Franck (RESERVE_ADMIN) :
 //    par le chemin d'avant, les premiers partent, les autres sont reportés, et le mail à Franck part toujours ;
@@ -259,9 +260,12 @@ function modeMailUnique_() {
 // m = { sujet, texte, html } : ceux du mail d'avant.
 function envoyerGroupe_(o, adresses, m) {
   const n = adresses.length;
+  // Le réglage est lu HORS du bloc ci-dessous : si sa lecture échoue, rien n'était allumé — on fait comme avant, sans
+  // écrire au Journal une ligne « repli » qui ferait croire à un mail groupé manqué
+  let mode = 'non';
+  try { mode = modeMailUnique_(); } catch (err) { console.error('Réglage MAIL_UNIQUE illisible :', err.message); }
+  if (mode === 'non' || o.fiche === 'absence' || n < 2 || n > MAX_GROUPE_MAIL) return false;
   try {
-    const mode = modeMailUnique_();
-    if (mode === 'non' || n < 2 || n > MAX_GROUPE_MAIL) return false;
     let reste = 0;
     try { reste = MailApp.getRemainingDailyQuota(); } catch (e) {}
     if (reste < n || reste - n < RESERVE_ADMIN) return false;

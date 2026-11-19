@@ -31,7 +31,8 @@ Avec le mail unique : **1 mail**, avec les 4 adresses en **copie cachée** (aucu
 
 - Le chemin des **adresses tapées à la main** : un mail séparé par adresse, objet et texte imposés, 2 par fiche, 10 par jour, copie cachée au conducteur. La fonction `envoyer_`, la fonction `differer_` et la boucle des adresses libres de `distribuer_` **ne sont pas modifiées**.
 - Les deux tests « photographie » (`tests/lot0.test.js`) passent **sans avoir été modifiés**.
-- Les mails à toi (alertes, mails de purge, demandes d'absence) : inchangés.
+- Les mails à toi (alertes, mails de purge) : inchangés.
+- Les **demandes d'absence** : inchangées, **jamais groupées** (une condition dans `envoyerGroupe_`, ajoutée après la relecture : sans elle, une absence prévenant deux personnes partait en un seul mail sans « À »).
 - La réserve de 20 destinataires par jour gardée pour toi.
 - L'onglet *Mails en attente* et le renvoi automatique toutes les 2 heures (`renvoyerMailsEnAttente`).
 
@@ -56,7 +57,7 @@ Avec le mail unique : **1 mail**, avec les 4 adresses en **copie cachée** (aucu
 
 La solution C de la version 1 (« À » = l'adresse du compte de l'appli) reste écartée : chaque fiche arriverait aussi dans la boîte de réception du compte, et la purge des mails ne la prendrait plus jamais.
 
-**Je recommande `cache`, si les essais E1 et E2 réussissent ; sinon on en parle pour `conducteur`.**
+**Je recommande `cache`, si les essais E1 et E2 réussissent ; sinon `conducteur`, que tu as validé le 18/11 comme solution de secours** (avec son essai E3 bis, voir la procédure).
 
 **3.3 Quand le mail groupé n'est pas possible : retour au chemin d'aujourd'hui, pour cette fiche**
 
@@ -84,7 +85,7 @@ Les deux autres solutions de la version 1 restent écartées (tout reporter au l
 | `apps-script/Api.gs` | réponse au téléphone et onglet *Envois* : « envoyé à N destinataire(s) » au lieu de « N mail(s) envoyé(s) » |
 | `apps-script/Documents.gs` | un commentaire mis à jour (note de réunion) |
 | `apps-script/Purges.gs` | **rien** (un test ajouté) |
-| Pages | `note-reunion.html` et sa page de repli : « N destinataires » au lieu de « N mails partiront » ; `commun/ui.js` : « envoyé — N destinataires ». Appli 10.3 |
+| Pages | `note-reunion.html` : « N destinataires » au lieu de « N mails partiront » ; `commun/ui.js` : « envoyé — N destinataires ». Appli 10.3 |
 | Tests | nouvelle série `tests/lot5b-mail-unique.test.js` ; les anciennes séries ne changent que pour les textes et le numéro de version, **jamais pour le nombre de mails attendus** |
 | Documents | `CHANGELOG.md`, `DECISIONS.md`, `docs/guide-utilisateur.md`, `docs/lot5b-procedure.md` |
 
@@ -93,11 +94,15 @@ Les deux autres solutions de la version 1 restent écartées (tout reporter au l
 | Risque | Parade |
 |---|---|
 | Une fiche qui n'arrive pas, ou qui arrive deux fois | éteint par défaut ; essais sur la copie TEST avec tes seules adresses ; retour arrière en 30 secondes ; le repli par adresse n'est lancé que si le mail groupé n'est **pas** parti |
-| Mail classé en indésirable (`cache`) | essai E2 sur Outlook et Gmail ; sinon `conducteur`, avec ton accord |
+| Mail classé en indésirable (`cache`) | essai E2 sur Outlook et Gmail ; sinon `conducteur` (validé le 18/11), après l'essai E3 bis |
 | Google refuse un « À » vide | essai E1 ; et même allumé par erreur, chaque fiche repasserait par le chemin d'aujourd'hui (ligne « repli » dans le Journal) |
 | Une adresse fausse dans le groupe | essai E5 ; si Google lève une erreur, repli immédiat sur un mail par adresse : seule l'adresse fausse échoue |
 | Quota mal compté | compté sur le nombre d'adresses **avant** l'envoi ; essai E4 |
-| Un destinataire fait « Répondre à tous » | avec des copies cachées, la réponse ne va qu'à l'expéditeur : aucune fuite d'adresses |
+| Un destinataire fait « Répondre à tous » | en `cache`, la réponse ne va qu'à l'expéditeur ; en `conducteur`, elle va aussi au conducteur (le seul visible). Aucune autre adresse ne fuit |
+| Gmail lève une erreur **après** avoir réellement envoyé le mail groupé (rare) | le serveur croit que rien n'est parti et renvoie un mail par adresse : chacun reçoit la fiche **deux fois**, et le quota est compté deux fois. Sans le mail unique, le même aléa ne double qu'un destinataire. Accepté : mieux vaut un doublon qu'une fiche perdue |
+| Une adresse du Sheet refusée par Gmail | toutes les fiches qui la contiennent repassent par un mail par adresse (ligne « repli » au Journal) : personne n'est perdu ; à corriger dans le Sheet quand la ligne apparaît |
+| Deux fiches envoyées au même instant près de la limite du jour | la réserve de 20 peut être entamée de la taille d'un groupe (le quota est lu une fois par groupe) ; très peu probable au volume de Loué |
+| La purge ne sait pas lire les copies cachées d'un mail envoyé | contrôle par le serveur sur la copie TEST (essai E3, point 7) **avant** d'allumer : sinon aucun mail groupé ne serait jamais purgé |
 | Lignes en attente écrites avant le changement | lues comme avant (le renvoi n'est pas modifié) : testé |
 | La protection du lot 0 abîmée | tests « photographie » inchangés et verts |
 | Le mail groupé contient l'adresse du compte de l'appli | la purge des mails ne le prend jamais (« ce compte est lui-même destinataire »), comme aujourd'hui pour le mail envoyé à cette adresse : pas pire qu'avant, testé |
