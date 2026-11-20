@@ -2,6 +2,16 @@
 
 Chaque lot : **quoi**, **pourquoi**, **comment déployer**. Procédures détaillées dans `docs/lotN-procedure.md`.
 
+## Groupe B — les lots 10a-1, 10a-2 et 10b, livrés ensemble par-dessus le groupe A — serveur **v11.5**, appli **10.6** — **testé contre le faux serveur et dans Chrome ; rien n'a tourné chez Google**
+
+**Quoi** : les trois lots décrits ci-dessous (« À commander », les articles habituels, le point du vendredi), remis par-dessus le groupe A (lots 8d, 12, 13 et 14) en une seule livraison. Les numéros v11.2 à v11.4 et 10.3 / 10.4 écrits dans leurs entrées sont ceux d'avant le regroupement : **la livraison est la v11.5 / 10.6**.
+
+**Pourquoi** : décision de Franck du 20/11/2026 — groupe A, puis groupe B, puis mail unique ; moins d'envois sur TEST et de mises en production.
+
+**Tests** : toutes les séries du serveur et des pages passent sur la branche fusionnée ; les tests lisent désormais la version du serveur dans `apps-script/Config.gs`.
+
+**Comment déployer** : `docs/essais-groupe-b.md` (un envoi sur TEST, une séance, une mise en production : `installerLot10Production`, `demarrerPointDuVendredi`).
+
 ## Lot 10b — le point du vendredi (un mail par semaine à Franck) — serveur **v11.4**, appli inchangée (**10.4**) — **construit, testé contre le faux serveur seulement** (rien n'a tourné chez Google, aucun mail n'est parti)
 
 **Quoi**
