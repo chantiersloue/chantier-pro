@@ -330,6 +330,9 @@ function alerte_(texte, sorte) {
       demarrage : '[Loué App] Période de transition pas démarrée',
       planning  : '[Loué App] Planning encore lisible par lien',
       recap     : '[Loué App] Récapitulatif des notes en retard',
+      absence   : '[Loué App] Demande d’absence partie sans la direction — onglet Réglages',
+      absenceenvoi: '[Loué App] Demande d’absence pas encore partie vers la direction',
+      absencecorbeille: '[Loué App] Mail d’absence à supprimer à la main dans « Messages envoyés »',
     }[sorte] || "[Loué App] Envoi refusé — voir l'onglet Journal";
     GmailApp.sendEmail(emailAdmin_(), sujet,
       texte + "\n\nLes cas suivants de la journée sont notés dans l'onglet « Journal » du Sheet, sans autre mail.\n\nLoué App",

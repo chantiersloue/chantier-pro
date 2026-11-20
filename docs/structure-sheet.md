@@ -342,7 +342,7 @@ Une ligne **par matériau** ; le même type est répété sur plusieurs lignes. 
 
 Si l'onglet est vide, le champ « Type » propose l'onglet *Materiaux*, comme avant.
 
-## Onglet « Absences suivi » (lot 14 — créé tout seul à la première demande, quand le réglage `ABSENCE_DIRECTION` existe)
+## Onglet « Absences suivi » (lot 14 — créé tout seul à la première demande, quand la ligne « Adresses de la direction » de l'onglet Réglages donne une adresse)
 
 Une ligne par demande d'absence. **Aucun motif n'y est écrit.** Le programme de publication du planning vient y lire les demandes « Acceptée ».
 
@@ -360,10 +360,13 @@ Une ligne par demande d'absence. **Aucun motif n'y est écrit.** Le programme de
 |K|Décidée le|heure de la réponse|
 |L|Mail au conducteur|« à envoyer », puis « envoyé le … » (demandes acceptées)|
 |M|Mail à la direction|« envoyé le … » ; vide tant que le mail n'est pas parti (le poseur ne voit alors pas la demande « En attente »)|
+|N|Copie dans Gmail|« à mettre à la corbeille … », puis « à la corbeille le … » (le mail envoyé à la direction sort de « Messages envoyés ») ; « gardé » s'il est aussi dans la boîte de réception du compte ; « pas trouvé… : à supprimer à la main » après 24 h|
 
 Onglet *Absences* (d'avant) : avec le lot 14 allumé, les colonnes Imputation, Motif et Précisions contiennent « (réservé à la direction) » et « Email perso » reste vide.
 
-Réglages (Propriétés du script) : `ABSENCE_DIRECTION` (adresses de la direction ; absent = lot 14 éteint), `ADRESSE_APPLI` (facultatif : adresse des pages pour les liens du mail, utile sur la copie TEST).
+**Onglet « Réglages », ligne « Adresses de la direction (demandes d'absence) »** (lot 14, posée par `installerLot14Test` / `installerLot14Production`) : colonne B = 1 à 3 adresses séparées par une virgule (vide en production à l'installation : Franck les écrit) ; colonne C = ce que l'appli a compris, écrit par elle. Case vide : les demandes partent comme avant, avec une alerte à Franck.
+
+Propriété du script facultative : `ADRESSE_APPLI` (adresse des pages pour les liens du mail ; sans elle, l'appli de production, ou la copie d'essai sur la copie TEST).
 
 ## Autres onglets
 

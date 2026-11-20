@@ -88,9 +88,16 @@ http.createServer((req, res) => {
   if (url.pathname === '/reglage') {
     const m = url.searchParams.get('mode') || 'normal';
     if (m === 'transition-finie') { google.proprietes.FIN_TRANSITION = String(Date.now() - 1000); res.writeHead(200, entetes); return res.end('{"transition":"finie"}'); }
-    // Lot 14 : la direction répond aux demandes d'absence depuis son mail (réglage ABSENCE_DIRECTION)
-    if (m === 'absences-direction') { google.proprietes.ABSENCE_DIRECTION = 'direction@loue.test'; res.writeHead(200, entetes); return res.end('{"absences":"direction"}'); }
-    if (m === 'absences-avant') { delete google.proprietes.ABSENCE_DIRECTION; res.writeHead(200, entetes); return res.end('{"absences":"avant"}'); }
+    // Lot 14 : la direction répond aux demandes d'absence depuis son mail (ligne « Adresses de la direction » de l'onglet Réglages)
+    if (m === 'absences-direction' || m === 'absences-avant') {
+      if (!google.feuilles['Réglages']) ctx.feuille_('Réglages', ['Réglage', 'Allumé', 'État (écrit par l’appli)']);
+      const NOM = 'Adresses de la direction (demandes d’absence)';
+      const r = google.feuilles['Réglages'], l = r.lignes.find(x => x[0] === NOM);
+      const valeur = m === 'absences-direction' ? 'direction@loue.test' : null;
+      if (l && valeur === null) r.lignes.splice(r.lignes.indexOf(l), 1);
+      else if (l) l[1] = valeur; else if (valeur !== null) r.lignes.push([NOM, valeur, '']);
+      res.writeHead(200, entetes); return res.end(JSON.stringify({ absences: m === 'absences-direction' ? 'direction' : 'avant' }));
+    }
     if (m === 'transition-ouverte') { delete google.proprietes.FIN_TRANSITION; res.writeHead(200, entetes); return res.end('{"transition":"ouverte"}'); }
     if (m === 'deconnecter') {
       const l = U.lignes.find(x => x[0] === url.searchParams.get('id'));

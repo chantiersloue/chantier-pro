@@ -171,7 +171,8 @@ Les plans et les documents d'un chantier se lisent dans le **Carnet** : Accueil 
 
 ## Demande d'absence
 
-- Tuile **Demande d'absence** : ton nom, la date (un jour, une période ou une semaine), la durée, sur quoi les heures sont prises, le motif. Signe, puis **Envoyer la demande**.
+- Tuile **Demande d'absence** : ton nom, la date (un jour, une période ou une semaine), la durée, sur quoi les heures sont prises, le motif (Congés, RTT, Récupération, École, Formation, ou un autre). Signe, puis **Envoyer la demande**.
+- 5 demandes par jour au plus.
 - La demande part à **la direction**, et à elle seule. Tu ne reçois pas de mail en retour.
 - **La réponse se lit dans l'appli** : en haut de la page, **« Mes demandes »** affiche **En attente**, puis **Acceptée** ou **Refusée**. Ça marche aussi sans réseau (le dernier état connu).
 - **« Sans réponse »** : pas de réponse depuis plus de 7 jours. Refais ta demande, ou vois avec le bureau.

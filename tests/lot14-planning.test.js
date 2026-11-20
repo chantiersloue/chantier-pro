@@ -113,6 +113,12 @@ test('matin ou après-midi : la demi-journée s’ajoute au chantier de la case'
   m.ctx.passageDeNuit();
   egal(m.cases('2026-S48', 'Kévin E.'), ['½ Formation\n½ 0501 CHANTIER TEST 1', '0501 CHANTIER TEST 1', '½ 0501 CHANTIER TEST 1\n½ 0502 CHANTIER TEST 2', '½ Absent', 'Mr DUPONT']);
 });
+test('RTT et Récupération s’inscrivent avec leur nom ; et ne sont pas recopiés dans la semaine suivante', () => {
+  const m = monde({ demandes: [demande('fiche-0001-abcd', 'kevin', '2026-11-23', '2026-11-23', '', 'RTT'), demande('fiche-0002-abcd', 'kevin', '2026-11-24', '2026-11-24', '', 'Récupération')] });
+  m.ctx.passageDeNuit();
+  egal(m.cases('2026-S48', 'Kévin E.').slice(0, 2), ['RTT', 'Récupération']);
+  egal(m.ctx.plSemaineSuivante_(m.ctx.plgLireSemaine_(m.f('2026-S48').api), m.ctx.plgListes_(m.ss).index).pose[0].jours.slice(0, 2), ['', '']);
+});
 test('un gars de l’atelier, une appellation inconnue (lue « Absent »), un week-end dans la période', () => {
   const m = monde({ demandes: [demande('fiche-0001-abcd', 'atelier1', '2026-11-20', '2026-11-23', '', 'Maladie')] });
   m.ctx.passageDeNuit();

@@ -56,7 +56,7 @@ test('dans un classeur vide : LISTES, SALARIÉS et la semaine en cours sont cré
   assert.ok(r.every(l => /^✅/.test(l)), r.join('\n'));
   const li = g.onglet('PLANNING', 'LISTES');
   egal(li.lignes[0].slice(0, 3), ['N°', 'Chantier', 'Nom court (affiche)']);
-  egal(li.lignes.slice(1, 9).map(l => l[8]), ctx.lire('PL_CAS'));
+  egal(li.lignes.slice(1, 1 + ctx.lire('PL_CAS').length).map(l => l[8]), ctx.lire('PL_CAS'));
   egal(li.lignes[1][13], false, 'la case « Mettre à jour maintenant »');
   const pr = g.onglet('PLANNING', 'SALARIÉS').protections;
   egal([pr.length, pr[0].c, pr[0].editeurs, pr[0].domaine], [1, 4, [], false]);

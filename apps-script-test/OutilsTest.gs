@@ -97,6 +97,7 @@ function outilTest_(corps) {
       case 'lireRecap': return ok('Récapitulatif des notes du chantier d’essai (lecture seule)', outilTestRecap_());
       // Lot 12 : poser l'onglet Réglages (relançable, case décochée) ; lire, allumer ou éteindre le réglage « tous les chantiers »
       // de la copie TEST (valeur absente : lecture seule)
+      case 'installerLot14': { const r = installer_('Lot 14', 'TEST', etapesLot14_()); if (!r.ok) throw new Error('installation du lot 14 non terminée : ' + r.texte); return ok(r.texte); }
       case 'installerLot12': { const r = installer_('Lot 12', 'TEST', etapesLot12_()); if (!r.ok) throw new Error('installation du lot 12 non terminée : ' + r.texte); return ok(r.texte); }
       case 'reglerTousChantiers': return ok('Réglage « tous les chantiers » de la copie TEST', outilTestSousVerrou_(() => outilTestReglerTous_(corps.valeur)));
       case 'installerLot5': { const r = installer_('Lot 5', 'TEST', etapesLot5_()); if (!r.ok) throw new Error('installation du lot 5 non terminée : ' + r.texte); return ok(r.texte); }

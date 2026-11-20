@@ -298,10 +298,13 @@ function getContactsRaw() {
 // DEMANDE D'ABSENCE
 // ══════════════════════════════════════════════════════════
 function traiterAbsence(data, brut, contexte) {
-  // Lot 14 : quand le réglage ABSENCE_DIRECTION existe, la demande part à la direction seule, avec ses deux boutons
-  // (Absences.gs). Sans ce réglage : tout ce qui suit, exactement comme avant.
-  const direction = absDirection_();
-  if (direction.length) return absTraiter_(brut, contexte || {}, direction);
+  // Lot 14 : la ligne « Adresses de la direction » de l'onglet « Réglages » donne 1 à 3 adresses : la demande part à la
+  // direction seule, avec ses deux boutons (Absences.gs). Sinon : tout ce qui suit, exactement comme avant — et si la ligne
+  // existe mais ne donne aucune adresse, Franck est prévenu (une fois par jour au plus). Une panne de lecture : comme avant.
+  let reglage = { installe: false, adresses: [] };
+  try { reglage = absReglage_(); } catch (err) { console.error('Réglage de la direction illisible :', err.message); }
+  if (reglage.adresses.length) return absTraiter_(brut, contexte || {}, reglage.adresses);
+  if (reglage.installe) absAlerterReglage_(reglage);
   // 1. Sheet « Absences » — mêmes colonnes qu'avant ; protégé contre les erreurs (données brutes, formules neutralisées)
   try {
     const ss = SpreadsheetApp.getActiveSpreadsheet();

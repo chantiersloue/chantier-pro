@@ -12,6 +12,10 @@ const FRANCK = 'franck@loue.test', SEB = 'seb@loue.test', DIR1 = 'direction@loue
 const MOTIF = 'Rendez-vous médical chez le spécialiste', PRECISIONS = 'Opération du genou prévue ensuite';
 const JEUDI = new Date(2026, 10, 19, 10, 0, 0).getTime();
 const JOUR = 86400000;
+const REGLAGE = 'Adresses de la direction (demandes d’absence)';
+const caseDirection = (g, v) => { g.feuilles['Réglages'].lignes.find(l => l[0] === REGLAGE)[1] = v; };
+const alertes = (g, sujet) => g.mails.filter(m => m.to === FRANCK && sujet.test(m.sujet));
+const enCorbeille = g => g.mails.filter(m => m.corbeille).map(m => m.to);
 const j = x => JSON.stringify(x);
 // Les valeurs lues dans le faux Google viennent d'un autre « monde » JavaScript : on les compare écrites en JSON
 const egal = (a, b, m) => assert.strictEqual(j(a), j(b), m);
@@ -20,16 +24,17 @@ const refuser = (g, adresses) => { const vrai = g.contexte.GmailApp.sendEmail; g
 
 function environnement(o = {}) {
   const proprietes = Object.assign({ DRIVE_ROOT_ID: 'RACINE', DRIVE_PLANNING_ID: 'PLANNING', HACHAGE_ITERATIONS: '200' }, o.test ? { ENVIRONNEMENT: 'TEST' } : {});
-  if (o.direction !== undefined) proprietes.ABSENCE_DIRECTION = o.direction;
   Object.assign(proprietes, o.proprietes || {});
+  // o.direction : ce qui est écrit dans la case B de la ligne « Adresses de la direction » de l'onglet Réglages (absent : pas de ligne)
+  const reglages = o.direction === undefined ? null : [['Réglage', 'Allumé', 'État (écrit par l’appli)'], [REGLAGE, o.direction, '']];
   const g = creerGoogle({ nomSheet: o.test ? 'ChantierPro TEST' : 'ChantierPro', proprietes: proprietes, quota: o.quota,
-    feuilles: {
+    feuilles: Object.assign({
       'Contacts': [['Nom', 'Role', 'Email', 'ChefEquipe', 'Destinataire', 'ConducteurDefaut', 'ChefAtelier', 'absenceNotif'],
         ['Franck ESSAI', 'Conducteur de travaux', FRANCK, 'O', 'N', 'O', 'N', 'O'],
         ['Sébastien ESSAI', 'Conducteur de travaux', SEB, 'O', 'N', 'N', 'N', 'O']],
       'Contacts notes': [['Nom', 'Email']],
       'Chantiers': [['Nom', 'Référence', 'Statut', 'Conducteur', 'N°'], ['CHANTIER TEST 1', 'LIEU 1', 'En cours', 'Sébastien ESSAI', '0501']],
-    } });
+    }, reglages ? { 'Réglages': reglages } : {}) });
   g.creerElement('dossier', 'Loué Menuiserie - Chantiers', null, { id: 'RACINE' });
   g.creerElement('dossier', 'Planning', null, { id: 'PLANNING' });
   g.ctx = chargerScript(g);
@@ -70,7 +75,7 @@ function test(nom, fn) {
   catch (e) { console.log('  ✗ ' + nom + '\n    ' + String(e.stack || e.message).split('\n').slice(0, 8).join('\n    ')); process.exitCode = 1; }
 }
 
-console.log('Lot 14 — éteint (pas de réglage ABSENCE_DIRECTION) : exactement comme avant');
+console.log('Lot 14 — pas installé (aucune ligne « Adresses de la direction ») : exactement comme avant, sans rien dire');
 test('la demande part aux personnes prévenues des absences et à l’adresse personnelle ; le motif est dans l’onglet Absences ; aucun onglet de suivi', () => {
   const g = environnement();
   const r = envoyer(g, 'kevin');
@@ -80,18 +85,51 @@ test('la demande part aux personnes prévenues des absences et à l’adresse pe
   assert.strictEqual(g.feuilles['Absences'].lignes[1][6], MOTIF);
   assert.strictEqual(g.feuilles['Absences suivi'], undefined);
   assert.deepStrictEqual(miennes(g, 'kevin').data, { suivi: false, direction: false, demandes: [], jours: 7 });
+  assert.strictEqual(alertes(g, /sans la direction/).length, 0, 'aucune alerte : le lot n’est pas installé');
 });
-test('un réglage vide ou illisible est lu comme éteint, et verifierConfig le dit', () => {
-  ['', '   ', 'pas une adresse'].forEach(v => {
-    const g = environnement({ direction: v });
-    envoyer(g, 'kevin');
-    assert.deepStrictEqual(fiches(g).map(m => m.to).sort(), [FRANCK, PERSO, SEB].sort(), '« ' + v + ' »');
+console.log('Lot 14 — installé, case VIDE ou illisible : la demande n’est pas bloquée, elle part comme avant, et Franck reçoit une alerte');
+test('case vide, espaces, texte qui n’est pas une adresse, ligne en double : comme avant + UNE alerte par jour (sans aucun détail de la demande)', () => {
+  ['', '   ', 'pas une adresse', null].forEach(v => {
+    const g = environnement({ direction: v === null ? '' : v });
+    if (v === null) g.feuilles['Réglages'].lignes.push([REGLAGE, DIR1, '']);          // la ligne écrite deux fois
+    envoyer(g, 'kevin'); envoyer(g, 'kevin');
+    assert.deepStrictEqual(fiches(g).map(m => m.to).sort(), [FRANCK, FRANCK, PERSO, PERSO, SEB, SEB].sort(), '« ' + v + ' »');
+    const a = alertes(g, /Demande d’absence partie sans la direction/);
+    assert.strictEqual(a.length, 1, '« ' + v + ' » : une seule alerte dans la journée');
+    assert.ok(/Réglages/.test(a[0].texte) && !/Kévin|médical|genou|30\/11/.test(a[0].texte), a[0].texte);
+    assert.strictEqual(g.feuilles['Absences suivi'], undefined);
   });
-  const ligne = d => environnement(d === undefined ? {} : { direction: d }).ctx.verifierConfig().split('\n').filter(l => /ABSENCE_DIRECTION/.test(l))[0];
-  assert.ok(/^✅ Absences .* : éteint/.test(ligne(undefined)), ligne(undefined));
-  assert.ok(/^❌ Absences .*aucune adresse lisible, lu comme éteint/.test(ligne('pas une adresse')), ligne('pas une adresse'));
+});
+test('verifierConfig dit ce qui est lu, sans afficher les adresses ; le passage de 10 minutes l’écrit en colonne C de la ligne', () => {
+  const ligne = d => environnement(d === undefined ? {} : { direction: d }).ctx.verifierConfig().split('\n').filter(l => /Absences/.test(l))[0];
+  assert.ok(/^• Absences \(lot 14\) : pas installé/.test(ligne(undefined)), ligne(undefined));
+  assert.ok(/^❌ Absences .* : éteint, la case est vide — les demandes partent comme avant, avec une alerte à Franck$/.test(ligne('')), ligne(''));
+  assert.ok(/^❌ Absences .* : éteint, aucune adresse lisible dans la case/.test(ligne('pas une adresse')), ligne('pas une adresse'));
   assert.ok(/^✅ Absences .* : allumé — 2 adresse\(s\) de la direction ; boutons du mail vers https:\/\/chantiersloue\.github\.io\/chantier-pro\/$/.test(ligne(DIR1 + ', ' + DIR2)), ligne(DIR1 + ', ' + DIR2));
   assert.ok(ligne(DIR1).indexOf(DIR1) < 0, 'les adresses ne sont pas affichées');
+  const g = environnement({ direction: DIR1 + ' ; ' + DIR2 + ' ; ' + DIR1.toUpperCase() + ', a@x.test, b@x.test, nimporte quoi' });
+  g.ctx.traiterComptes();
+  assert.strictEqual(g.feuilles['Réglages'].lignes[1][2], 'Allumé : 3 adresse(s) lue(s) (3 texte(s) ignoré(s)) — la direction reçoit seule les demandes d’absence, avec les boutons Accepter / Refuser');
+  caseDirection(g, ''); g.ctx.traiterComptes();
+  assert.ok(/^Éteint \(la case est vide\) : les demandes d’absence partent comme avant, et Franck reçoit une alerte$/.test(g.feuilles['Réglages'].lignes[1][2]), g.feuilles['Réglages'].lignes[1][2]);
+});
+test('au plus 3 adresses : la quatrième n’est pas servie ; une adresse écrite deux fois (majuscules) ne reçoit qu’un mail', () => {
+  const g = environnement({ direction: DIR1 + ', ' + DIR2 + ', ' + DIR1.toUpperCase() + ', c@loue.test, d@loue.test' });
+  envoyer(g, 'kevin');
+  assert.deepStrictEqual(fiches(g).map(m => m.to), [DIR1, DIR2, 'c@loue.test']);
+});
+test('installation : la ligne est ajoutée à l’onglet Réglages — VIDE en production, avec l’adresse de Franck sur la copie TEST ; relançable sans doublon', () => {
+  const p = environnement();
+  assert.ok(/✅/.test(p.ctx.installerLot14Production()));
+  p.ctx.installerLot14Production();
+  const lp = p.feuilles['Réglages'].lignes.filter(l => l[0] === REGLAGE);
+  assert.deepStrictEqual([lp.length, lp[0][1]], [1, '']);
+  const t = environnement({ test: true });
+  t.ctx.installerLot14Test();
+  assert.strictEqual(t.feuilles['Réglages'].lignes.filter(l => l[0] === REGLAGE)[0][1], FRANCK);
+  assert.ok(/❌|refus|TEST/i.test(String(p.ctx.installerLot14Test())), 'l’installation de TEST refuse de tourner en production');
+  const code = fs.readFileSync(path.join(RACINE, 'apps-script', 'Absences.gs'), 'utf8');
+  assert.ok(!/@[a-z0-9-]+\.[a-z]{2,}/i.test(code.replace(/\/\/.*$/gm, '')), 'aucune adresse dans le programme');
 });
 
 console.log('Lot 14 — allumé : le mail part à la direction, et à elle seule');
@@ -147,6 +185,9 @@ test('copie TEST : le lien porte « env1=test » (serveur de cette page seulemen
   envoyer(t, 'kevin');
   const l = lien(t);
   assert.ok(/^https:\/\/loue-essai\.github\.io\/chantier-pro\/absence-reponse\.html\?/.test(l.url) && l.env === 'test' && l.envRetenu === null, l.url);
+  const t2 = environnement({ direction: DIR1, test: true });
+  envoyer(t2, 'kevin');
+  assert.ok(/^https:\/\/loue-essai\.github\.io\/chantier-pro\/absence-reponse\.html\?/.test(lien(t2).url), 'copie TEST sans réglage : la copie d’essai — ' + lien(t2).url);
   ['http://pas-securise.test/', 'https://x.test/"><script>', 'javascript:alert(1)', 'https://x.test/?a=b'].forEach(a => {
     const g = environnement({ direction: DIR1, proprietes: { ADRESSE_APPLI: a } });
     envoyer(g, 'kevin');
@@ -249,7 +290,8 @@ test('Congés, École, Formation gardent leur nom ; santé = « Absent » même 
   [['Congés', '', 'Congés'], ['congé', '', 'Congés'], ['École', '', 'École'], ['ecole CFA', '', 'École'], ['Formation', '', 'Formation'], ['formation CACES', 'Sans solde', 'Formation'],
     ['Personnel', 'Congés payés', 'Congés'], ['Sépulture', 'Repos compensateur, Congés payés', 'Congés'],
     ['Médical', '', 'Absent'], ['Médical', 'Congés payés', 'Absent'], ['Maladie', 'Congés payés', 'Absent'], ['Accident du travail', '', 'Absent'], ['arrêt', '', 'Absent'], ['Formation suite à un accident', '', 'Absent'],
-    ['Personnel', 'Sans solde', 'Absent'], ['Sépulture', '', 'Absent'], ['Naissance', 'Repos compensateur', 'Absent'], ['un motif tapé à la main', '', 'Absent'], ['', '', 'Absent'], [undefined, undefined, 'Absent']]
+    ['Personnel', 'Sans solde', 'Absent'], ['Sépulture', '', 'Absent'], ['Naissance', 'Repos compensateur', 'Récupération'], ['RTT', '', 'RTT'], ['rtt', 'Sans solde', 'RTT'], ['Récupération', '', 'Récupération'], ['récup', '', 'Récupération'],
+    ['Médical', 'Repos compensateur', 'Absent'], ['Personnel', 'Repos compensateur, Congés payés', 'Congés'], ['un motif tapé à la main', '', 'Absent'], ['', '', 'Absent'], [undefined, undefined, 'Absent']]
     .forEach(([m, i, attendu]) => assert.strictEqual(L(m, i), attendu, '« ' + m + ' » / « ' + i + ' »'));
 });
 test('le mail au conducteur d’une absence « École » dit « École » ; d’une absence médicale imputée sur les congés, « Absent »', () => {
@@ -400,7 +442,7 @@ test('sans réponse depuis plus de 7 jours : « Sans réponse » ; sans compte o
 test('retour arrière (réglage retiré) : le poseur voit encore ses demandes déjà faites, et le lien du mail déjà parti marche toujours', () => {
   const g = environnement({ direction: DIR1 });
   envoyer(g, 'kevin'); const l = lien(g);
-  delete g.proprietes.ABSENCE_DIRECTION;
+  caseDirection(g, '');
   const r = miennes(g, 'kevin').data;
   assert.deepStrictEqual([r.suivi, r.direction, r.demandes.length], [true, false, 1]);
   assert.strictEqual(decider(g, l, 'refuser').data.etat, 'Refusée');
@@ -423,7 +465,7 @@ test('une demande envoyée par un téléphone sans compte (période de transitio
 console.log('Lot 14 — la livraison');
 test('le serveur à coller contient le lot 14, éteint ; aucune adresse de direction dans le code', () => {
   const code = fs.readFileSync(path.join(RACINE, 'A-COLLER-DANS-APPS-SCRIPT', 'Code.gs'), 'utf8');
-  ["const VERSION_API = 'v11.4'", 'function absTraiter_(', 'function absVoir_(', 'function absDecider_(', 'function absMiennes_(', 'function absPassage_(', "const ABS_PROP_DIRECTION = 'ABSENCE_DIRECTION'"]
+  ["const VERSION_API = 'v11.4'", 'function absTraiter_(', 'function absVoir_(', 'function absDecider_(', 'function absMiennes_(', 'function absPassage_(', "const ABS_REGLAGE = 'Adresses de la direction (demandes d’absence)'", 'function absCorbeille_(', 'function installerLot14Production(']
     .forEach(t => assert.ok(code.indexOf(t) > -1, t));
   assert.ok(!/ABSENCE_DIRECTION\s*=\s*['"][^'"]*@/.test(code));
   assert.ok(/VERSION_APPLI = '10\.5'/.test(fs.readFileSync(path.join(RACINE, 'commun', 'config.js'), 'utf8')));
@@ -433,6 +475,64 @@ test('la page de réponse de la direction n’est jamais gardée ni servie par l
   assert.ok(/if \(\/\\\/absence-reponse\\\.html\$\/\.test\(url\.pathname\)\) return;/.test(sw), 'exclusion absente de sw.js');
   assert.ok(sw.indexOf("'absence-reponse.html'") < 0, 'pas dans la liste des pages gardées');
   assert.ok(sw.indexOf('absence-reponse') < sw.indexOf('respondWith'), 'l’exclusion est AVANT toute réponse du cache');
+});
+console.log('Lot 14 — le mail de la direction à la corbeille de Gmail');
+test('juste après l’envoi : chaque mail envoyé à la direction est mis à la corbeille ; aucun autre mail n’est touché', () => {
+  const g = environnement({ direction: DIR1 + ', ' + DIR2 });
+  envoyer(g, 'kevin', demande({ nom: 'Thomas ESSAI' }));        // une autre demande, envoyée avant
+  const autre = g.mails.slice();
+  autre.forEach(m => { m.corbeille = false; });
+  envoyer(g, 'kevin');
+  assert.deepStrictEqual(enCorbeille(g), [DIR1, DIR2, DIR1, DIR2].slice(0, enCorbeille(g).length));
+  assert.ok(/^à la corbeille le 19\/11\/2026/.test(suivi(g)[1][13]), suivi(g)[1][13]);
+  // la demande d'avant n'est remise à la corbeille que par sa propre ligne (son lien est différent)
+  assert.ok(g.mails.slice(2).every(m => m.corbeille), 'les deux mails de cette demande');
+});
+test('seuls les messages qui portent le lien de CETTE demande sont touchés (même objet, autre demande : gardé)', () => {
+  const g = environnement({ direction: DIR1 });
+  g.etat.gmailPasEncore = 1;                                    // la première demande : Gmail ne la trouve pas tout de suite
+  envoyer(g, 'kevin');
+  envoyer(g, 'kevin');
+  assert.deepStrictEqual(g.mails.map(m => !!m.corbeille), [false, true]);
+  assert.ok(/^à mettre à la corbeille \d+ 1$/.test(suivi(g)[0][13]), suivi(g)[0][13]);
+  g.ctx.traiterComptes();                                       // le passage de 10 minutes la retrouve
+  assert.deepStrictEqual(g.mails.map(m => !!m.corbeille), [true, true]);
+  assert.ok(/^à la corbeille le/.test(suivi(g)[0][13]));
+  assert.strictEqual(g.proprietes.ABS_CORBEILLE, undefined, 'plus rien à faire : le passage ne cherche plus');
+  const n = g.etat.recherchesGmail; g.ctx.traiterComptes();
+  assert.strictEqual(g.etat.recherchesGmail, n);
+});
+test('la direction = l’adresse du compte lui-même : le message est aussi dans la boîte de réception, il est GARDÉ (sinon la direction le perdrait)', () => {
+  const g = environnement({ direction: FRANCK });
+  envoyer(g, 'kevin');
+  assert.deepStrictEqual(enCorbeille(g), []);
+  assert.ok(/^gardé : ce mail est aussi dans la boîte de réception/.test(suivi(g)[0][13]), suivi(g)[0][13]);
+});
+test('Gmail ne le trouve toujours pas 24 h après : on abandonne, la ligne le dit, Franck est prévenu une fois (sans détail)', () => {
+  const g = environnement({ direction: DIR1 });
+  g.etat.gmailPasEncore = 1000;
+  envoyer(g, 'kevin');
+  g.now += 3600000; g.ctx.traiterComptes();
+  assert.ok(/^à mettre à la corbeille/.test(suivi(g)[0][13]));
+  g.now += 24 * 3600000; g.ctx.traiterComptes(); g.ctx.traiterComptes();
+  assert.ok(/^pas trouvé dans « Messages envoyés » : à supprimer à la main/.test(suivi(g)[0][13]), suivi(g)[0][13]);
+  const a = alertes(g, /à supprimer à la main/);
+  assert.ok(a.length === 1 && !/Kévin|médical|genou|30\/11/.test(a[0].texte), j(a));
+});
+test('la recherche dans Gmail tombe en panne : la demande est quand même reçue (le mail est parti), la corbeille sera faite au passage suivant', () => {
+  const g = environnement({ direction: DIR1 });
+  const vrai = g.contexte.GmailApp.search;
+  g.contexte.GmailApp.search = () => { throw new Error('Service indisponible'); };
+  const r = envoyer(g, 'kevin');
+  assert.strictEqual(r.code, 'ENREGISTRE', j(r));
+  assert.ok(/^à mettre à la corbeille/.test(suivi(g)[0][13]));
+  g.contexte.GmailApp.search = vrai; g.ctx.traiterComptes();
+  assert.deepStrictEqual(enCorbeille(g), [DIR1]);
+});
+test('la signature du lien n’est jamais écrite dans le Sheet (la colonne garde seulement la date limite, qui ne suffit pas à répondre)', () => {
+  const g = environnement({ direction: DIR1 });
+  g.etat.gmailPasEncore = 1; envoyer(g, 'kevin');
+  assert.ok(toutLeSheet(g).indexOf(lien(g).s) < 0);
 });
 test('le motif n’est écrit par le lot 14 qu’à un seul endroit du programme : le mail à la direction', () => {
   const code = fs.readFileSync(path.join(RACINE, 'apps-script', 'Absences.gs'), 'utf8').replace(/\/\/.*$/gm, '');

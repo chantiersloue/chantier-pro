@@ -11,14 +11,11 @@
    node outils\envoyer-test.js --avec-porte
    ```
    Attends `✅ Envoi réussi`, version **v11.4**.
-2. Éditeur Apps Script **de la copie TEST** → **Paramètres du projet** → **Propriétés du script** → ajoute :
-   - `ABSENCE_DIRECTION` = **une adresse à toi** (celle que tu lis dans Outlook) ;
-   - `ADRESSE_APPLI` = l'adresse de la copie d'essai (je te la donne).
-3. Dis-moi « envoi fait ».
+2. Dis-moi « envoi fait ». **Rien d'autre à faire dans l'éditeur** : les adresses de la direction sont dans le Sheet, et c'est l'installation qui y met la tienne pour les essais.
 
 ## Partie 2 — moi (10 minutes, sans toi)
 
-Installation des lots 8d et 12 sur TEST, essais automatiques (le lot 8d t'envoie **3 mails** d'essai ; le lot 12 aucun), publication de la copie d'essai en **10.5**. Je te dis « à toi ».
+Installation des lots 8d, 12 et 14 sur TEST — celle du lot 14 met **ton adresse** (celle des alertes) dans la ligne « Adresses de la direction » de l'onglet *Réglages* : pour les essais, la direction, c'est toi. Essais automatiques (le lot 8d t'envoie **3 mails** d'essai ; les lots 12 et 14 aucun), publication de la copie d'essai en **10.5**. Je te dis « à toi ».
 
 ## Partie 3 — toi, au téléphone (30 minutes)
 
@@ -44,7 +41,7 @@ Copie d'essai (icône « Loué ESSAI »), connecté avec un compte de **poseur**
 **D. La demande d'absence (lot 14)**
 12. Tuile **Demande d'absence** : « Mes demandes » est en haut (vide), le champ e-mail a disparu.
 13. Fais une demande pour **un seul jour**, dans trois semaines, **motif « Médical »**, précisions « essai ». Envoie : la date (**écrite normalement, « 14/12/2026 »**) et **En attente** s'affichent.
-14. Fais-en une seconde, **motif « École »**.
+14. Fais-en une seconde, **motif « École »**. (La liste des motifs commence par Congés, RTT, Récupération, École, Formation.)
 
 **E. Tout ce qui se fait sans réseau, en une fois**
 15. **Mode avion.** Ferme l'appli, rouvre-la.
@@ -63,16 +60,28 @@ Copie d'essai (icône « Loué ESSAI »), connecté avec un compte de **poseur**
 24. Dans le premier mail, clique **❌ Refuser** : « Une réponse a déjà été donnée ». Aucun bouton.
 25. Dans le mail de la demande « École » : **❌ Refuser**, puis **Confirmer**. Pas de mail « Absence acceptée ».
 26. Sur le téléphone, *Demande d'absence* : **Acceptée** et **Refusée**.
+27. Gmail **du compte de Loué**, « Messages envoyés » : les deux mails « [Loué App] Demande d'absence — … » **n'y sont plus** ; ils sont dans la **corbeille**. (Si ton adresse est celle du compte de Loué lui-même, ils sont gardés : c'est voulu, voir `docs/lot14-procedure.md`.)
 
 **G. Le Sheet et le Drive de TEST**
-27. Onglet ***Absences suivi*** : deux lignes, aucun motif. Onglet *Absences* : « (réservé à la direction) ».
-28. Onglet ***Réglages*** : **coche** la case. Sur le téléphone, ferme complètement l'appli et rouvre-la : « Tous les chantiers » en montre plus ; ouvre un chantier qui n'était pas à toi (carnet, notes, récapitulatif s'ouvrent).
-29. Attends que la colonne « État » dise « Allumé depuis le … » (10 minutes au plus). Puis **décoche**, ferme et rouvre l'appli : ce chantier a disparu. Dix minutes plus tard : « Éteint depuis le … ».
-30. Drive de TEST, dossier du chantier de la note de réunion : le fichier « RÉCAPITULATIF DES NOTES - … » contient ta note (dix minutes après l'envoi).
+28. Onglet ***Absences suivi*** : deux lignes, aucun motif ; colonne « Copie dans Gmail » : « à la corbeille le … ». Onglet *Absences* : « (réservé à la direction) ».
+29. Onglet ***Réglages***, ligne « Adresses de la direction » : colonne C « Allumé : 1 adresse(s) lue(s) ». **Efface ta case B**, attends 10 minutes (« Éteint »), fais une demande d'absence au téléphone : elle part comme aujourd'hui, et tu reçois l'alerte « Demande d'absence partie sans la direction ». **Remets ton adresse.**
+30. Onglet ***Réglages***, ligne « Tous les comptes ouvrent tous les chantiers » : **coche** la case. Sur le téléphone, ferme complètement l'appli et rouvre-la : « Tous les chantiers » en montre plus ; ouvre un chantier qui n'était pas à toi (carnet, notes, récapitulatif s'ouvrent).
+31. Attends que la colonne « État » dise « Allumé depuis le … » (10 minutes au plus). Puis **décoche**, ferme et rouvre l'appli : ce chantier a disparu. Dix minutes plus tard : « Éteint depuis le … ».
+32. Drive de TEST, dossier du chantier de la note de réunion : le fichier « RÉCAPITULATIF DES NOTES - … » contient ta note (dix minutes après l'envoi).
 
 Dis-moi « essais faits », avec tes remarques et la capture d'Outlook.
+
+## Production du groupe A (toi : 20 minutes) — après « essais faits » et mon accord
+
+1. Dans `chantier-pro-lot14` : `node outils\envoyer-test.js --sans-porte` (c'est le fichier qui ira en production ; je vérifie son empreinte).
+2. Éditeur Apps Script **de production** : remplace tout `Code.gs` par `A-COLLER-DANS-APPS-SCRIPT/Code.gs` **du dossier `chantier-pro-lot14`** (la ligne `VERSION_API` dit `v11.4`). **Enregistre.**
+3. Lance, l'une après l'autre (liste en haut → la fonction → ▶) : **`installerLot8dProduction`**, **`installerLot12Production`**, **`installerLot14Production`**. Chacune finit par `✅ … installation terminée.` Elles se relancent sans danger.
+4. **Déployer → Nouveau déploiement** (« Groupe A — production »). Donne-moi l'adresse.
+5. Je mets l'adresse dans `commun/config.js` et je te donne le lien de fusion. Après la fusion : « À propos » affiche **10.5**.
+6. Ce qui arrive **éteint** : « tous les chantiers ouverts » (case de l'onglet *Réglages*) et la réponse de la direction aux absences (case « Adresses de la direction », **vide** : tu y mettras les vraies adresses toi-même). Tant qu'elle est vide, tu reçois une alerte les jours où une absence arrive.
+7. **Anciens déploiements** : le précédent, à archiver une semaine après la fusion.
 
 ## Ensuite
 
 - Le programme du PC pour le récapitulatif (lot 8d, étape C de sa procédure) : 5 minutes, à part.
-- La mise en production : `docs/feuille-de-route.md` (branche `lot-5`).
+- La suite : `docs/feuille-de-route.md` (branche `lot-5`).

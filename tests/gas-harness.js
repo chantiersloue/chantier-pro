@@ -189,6 +189,18 @@ function creerGoogle(options = {}) {
       etat.quota -= n;
       mails.push({ to, sujet, texte, opts: opts || {} });
     },
+    // Lot 14 : chaque mail envoyé est un fil d'un seul message. La recherche comprend « subject:"…" » (le reste de la requête
+    // est ignoré) ; un message à la corbeille n'est plus trouvé. etat.gmailPasEncore = n : les n prochaines recherches ne trouvent
+    // rien (Gmail n'a pas encore rangé le message). Un message envoyé à l'adresse du compte est aussi « dans la boîte de réception ».
+    search: (q, debut, max) => {
+      etat.recherchesGmail = (etat.recherchesGmail || 0) + 1;
+      if (etat.gmailPasEncore > 0) { etat.gmailPasEncore--; return []; }
+      const sujet = (/subject:"([^"]*)"/.exec(String(q || '')) || [])[1];
+      const moi = 'franck@loue.test';
+      return mails.filter(m => !m.corbeille && (!sujet || String(m.sujet).indexOf(sujet) > -1)).slice(debut || 0, (debut || 0) + (max || 500)).map(m => ({
+        getMessages: () => [{ getSubject: () => m.sujet, getTo: () => m.to, getPlainBody: () => m.texte, isInTrash: () => !!m.corbeille,
+          isInInbox: () => String(m.to).toLowerCase() === moi, moveToTrash: () => { m.corbeille = true; etat.corbeillesGmail = (etat.corbeillesGmail || 0) + 1; } }] }));
+    },
   };
   const MailApp = { getRemainingDailyQuota: () => etat.quota };
 

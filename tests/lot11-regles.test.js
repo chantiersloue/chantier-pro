@@ -88,6 +88,8 @@ test('les autres cas : en entier ou par leur début, sans accents ni majuscules'
   egal(R.plCompleter_('for', index), 'Formation');
   egal(R.plCompleter_('sav', index), 'SAV / divers');
   egal(R.plCompleter_('fe', index), 'fe', 'deux lettres : trop court');
+  egal(R.plCompleter_('rtt', index), 'RTT');
+  egal(R.plCompleter_('recup', index), 'Récupération');
 });
 test('journée coupée : « 901 + 903 » → deux demi-journées, l’une sous l’autre', () => {
   egal(R.plCompleter_('901 + 903', index), '½ 901 LES TILLEULS\n½ 903 LES LILAS');
@@ -312,7 +314,7 @@ test('liste des chantiers recopiée de l’appli : non « Terminé », avec num�
 test('la liste de saisie : tous les « N° NOM », puis les autres cas', () => {
   const choix = R.plChoix_(index);
   egal(choix.slice(0, 2), ['901 LES TILLEULS', '903 LES LILAS']);
-  egal(choix.slice(-8), R.lire('PL_CAS'));
+  egal(choix.slice(-R.lire('PL_CAS').length), R.lire('PL_CAS'));
 });
 test('historique : une ligne par gars, journée coupée sur une ligne', () => {
   const l = R.plLignesHistorique_(semaine());

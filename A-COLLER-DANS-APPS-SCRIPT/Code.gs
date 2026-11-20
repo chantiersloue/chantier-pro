@@ -1,10 +1,10 @@
 // ═══════════════════════════════════════════════════════════════
 // LOUÉ APP — SERVEUR COMPLET, À COLLER DANS APPS SCRIPT (fichier « Code.gs », tout remplacer)
 // FICHIER GÉNÉRÉ AUTOMATIQUEMENT par « node outils/construire.js » — NE PAS MODIFIER À LA MAIN :
-// les sources sont dans le dossier apps-script/ du dépôt. Version du serveur a1f3c7e2e8 (pages da1c66bf9e)
+// les sources sont dans le dossier apps-script/ du dépôt. Version du serveur e2c2e85556 (pages da1c66bf9e)
 // ═══════════════════════════════════════════════════════════════
 
-const EMPREINTE_SERVEUR = 'a1f3c7e2e8';
+const EMPREINTE_SERVEUR = 'e2c2e85556';
 
 // ████ Config.gs ████
 // ═══════════════════════════════════════════════════════════════
@@ -12,7 +12,7 @@ const EMPREINTE_SERVEUR = 'a1f3c7e2e8';
 // Loué Menuiserie
 // ═══════════════════════════════════════════════════════════════
 
-const VERSION_API = 'v11.4';   // 11.4 : lot 14 (demande d'absence : réponse de la direction par lien signé, état pour le poseur ; ÉTEINT sans la propriété ABSENCE_DIRECTION) ; 11.3 : lot 13 (« Mes notes » : les notes écrites par le compte, tous chantiers) ; 11.2 : lot 12 (réglage « tous les comptes ouvrent tous les chantiers », chantiers du planning en favoris) ; 11.1 : lot 8d (récapitulatif des notes de réunion par chantier ; ce numéro avait servi aux essais du lot 8c, les points, retirés le 19/11/2026 avant toute mise en production) ; 11.0 : lot 8b (onglet « Comptes rendus », une ligne par note de réunion) ; 10.1 : lot 5c (planning lisible par les seuls comptes, plus aucun lien de partage) ; 10.0 : lot 5 (suivi du stockage, purge sur case cochée) ; 9.1 : retrait de la lecture du dossier Plans (lot 4b) ; 9.0 : lot 4a (carnet de chantier) ; 8.0 : lot 3 (notes de chantier) ; 7.0 : lot 7 (signalements) ; 6.0 : lot 2 (comptes)
+const VERSION_API = 'v11.4';   // 11.4 : lot 14 (demande d'absence : réponse de la direction par lien signé, état pour le poseur ; ÉTEINT tant que la ligne « Adresses de la direction » de l'onglet Réglages est vide) ; 11.3 : lot 13 (« Mes notes » : les notes écrites par le compte, tous chantiers) ; 11.2 : lot 12 (réglage « tous les comptes ouvrent tous les chantiers », chantiers du planning en favoris) ; 11.1 : lot 8d (récapitulatif des notes de réunion par chantier ; ce numéro avait servi aux essais du lot 8c, les points, retirés le 19/11/2026 avant toute mise en production) ; 11.0 : lot 8b (onglet « Comptes rendus », une ligne par note de réunion) ; 10.1 : lot 5c (planning lisible par les seuls comptes, plus aucun lien de partage) ; 10.0 : lot 5 (suivi du stockage, purge sur case cochée) ; 9.1 : retrait de la lecture du dossier Plans (lot 4b) ; 9.0 : lot 4a (carnet de chantier) ; 8.0 : lot 3 (notes de chantier) ; 7.0 : lot 7 (signalements) ; 6.0 : lot 2 (comptes)
 
 // ── CONFIGURATION ──
 const SHEET_CONTACTS      = 'Contacts';
@@ -51,9 +51,9 @@ const SOUS_DOSSIERS_PARTAGES = ['Plans'];
 //   DRIVE_ROOT_ID     : dossier racine "Loué Menuiserie - Chantiers"
 //   DRIVE_PLANNING_ID : dossier Planning
 //   EMAIL_ADMIN       : (facultatif) adresse de Franck ; sinon celle du compte qui a déployé
-//   ABSENCE_DIRECTION : (facultatif, lot 14) 1 à 3 adresses de la direction : elle seule reçoit les demandes d'absence, avec les
-//                       boutons Accepter / Refuser. ABSENT = comme avant le lot 14. Voir Absences.gs.
-//   ADRESSE_APPLI     : (facultatif, lot 14) adresse des pages de l'appli pour les liens du mail (utile sur la copie TEST)
+//   ADRESSE_APPLI     : (facultatif, lot 14) adresse des pages de l'appli pour les liens du mail d'absence ; sans elle :
+//                       l'appli de production, ou la copie d'essai sur la copie TEST. Les adresses de la direction, elles,
+//                       sont dans l'onglet « Réglages » du Sheet (voir Absences.gs).
 function propriete_(cle) {
   return PropertiesService.getScriptProperties().getProperty(cle) || '';
 }
@@ -416,6 +416,9 @@ function alerte_(texte, sorte) {
       demarrage : '[Loué App] Période de transition pas démarrée',
       planning  : '[Loué App] Planning encore lisible par lien',
       recap     : '[Loué App] Récapitulatif des notes en retard',
+      absence   : '[Loué App] Demande d’absence partie sans la direction — onglet Réglages',
+      absenceenvoi: '[Loué App] Demande d’absence pas encore partie vers la direction',
+      absencecorbeille: '[Loué App] Mail d’absence à supprimer à la main dans « Messages envoyés »',
     }[sorte] || "[Loué App] Envoi refusé — voir l'onglet Journal";
     GmailApp.sendEmail(emailAdmin_(), sujet,
       texte + "\n\nLes cas suivants de la journée sont notés dans l'onglet « Journal » du Sheet, sans autre mail.\n\nLoué App",
@@ -2069,10 +2072,13 @@ function getContactsRaw() {
 // DEMANDE D'ABSENCE
 // ══════════════════════════════════════════════════════════
 function traiterAbsence(data, brut, contexte) {
-  // Lot 14 : quand le réglage ABSENCE_DIRECTION existe, la demande part à la direction seule, avec ses deux boutons
-  // (Absences.gs). Sans ce réglage : tout ce qui suit, exactement comme avant.
-  const direction = absDirection_();
-  if (direction.length) return absTraiter_(brut, contexte || {}, direction);
+  // Lot 14 : la ligne « Adresses de la direction » de l'onglet « Réglages » donne 1 à 3 adresses : la demande part à la
+  // direction seule, avec ses deux boutons (Absences.gs). Sinon : tout ce qui suit, exactement comme avant — et si la ligne
+  // existe mais ne donne aucune adresse, Franck est prévenu (une fois par jour au plus). Une panne de lecture : comme avant.
+  let reglage = { installe: false, adresses: [] };
+  try { reglage = absReglage_(); } catch (err) { console.error('Réglage de la direction illisible :', err.message); }
+  if (reglage.adresses.length) return absTraiter_(brut, contexte || {}, reglage.adresses);
+  if (reglage.installe) absAlerterReglage_(reglage);
   // 1. Sheet « Absences » — mêmes colonnes qu'avant ; protégé contre les erreurs (données brutes, formules neutralisées)
   try {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -3835,15 +3841,20 @@ function installerLot12Production() { return installerLot12_('PRODUCTION'); }
 // appellation — sauf maladie et accident : « Absent ». REFUSÉE : rien. Le poseur voit l'état de sa demande dans l'appli.
 // LE MOTIF N'EST VISIBLE QUE PAR LA DIRECTION.
 //
-//   - ÉTEINT tant que la propriété du script ABSENCE_DIRECTION (1 à 3 adresses de la direction) n'existe pas : sans elle,
-//     traiterAbsence fait exactement comme avant ;
+//   - les adresses de la direction (1 à 3) sont dans l'onglet « Réglages » du Sheet, ligne « Adresses de la direction »
+//     (décision de Franck du 20/11/2026), posée par installerLot14Test / installerLot14Production. Sans cette ligne : tout
+//     comme avant, sans rien dire. Ligne présente mais case vide (ou illisible) : la demande part COMME AVANT (elle n'est
+//     jamais bloquée) et Franck reçoit une alerte, une fois par jour au plus ;
 //   - le motif et les précisions ne sont écrits NULLE PART ailleurs que dans le mail à la direction et son PDF : ni dans le
 //     Sheet, ni dans Drive, ni dans l'onglet « Mails en attente », ni dans le Journal, ni dans une alerte ;
 //   - si le mail à la direction ne peut pas partir, la demande n'est PAS reçue : le téléphone la garde et la renvoie
 //     (même numéro : aucun doublon). Tant que ce mail n'est pas parti (colonne « Mail à la direction » vide), le poseur ne
 //     voit pas la demande « En attente » ; une fois parti, il ne repart jamais une seconde fois ;
-//   - ATTENTION : la boîte « Messages envoyés » du compte Google de Loué garde le mail de la direction (donc le motif) :
-//     l'appli ne peut pas l'empêcher sans supprimer la preuve de la demande ;
+//   - le mail envoyé à la direction est MIS À LA CORBEILLE de Gmail juste après l'envoi (décision de Franck du 20/11/2026),
+//     pour que le motif ne reste pas lisible dans « Messages envoyés » du compte de Loué. Google vide la corbeille au bout de
+//     30 jours. Seuls les messages qui portent le lien signé de CETTE demande sont touchés ; un message qui est aussi dans la
+//     boîte de réception (la direction = le compte lui-même) est gardé. Si Gmail ne le trouve pas encore, nouvel essai au
+//     passage de 10 minutes ; au bout de 24 h, Franck est prévenu ;
 //   - le lien est SIGNÉ avec la clé secrète du serveur (numéro de la demande + date limite) : rien de secret n'est écrit dans
 //     le Sheet, lire le Sheet ne permet pas de fabriquer un lien. Usage unique : dès qu'une réponse est enregistrée, le lien
 //     ne fait plus que la redire ;
@@ -3851,31 +3862,80 @@ function installerLot12Production() { return installerLot12_('PRODUCTION'); }
 // Plan : docs/lot14-plan.md. Décisions : D14-… (DECISIONS.md).
 // ═══════════════════════════════════════════════════════════════════════════════
 const SHEET_ABS_SUIVI = 'Absences suivi';
-const ABS_ENTETES = ['Numéro', 'Reçue le', 'Compte', 'Demandeur', 'Date d’absence', 'Du', 'Au', 'Durée', 'Appellation (planning)', 'État', 'Décidée le', 'Mail au conducteur', 'Mail à la direction'];
-const COL_AB = { numero: 1, recue: 2, compte: 3, demandeur: 4, texte: 5, du: 6, au: 7, duree: 8, libelle: 9, etat: 10, decidee: 11, mail: 12, direction: 13 };
+const ABS_ENTETES = ['Numéro', 'Reçue le', 'Compte', 'Demandeur', 'Date d’absence', 'Du', 'Au', 'Durée', 'Appellation (planning)', 'État', 'Décidée le', 'Mail au conducteur', 'Mail à la direction', 'Copie dans Gmail'];
+const COL_AB = { numero: 1, recue: 2, compte: 3, demandeur: 4, texte: 5, du: 6, au: 7, duree: 8, libelle: 9, etat: 10, decidee: 11, mail: 12, direction: 13, corbeille: 14 };
+const ABS_REGLAGE = 'Adresses de la direction (demandes d’absence)';   // une ligne de l'onglet « Réglages » (lot 12)
+const ABS_CORBEILLE_A_FAIRE = 'à mettre à la corbeille ';           // suivi de « <date limite du lien> <messages restants> »
+const ABS_PROP_CORBEILLE = 'ABS_CORBEILLE';                         // « 1 » : un mail à mettre à la corbeille attend
+const ABS_CORBEILLE_DELAI_MS = 24 * 3600 * 1000;                    // après 24 h sans le trouver, Franck est prévenu
+const ABS_RECHERCHE_GMAIL = 'in:sent newer_than:9d subject:"Demande d\'absence"';
 const ABS_MAX_PAR_JOUR = 5;                        // demandes par compte et par jour (chacune envoie 1 à 3 mails avec un PDF)
 const ABS_MAIL_EN_COURS = 'envoi en cours ';       // suivi de l'heure (ms) : un mail au conducteur est en train de partir
-const ABS_PROP_DIRECTION = 'ABSENCE_DIRECTION';     // adresses de la direction (jamais dans le dépôt). Absente = lot 14 éteint
 const ABS_PROP_ADRESSE = 'ADRESSE_APPLI';           // (facultatif) adresse des pages de l'appli, pour les liens du mail
 const ABS_ADRESSE_DEFAUT = 'https://chantiersloue.github.io/chantier-pro/';
+const ABS_ADRESSE_TEST = 'https://loue-essai.github.io/chantier-pro/';   // la copie d'essai (copie TEST), sans réglage
 const ABS_PROP_A_ENVOYER = 'ABS_MAIL_A_ENVOYER';    // « 1 » : un mail au conducteur attend (regardé toutes les 10 minutes)
 const ABS_LIEN_JOURS = 7;                           // durée de vie d'un lien
 const ABS_DIRECTION_MAX = 3;
 const ABS_ETATS = { attente: 'En attente', acceptee: 'Acceptée', refusee: 'Refusée', sansReponse: 'Sans réponse' };
 const ABS_RESERVE = '(réservé à la direction)';
 const ABS_MAIL_A_ENVOYER = 'à envoyer';
+// Les appellations écrites dans le planning (décision de Franck du 20/11/2026) ; tout le reste est « Absent »
+const ABS_APPELLATIONS = ['Absent', 'Congés', 'École', 'Formation', 'RTT', 'Récupération'];
 // Mots de santé : l'appellation est toujours « Absent », quoi qu'il soit coché par ailleurs
 const ABS_SANTE = ['medical', 'medicale', 'medecin', 'maladie', 'malade', 'accident', 'arret', 'hopital', 'hospitalisation', 'operation', 'chirurgie', 'sante', 'soins', 'blessure'];
 
-// ── Le réglage ──
-function absDirection_() {
-  const vues = {}, liste = [];
-  decouperAdresses_(propriete_(ABS_PROP_DIRECTION)).forEach(a => { const c = a.toLowerCase(); if (!vues[c]) { vues[c] = true; liste.push(a); } });
-  return liste.slice(0, ABS_DIRECTION_MAX);
+// ── Le réglage : la ligne « Adresses de la direction » de l'onglet « Réglages » ──
+// { installe, adresses (1 à 3), ignorees (textes qui ne sont pas des adresses, ou au-delà de 3), probleme, sh, ligne }
+//   installe = la ligne existe (lot 14 installé). Deux lignes de ce nom : aucune adresse (on ne devine pas), problème dit.
+function absReglage_() {
+  const r = { installe: false, adresses: [], ignorees: 0, probleme: '', sh: null, ligne: 0 };
+  const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_REGLAGES);
+  if (!sh || sh.getLastRow() < 2) return r;
+  const lignes = sh.getRange(2, 1, Math.min(50, sh.getLastRow() - 1), 2).getValues(), trouvees = [];
+  lignes.forEach((l, i) => { if (String(l[0]).trim() === ABS_REGLAGE) trouvees.push(i); });
+  if (!trouvees.length) return r;
+  r.installe = true; r.sh = sh; r.ligne = trouvees[0] + 2;
+  if (trouvees.length > 1) { r.probleme = 'la ligne « ' + ABS_REGLAGE + ' » est écrite deux fois'; return r; }
+  const morceaux = String(lignes[trouvees[0]][1] === null || lignes[trouvees[0]][1] === undefined ? '' : lignes[trouvees[0]][1]).split(/[,;\s]+/).map(x => x.trim()).filter(Boolean);
+  const vues = {};
+  morceaux.forEach(a => {
+    if (!estEmail_(a)) { r.ignorees++; return; }
+    const c = a.toLowerCase();
+    if (vues[c]) return;
+    vues[c] = true;
+    if (r.adresses.length < ABS_DIRECTION_MAX) r.adresses.push(a); else r.ignorees++;
+  });
+  if (!r.adresses.length) r.probleme = morceaux.length ? 'aucune adresse lisible dans la case' : 'la case est vide';
+  return r;
+}
+function absDirection_() { return absReglage_().adresses; }
+// Ce que l'appli a compris, écrit en colonne C de la ligne (par le passage de 10 minutes, seulement quand ça change)
+function absTexteReglage_(r) {
+  if (r.adresses.length) return 'Allumé : ' + r.adresses.length + ' adresse(s) lue(s)' + (r.ignorees ? ' (' + r.ignorees + ' texte(s) ignoré(s))' : '')
+    + ' — la direction reçoit seule les demandes d’absence, avec les boutons Accepter / Refuser';
+  return 'Éteint (' + (r.probleme || 'case vide') + ') : les demandes d’absence partent comme avant, et Franck reçoit une alerte';
+}
+function absEtatReglage_() {
+  try {
+    const r = absReglage_();
+    if (!r.installe) return;
+    const texte = absTexteReglage_(r), c = r.sh.getRange(r.ligne, 3);
+    if (String(c.getValue()) !== texte) c.setValue(texte);
+  } catch (e) { console.error('absEtatReglage_ :', e.message); }
 }
 function absAdresseAppli_() {
   const p = String(propriete_(ABS_PROP_ADRESSE)).trim();
-  return /^https:\/\/[A-Za-z0-9.-]+\/[A-Za-z0-9._~\/-]*$/.test(p) ? (p.slice(-1) === '/' ? p : p + '/') : ABS_ADRESSE_DEFAUT;
+  if (/^https:\/\/[A-Za-z0-9.-]+\/[A-Za-z0-9._~\/-]*$/.test(p)) return p.slice(-1) === '/' ? p : p + '/';
+  let test = false;
+  try { test = environnementReel_().env === 'TEST'; } catch (e) {}
+  return test ? ABS_ADRESSE_TEST : ABS_ADRESSE_DEFAUT;
+}
+// La ligne de l'onglet « Réglages » est vide (ou illisible) : la demande part comme avant, Franck est prévenu (sans détail)
+function absAlerterReglage_(r) {
+  alerte_('Une demande d’absence vient de partir COMME AVANT le lot 14 (aux personnes prévenues des absences, motif compris) : '
+    + 'dans l’onglet « ' + SHEET_REGLAGES + ' », la ligne « ' + ABS_REGLAGE + ' » ne donne aucune adresse (' + r.probleme + '). '
+    + 'Écrire 1 à ' + ABS_DIRECTION_MAX + ' adresses en colonne B, séparées par une virgule, pour que la direction reçoive seule les demandes.', 'absence');
 }
 
 // ── Textes et dates ──
@@ -3886,7 +3946,13 @@ function absLibelle_(motif, imputation) {
   if (mots.some(x => ABS_SANTE.indexOf(x) > -1)) return 'Absent';
   if (mots.indexOf('ecole') > -1) return 'École';
   if (mots.indexOf('formation') > -1) return 'Formation';
-  if (mots.some(x => x === 'conge' || x === 'conges') || absNorm_(imputation).indexOf('conges payes') > -1) return 'Congés';
+  if (mots.indexOf('rtt') > -1) return 'RTT';
+  if (mots.some(x => x === 'recuperation' || x === 'recup')) return 'Récupération';
+  if (mots.some(x => x === 'conge' || x === 'conges')) return 'Congés';
+  // le motif ne dit rien : les heures imputées (Congés payés d'abord, puis Repos compensateur)
+  const i = absNorm_(imputation);
+  if (i.indexOf('conges payes') > -1) return 'Congés';
+  if (i.indexOf('repos compensateur') > -1) return 'Récupération';
   return 'Absent';
 }
 // « 30/11/2026 », « Du 30/11/2026 au 04/12/2026 », « Semaine 49 (du lundi 30/11/2026 au vendredi 04/12/2026) » → { du, au } en
@@ -3942,7 +4008,7 @@ function absVerifierLien_(corps) {
 }
 
 // ══════════════════════════════════════════════════════════
-// LA DEMANDE ARRIVE (appelée par traiterAbsence quand le réglage ABSENCE_DIRECTION existe)
+// LA DEMANDE ARRIVE (appelée par traiterAbsence quand la ligne « Adresses de la direction » donne au moins une adresse)
 // ══════════════════════════════════════════════════════════
 function absTraiter_(brut, contexte, direction) {
   // Une fiche de l'ancien format (sans numéro, pendant la période de transition) reçoit un numéro du serveur
@@ -4006,8 +4072,13 @@ function absTraiter_(brut, contexte, direction) {
   if (!partis) absReessayer_('le mail à la direction n’a pas pu partir (' + erreur + ')');
   // Noté AUSSITÔT : à partir d'ici le poseur voit « En attente », et ce mail ne repartira jamais (même si le téléphone renvoie la demande)
   sh.getRange(ligne, COL_AB.direction).setNumberFormat('@').setValue('envoyé le ' + absQuand_(maintenant_()));
+  // Le mail envoyé (avec le motif) sort de « Messages envoyés » : à la corbeille de Gmail, tout de suite si Gmail le trouve déjà,
+  // sinon au passage de 10 minutes (la date limite du lien sert à recalculer sa signature, qui n'est jamais écrite dans le Sheet)
+  sh.getRange(ligne, COL_AB.corbeille).setNumberFormat('@').setValue(ABS_CORBEILLE_A_FAIRE + limite + ' ' + partis);
+  PropertiesService.getScriptProperties().setProperty(ABS_PROP_CORBEILLE, '1');
+  try { absCorbeille_(sh, ligne); } catch (err) { console.error('Corbeille Gmail :', err.message); }
   // Une adresse sur plusieurs a échoué : la direction est prévenue par l'autre ; Franck l'apprend, sans aucun détail de la demande
-  if (partis < direction.length) alerte_('Une demande d’absence est partie à ' + partis + ' adresse(s) de la direction sur ' + direction.length + ' (' + erreur + '). Vérifier le réglage ' + ABS_PROP_DIRECTION + '.', 'erreur');
+  if (partis < direction.length) alerte_('Une demande d’absence est partie à ' + partis + ' adresse(s) de la direction sur ' + direction.length + ' (' + erreur + '). Vérifier la ligne « ' + ABS_REGLAGE + ' » de l’onglet « ' + SHEET_REGLAGES + ' ».', 'absenceenvoi');
 }
 function absEcrireTexte_(sh, ligne, colonne, valeurs) { sh.getRange(ligne, colonne, 1, valeurs.length).setNumberFormat('@').setValues([valeurs]); }
 // Combien de demandes ce compte a déjà faites aujourd'hui
@@ -4021,7 +4092,7 @@ function absDuJour_(sh, compte) {
 // aucun détail de la demande), sauf pour un simple « serveur occupé ».
 function absReessayer_(raison, sansAlerte) {
   if (!sansAlerte) alerte_('Une demande d’absence n’a pas pu partir vers la direction (' + raison + '). Elle est gardée dans le téléphone du salarié et repartira toute seule ; '
-    + 'si cela dure, vérifier le quota de mails du jour et le réglage ' + ABS_PROP_DIRECTION + '.', 'erreur');
+    + 'si cela dure, vérifier le quota de mails du jour et la ligne « ' + ABS_REGLAGE + ' » de l’onglet « ' + SHEET_REGLAGES + ' ».', 'absenceenvoi');
   const e = new Error('Demande gardée dans le téléphone : ' + raison + '. Nouvel essai automatique.'); e.occupe = true; throw e;
 }
 
@@ -4133,6 +4204,8 @@ function absMailConducteur_(sh, ligne) {
 }
 // Toutes les 10 minutes (traiterComptes) : les mails au conducteur qui n'ont pas pu partir. Ne lève jamais d'erreur.
 function absPassage_() {
+  absEtatReglage_();
+  try { absPassageCorbeille_(); } catch (e) { console.error('absPassageCorbeille_ :', e.message); }
   try {
     const props = PropertiesService.getScriptProperties();
     if (props.getProperty(ABS_PROP_A_ENVOYER) !== '1') return 'rien';
@@ -4156,7 +4229,7 @@ function absPassage_() {
 function absMiennes_(compte) {
   // direction : le réglage est allumé (la page cache alors le champ « e-mail personnel ») ; suivi : il y a quelque chose à
   // montrer (réglage allumé, ou demandes déjà faites avant qu'il soit retiré : leurs liens marchent encore)
-  const direction = absDirection_().length > 0;
+  const direction = absReglage_().adresses.length > 0;
   const rep = demandes => ({ ok: true, code: 'OK', message: '', data: { suivi: direction || demandes.length > 0, direction: direction, demandes: demandes, jours: ABS_LIEN_JOURS } });
   if (!compte || !compte.id) return rep([]);
   const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_ABS_SUIVI), n = sh ? sh.getLastRow() - 1 : 0;
@@ -4173,6 +4246,85 @@ function absMiennes_(compte) {
   });
   return rep(demandes.sort((a, b) => b.recueLe - a.recueLe).slice(0, 15));
 }
+
+// ══════════════════════════════════════════════════════════
+// LE MAIL DE LA DIRECTION À LA CORBEILLE DE GMAIL (décision de Franck du 20/11/2026)
+// ══════════════════════════════════════════════════════════
+// Rend true quand il n'y a plus rien à faire pour cette ligne. Ne touche QUE les messages envoyés qui contiennent la signature
+// du lien de cette demande (impossible à confondre avec un autre mail) ; garde un message qui est aussi dans la boîte de
+// réception (adresse de la direction = celle du compte : ce serait la supprimer de la boîte de la direction).
+function absCorbeille_(sh, ligne) {
+  const r = sh.getRange(ligne, 1, 1, ABS_ENTETES.length).getValues()[0];
+  const marque = String(r[COL_AB.corbeille - 1]);
+  if (marque.indexOf(ABS_CORBEILLE_A_FAIRE) !== 0) return true;
+  const p = marque.slice(ABS_CORBEILLE_A_FAIRE.length).trim().split(' ');
+  const limite = p[0], restants = Math.max(1, Number(p[1]) || 1), id = String(r[COL_AB.numero - 1]);
+  if (!/^\d{12,14}$/.test(limite) || !idValide_(id)) { sh.getRange(ligne, COL_AB.corbeille).setValue('illisible : à supprimer à la main dans « Messages envoyés »'); return true; }
+  const signature = absSignature_(id, limite);
+  let jetes = 0, gardes = 0;
+  GmailApp.search(ABS_RECHERCHE_GMAIL, 0, 100).forEach(fil => fil.getMessages().forEach(m => {
+    if (m.isInTrash() || String(m.getPlainBody()).indexOf(signature) < 0) return;
+    if (m.isInInbox()) { gardes++; return; }
+    m.moveToTrash(); jetes++;
+  }));
+  const reste = restants - jetes - gardes;
+  const quand = absQuand_(maintenant_());
+  if (reste <= 0) {
+    sh.getRange(ligne, COL_AB.corbeille).setValue(jetes ? 'à la corbeille le ' + quand + (gardes ? ' (' + gardes + ' gardé(s) : aussi dans la boîte de réception du compte)' : '')
+      : 'gardé : ce mail est aussi dans la boîte de réception du compte (le 1er essai du ' + quand + ')');
+    return true;
+  }
+  if (jetes || gardes) sh.getRange(ligne, COL_AB.corbeille).setValue(ABS_CORBEILLE_A_FAIRE + limite + ' ' + reste);
+  // Pas (tout) trouvé : nouvel essai au passage suivant ; 24 h après l'envoi, on abandonne et Franck est prévenu (sans détail)
+  const envoye = Number(limite) - ABS_LIEN_JOURS * 86400000;
+  if (maintenant_() - envoye > ABS_CORBEILLE_DELAI_MS) {
+    sh.getRange(ligne, COL_AB.corbeille).setValue('pas trouvé dans « Messages envoyés » : à supprimer à la main (le ' + quand + ')');
+    alerte_('Le mail envoyé à la direction pour une demande d’absence n’a pas été retrouvé dans « Messages envoyés » pour être mis à la corbeille. '
+      + 'Ouvrir Gmail avec le compte de Loué, « Messages envoyés », et supprimer le mail « [Loué App] Demande d’absence — … » (numéro ' + id + ' dans l’onglet « ' + SHEET_ABS_SUIVI + ' »).', 'absencecorbeille');
+    return true;
+  }
+  return false;
+}
+function absPassageCorbeille_() {
+  const props = PropertiesService.getScriptProperties();
+  if (props.getProperty(ABS_PROP_CORBEILLE) !== '1') return 'rien';
+  const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_ABS_SUIVI), n = sh ? sh.getLastRow() - 1 : 0;
+  let restent = 0, faits = 0;
+  if (n > 0) sh.getRange(2, COL_AB.corbeille, n, 1).getValues().forEach((l, i) => {
+    if (String(l[0]).indexOf(ABS_CORBEILLE_A_FAIRE) !== 0) return;
+    let fait = false;
+    if (faits < 5) { try { fait = absCorbeille_(sh, i + 2); } catch (err) { console.error('absPassageCorbeille_ :', err.message); } }
+    if (fait) faits++; else restent++;
+  });
+  if (!restent) props.deleteProperty(ABS_PROP_CORBEILLE);
+  return faits + ' fait(s), ' + restent + ' en attente';
+}
+
+// ══════════════════════════════════════════════════════════
+// INSTALLATION DU LOT 14 (une fonction par environnement ; relançable sans danger)
+// ══════════════════════════════════════════════════════════
+// La ligne « Adresses de la direction » de l'onglet « Réglages ». En PRODUCTION la case est laissée VIDE : Franck y écrit les
+// vraies adresses lui-même avant d'allumer. Sur la copie TEST, elle reçoit l'adresse de Franck (celle des alertes), pour
+// les essais : aucune adresse n'est jamais écrite dans le programme.
+function etapesLot14_() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  return [{
+    nom: 'Onglet « ' + SHEET_REGLAGES + ' » : ligne « ' + ABS_REGLAGE + ' »',
+    fait: () => absReglage_().installe,
+    action: () => {
+      const sh = feuille_(SHEET_REGLAGES, REGLAGES_ENTETES);
+      let test = false;
+      try { test = environnementReel_().env === 'TEST'; } catch (e) {}
+      const ligne = sh.getLastRow() + 1;
+      sh.getRange(ligne, 1).setValue(ABS_REGLAGE);
+      sh.getRange(ligne, 2).setNumberFormat('@').setValue(test ? String(emailAdmin_() || '') : '');
+      sh.getRange(ligne, 3).setValue(absTexteReglage_(absReglage_()));
+      return test ? 'ligne ajoutée, avec l’adresse de Franck (copie TEST : essais)' : 'ligne ajoutée, case VIDE : y écrire les adresses de la direction avant d’allumer';
+    } }];
+}
+function installerLot14_(attendu) { return installer_('Lot 14', attendu, etapesLot14_()).texte; }
+function installerLot14Test() { return installerLot14_('TEST'); }
+function installerLot14Production() { return installerLot14_('PRODUCTION'); }
 
 // ████ Planifies.gs ████
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
@@ -6545,11 +6697,12 @@ function verifierConfig() {
   const restes = presents.filter(d => /^outilTest/.test(d));
   if (restes.length) ok(false, 'Déclencheur d’essai resté en place (' + restes.join(', ') + ') : le supprimer (éditeur → icône réveil « Déclencheurs » → ⋮ → Supprimer)');
   if (ou.env === 'TEST' && (porte || cleOutils)) lignes.push('Outils d’essai (copie TEST) : porte ' + (porte ? 'présente' : 'absente') + ', clé ' + (cleOutils ? 'présente' : 'absente'));
-  // Lot 14 : les demandes d'absence (réglage ABSENCE_DIRECTION). Les adresses ne sont pas affichées.
-  const absTape = String(propriete_(ABS_PROP_DIRECTION)).trim(), absLues = absDirection_();
-  if (!absTape) lignes.push('✅ Absences (propriété ' + ABS_PROP_DIRECTION + ') : éteint — les demandes partent comme avant le lot 14');
-  else if (!absLues.length) ok(false, 'Absences (propriété ' + ABS_PROP_DIRECTION + ') : aucune adresse lisible, lu comme éteint (attendu : 1 à ' + ABS_DIRECTION_MAX + ' adresses séparées par une virgule)');
-  else ok(true, 'Absences (propriété ' + ABS_PROP_DIRECTION + ') : allumé — ' + absLues.length + ' adresse(s) de la direction ; boutons du mail vers ' + absAdresseAppli_());
+  // Lot 14 : les demandes d'absence (ligne « Adresses de la direction » de l'onglet Réglages). Les adresses ne sont pas affichées.
+  const absR = absReglage_();
+  if (!absR.installe) lignes.push('• Absences (lot 14) : pas installé — les demandes partent comme avant');
+  else if (!absR.adresses.length) ok(false, 'Absences (onglet ' + SHEET_REGLAGES + ', ligne « ' + ABS_REGLAGE + ' ») : éteint, ' + absR.probleme + ' — les demandes partent comme avant, avec une alerte à Franck');
+  else ok(true, 'Absences (onglet ' + SHEET_REGLAGES + ', ligne « ' + ABS_REGLAGE + ' ») : allumé — ' + absR.adresses.length + ' adresse(s) de la direction'
+    + (absR.ignorees ? ', ' + absR.ignorees + ' texte(s) ignoré(s)' : '') + ' ; boutons du mail vers ' + absAdresseAppli_());
   lignes.push("Mails encore possibles aujourd'hui : " + MailApp.getRemainingDailyQuota());
   Logger.log(lignes.join('\n'));
   return lignes.join('\n');

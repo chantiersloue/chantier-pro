@@ -17,7 +17,7 @@ Le poseur remplit et envoie sa demande d'absence comme aujourd'hui. Le mail part
 | Toi (conducteur) | reçois toutes les demandes, motif compris | reçois **un mail seulement si la demande est acceptée** : qui, quand, quelle durée, et l'appellation du planning. **Jamais le motif** |
 | Le planning | tu recopies l'absence à la main | elle s'y écrit toute seule (dans la nuit, et toujours avant une publication) |
 
-**Le lot est livré ÉTEINT.** Tant que le réglage `ABSENCE_DIRECTION` (les adresses de la direction, dans les Propriétés du script) n'existe pas, le serveur traite les absences **exactement comme aujourd'hui**. L'allumer ne demande ni collage ni déploiement ; l'éteindre non plus.
+**Le lot est livré ÉTEINT.** Tant que la case « Adresses de la direction » de l'onglet *Réglages* du Sheet est vide, le serveur traite les absences **exactement comme aujourd'hui** (et Franck reçoit une alerte, une fois par jour au plus). L'allumer ne demande ni collage ni déploiement ; l'éteindre non plus. *(Version du 20/11 après les réponses de Franck : au départ, ce réglage était dans les Propriétés du script.)*
 
 ## 3. Les choix techniques (deux solutions comparées à chaque fois)
 
@@ -25,7 +25,7 @@ Le poseur remplit et envoie sa demande d'absence comme aujourd'hui. Le mail part
 
 | Solution | Pour | Contre |
 |---|---|---|
-| **A. Un réglage `ABSENCE_DIRECTION`** dans les Propriétés du script : 1 à 3 adresses (retenue) | hors du Sheet et hors du dépôt public ; sert aussi d'interrupteur ; impossible de s'y retrouver par erreur | à saisir dans l'éditeur Apps Script |
+| **A. Une ligne de l'onglet *Réglages* du Sheet** : 1 à 3 adresses (retenue par Franck le 20/11 ; d'abord proposée dans les Propriétés du script) | hors du Sheet et hors du dépôt public ; sert aussi d'interrupteur ; impossible de s'y retrouver par erreur | à saisir dans l'éditeur Apps Script |
 | B. La colonne « absenceNotif » de l'onglet Contacts, comme aujourd'hui | rien à saisir | tu y es toi-même coché aujourd'hui : un oubli, et tu recevrais les boutons et le motif |
 
 **3.2 Où mènent les boutons du mail**
@@ -70,7 +70,9 @@ Le poseur remplit et envoie sa demande d'absence comme aujourd'hui. Le mail part
 | motif « Formation » | **Formation** |
 | tout le reste (médical, maladie, accident, personnel, sépulture, naissance, un motif tapé à la main…) | **Absent** |
 
-Dans le doute, c'est « Absent » : aucun mot de santé ni de vie privée ne sort de la demande. Trois motifs sont ajoutés à la liste de la page : **Congés, École, Formation**.
+Ajouté le 20/11 (réponse de Franck) : **RTT** (motif « RTT ») et **Récupération** (motif « Récupération », ou heures imputées sur le repos compensateur).
+
+Dans le doute, c'est « Absent » : aucun mot de santé ni de vie privée ne sort de la demande. Cinq motifs sont ajoutés à la liste de la page : **Congés, RTT, Récupération, École, Formation**.
 
 ## 4. Données personnelles : où est le motif
 
@@ -83,7 +85,7 @@ Dans le doute, c'est « Absent » : aucun mot de santé ni de vie privée ne sor
 | Mail au conducteur, planning, écran du poseur, page de confirmation | — | **aucun motif** |
 | Onglet *Mails en attente* | le texte du mail s'il est reporté | **jamais** : si le mail ne peut pas partir, la demande reste dans le téléphone du poseur et repart toute seule |
 
-Ce que l'appli ne peut pas empêcher : la boîte « Messages envoyés » du compte Google de Loué garde le mail (c'est la preuve de la demande) ; qui ouvre ce compte peut le lire.
+« Messages envoyés » du compte Google de Loué : **le mail de la direction est mis à la corbeille de Gmail juste après l'envoi** (décision de Franck du 20/11), puis Google vide la corbeille au bout de 30 jours. La preuve de la demande reste dans la boîte de la direction et dans l'onglet *Absences suivi* (sans motif).
 
 ## 5. Risques et parades
 
@@ -99,7 +101,7 @@ Ce que l'appli ne peut pas empêcher : la boîte « Messages envoyés » du comp
 | Un gars sans compte dans le planning | journal *ABSENCES* : « à inscrire à la main » |
 | L'absence écrase un chantier dans le planning | ce qui était écrit est gardé dans le journal *ABSENCES* |
 | Une demande sans compte (pendant la transition) | elle marche, mais le poseur ne verra pas son état (rien ne le relie à un compte) |
-| Retour arrière | supprimer le réglage `ABSENCE_DIRECTION` : tout redevient comme avant, dès la demande suivante |
+| Retour arrière | effacer la case « Adresses de la direction » : tout redevient comme avant, dès la demande suivante |
 
 ## 6. Les endroits touchés
 
@@ -118,4 +120,6 @@ Numéros : serveur **v11.4**, appli **10.5** (à réattribuer à la mise en prod
 1. Les **adresses de la direction** (1 à 3).
 2. Le **délai du lien** : 7 jours te va-t-il ?
 3. Ne plus ranger le PDF dans ADMINISTRATIF/ABSENCES : d'accord ? (C'est ce qui tient le motif hors de ton Drive.)
-4. Les trois motifs ajoutés (Congés, École, Formation) et le tableau des appellations (3.5).
+4. Les motifs ajoutés et le tableau des appellations (3.5).
+
+*Points 1 à 4 réglés par Franck le 20/11 : adresses dans le Sheet (il les écrira lui-même), 7 jours, PDF hors Drive, appellations avec RTT et Récupération ; le mail de la direction part à la corbeille de Gmail.*

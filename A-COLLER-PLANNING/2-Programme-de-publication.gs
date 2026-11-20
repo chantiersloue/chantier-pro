@@ -1,5 +1,5 @@
 // PLANNING LOUÉ — programme de publication, à coller dans un projet Apps Script À PART (script.google.com), dans le compte de Loué.
-// NE PAS MODIFIER ICI : fichier fabriqué par outils/construire-planning.js — empreinte f63053d790
+// NE PAS MODIFIER ICI : fichier fabriqué par outils/construire-planning.js — empreinte be76a7c80c
 
 // ─────────────── Regles.gs ───────────────
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -24,9 +24,9 @@
 const PL_VERSION = 'Planning Loué 1.0';
 const PL_JOURS = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi'];
 // Les « autres cas » (décision de Franck du 18/11/2026). « Absent » pour toute absence dont le motif ne se dit pas.
-const PL_CAS = ['Absent', 'Congés', 'École', 'Formation', 'Férié', 'Atelier', 'Bureau', 'SAV / divers'];
+const PL_CAS = ['Absent', 'Congés', 'RTT', 'Récupération', 'École', 'Formation', 'Férié', 'Atelier', 'Bureau', 'SAV / divers'];
 // Ceux qui ne sont PAS recopiés dans la semaine suivante (une absence d'une semaine n'est pas celle de la suivante)
-const PL_CAS_NON_RECOPIES = ['Absent', 'Congés', 'École', 'Formation', 'Férié'];
+const PL_CAS_NON_RECOPIES = ['Absent', 'Congés', 'RTT', 'Récupération', 'École', 'Formation', 'Férié'];
 // Mots à ne jamais écrire dans le planning (santé) : la case passe en rouge. Un filet, pas une garantie.
 const PL_MOTS_A_EVITER = ['arret', 'malade', 'maladie', 'accident', 'accidente', 'hopital', 'hospitalise', 'hospitalisation', 'medecin', 'medical',
   'operation', 'opere', 'chirurgie', 'blesse', 'blessure', 'depression', 'grossesse', 'enceinte', 'covid', 'grippe', 'cancer', 'handicap', 'psy', 'at', 'mp'];

@@ -141,8 +141,8 @@ setTimeout(() => {
     const r = lancer(), j = x => JSON.stringify(x);
     console.log(' Le poseur');
     verifier('lot 14 éteint côté serveur : la page est celle d’avant (pas de « Mes demandes », champ e-mail présent)', r.connexion === 'CONNECTE' && r.avant.section === false && r.avant.email === true, j(r.avant));
-    verifier('allumé : « Mes demandes » apparaît (vide), le champ e-mail disparaît, les motifs Congés, École, Formation sont proposés ; pas de défilement horizontal',
-      r.allume.section === true && r.allume.email === false && /Aucune demande/.test(r.allume.vide) && j(r.allume.motifs.slice(0, 3)) === j(['Congés', 'École', 'Formation'])
+    verifier('allumé : « Mes demandes » apparaît (vide), le champ e-mail disparaît, les motifs Congés, RTT, Récupération, École, Formation sont proposés ; pas de défilement horizontal',
+      r.allume.section === true && r.allume.email === false && /Aucune demande/.test(r.allume.vide) && j(r.allume.motifs.slice(0, 5)) === j(['Congés', 'RTT', 'Récupération', 'École', 'Formation'])
       && r.allume.motifs.indexOf('Médical') > -1 && r.allume.largeur === true, j(r.allume));
     verifier('la demande envoyée s’affiche « En attente » ; le mail n’est parti qu’à la direction ; le serveur ne garde aucun motif',
       j(r.apresEnvoi.lignes.map(l => l.slice(0, 2))) === j([['07/12/2026', 'En attente']]) && /Journée entière — demandée le/.test(r.apresEnvoi.lignes[0][2])
