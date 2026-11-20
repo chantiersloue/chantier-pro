@@ -1,6 +1,7 @@
 // Tests du lot 11.1 — les deux fichiers « à coller » du planning : node tests/lot11-livraison.test.js
 // Ils doivent être à jour, et chacun doit tourner SEUL (les deux programmes vivent dans deux projets Apps Script séparés).
 'use strict';
+const VERSION_SERVEUR = (/VERSION_API = '([^']+)'/.exec(require('fs').readFileSync(require('path').join(__dirname, '..', 'apps-script', 'Config.gs'), 'utf8')) || [])[1];
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
@@ -12,7 +13,7 @@ function test(nom, fn) {
   try { fn(); reussis++; console.log('  ✓ ' + nom); }
   catch (e) { console.log('  ✗ ' + nom + '\n    ' + String(e.stack || e.message).split('\n').slice(0, 6).join('\n    ')); process.exitCode = 1; }
 }
-const lire = f => fs.readFileSync(path.join(SORTIE, f), 'utf8');
+const lire = f => fs.readFileSync(path.join(SORTIE, f), 'utf8').replace(/\r\n/g, '\n');   // fins de ligne Windows après un passage par Git
 
 console.log('Lot 11.1 — la livraison du planning');
 test('les deux fichiers à coller sont à jour (sinon : node outils/construire-planning.js)', () => {

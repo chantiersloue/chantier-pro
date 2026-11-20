@@ -29,6 +29,7 @@ Dans le Sheet de l'appli, onglet ***Réglages***, ligne **« Adresses de la dire
 | B | **1 à 3 adresses**, séparées par une virgule. C'est toi qui les écris |
 | C | ce que l'appli a compris, écrit par elle dans les 10 minutes (« Allumé : 2 adresse(s) lue(s)… » ou « Éteint (la case est vide)… ») |
 
+- **Vérifie bien chaque adresse** : une adresse mal tapée mais bien formée (« direction@loue.fr » au lieu de « .com ») fait partir le mail sans erreur, et personne ne s'en aperçoit avant « Sans réponse » au bout de 7 jours.
 - **Case vide** (ou rien de lisible) : la demande d'absence **n'est pas bloquée**. Elle part comme aujourd'hui (aux personnes prévenues des absences, motif compris), et **tu reçois une alerte**, une fois par jour au plus.
 - Plus de 3 adresses : les 3 premières servent, le reste est ignoré (la colonne C le dit).
 - Le changement agit **tout de suite**, sans rien redéployer.
@@ -41,8 +42,11 @@ L'envoi sur TEST et l'installation sont dans `docs/essais-groupes.md` (parties 1
 
 Ce sont les points D, F et G de `docs/essais-groupes.md` : une demande d'un seul jour (motif « Médical »), une seconde (motif « École »), les deux boutons dans Outlook, la confirmation, le mail « Absence acceptée », le refus, « Mes demandes », et en plus :
 
+- **Pour que la corbeille soit vraiment essayée**, la case doit contenir au moins une adresse **qui n'est pas celle du compte Google de Loué** (par exemple ton Outlook). Si l'installation de TEST te dit « ⚠ c'est l'adresse du compte lui-même », ajoute ton Outlook dans la case, après une virgule.
+- **Réponds** au mail de la direction depuis Outlook (« Bien reçu ») : ta réponse arrive dans la boîte du compte de Loué ; elle ne doit **pas** partir à la corbeille.
+
 - **« Messages envoyés » du compte de Loué** : le mail « [Loué App] Demande d'absence — … » **n'y est plus** ; il est dans la **corbeille** (dans les 10 minutes au plus). L'onglet *Absences suivi*, colonne « Copie dans Gmail », dit « à la corbeille le … ».
-- **Case vide** : efface ton adresse de la case B, attends 10 minutes (la colonne C dit « Éteint »), fais une demande : elle part comme aujourd'hui, et tu reçois l'alerte « Demande d'absence partie sans la direction ». Remets ton adresse.
+- **Case vide** : efface ton adresse de la case B, attends 10 minutes (la colonne C dit « Éteint »), fais une demande : elle part comme aujourd'hui, et tu reçois l'alerte « Demande d'absence partie comme avant ». Remets ton adresse.
 
 **À savoir pour la copie TEST** : si ton adresse est celle du compte Google de Loué lui-même, le mail est aussi dans sa boîte de réception : il est alors **gardé** (le jeter le supprimerait aussi de ta boîte). La colonne « Copie dans Gmail » dit « gardé ».
 
@@ -51,13 +55,14 @@ Ce sont les points D, F et G de `docs/essais-groupes.md` : une demande d'un seul
 1. Dans « Planning Loué TEST », onglet *SALARIÉS*, colonne D : le compte de l'appli du gars d'essai.
 2. Colle la nouvelle version de `A-COLLER-PLANNING/2-Programme-de-publication.gs` dans le projet « Planning Loué — publication » de TEST. **Enregistre.**
 3. Fais une demande d'absence **acceptée** pour un jour de la semaine en cours du planning TEST.
-4. Coche **Publier pour les gars** sur cette semaine. Dans les 10 minutes : la case du gars affiche « Congés » (ou « Absent », « RTT »…), le PDF publié la montre, et l'onglet ***ABSENCES*** du planning a une ligne « inscrite : 1 jour(s) ».
+4. Si ce planning a été créé avant le 20/11 (par exemple le Sheet d'essai de l'étape 0 du lot 11), ajoute **RTT** et **Récupération** à la main dans la colonne I de l'onglet *LISTES* (la liste n'est remplie qu'à la création du planning).
+5. Coche **Publier pour les gars** sur cette semaine. Dans les 10 minutes : la case du gars affiche « Congés » (ou « Absent », « RTT »…), le PDF publié la montre, et l'onglet ***ABSENCES*** du planning a une ligne « inscrite : 1 jour(s) ».
 
 ## Étape D — production : avec le groupe A — le lot reste ÉTEINT
 
 Collage et déploiement : `docs/essais-groupes.md`, partie « Production ». Pour le lot 14, une fonction à lancer dans l'éditeur de production : **`installerLot14Production`** (journal : `✅ Lot 14 : installation terminée.`). Elle ajoute la ligne « Adresses de la direction » à l'onglet *Réglages*, **case vide**.
 
-À partir de là, chaque jour où une demande d'absence arrive, tu reçois l'alerte « Demande d'absence partie sans la direction » (une par jour au plus) : c'est normal tant que la case est vide.
+À partir de là, chaque jour où une demande d'absence arrive, tu reçois l'alerte « Demande d'absence partie comme avant » (une par jour au plus) : c'est normal tant que la case est vide.
 
 ## Étape E — allumer (toi : 5 minutes) — quand tu le décides
 
@@ -68,7 +73,7 @@ Collage et déploiement : `docs/essais-groupes.md`, partie « Production ». Pou
 
 ## Retour arrière (30 secondes)
 
-**Efface la case B** de la ligne « Adresses de la direction ». Dès la demande suivante, tout redevient comme avant (mail aux personnes prévenues, copie au salarié, PDF rangé dans Drive), avec une alerte pour toi. Les demandes déjà envoyées gardent leur état, le poseur les voit toujours dans « Mes demandes », et **leurs liens marchent encore** : si la direction accepte l'une d'elles, tu reçois le mail et le planning l'inscrit.
+**Efface la case B** de la ligne « Adresses de la direction ». Dès la demande suivante, tout redevient comme avant (mail aux personnes prévenues, copie au salarié, PDF rangé dans Drive), avec une alerte pour toi. **Pour ne plus recevoir l'alerte**, supprime toute la ligne (clic droit sur son numéro → Supprimer la ligne) : c'est alors exactement l'état d'avant le lot 14. Les demandes déjà envoyées gardent leur état, le poseur les voit toujours dans « Mes demandes », et **leurs liens marchent encore** : si la direction accepte l'une d'elles, tu reçois le mail et le planning l'inscrit.
 
 ## Comment vérifier que tout va bien
 
@@ -83,8 +88,8 @@ Collage et déploiement : `docs/essais-groupes.md`, partie « Production ». Pou
 ## Ce qui n'a pas été vérifié
 
 - **L'aspect du mail dans Outlook** : les boutons sont faits « en tableau », la façon qui marche dans Outlook, mais seul ton essai le dira. Si les boutons ne s'affichent pas, les deux liens sont aussi écrits en clair sous le mail.
-- **La mise à la corbeille dans le vrai Gmail** : le programme cherche le mail dans « Messages envoyés » et le reconnaît à son lien. Le délai avant que Gmail le trouve, et le fait qu'aucune autorisation Google nouvelle ne soit demandée (le serveur envoie déjà des mails avec le même service), sont à voir sur la copie TEST.
+- **La mise à la corbeille dans le vrai Gmail** : le mail part par un brouillon envoyé aussitôt, Gmail rend le message envoyé, et le programme jette exactement celui-là (aucune recherche : un mail reçu n'est jamais touché). Que Google ne demande aucune autorisation nouvelle (le serveur envoie déjà des mails avec le même service) est à voir sur la copie TEST.
 - **Les indésirables** : un mail avec deux liens peut être filtré par la messagerie de la direction. À vérifier avec elle au premier vrai mail.
 - **Les messageries qui ouvrent les liens toutes seules** : la page est faite pour (rien n'est décidé à l'ouverture), mais je n'ai pas pu l'essayer avec une vraie messagerie d'entreprise.
 - **La façon dont le vrai Google Sheets range une date** : une demande d'un seul jour (« 14/12/2026 ») est écrite en texte pour ne pas devenir une date de tableur ; à confirmer à l'essai.
-- **Relecture par un agent indépendant** : faite le 20/11/2026 sur la première version, un tour (rien de bloquant) ; les changements du 20/11 après tes réponses (adresses dans le Sheet, corbeille de Gmail) sont relus à leur tour, voir le journal.
+- **Relecture par un agent indépendant** : faite le 20/11/2026 sur la première version, un tour (rien de bloquant) ; les changements du 20/11 après tes réponses (adresses dans le Sheet, corbeille de Gmail) ont été relus à leur tour (un tour, rien de bloquant ; corrigés, voir D14-35 à D14-39).

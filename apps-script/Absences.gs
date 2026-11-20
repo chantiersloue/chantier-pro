@@ -19,8 +19,9 @@
 //     voit pas la demande « En attente » ; une fois parti, il ne repart jamais une seconde fois ;
 //   - le mail envoyé à la direction est MIS À LA CORBEILLE de Gmail juste après l'envoi (décision de Franck du 20/11/2026),
 //     pour que le motif ne reste pas lisible dans « Messages envoyés » du compte de Loué. Google vide la corbeille au bout de
-//     30 jours. Seuls les messages qui portent le lien signé de CETTE demande sont touchés ; un message qui est aussi dans la
-//     boîte de réception (la direction = le compte lui-même) est gardé. Si Gmail ne le trouve pas encore, nouvel essai au
+//     30 jours. Le mail part par un brouillon envoyé aussitôt : Gmail rend LE message envoyé, et c'est exactement celui-là qui
+//     est jeté (par son identifiant) — aucune recherche, donc jamais un mail reçu ni un autre mail. Un message qui est aussi
+//     dans la boîte de réception (la direction = le compte lui-même) est gardé. Si le jeter échoue, nouvel essai à chaque
 //     passage de 10 minutes ; au bout de 24 h, Franck est prévenu ;
 //   - le lien est SIGNÉ avec la clé secrète du serveur (numéro de la demande + date limite) : rien de secret n'est écrit dans
 //     le Sheet, lire le Sheet ne permet pas de fabriquer un lien. Usage unique : dès qu'une réponse est enregistrée, le lien
@@ -32,16 +33,13 @@ const SHEET_ABS_SUIVI = 'Absences suivi';
 const ABS_ENTETES = ['Numéro', 'Reçue le', 'Compte', 'Demandeur', 'Date d’absence', 'Du', 'Au', 'Durée', 'Appellation (planning)', 'État', 'Décidée le', 'Mail au conducteur', 'Mail à la direction', 'Copie dans Gmail'];
 const COL_AB = { numero: 1, recue: 2, compte: 3, demandeur: 4, texte: 5, du: 6, au: 7, duree: 8, libelle: 9, etat: 10, decidee: 11, mail: 12, direction: 13, corbeille: 14 };
 const ABS_REGLAGE = 'Adresses de la direction (demandes d’absence)';   // une ligne de l'onglet « Réglages » (lot 12)
-const ABS_CORBEILLE_A_FAIRE = 'à mettre à la corbeille ';           // suivi de « <date limite du lien> <messages restants> »
-const ABS_PROP_CORBEILLE = 'ABS_CORBEILLE';                         // « 1 » : un mail à mettre à la corbeille attend
-const ABS_CORBEILLE_DELAI_MS = 24 * 3600 * 1000;                    // après 24 h sans le trouver, Franck est prévenu
-const ABS_RECHERCHE_GMAIL = 'in:sent newer_than:9d subject:"Demande d\'absence"';
+const ABS_CORBEILLE_A_FAIRE = 'à mettre à la corbeille ';           // suivi de « <heure de l'envoi (ms)> <identifiants Gmail, séparés par des virgules> »
+const ABS_CORBEILLE_DELAI_MS = 24 * 3600 * 1000;                    // après 24 h sans y arriver, Franck est prévenu
 const ABS_MAX_PAR_JOUR = 5;                        // demandes par compte et par jour (chacune envoie 1 à 3 mails avec un PDF)
 const ABS_MAIL_EN_COURS = 'envoi en cours ';       // suivi de l'heure (ms) : un mail au conducteur est en train de partir
 const ABS_PROP_ADRESSE = 'ADRESSE_APPLI';           // (facultatif) adresse des pages de l'appli, pour les liens du mail
 const ABS_ADRESSE_DEFAUT = 'https://chantiersloue.github.io/chantier-pro/';
 const ABS_ADRESSE_TEST = 'https://loue-essai.github.io/chantier-pro/';   // la copie d'essai (copie TEST), sans réglage
-const ABS_PROP_A_ENVOYER = 'ABS_MAIL_A_ENVOYER';    // « 1 » : un mail au conducteur attend (regardé toutes les 10 minutes)
 const ABS_LIEN_JOURS = 7;                           // durée de vie d'un lien
 const ABS_DIRECTION_MAX = 3;
 const ABS_ETATS = { attente: 'En attente', acceptee: 'Acceptée', refusee: 'Refusée', sansReponse: 'Sans réponse' };
@@ -50,7 +48,11 @@ const ABS_MAIL_A_ENVOYER = 'à envoyer';
 // Les appellations écrites dans le planning (décision de Franck du 20/11/2026) ; tout le reste est « Absent »
 const ABS_APPELLATIONS = ['Absent', 'Congés', 'École', 'Formation', 'RTT', 'Récupération'];
 // Mots de santé : l'appellation est toujours « Absent », quoi qu'il soit coché par ailleurs
-const ABS_SANTE = ['medical', 'medicale', 'medecin', 'maladie', 'malade', 'accident', 'arret', 'hopital', 'hospitalisation', 'operation', 'chirurgie', 'sante', 'soins', 'blessure'];
+// Comparés par le DÉBUT du mot, sans accents : « accident » vaut pour « accidenté », « malad » pour « maladie(s) », « hospit » pour « hospitalisé »…
+const ABS_SANTE = ['medic', 'medec', 'malad', 'accident', 'arret', 'hopit', 'hospit', 'operat', 'opere', 'chirurg', 'sante', 'soin', 'bless',
+  'depress', 'grossess', 'enceinte', 'maternit', 'covid', 'grippe', 'cancer', 'handicap', 'psy', 'kine', 'dentist', 'infirmi', 'urgence', 'convalescen', 'therap', 'traitement'];
+// … et ces sigles, comparés en entier : accident du travail, maladie professionnelle, affection de longue durée
+const ABS_SANTE_SIGLES = ['at', 'mp', 'ald'];
 
 // ── Le réglage : la ligne « Adresses de la direction » de l'onglet « Réglages » ──
 // { installe, adresses (1 à 3), ignorees (textes qui ne sont pas des adresses, ou au-delà de 3), probleme, sh, ligne }
@@ -60,7 +62,8 @@ function absReglage_() {
   const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_REGLAGES);
   if (!sh || sh.getLastRow() < 2) return r;
   const lignes = sh.getRange(2, 1, Math.min(50, sh.getLastRow() - 1), 2).getValues(), trouvees = [];
-  lignes.forEach((l, i) => { if (String(l[0]).trim() === ABS_REGLAGE) trouvees.push(i); });
+  const nomNet = t => absNorm_(String(t).replace(/[’‘`´]/g, "'"));
+  lignes.forEach((l, i) => { if (nomNet(l[0]).indexOf('adresses de la direction') === 0) trouvees.push(i); });
   if (!trouvees.length) return r;
   r.installe = true; r.sh = sh; r.ligne = trouvees[0] + 2;
   if (trouvees.length > 1) { r.probleme = 'la ligne « ' + ABS_REGLAGE + ' » est écrite deux fois'; return r; }
@@ -110,7 +113,7 @@ function absNorm_(v) { return String(v === undefined || v === null ? '' : v).toL
 // L'appellation écrite dans le planning et dans le mail au conducteur. Dans le doute : « Absent ».
 function absLibelle_(motif, imputation) {
   const m = absNorm_(motif), mots = m.split(/[^a-z0-9]+/).filter(Boolean);
-  if (mots.some(x => ABS_SANTE.indexOf(x) > -1)) return 'Absent';
+  if (mots.some(x => ABS_SANTE_SIGLES.indexOf(x) > -1 || ABS_SANTE.some(p => x.indexOf(p) === 0))) return 'Absent';
   if (mots.indexOf('ecole') > -1) return 'École';
   if (mots.indexOf('formation') > -1) return 'Formation';
   if (mots.indexOf('rtt') > -1) return 'RTT';
@@ -230,19 +233,28 @@ function absTraiter_(brut, contexte, direction) {
   const limite = maintenant_() + ABS_LIEN_JOURS * 86400000;
   const m = absMailDirection_(brut, absLien_(id, limite, 'accepter'), absLien_(id, limite, 'refuser'), limite);
   let partis = 0, erreur = '';
+  const envoyes = [];
   direction.forEach(adresse => {
+    let brouillon = null;
     try {
-      GmailApp.sendEmail(adresse, m.sujet, m.texte, { htmlBody: m.html, attachments: [pdf.copyBlob().setName(nomFichier)], name: NOM_ENTREPRISE });
+      // Un brouillon envoyé aussitôt : Gmail rend LE message envoyé (son identifiant sert à le mettre à la corbeille, lui seul)
+      brouillon = GmailApp.createDraft(adresse, m.sujet, m.texte, { htmlBody: m.html, attachments: [pdf.copyBlob().setName(nomFichier)], name: NOM_ENTREPRISE });
+      const message = brouillon.send();
+      brouillon = null;
       partis++; noter_('envoyé', adresse);
-    } catch (err) { erreur = err.message; console.error('Mail à la direction échoué :', err.message); }
+      try { envoyes.push(String(message.getId())); } catch (e) { envoyes.push(''); }
+    } catch (err) {
+      erreur = err.message; console.error('Mail à la direction échoué :', err.message);
+      // le brouillon (qui contient le motif) ne reste jamais dans « Brouillons »
+      if (brouillon) { try { brouillon.deleteDraft(); } catch (e) { console.error('Brouillon non supprimé :', e.message); } }
+    }
   });
   if (!partis) absReessayer_('le mail à la direction n’a pas pu partir (' + erreur + ')');
   // Noté AUSSITÔT : à partir d'ici le poseur voit « En attente », et ce mail ne repartira jamais (même si le téléphone renvoie la demande)
   sh.getRange(ligne, COL_AB.direction).setNumberFormat('@').setValue('envoyé le ' + absQuand_(maintenant_()));
   // Le mail envoyé (avec le motif) sort de « Messages envoyés » : à la corbeille de Gmail, tout de suite si Gmail le trouve déjà,
   // sinon au passage de 10 minutes (la date limite du lien sert à recalculer sa signature, qui n'est jamais écrite dans le Sheet)
-  sh.getRange(ligne, COL_AB.corbeille).setNumberFormat('@').setValue(ABS_CORBEILLE_A_FAIRE + limite + ' ' + partis);
-  PropertiesService.getScriptProperties().setProperty(ABS_PROP_CORBEILLE, '1');
+  sh.getRange(ligne, COL_AB.corbeille).setNumberFormat('@').setValue(ABS_CORBEILLE_A_FAIRE + maintenant_() + ' ' + envoyes.join(','));
   try { absCorbeille_(sh, ligne); } catch (err) { console.error('Corbeille Gmail :', err.message); }
   // Une adresse sur plusieurs a échoué : la direction est prévenue par l'autre ; Franck l'apprend, sans aucun détail de la demande
   if (partis < direction.length) alerte_('Une demande d’absence est partie à ' + partis + ' adresse(s) de la direction sur ' + direction.length + ' (' + erreur + '). Vérifier la ligne « ' + ABS_REGLAGE + ' » de l’onglet « ' + SHEET_REGLAGES + ' ».', 'absenceenvoi');
@@ -324,7 +336,6 @@ function absDecider_(corps) {
     const quand = new Date(maintenant_());
     r[COL_AB.etat - 1] = choix; r[COL_AB.decidee - 1] = quand; r[COL_AB.mail - 1] = choix === ABS_ETATS.acceptee ? ABS_MAIL_A_ENVOYER : '';
     sh.getRange(ligne, COL_AB.etat, 1, 3).setValues([[choix, quand, r[COL_AB.mail - 1]]]);
-    if (choix === ABS_ETATS.acceptee) PropertiesService.getScriptProperties().setProperty(ABS_PROP_A_ENVOYER, '1');
     SpreadsheetApp.flush();
   } finally { verrou.releaseLock(); }
   // Acceptée : le conducteur est prévenu (hors du verrou ; s'il ne part pas, le passage de 10 minutes le renverra)
@@ -374,8 +385,6 @@ function absPassage_() {
   absEtatReglage_();
   try { absPassageCorbeille_(); } catch (e) { console.error('absPassageCorbeille_ :', e.message); }
   try {
-    const props = PropertiesService.getScriptProperties();
-    if (props.getProperty(ABS_PROP_A_ENVOYER) !== '1') return 'rien';
     const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_ABS_SUIVI);
     const n = sh ? sh.getLastRow() - 1 : 0;
     let restent = 0, partis = 0;
@@ -385,7 +394,6 @@ function absPassage_() {
       if (partis < 5) { try { fait = absMailConducteur_(sh, i + 2); } catch (err) { console.error('absPassage_ :', err.message); } }
       if (fait) partis++; else restent++;
     });
-    if (!restent) props.deleteProperty(ABS_PROP_A_ENVOYER);
     return partis + ' parti(s), ' + restent + ' en attente';
   } catch (e) { console.error('absPassage_ :', e.message); return 'erreur : ' + e.message; }
 }
@@ -417,53 +425,61 @@ function absMiennes_(compte) {
 // ══════════════════════════════════════════════════════════
 // LE MAIL DE LA DIRECTION À LA CORBEILLE DE GMAIL (décision de Franck du 20/11/2026)
 // ══════════════════════════════════════════════════════════
-// Rend true quand il n'y a plus rien à faire pour cette ligne. Ne touche QUE les messages envoyés qui contiennent la signature
-// du lien de cette demande (impossible à confondre avec un autre mail) ; garde un message qui est aussi dans la boîte de
-// réception (adresse de la direction = celle du compte : ce serait la supprimer de la boîte de la direction).
+// Rend true quand il n'y a plus rien à faire pour cette ligne. Ne touche QUE les messages dont l'identifiant a été rendu par
+// Gmail à l'envoi (colonne N) : jamais un mail reçu, jamais un autre mail. Garde un message qui est aussi dans la boîte de
+// réception (adresse de la direction = celle du compte : le jeter le supprimerait de la boîte de la direction).
 function absCorbeille_(sh, ligne) {
   const r = sh.getRange(ligne, 1, 1, ABS_ENTETES.length).getValues()[0];
   const marque = String(r[COL_AB.corbeille - 1]);
   if (marque.indexOf(ABS_CORBEILLE_A_FAIRE) !== 0) return true;
   const p = marque.slice(ABS_CORBEILLE_A_FAIRE.length).trim().split(' ');
-  const limite = p[0], restants = Math.max(1, Number(p[1]) || 1), id = String(r[COL_AB.numero - 1]);
-  if (!/^\d{12,14}$/.test(limite) || !idValide_(id)) { sh.getRange(ligne, COL_AB.corbeille).setValue('illisible : à supprimer à la main dans « Messages envoyés »'); return true; }
-  const signature = absSignature_(id, limite);
-  let jetes = 0, gardes = 0;
-  GmailApp.search(ABS_RECHERCHE_GMAIL, 0, 100).forEach(fil => fil.getMessages().forEach(m => {
-    if (m.isInTrash() || String(m.getPlainBody()).indexOf(signature) < 0) return;
-    if (m.isInInbox()) { gardes++; return; }
-    m.moveToTrash(); jetes++;
-  }));
-  const reste = restants - jetes - gardes;
+  const envoye = Number(p[0]) || 0, ids = String(p[1] || '').split(',').filter(Boolean), id = String(r[COL_AB.numero - 1]);
   const quand = absQuand_(maintenant_());
-  if (reste <= 0) {
-    sh.getRange(ligne, COL_AB.corbeille).setValue(jetes ? 'à la corbeille le ' + quand + (gardes ? ' (' + gardes + ' gardé(s) : aussi dans la boîte de réception du compte)' : '')
-      : 'gardé : ce mail est aussi dans la boîte de réception du compte (le 1er essai du ' + quand + ')');
+  const ecrire = t => sh.getRange(ligne, COL_AB.corbeille).setNumberFormat('@').setValue(t);
+  if (!envoye || !ids.length || ids.length !== String(p[1] || '').split(',').length) {
+    ecrire('identifiant du mail inconnu : à supprimer à la main dans « Messages envoyés » (le ' + quand + ')');
+    alerte_(absTexteCorbeille_(id), 'absencecorbeille');
     return true;
   }
-  if (jetes || gardes) sh.getRange(ligne, COL_AB.corbeille).setValue(ABS_CORBEILLE_A_FAIRE + limite + ' ' + reste);
-  // Pas (tout) trouvé : nouvel essai au passage suivant ; 24 h après l'envoi, on abandonne et Franck est prévenu (sans détail)
-  const envoye = Number(limite) - ABS_LIEN_JOURS * 86400000;
+  let jetes = 0, gardes = 0;
+  const restent = [];
+  ids.forEach(mid => {
+    try {
+      const m = GmailApp.getMessageById(mid);
+      if (m.isInTrash()) { jetes++; return; }
+      if (m.isInInbox()) { gardes++; return; }
+      m.moveToTrash(); jetes++;
+    } catch (err) { console.error('Corbeille Gmail :', err.message); restent.push(mid); }
+  });
+  if (!restent.length) {
+    ecrire(jetes ? 'à la corbeille le ' + quand + (gardes ? ' (' + gardes + ' gardé(s) : aussi dans la boîte de réception du compte)' : '')
+      : 'gardé : ce mail est aussi dans la boîte de réception du compte (le ' + quand + ')');
+    return true;
+  }
+  // Pas (tout) fait : nouvel essai au passage suivant ; 24 h après l'envoi, on abandonne et Franck est prévenu (sans détail)
   if (maintenant_() - envoye > ABS_CORBEILLE_DELAI_MS) {
-    sh.getRange(ligne, COL_AB.corbeille).setValue('pas trouvé dans « Messages envoyés » : à supprimer à la main (le ' + quand + ')');
-    alerte_('Le mail envoyé à la direction pour une demande d’absence n’a pas été retrouvé dans « Messages envoyés » pour être mis à la corbeille. '
-      + 'Ouvrir Gmail avec le compte de Loué, « Messages envoyés », et supprimer le mail « [Loué App] Demande d’absence — … » (numéro ' + id + ' dans l’onglet « ' + SHEET_ABS_SUIVI + ' »).', 'absencecorbeille');
+    ecrire('pas mis à la corbeille : à supprimer à la main dans « Messages envoyés » (le ' + quand + ')');
+    alerte_(absTexteCorbeille_(id), 'absencecorbeille');
     return true;
   }
+  if (restent.length !== ids.length) ecrire(ABS_CORBEILLE_A_FAIRE + envoye + ' ' + restent.join(','));
   return false;
 }
+function absTexteCorbeille_(id) {
+  return 'Le mail envoyé à la direction pour une demande d’absence n’a pas pu être mis à la corbeille. Ouvrir Gmail avec le compte de Loué, '
+    + '« Messages envoyés », et supprimer le mail « [Loué App] Demande d’absence — … » (numéro ' + id + ' dans l’onglet « ' + SHEET_ABS_SUIVI + ' »).';
+}
+// Toutes les 10 minutes : relit la colonne N (une lecture) ; au plus 10 lignes traitées par passage
 function absPassageCorbeille_() {
-  const props = PropertiesService.getScriptProperties();
-  if (props.getProperty(ABS_PROP_CORBEILLE) !== '1') return 'rien';
   const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_ABS_SUIVI), n = sh ? sh.getLastRow() - 1 : 0;
+  if (n < 1 || sh.getLastColumn() < COL_AB.corbeille) return 'rien';
   let restent = 0, faits = 0;
-  if (n > 0) sh.getRange(2, COL_AB.corbeille, n, 1).getValues().forEach((l, i) => {
+  sh.getRange(2, COL_AB.corbeille, n, 1).getValues().forEach((l, i) => {
     if (String(l[0]).indexOf(ABS_CORBEILLE_A_FAIRE) !== 0) return;
     let fait = false;
-    if (faits < 5) { try { fait = absCorbeille_(sh, i + 2); } catch (err) { console.error('absPassageCorbeille_ :', err.message); } }
+    if (faits + restent < 10) { try { fait = absCorbeille_(sh, i + 2); } catch (err) { console.error('absPassageCorbeille_ :', err.message); } }
     if (fait) faits++; else restent++;
   });
-  if (!restent) props.deleteProperty(ABS_PROP_CORBEILLE);
   return faits + ' fait(s), ' + restent + ' en attente';
 }
 
@@ -486,7 +502,12 @@ function etapesLot14_() {
       sh.getRange(ligne, 1).setValue(ABS_REGLAGE);
       sh.getRange(ligne, 2).setNumberFormat('@').setValue(test ? String(emailAdmin_() || '') : '');
       sh.getRange(ligne, 3).setValue(absTexteReglage_(absReglage_()));
-      return test ? 'ligne ajoutée, avec l’adresse de Franck (copie TEST : essais)' : 'ligne ajoutée, case VIDE : y écrire les adresses de la direction avant d’allumer';
+      let compte = '';
+      try { compte = String(Session.getEffectiveUser().getEmail() || '').toLowerCase(); } catch (e) {}
+      const memeAdresse = test && String(emailAdmin_() || '').toLowerCase() === compte;
+      return !test ? 'ligne ajoutée, case VIDE : y écrire les adresses de la direction avant d’allumer'
+        : 'ligne ajoutée, avec l’adresse de Franck (copie TEST : essais)' + (memeAdresse
+          ? ' — ⚠ c’est l’adresse du compte lui-même : le mail serait gardé, la corbeille ne serait pas essayée. Ajouter dans la case, après une virgule, une autre adresse à Franck (Outlook)' : '');
     } }];
 }
 function installerLot14_(attendu) { return installer_('Lot 14', attendu, etapesLot14_()).texte; }
