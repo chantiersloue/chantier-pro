@@ -4,11 +4,11 @@
 > **Rien n'a été fait sur la copie TEST ni en production, aucun mail n'est parti**, ton dossier principal est resté sur la branche `lot-5`, `_prive\depot.json` n'a pas été touché.
 > Tout est construit et testé **contre un faux Google et dans Chrome seulement** : aucun vrai téléphone, rien chez Google.
 
-> **Travail interrompu le 19/11 par la limite d'utilisation. Ce qui n'est PAS fini** : (1) la relecture indépendante des lots 11.1 et 14 est lancée, **son résultat n'est ni lu ni traité** ; (2) le test de page du lot 14 (`tests/lot14-page.test.js`) est écrit mais **n'a jamais été lancé** ; (3) les tests de pages de `lot-10b` et `lot-5b` tournaient encore : ces deux branches ne sont **pas envoyées sur GitHub**. Ne lance rien du groupe A avant que je t'aie dit « dossier prêt ».
+> État au vendredi 20/11/2026 : tout ce que tu avais demandé est construit, testé, relu là où c'était risqué, corrigé et envoyé sur GitHub.
 
 ## 1. En deux lignes
 
-Les cinq points de ton programme sont construits, et le lot 14 aussi : **8d, 12, 13 construits, relus, corrigés** ; **10a-1, 10a-2, 10b et le mail unique remis à jour sur le lot 8** (mail unique relu) ; **le planning (11.1) et la demande d'absence reliée au planning (14) construits, relecture en cours**.
+Les cinq points de ton programme sont faits, et le lot 14 aussi : **8d, 12, 13 construits, relus, corrigés** ; **10a-1, 10a-2, 10b et le mail unique remis à jour sur le lot 8** (mail unique relu) ; **le planning (11.1) et la demande d'absence reliée au planning (14) construits, relus, corrigés**.
 Pour toi : **3 envois sur TEST et 3 mises en production au lieu de 8**, si tu acceptes de regrouper (partie 3).
 
 ## 2. Tes actions, dans l'ordre
@@ -22,7 +22,7 @@ Pour toi : **3 envois sur TEST et 3 mises en production au lieu de 8**, si tu ac
 | 5 | Le programme du PC pour le récapitulatif des notes (lot 8d, étape C de sa procédure) | PC | 5 min |
 | 6 | **Groupe B — lots 10a-1, 10a-2 et 10b** : un envoi, une séance, une production. Je remets d'abord la branche sur le groupe A | PC, téléphone | 40 min |
 | 7 | **Mail unique (5b)** : ses cinq essais se font dans l'éditeur de TEST avec tes adresses (`docs/lot5b-procedure.md`). Livré éteint | PC | 30 min |
-| 8 | **Planning (11.1)** : quand tu as 30 minutes, l'étape 0 de `docs/lot11-procedure.md` (les essais que seul Google peut trancher), sur un Sheet d'essai | PC | 30 min |
+| 8 | **Planning (11.1)** : quand tu as 30 minutes, l'étape 0 de `docs/lot11-procedure.md` (branche `lot-14`) (les essais que seul Google peut trancher), sur un Sheet d'essai | PC | 30 min |
 | 9 | **Allumer** ce qui est livré éteint, quand tu le décides : tous les chantiers ouverts (case de l'onglet *Réglages*), la réponse de la direction aux absences (réglage `ABSENCE_DIRECTION`), le mail unique | éditeur, Sheet | 5 min chacun |
 
 **Archivage des anciens déploiements** : « Lot 5 — production » le **26/11** ; « Lot 5c — production » une semaine après la fusion du lot 8 ; ensuite, toujours une semaine après chaque fusion (les liens des mails d'absence valent 7 jours).
@@ -49,20 +49,22 @@ Si tu préfères un lot à la fois : 8d → 12 → 13 → 14 → 10a-1 → 10a-2
 3. **Le PDF de la demande n'est plus rangé dans ADMINISTRATIF/ABSENCES** (il part dans le mail de la direction) et le motif n'est plus écrit dans le Sheet : c'est ce qui le tient hors de ta vue. D'accord ?
 4. Appellation dans le planning : Congés, École, Formation ; **tout le reste = « Absent »** (médical, accident, personnel, motif tapé à la main). Trois motifs ajoutés à la liste de la page : Congés, École, Formation.
 5. L'absence acceptée s'inscrit dans le planning **dans la nuit, et toujours juste avant une publication** (pas à la seconde).
+6. **À toi de choisir** (la relecture l'a relevé) : la boîte « Messages envoyés » du compte Google de Loué garde le mail envoyé à la direction, donc le motif ; qui ouvre ce compte peut le lire. Soit tu l'acceptes (c'est la preuve de la demande), soit je fais mettre ce message à la corbeille de Gmail juste après l'envoi (Google la vide au bout de 30 jours).
+7. Un poseur ne peut pas envoyer plus de **5 demandes d'absence par jour** (chacune envoie des mails).
 
-**Lot 11.1 — planning** (`docs/lot11-procedure.md`, branche `lot-11`)
-6. **Une case par jour, jamais de cases collées** : tu tapes `901 + 903`, le programme écrit les deux demi-journées l'une sous l'autre. Rien ne peut se dérégler. (Les cases collées de la maquette restent possibles plus tard.)
-7. *Créer la semaine suivante* recopie les chantiers de chacun, pas les absences ni le véhicule du jour.
-8. « Publier » est une demande : la case se décoche une fois le PDF dans l'appli ; si tu modifies ensuite, l'état te prévient et tu recoches.
-9. Historique : deux mois dans le Sheet, puis 12 mois dans *HISTORIQUE*, puis effacé.
-10. Atelier : une case par jour, jusqu'à 4 tâches l'une sous l'autre. Pas de lignes vides « places libres » : le menu *Ajouter un gars*.
+**Lot 11.1 — planning** (`docs/lot11-procedure.md`, branche `lot-14`)
+8. **Une case par jour, jamais de cases collées** : tu tapes `901 + 903`, le programme écrit les deux demi-journées l'une sous l'autre. Rien ne peut se dérégler. (Les cases collées de la maquette restent possibles plus tard.)
+9. *Créer la semaine suivante* recopie les chantiers de chacun, pas les absences ni le véhicule du jour.
+10. « Publier » est une demande : la case se décoche une fois le PDF dans l'appli ; si tu modifies ensuite, l'état te prévient et tu recoches.
+11. Historique : deux mois dans le Sheet, puis 12 mois dans *HISTORIQUE*, puis effacé.
+12. Atelier : une case par jour, jusqu'à 4 tâches l'une sous l'autre. Pas de lignes vides « places libres » : le menu *Ajouter un gars*.
 
 **Mail unique (5b)**
-11. Les **demandes d'absence ne sont jamais groupées** (le plan disait « inchangées », le programme les groupait : corrigé).
-12. Le mode à allumer reste **`cache`** ; `conducteur` est la solution de secours que tu as validée le 18/11, avec un essai en plus avant.
+13. Les **demandes d'absence ne sont jamais groupées** (le plan disait « inchangées », le programme les groupait : corrigé).
+14. Le mode à allumer reste **`cache`** ; `conducteur` est la solution de secours que tu as validée le 18/11, avec un essai en plus avant.
 
 **Lot 13**
-13. Un brouillon gardé reste **30 jours à partir du jour où il est gardé** (pas du jour de la saisie).
+15. Un brouillon gardé reste **30 jours à partir du jour où il est gardé** (pas du jour de la saisie).
 
 ## 5. À savoir
 
@@ -72,7 +74,12 @@ Si tu préfères un lot à la fois : 8d → 12 → 13 → 14 → 10a-1 → 10a-2
   - lot 12 : rien de bloquant ;
   - lot 13 : **deux cas de perte de saisie possibles** dans « Garder pour plus tard » (un brouillon de plus de 30 jours ; un appui juste après une frappe) — corrigés, avec leurs tests ;
   - mail unique : rien de bloquant ; les absences sorties du mail groupé, la procédure complétée ;
-  - lots 11.1 et 14 : relecture lancée le 19/11, **résultat pas encore lu ni traité**.
+  - lots 11.1 et 14 (relus ensemble le 20/11) : rien de bloquant ; **cinq points importants corrigés**, avec leurs tests :
+    - une demande d'**un seul jour** aurait affiché sa date en charabia chez la direction et le poseur (le tableur de Google transforme « 30/11/2026 » en date) — à confirmer quand même à ton essai ;
+    - le poseur pouvait lire « En attente » alors que le mail à la direction n'était pas parti, et la direction pouvait recevoir le mail deux fois ;
+    - dans le planning, une absence pouvait s'inscrire **sur la ligne d'un autre gars** si quelqu'un ajoutait un gars au même moment ;
+    - `901 R+1` était coupé en « ½ 901 R » et « ½ 1 » ;
+    - le motif reste lisible dans « Messages envoyés » du compte de Loué : **à toi de trancher** (partie 4, point 6).
 - **Le compteur de mails de Google** a baissé de 4 pour 2 mails pendant les essais du lot 8 : toujours pas expliqué, à mesurer à part avant d'allumer le mail unique.
 - **Jamais vérifié, pour tous ces lots** : un vrai téléphone, le vrai Google, Outlook (les boutons du mail d'absence), une vraie impression A3.
 
@@ -84,11 +91,10 @@ Si tu préfères un lot à la fois : 8d → 12 → 13 → 14 → 10a-1 → 10a-2
 | 8d — récapitulatif des notes | `lot-8d` | v11.1 / 10.2 | construit, relu, corrigé, envoyé sur GitHub |
 | 12 — accueil, favoris, réglage | `lot-12` | v11.2 / 10.3 | idem |
 | 13 — « Mes notes », « Garder pour plus tard » | `lot-13` | v11.3 / 10.4 | idem |
-| 11.1 — planning | `lot-11` | hors de l'appli | construit (83 tests), envoyé sur GitHub ; relecture en cours ; **rien chez Google** |
-| 14 — absences | `lot-14` (`chantier-pro-lot14`) | v11.4 / 10.5 | construit, tests du serveur verts (44) ; **test de page pas encore lancé, relecture en cours** ; contient 8d, 12, 13 et 11.1 : c'est le groupe A |
-| 10a-1, 10a-2 | `lot-10a1`, `lot-10a2` | à réattribuer | remis à jour sur le lot 8, tous leurs tests verts, envoyés sur GitHub |
-| 10b | `lot-10b` | à réattribuer | remis à jour, tests du serveur verts ; tests de pages en cours le 19/11, **pas encore envoyé** |
-| mail unique | `lot-5b` | à réattribuer | remis à jour, relu, corrigé, tests du serveur verts ; tests de pages en cours, **pas encore envoyé** ; livré éteint |
+| 11.1 — planning | `lot-14` (la version à jour, corrigée après relecture) | hors de l'appli | construit (87 tests), relu, corrigé ; **rien chez Google** |
+| 14 — absences | `lot-14` (`chantier-pro-lot14`) | v11.4 / 10.5 | construit, relu, corrigé ; **contient 8d, 12, 13 et 11.1** : c'est le groupe A |
+| 10a-1, 10a-2, 10b | `lot-10a1`, `lot-10a2`, `lot-10b` | à réattribuer | remis à jour sur le lot 8, tous leurs tests verts, envoyés sur GitHub |
+| mail unique | `lot-5b` | à réattribuer | remis à jour, relu, corrigé, tous ses tests verts, envoyé sur GitHub ; livré éteint |
 | 4e — images du carnet | `lot-4e` | programme du PC | construit ; attend ton essai de qualité (partie 7) |
 
 ## 7. Ce qui reste d'avant (rien n'est urgent)
