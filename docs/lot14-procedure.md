@@ -2,7 +2,7 @@
 
 > Pour Franck. Plan : `docs/lot14-plan.md`.
 > Une livraison : le **serveur v11.4**, les **pages, appli 10.5**, et les deux programmes du planning (`A-COLLER-PLANNING/`, remis à jour).
-> **État au 19/11/2026** : construit, testé contre le faux serveur et dans Chrome. **Rien n'a tourné chez Google**, aucun vrai mail n'est parti, aucun vrai téléphone.
+> **État au 20/11/2026** : construit, testé contre le faux serveur et dans Chrome, **relu par un agent indépendant (un tour, rien de bloquant) et corrigé**. **Rien n'a tourné chez Google**, aucun vrai mail n'est parti, aucun vrai téléphone.
 > **Le lot est livré ÉTEINT** : tant que tu n'as pas ajouté le réglage `ABSENCE_DIRECTION`, les demandes d'absence partent **exactement comme aujourd'hui**.
 > Les numéros v11.4 / 10.5 seront réattribués à la mise en production (d'autres lots passent avant).
 > **Ne passe à l'étape suivante que si la précédente est verte.** Sinon : arrête-toi et envoie-moi une capture.
@@ -15,6 +15,8 @@
 - **Acceptée** : tu reçois un mail d'information — qui, quand, quelle durée, et l'appellation du planning. **Jamais le motif.** L'absence s'inscrit toute seule dans le planning : dans la nuit, et toujours juste avant une publication.
 - **Refusée** : rien dans le planning, aucun mail pour toi. Le poseur le voit dans l'appli.
 - **Le motif** n'est plus écrit que dans le mail de la direction et son PDF : ni dans le Sheet (« (réservé à la direction) »), ni dans Drive (le PDF n'est plus rangé dans ADMINISTRATIF/ABSENCES), ni dans ton mail, ni dans le planning.
+- **Une limite à connaître** : la boîte « Messages envoyés » du compte Google de Loué garde le mail envoyé à la direction, donc le motif. Qui ouvre ce compte peut le lire. Deux possibilités, à toi de choisir : l'accepter (c'est la preuve de la demande), ou me demander de faire mettre ce message à la corbeille de Gmail juste après l'envoi.
+- Un poseur ne peut pas envoyer plus de **5 demandes par jour**.
 
 **L'appellation dans le planning** : Congés (motif « Congés », ou heures imputées sur les congés payés), École, Formation ; **tout le reste — médical, accident, personnel, un motif tapé à la main — s'affiche « Absent »**.
 
@@ -46,12 +48,12 @@
 Sur la copie d'essai (icône « Loué ESSAI »), connecté. « À propos » doit afficher **10.5**.
 
 1. Tuile **Demande d'absence** : la section **« Mes demandes »** est en haut (vide), le champ e-mail a disparu.
-2. Fais une demande pour une date dans trois semaines, **motif « Médical »**, précisions « essai ». Envoie. « Mes demandes » affiche la date et **En attente**.
+2. Fais une demande pour **un seul jour**, dans trois semaines, **motif « Médical »**, précisions « essai ». Envoie. « Mes demandes » affiche la date **écrite normalement (« 14/12/2026 », pas une date en anglais)** et **En attente**.
 3. **Dans Outlook, sur ton PC** : le mail « [Loué App] Demande d'absence — … » est arrivé. **Regarde bien** :
    - les deux boutons, vert et rouge, sont-ils de vrais boutons ? (envoie-moi une capture)
    - le PDF est-il joint ? le motif est-il dans le mail ?
    - est-il en boîte de réception, pas dans les indésirables ?
-4. Clique **✅ Accepter** : une page s'ouvre dans ton navigateur, rappelle la demande **sans le motif**, avec un bouton vert **« Confirmer : j'accepte »**. **N'appuie pas encore.** Regarde sur ton téléphone : la demande est toujours « En attente » (ouvrir la page ne décide rien).
+4. Clique **✅ Accepter** : une page s'ouvre dans ton navigateur, rappelle la demande (**la date est-elle écrite normalement ?**) **sans le motif**, avec un bouton vert **« Confirmer : j'accepte »**. **N'appuie pas encore.** Regarde sur ton téléphone : la demande est toujours « En attente » (ouvrir la page ne décide rien).
 5. Appuie sur **Confirmer**. La page dit « ✅ Demande acceptée ».
 6. Tu reçois un second mail, « [Loué App] Absence acceptée — … » : il dit **« Dans le planning : Absent »**, et **pas un mot du motif**.
 7. Sur le téléphone, rouvre *Demande d'absence* : **Acceptée**.
@@ -87,14 +89,14 @@ Dis-moi « essais faits », avec ta capture d'Outlook.
 
 ## Retour arrière (30 secondes)
 
-**Propriétés du script** → supprime `ABSENCE_DIRECTION` → Enregistrer. Dès la demande suivante, tout redevient comme avant (mail aux personnes prévenues, copie au salarié, PDF rangé dans Drive). Les demandes déjà envoyées gardent leur état ; leurs liens marchent encore.
+**Propriétés du script** → supprime `ABSENCE_DIRECTION` → Enregistrer. Dès la demande suivante, tout redevient comme avant (mail aux personnes prévenues, copie au salarié, PDF rangé dans Drive). Les demandes déjà envoyées gardent leur état, le poseur les voit toujours dans « Mes demandes », et **leurs liens marchent encore** : si la direction accepte l'une d'elles, tu reçois le mail et le planning l'inscrit.
 
 ## Comment vérifier que tout va bien
 
 | Où | Ce que tu dois voir |
 |---|---|
 | `verifierConfig` | la ligne `Absences (propriété ABSENCE_DIRECTION) : …` ; `❌` si aucune adresse n'est lisible (lu alors comme éteint) |
-| Onglet *Absences suivi* | une ligne par demande : numéro, compte, demandeur, dates, durée, appellation, état, « envoyé le … » pour ton mail |
+| Onglet *Absences suivi* | une ligne par demande : numéro, compte, demandeur, dates, durée, appellation, état, « envoyé le … » pour ton mail, et « envoyé le … » pour le mail à la direction (**vide : il n'est pas encore parti**) |
 | Onglet *Envois* | la demande « traité » ; « erreur — Demande gardée dans le téléphone… » si le mail à la direction n'a pas pu partir (elle repartira toute seule) |
 | Planning, onglet *ABSENCES* | « inscrite : N jour(s) », ou « ⚠ à inscrire à la main : … » |
 
@@ -104,4 +106,5 @@ Dis-moi « essais faits », avec ta capture d'Outlook.
 - **Les indésirables** : un mail avec deux liens peut être filtré par la messagerie de la direction. À vérifier avec elle au premier vrai mail.
 - **Les messageries qui ouvrent les liens toutes seules** : la page est faite pour (rien n'est décidé à l'ouverture), mais je n'ai pas pu l'essayer avec une vraie messagerie d'entreprise.
 - **Rien chez Google** : les mails, le Sheet, l'inscription dans le vrai planning.
-- **Relecture par un agent indépendant** : faite le 19/11/2026 (voir le journal), un tour.
+- **La façon dont le vrai Google Sheets range une date** : une demande d'un seul jour (« 14/12/2026 ») est écrite en texte pour ne pas devenir une date de tableur ; à confirmer à l'essai B2.
+- **Relecture par un agent indépendant** : faite le 20/11/2026, un tour (rien de bloquant ; ses remarques sont corrigées, voir le journal et D14-20 à D14-27).

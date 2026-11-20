@@ -161,7 +161,7 @@
   <div class="section info-delai">
     <div class="section-body">
       <strong>Délai de dépôt :</strong> la demande doit être transmise au moins <strong>15 jours avant</strong> la date d'absence.
-      La Direction dispose ensuite de <strong>7 jours</strong> pour répondre par le coupon joint.
+      La Direction dispose ensuite de <strong>7 jours</strong> pour répondre<span id="reponse-comment"> par le coupon joint</span>.
     </div>
   </div>
 
@@ -368,9 +368,12 @@ const CLASSE_ETAT = { 'En attente': 'dem-attente', 'Acceptée': 'dem-acceptee', 
 // d : la réponse du serveur (ou la dernière gardée) ; enFile : les demandes qui ne sont pas encore parties de ce téléphone
 function afficherDemandes(d, depuisLeTelephone, enFile) {
   const section = $('mes-demandes');
-  if (!d || !d.suivi) { section.hidden = true; $('champ-email').hidden = false; return; }
+  // direction : la direction répond depuis son mail (plus de copie par mail au salarié : la réponse se lit ici)
+  const direction = !!d && (d.direction === undefined ? !!d.suivi : !!d.direction);
+  $('champ-email').hidden = direction;
+  $('reponse-comment').textContent = direction ? ' : sa réponse s’affichera en haut de cette page, dans « Mes demandes »' : ' par le coupon joint';
+  if (!d || !d.suivi) { section.hidden = true; return; }
   section.hidden = false;
-  $('champ-email').hidden = true;                       // plus de copie par mail : la réponse se lit ici
   const liste = $('demandes-liste');
   liste.textContent = '';
   const ligne = (titre, detail, etat, classe) => {
@@ -380,9 +383,15 @@ function afficherDemandes(d, depuisLeTelephone, enFile) {
     const e = document.createElement('span'); e.className = 'dem-etat ' + classe; e.textContent = etat;
     l.appendChild(t); l.appendChild(e); liste.appendChild(l);
   };
-  (enFile || []).forEach(a => ligne((a.donnees && a.donnees.dateAbsence) || 'Demande', 'Pas encore partie : elle partira dès qu’il y aura du réseau', '⏳ dans le téléphone', 'dem-sans'));
+  // Les demandes encore dans ce téléphone (pas celles que le serveur montre déjà : même numéro)
+  const connues = {};
+  (d.demandes || []).forEach(x => { connues[x.id] = true; });
+  (enFile || []).filter(a => !connues[a.id]).forEach(a => {
+    if (a.etat === 'erreur') ligne((a.donnees && a.donnees.dateAbsence) || 'Demande', 'Elle n’a pas pu partir : voyez l’indicateur d’envoi, en haut de la page', '⚠ pas partie', 'dem-refusee');
+    else ligne((a.donnees && a.donnees.dateAbsence) || 'Demande', 'Pas encore partie : elle partira toute seule', '⏳ dans le téléphone', 'dem-sans');
+  });
   (d.demandes || []).forEach(x => {
-    const detail = (x.duree || '') + (x.etat === 'Sans réponse' ? ' — pas de réponse depuis plus de ' + (d.jours || 7) + ' jours : refais ta demande ou vois avec le bureau'
+    const detail = (x.duree || '') + (x.etat === 'Sans réponse' ? ' — pas de réponse depuis plus de ' + (d.jours || 7) + ' jours : refaites votre demande ou voyez avec le bureau'
       : x.decideeLe ? ' — réponse du ' + x.decideeLe : x.recueLe ? ' — demandée le ' + new Date(x.recueLe).toLocaleDateString('fr-FR') : '');
     ligne(x.dateAbsence || '?', detail, x.etat, CLASSE_ETAT[x.etat] || 'dem-attente');
   });
@@ -392,7 +401,7 @@ function afficherDemandes(d, depuisLeTelephone, enFile) {
 async function demandesEnFile() {
   const c = LOUE.compte();
   if (!c || !LOUE.stockage) return [];
-  try { return (await LOUE.stockage.tout('file')).filter(a => a.type === 'absence' && a.etat !== 'erreur' && (!a.env || a.env === LOUE_CONFIG.env) && a.saisiPar === c.profil.id); }
+  try { return (await LOUE.stockage.tout('file')).filter(a => a.type === 'absence' && (!a.env || a.env === LOUE_CONFIG.env) && a.saisiPar === c.profil.id); }
   catch (e) { return []; }
 }
 let demandesEnCours = 0;

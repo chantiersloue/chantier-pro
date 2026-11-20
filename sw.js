@@ -67,6 +67,8 @@ self.addEventListener('fetch', ev => {
   const req = ev.request;
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
+  // Lot 14 : la page de réponse de la direction n'est jamais servie ni gardée par ce cache (son adresse porte le lien signé)
+  if (/\/absence-reponse\.html$/.test(url.pathname)) return;
   if (url.origin !== self.location.origin) return;                // Apps Script, Google… : jamais en cache ici
   if (url.pathname.indexOf('/tests/') > -1 || url.pathname.indexOf('/_prive/') > -1) return;
   if (req.mode === 'navigate' || /\.html$/.test(url.pathname) || url.pathname.endsWith('/')) {

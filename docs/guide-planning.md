@@ -14,6 +14,7 @@ Pour Franck et le chef d'atelier. Le planning est un Google Sheets : **un onglet
 | congés, école, formation, férié | `cong`, `eco`, `for`, `fer` | Congés, École, Formation, Férié |
 | autre chose (un client, un SAV) | `Mr DUPONT` | accepté tel quel |
 
+- Un « + » collé dans un texte n'est pas une coupure : `901 R+1` reste « 901 R+1 ». Pour deux chantiers, mets des espaces (`901 + 903`) ou tape deux numéros (`901+903`).
 - Tu peux aussi choisir dans la liste de la case. Le petit triangle d'avertissement de Google sur une saisie libre est normal : **rien n'est jamais refusé**.
 - **Jamais de mot de santé** (maladie, accident, arrêt…) : écris **Absent**. Une case qui en contient un passe en rouge.
 
@@ -62,6 +63,7 @@ Publie la semaine en cours et, dès qu'elle est prête, la suivante. Le lundi, l
 | Tu vois | Ce que ça veut dire |
 |---|---|
 | « ⚠ Pas encore publié (…) : nouvel essai dans 10 minutes » | Google a eu un raté : attends. Au 3e échec la case se décoche : recoche plus tard, ou dépose le PDF à la main dans le dossier *Planning* |
-| « ⚠ Onglet illisible » | la colonne H a été abîmée : restaure l'onglet (historique des versions) |
+| « ⚠ Onglet illisible, pas publié : la ligne 14 (« … ») n'est pas une ligne du planning » | quelque chose a été tapé sous le tableau : efface cette ligne. S'il dit que les repères ont été effacés : restaure l'onglet (historique des versions) |
+| « ⚠ Trop tôt » | tu as coché « Publier » sur une semaine à plus de 5 semaines : recoche plus tard |
 | Dans *LISTES*, « ⚠ pas mise à jour le … » | la liste des chantiers n'a pas pu être relue dans l'appli : l'ancienne est gardée ; elle se remettra à jour la nuit suivante, ou coche « Mettre à jour maintenant » |
 | Un chantier manque dans la liste | il n'a pas de numéro dans l'onglet *Chantiers* de l'appli, ou il est « Terminé » |

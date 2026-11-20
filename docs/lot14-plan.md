@@ -92,6 +92,8 @@ Ce que l'appli ne peut pas empêcher : la boîte « Messages envoyés » du comp
 | Quelqu'un d'autre que la direction répond | lien signé, impossible à fabriquer ; envoyé aux seules adresses du réglage |
 | Une messagerie « clique » le lien toute seule | ouvrir la page ne décide rien ; il faut confirmer |
 | Double réponse (deux directeurs, double clic) | sous verrou : la première compte, la seconde lit la réponse déjà donnée |
+| Le téléphone renvoie la demande alors que le mail est déjà parti | colonne « Mail à la direction » : une fois remplie, le mail ne repart jamais |
+| Un compte envoie des demandes en rafale | 5 par jour et par compte |
 | Le mail à la direction ne part pas (quota, panne) | la demande n'est pas marquée « reçue » : le téléphone la garde et la renvoie ; aucun doublon (même numéro) |
 | Le mail au conducteur ne part pas | noté « à envoyer », renvoyé au passage suivant (toutes les 10 minutes) |
 | Un gars sans compte dans le planning | journal *ABSENCES* : « à inscrire à la main » |

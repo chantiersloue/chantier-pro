@@ -1,7 +1,7 @@
 # Lot 11.1 — Le Sheet « Planning Loué » : procédure d'installation et d'essai
 
 > Pour Franck. Plan : `docs/lot11-1-plan.md`. Mode d'emploi d'une page : `docs/guide-planning.md`.
-> **État au 19/11/2026 : construit et testé contre un faux Google seulement** (83 tests, dont un essai de bout en bout avec le vrai serveur de l'appli). **Rien n'est installé chez Google**, aucun Sheet n'existe, aucun mail n'est parti.
+> **État au 20/11/2026 : construit et testé contre un faux Google seulement** (87 tests, dont un essai de bout en bout avec le vrai serveur de l'appli), **relu par un agent indépendant (un tour, rien de bloquant) et corrigé**. **Rien n'est installé chez Google**, aucun Sheet n'existe, aucun mail n'est parti.
 > Cette procédure est donc **pour plus tard** : elle commence par les essais que seul Google peut trancher.
 > **Ne passe à l'étape suivante que si la précédente est verte.** Sinon : arrête-toi et envoie-moi une capture.
 
@@ -106,4 +106,4 @@ Si l'essai 4 échoue (le lien ne donne pas un PDF) : Fichier → Imprimer → «
 - **Tout ce qui dépend du vrai Google** : l'adresse d'export en PDF (non garantie par Google : le programme a un repli par la méthode officielle, moins bien cadrée), la taille réelle du texte sur une A3, le temps d'un passage, la complétion pendant une saisie rapide, le comportement sur téléphone, les listes de choix « avertissement seulement ».
 - **Les couleurs et la mise en page** : mon faux Google note les couleurs demandées, il ne dessine rien. À regarder de tes yeux à l'étape 0.
 - **L'affiche** : les mesures sont calculées (largeur des lettres estimée) ; à mesurer sur une vraie impression.
-- **Une relecture par un agent indépendant** : prévue avec le lot 14 (absences), avant toute installation.
+- **Le temps réel d'un passage** sur les 90 minutes par jour du compte (partagées avec l'appli) : à mesurer sur la copie TEST.

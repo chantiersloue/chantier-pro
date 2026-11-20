@@ -131,8 +131,9 @@ function plgEcrireSemaine_(ss, sh, s, listes) {
 // Lire la semaine d'un onglet ; lève une erreur claire s'il n'est pas lisible
 function plgLireSemaine_(sh) {
   const nb = sh.getLastRow();
-  const s = nb >= PL_S.lig1 ? plLireSemaine_(sh.getRange(1, 1, nb, PL_S.nbCol).getValues()) : null;
-  if (!s) throw new Error('l’onglet « ' + sh.getName() + ' » n’est pas lisible (la colonne H, cachée, a été effacée ?). Restaure-le par Fichier → Historique des versions.');
+  const valeurs = nb >= 1 ? sh.getRange(1, 1, nb, PL_S.nbCol).getValues() : [];
+  const s = nb >= PL_S.lig1 ? plLireSemaine_(valeurs) : null;
+  if (!s) throw new Error('l’onglet « ' + sh.getName() + ' » n’est pas lisible : ' + (plPourquoiIllisible_(valeurs) || 'il est vide') + '. En dernier recours : Fichier → Historique des versions.');
   if (plNomOnglet_(s.lundi) !== sh.getName()) throw new Error('l’onglet « ' + sh.getName() + ' » ne porte pas le nom de sa semaine (' + plNomOnglet_(s.lundi) + ').');
   return s;
 }

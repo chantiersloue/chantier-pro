@@ -79,7 +79,7 @@ test('la demande part aux personnes prévenues des absences et à l’adresse pe
   assert.ok(!/absence-reponse/.test(j(g.mails)), 'aucun bouton');
   assert.strictEqual(g.feuilles['Absences'].lignes[1][6], MOTIF);
   assert.strictEqual(g.feuilles['Absences suivi'], undefined);
-  assert.deepStrictEqual(miennes(g, 'kevin').data, { suivi: false, demandes: [], jours: 7 });
+  assert.deepStrictEqual(miennes(g, 'kevin').data, { suivi: false, direction: false, demandes: [], jours: 7 });
 });
 test('un réglage vide ou illisible est lu comme éteint, et verifierConfig le dit', () => {
   ['', '   ', 'pas une adresse'].forEach(v => {
@@ -118,7 +118,8 @@ test('le motif et les précisions ne sont écrits NULLE PART dans le Sheet ; le 
   const tout = toutLeSheet(g);
   ['médical', 'spécialiste', 'Opération', 'genou'].forEach(mot => assert.ok(tout.indexOf(mot) < 0, '« ' + mot + ' » est dans le Sheet'));
   assert.ok(tout.indexOf(PERSO) < 0, 'l’adresse personnelle non plus');
-  egal(g.feuilles['Absences'].lignes[1].slice(1, 9), ['Kévin ESSAI', '19/11/2026', 'Du 30/11/2026 au 02/12/2026', 'Journée entière', 'Sans solde', '(réservé à la direction)', '(réservé à la direction)', '']);
+  egal(g.feuilles['Absences'].lignes[1].slice(1, 9), ['Kévin ESSAI', '19/11/2026', 'Du 30/11/2026 au 02/12/2026', 'Journée entière', '(réservé à la direction)', '(réservé à la direction)', '(réservé à la direction)', '']);
+  assert.ok(tout.indexOf('Sans solde') < 0, 'l’imputation non plus');
   assert.strictEqual(Object.values(g.elements).filter(e => e.type === 'fichier').length, 0, 'aucun fichier créé dans Drive');
   assert.strictEqual(g.feuilles['Mails en attente'], undefined);
   assert.strictEqual(g.feuilles['Journal'], undefined);
@@ -127,9 +128,10 @@ test('la ligne de suivi : qui, quand (dates lisibles par le planning), durée, a
   const g = environnement({ direction: DIR1 });
   const id = idFiche(); envoyer(g, 'kevin', demande(), id);
   const l = suivi(g)[0];
-  assert.deepStrictEqual([l[0], l[2], l[3], l[4], l[5], l[6], l[7], l[8], l[9], l[10], l[11]],
+  assert.deepStrictEqual([l[0], l[2], l[3], l[4], l[5], l[6], l[7], l[8], l[9], l[10] || '', l[11] || ''],
     [id, 'kevin', 'Kévin ESSAI', 'Du 30/11/2026 au 02/12/2026', '2026-11-30', '2026-12-02', 'Journée entière', 'Absent', 'En attente', '', '']);
   egal(g.feuilles['Absences suivi'].lignes[0].slice(0, 4), ['Numéro', 'Reçue le', 'Compte', 'Demandeur']);
+  assert.ok(/^envoyé le 19\/11\/2026/.test(l[12]), 'colonne « Mail à la direction » : ' + l[12]);
 });
 test('un texte hostile dans la demande reste du texte dans le mail (aucune balise, aucune formule dans le Sheet)', () => {
   const g = environnement({ direction: DIR1 });
@@ -272,15 +274,58 @@ test('quota du jour atteint : la demande n’est PAS reçue (le téléphone la g
   const id = idFiche(), r1 = envoyer(g, 'kevin', demande(), id);
   assert.deepStrictEqual([r1.ok, r1.code], [false, 'SERVEUR_OCCUPE'], j(r1));
   assert.ok(/gardée dans le téléphone/.test(r1.message), r1.message);
-  assert.deepStrictEqual([g.mails.length, suivi(g).length], [0, 1]);
+  assert.deepStrictEqual([fiches(g).length, suivi(g).length], [0, 1]);
+  assert.deepStrictEqual(miennes(g, 'kevin').data.demandes, [], 'le poseur ne lit pas « En attente » tant que le mail à la direction n’est pas parti');
+  const alerte = g.mails.filter(m => !/Demande d'absence/.test(m.sujet));
+  assert.ok(alerte.length === 1 && /n’a pas pu partir vers la direction/.test(alerte[0].texte) && !/Kévin|médical|genou|30\/11/.test(j(alerte)), 'Franck est prévenu, sans aucun détail : ' + j(alerte));
   assert.strictEqual(g.feuilles['Mails en attente'], undefined, 'rien n’est rangé dans « Mails en attente »');
   ['médical', 'genou'].forEach(mot => assert.ok(toutLeSheet(g).indexOf(mot) < 0));
   g.etat.quota = 50;
   const r2 = envoyer(g, 'kevin', demande(), id);
-  assert.deepStrictEqual([r2.code, r2.data.envoyes, g.mails.length, suivi(g).length, g.feuilles['Absences'].lignes.length], ['ENREGISTRE', 2, 2, 1, 2], j(r2));
+  assert.deepStrictEqual([r2.code, r2.data.envoyes, fiches(g).length, suivi(g).length, g.feuilles['Absences'].lignes.length], ['ENREGISTRE', 2, 2, 1, 2], j(r2));
+  assert.strictEqual(miennes(g, 'kevin').data.demandes.length, 1, 'maintenant il la voit');
   // … et renvoyée encore (réponse perdue) : « déjà reçue », aucun mail de plus
   assert.strictEqual(envoyer(g, 'kevin', demande(), id).code, 'DEJA_RECU');
-  assert.strictEqual(g.mails.length, 2);
+  assert.strictEqual(fiches(g).length, 2);
+});
+test('le mail est parti mais l’exécution a été coupée avant de noter « traité » : le téléphone renvoie la demande, AUCUN second mail ne part à la direction', () => {
+  const g = environnement({ direction: DIR1 });
+  const id = idFiche(); envoyer(g, 'kevin', demande(), id);
+  const envoi = g.feuilles['Envois'].lignes.filter(l => l[0] === id)[0];
+  envoi[4] = 'en cours'; envoi[1] = new (envoi[1].constructor)(g.now - 10 * 60000);      // comme si l'exécution était morte il y a 10 minutes
+  const r = envoyer(g, 'kevin', demande(), id);
+  assert.strictEqual(r.ok, true, j(r));
+  assert.deepStrictEqual([fiches(g).length, suivi(g).length], [1, 1]);
+});
+test('premier essai raté, puis le même numéro revient avec un AUTRE contenu : la ligne de suivi dit ce que dit le mail', () => {
+  const g = environnement({ direction: DIR1, quota: 0 });
+  const id = idFiche(); envoyer(g, 'kevin', demande({ dateAbsence: 'Du 30/11/2026 au 18/12/2026' }), id);
+  g.etat.quota = 50;
+  envoyer(g, 'kevin', demande({ dateAbsence: '30/11/2026', duree: 'Matin', motif: 'École' }), id);
+  assert.ok(fiches(g)[0].texte.indexOf('Date : 30/11/2026') > -1);
+  egal(suivi(g)[0].slice(4, 9), ['30/11/2026', '2026-11-30', '2026-11-30', 'Matin', 'École']);
+  assert.strictEqual(suivi(g).length, 1);
+});
+test('demande d’UN SEUL JOUR : la date est écrite comme un texte (pas par « ajouter une ligne », que le tableur transformerait en date)', () => {
+  const g = environnement({ direction: DIR1 });
+  envoyer(g, 'kevin');                                     // crée les onglets
+  ['Absences suivi', 'Absences'].forEach(n => { g.feuilles[n].api.appendRow = () => { throw new Error('appendRow ne doit plus servir pour ' + n); }; });
+  const r = envoyer(g, 'kevin', demande({ dateAbsence: '30/11/2026' }));
+  assert.strictEqual(r.code, 'ENREGISTRE', j(r));
+  egal(suivi(g)[1].slice(2, 7), ['kevin', 'Kévin ESSAI', '30/11/2026', '2026-11-30', '2026-11-30']);
+  assert.strictEqual(voir(g, lien(g)).data.dateAbsence, '30/11/2026');
+  assert.strictEqual(g.feuilles['Absences'].lignes[2][3], '30/11/2026');
+});
+test('pas plus de 5 demandes par compte et par jour (chacune envoie des mails) : la sixième est refusée pour de bon, sans mail ; le lendemain, c’est reparti', () => {
+  const g = environnement({ direction: DIR1 });
+  for (let i = 0; i < 5; i++) assert.strictEqual(envoyer(g, 'kevin').code, 'ENREGISTRE');
+  const r = envoyer(g, 'kevin');
+  assert.deepStrictEqual([r.ok, r.code], [false, 'DONNEES_INVALIDES'], j(r));
+  assert.ok(/Déjà 5 demandes d’absence aujourd’hui/.test(r.message), r.message);
+  assert.deepStrictEqual([fiches(g).length, suivi(g).length], [5, 5]);
+  assert.strictEqual(envoyer(g, 'thomas27', demande({ nom: 'Thomas ESSAI' })).code, 'ENREGISTRE', 'un autre compte n’est pas gêné');
+  g.now += JOUR;
+  assert.strictEqual(envoyer(g, 'kevin').code, 'ENREGISTRE');
 });
 test('Gmail refuse tous les mails : même chose, le téléphone garde ; aucune alerte ne contient la demande', () => {
   const g = environnement({ direction: DIR1 });
@@ -308,6 +353,19 @@ test('le mail au conducteur ne peut pas partir (quota) : noté « à envoyer »,
   g.etat.quota = 30; g.ctx.traiterComptes();
   assert.ok(/^envoyé le/.test(suivi(g)[0][11]));
   assert.deepStrictEqual([g.mails.filter(m => /Absence acceptée/.test(m.sujet)).length, g.proprietes.ABS_MAIL_A_ENVOYER], [1, undefined]);
+  g.ctx.traiterComptes();
+  assert.strictEqual(g.mails.filter(m => /Absence acceptée/.test(m.sujet)).length, 1);
+});
+test('le passage de 10 minutes tombe PENDANT l’envoi du mail au conducteur : un seul mail part ; un envoi resté « en cours » plus de 15 minutes est repris', () => {
+  const g = environnement({ direction: DIR1 });
+  envoyer(g, 'kevin');
+  g.etat.quota = 0; decider(g, lien(g), 'accepter'); g.etat.quota = 50;
+  g.feuilles['Absences suivi'].lignes[1][11] = 'envoi en cours ' + g.now;              // un autre passage est en train de l'envoyer
+  g.ctx.traiterComptes();
+  assert.strictEqual(g.mails.filter(m => /Absence acceptée/.test(m.sujet)).length, 0, 'pas de second envoi par-dessus');
+  g.now += 16 * 60000; g.ctx.traiterComptes();                                           // l'autre passage est mort : celui-ci reprend
+  assert.strictEqual(g.mails.filter(m => /Absence acceptée/.test(m.sujet)).length, 1);
+  assert.ok(/^envoyé le/.test(suivi(g)[0][11]));
   g.ctx.traiterComptes();
   assert.strictEqual(g.mails.filter(m => /Absence acceptée/.test(m.sujet)).length, 1);
 });
@@ -339,6 +397,22 @@ test('sans réponse depuis plus de 7 jours : « Sans réponse » ; sans compte o
   assert.strictEqual(miennes(g, 'kevin').data.demandes[0].etat, 'Sans réponse');
   assert.ok(!poster(g, { action: 'absencesMiennes', jeton: 'faux' }).ok);
 });
+test('retour arrière (réglage retiré) : le poseur voit encore ses demandes déjà faites, et le lien du mail déjà parti marche toujours', () => {
+  const g = environnement({ direction: DIR1 });
+  envoyer(g, 'kevin'); const l = lien(g);
+  delete g.proprietes.ABSENCE_DIRECTION;
+  const r = miennes(g, 'kevin').data;
+  assert.deepStrictEqual([r.suivi, r.direction, r.demandes.length], [true, false, 1]);
+  assert.strictEqual(decider(g, l, 'refuser').data.etat, 'Refusée');
+  assert.deepStrictEqual(miennes(g, 'thomas27').data, { suivi: false, direction: false, demandes: [], jours: 7 });
+});
+test('ancienne page (fiche sans numéro, période de transition) avec le lot allumé : la demande est traitée, le serveur lui donne un numéro', () => {
+  const g = environnement({ direction: DIR1 });
+  let rep = null;
+  try { rep = poster(g, demande()); } catch (e) { rep = { erreur: e.message }; }
+  if (fiches(g).length) { assert.ok(/^abs-[0-9a-f-]{20,}$/.test(String(suivi(g)[0][0])), String(suivi(g)[0][0])); assert.ok(voir(g, lien(g)).ok, 'son lien marche'); }
+  else assert.ok(/CONNEXION|connect/i.test(j(rep)), 'transition fermée : ' + j(rep));
+});
 test('une demande envoyée par un téléphone sans compte (période de transition) est traitée, mais n’est rattachée à personne', () => {
   const g = environnement({ direction: DIR1 });
   const r = envoyer(g, null);
@@ -353,6 +427,12 @@ test('le serveur à coller contient le lot 14, éteint ; aucune adresse de direc
     .forEach(t => assert.ok(code.indexOf(t) > -1, t));
   assert.ok(!/ABSENCE_DIRECTION\s*=\s*['"][^'"]*@/.test(code));
   assert.ok(/VERSION_APPLI = '10\.5'/.test(fs.readFileSync(path.join(RACINE, 'commun', 'config.js'), 'utf8')));
+});
+test('la page de réponse de la direction n’est jamais gardée ni servie par le cache hors réseau (son adresse porte le lien signé)', () => {
+  const sw = fs.readFileSync(path.join(RACINE, 'sw.js'), 'utf8');
+  assert.ok(/if \(\/\\\/absence-reponse\\\.html\$\/\.test\(url\.pathname\)\) return;/.test(sw), 'exclusion absente de sw.js');
+  assert.ok(sw.indexOf("'absence-reponse.html'") < 0, 'pas dans la liste des pages gardées');
+  assert.ok(sw.indexOf('absence-reponse') < sw.indexOf('respondWith'), 'l’exclusion est AVANT toute réponse du cache');
 });
 test('le motif n’est écrit par le lot 14 qu’à un seul endroit du programme : le mail à la direction', () => {
   const code = fs.readFileSync(path.join(RACINE, 'apps-script', 'Absences.gs'), 'utf8').replace(/\/\/.*$/gm, '');

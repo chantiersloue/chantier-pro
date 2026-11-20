@@ -123,16 +123,22 @@ test('la semaine en cours et la suivante publiées : deux PDF, deux semaines dan
 test('une semaine passée cochée par erreur n’est pas publiée ; une semaine trop lointaine (plus de 5 semaines) non plus', () => {
   const m = monde({ semaines: ['2026-11-09', '2026-11-16', '2027-01-04'] });
   m.cocher('2026-S46'); m.cocher('2027-S01');
-  egal(m.ctx.passagePublication(), '2026-S46 : semaine passée');
-  egal([m.pdf(), m.coche('2026-S46'), m.coche('2027-S01')], [[], false, true]);
+  egal(m.ctx.passagePublication(), '2026-S46 : semaine passée ; 2027-S01 : trop loin');
+  egal([m.pdf(), m.coche('2026-S46'), m.coche('2027-S01')], [[], false, false], 'les deux cases sont décochées : aucune ne reste cochée sans un mot');
   assert.ok(/Semaine passée/.test(m.etat('2026-S46')));
+  assert.ok(/^⚠ Trop tôt : on ne publie que de la semaine en cours à 5 semaines devant/.test(m.etat('2027-S01')), m.etat('2027-S01'));
 });
 test('onglet illisible (colonne H effacée) : pas publié, la case est décochée, l’état dit quoi faire', () => {
   const m = monde(); m.cocher('2026-S47');
   m.f('2026-S47').lignes.forEach((l, i) => { if (i > 1) l[7] = ''; });
   egal(m.ctx.passagePublication(), '2026-S47 : illisible');
   egal([m.pdf(), m.coche('2026-S47')], [[], false]);
-  assert.ok(/Onglet illisible.*Vérifier la semaine/.test(m.etat('2026-S47')), m.etat('2026-S47'));
+  assert.ok(/Onglet illisible, pas publié : les repères des lignes .* ont été effacés/.test(m.etat('2026-S47')), m.etat('2026-S47'));
+  // une note tapée sous le tableau : l'état dit quelle ligne gêne
+  const n = monde(); n.cocher('2026-S47');
+  n.f('2026-S47').api.getRange(14, 2).setValue('penser à rappeler le client');
+  egal(n.ctx.passagePublication(), '2026-S47 : illisible');
+  assert.ok(/la ligne 14 \(« penser à rappeler le client »\) n’est pas une ligne du planning/.test(n.etat('2026-S47')), n.etat('2026-S47'));
 });
 
 console.log('Lot 11.1 — quand Google fait défaut');
@@ -177,6 +183,24 @@ test('copie de sauvegarde : dans un AUTRE dossier si elle est réglée ; jamais 
   assert.ok(/❌ Copie de sauvegarde : c’est le même dossier/.test(n.ctx.verifierPublication()));
 });
 
+test('une saisie collée, pas encore complétée (« 0501+0502 »), est publiée comme « Vérifier la semaine » la lirait : PDF et onglet APPLI justes ; l’onglet n’est pas modifié', () => {
+  const m = monde();
+  m.f('2026-S47').api.getRange(5, 7).setValue('0501+0502');
+  m.cocher('2026-S47'); m.ctx.passagePublication();
+  egal(m.f('2026-S47').lignes[4][6], '0501+0502');
+  egal(m.g.classeurs[m.g.crees[0]].onglets[0].lignes[3][6], '½ 0501 Test 1 / ½ 0502 CHANTIER TEST 2');
+  m.ctx.passagePublication();
+  egal(m.etat('2026-S47'), 'Publié le 19/11 à 16 h 10', 'pas de faux « modifié depuis »');
+});
+test('rien de coché, une semaine déjà publiée : le passage ne lit pas l’onglet LISTES (600 lignes) pour rien', () => {
+  const m = monde(); m.cocher('2026-S47'); m.ctx.passagePublication();
+  let lectures = 0;
+  const li = m.f('LISTES').api, vrai = li.getRange;
+  li.getRange = (r, c, nr, nc) => { if ((nr || 1) > 5) lectures++; return vrai(r, c, nr, nc); };
+  egal(m.ctx.passagePublication(), 'rien à faire');
+  egal(lectures, 0);
+});
+
 console.log('Lot 11.1 — chaque nuit');
 test('la liste des chantiers est recopiée de l’appli : chantiers non terminés à numéro ; nom court du planning gardé, sinon celui de l’appli ; liste de saisie refaite', () => {
   const m = monde();
@@ -187,6 +211,15 @@ test('la liste des chantiers est recopiée de l’appli : chantiers non terminé
   egal(li.slice(1, 8).map(l => l[3]), ['0501 CHANTIER TEST 1', '0502 CHANTIER TEST 2', '0510 CHANTIER NEUF', '901 CHANTIER 901', 'Absent', 'Congés', 'École']);
   egal(li[0][13], 'à jour du 19/11 à 16 h 10 (4 chantiers)');
   egal(li.slice(1, 3).map(l => [l[5], l[6], l[8]]), [['Plateau 1', '#FFE0B2', 'Absent'], ['Fourgon 2', '#C8E6C9', 'Congés']], 'véhicules et autres cas intacts');
+});
+test('la liste est écrite par-dessus l’ancienne puis le reste effacé : une liste plus courte ne laisse aucune ligne d’avant', () => {
+  const m = monde();
+  m.ctx.passageDeNuit();
+  m.g.onglet('APPLI', 'Chantiers').lignes.length = 3;      // il ne reste que deux chantiers dans l'appli
+  m.ctx.passageDeNuit();
+  const li = m.f('LISTES').lignes;
+  egal(li.slice(1, 5).map(l => [l[0] || '', l[3] || '']), [['0501', '0501 CHANTIER TEST 1'], ['0502', '0502 CHANTIER TEST 2'], ['', 'Absent'], ['', 'Congés']]);
+  egal(li[1][2], 'Test 1', 'le nom court tapé à la main est toujours là');
 });
 test('le Sheet de l’appli est SEULEMENT LU : aucune écriture, jamais, quoi que fasse le programme', () => {
   const m = monde({ semaines: ['2026-11-16', '2026-11-23'] });

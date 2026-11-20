@@ -62,9 +62,19 @@ test('matin : « ½ Congés » en premier ; après-midi : en dernier ; le chanti
   egal(R.plAvecAbsence_('0501 CHANTIER TEST 1', 'Matin', 'Congés'), { valeur: '½ Congés\n½ 0501 CHANTIER TEST 1', change: true, avant: '' });
   egal(R.plAvecAbsence_('0501 CHANTIER TEST 1', 'Après-midi', 'Formation').valeur, '½ 0501 CHANTIER TEST 1\n½ Formation');
   egal(R.plAvecAbsence_('½ 0501 CHANTIER TEST 1', 'Après-midi', 'Absent').valeur, '½ 0501 CHANTIER TEST 1\n½ Absent');
-  egal(R.plAvecAbsence_('½ 0501 A\n½ 0502 B', 'Matin', 'Absent').valeur, '½ Absent\n½ 0501 A\n½ 0502 B', 'case déjà coupée : ajoutée, « Vérifier la semaine » dira que les parts dépassent');
+  egal(R.plAvecAbsence_('½ 0501 A\n½ 0502 B', 'Matin', 'Absent'), { valeur: '½ Absent\n½ 0502 B', change: true, avant: '½ 0501 A' }, 'journée déjà coupée en deux : l’absence remplace sa moitié');
+  egal(R.plAvecAbsence_('½ 0501 A\n½ 0502 B', 'Après-midi', 'Absent'), { valeur: '½ 0501 A\n½ Absent', change: true, avant: '½ 0502 B' });
+  egal(R.plAvecAbsence_('¼ 0501 A\n¾ 0502 B', 'Matin', 'Absent').valeur, '½ Absent\n¼ 0501 A\n¾ 0502 B', 'autre découpage : ajoutée, « Vérifier la semaine » dira que les parts dépassent');
   const une = R.plAvecAbsence_('0501 CHANTIER TEST 1', 'Matin', 'Congés').valeur;
   egal(R.plAvecAbsence_(une, 'Matin', 'Congés'), { valeur: une, change: false, avant: '' });
+});
+test('deux demandes le même jour (matin, puis après-midi) : la journée entière devient l’absence ; un jour « Férié » reste férié', () => {
+  const matin = R.plAvecAbsence_('0501 CHANTIER TEST 1', 'Matin', 'Congés').valeur;
+  egal(R.plAvecAbsence_(matin, 'Après-midi', 'Congés'), { valeur: 'Congés', change: true, avant: '½ 0501 CHANTIER TEST 1' });
+  egal(R.plAvecAbsence_('½ Congés', 'Après-midi', 'Congés').valeur, 'Congés');
+  egal(R.plAvecAbsence_('Congés', 'Matin', 'Congés').change, false, 'déjà absent toute la journée');
+  egal(R.plAvecAbsence_('Férié', 'Journée entière', 'Congés'), { valeur: 'Férié', change: false, avant: '' });
+  egal(R.plAvecAbsence_('Férié', 'Matin', 'Absent').change, false);
 });
 test('les jours d’une absence : du lundi au vendredi seulement, passage d’année compris ; dates fausses = aucun jour', () => {
   egal(R.plJoursAbsence_('2026-11-27', '2026-12-01'), ['2026-11-27', '2026-11-30', '2026-12-01']);
@@ -147,6 +157,40 @@ test('dates illisibles, ou gars absent de la semaine : noté « à inscrire à l
   m.ajouterDemande(demande('fiche-0003-abcd', 'atelier1', '2026-11-24', '2026-11-24'));
   m.ctx.passageDeNuit();
   egal(m.journal().map(l => l[6]), ['⚠ à inscrire à la main : dates illisibles', 'inscrite : 1 jour(s)', 'pas encore inscrite ; ⚠ 1 jour(s) à inscrire à la main : le gars n’est pas dans la semaine']);
+});
+test('quelqu’un ajoute un gars (les lignes bougent) entre la lecture de la semaine et l’écriture : l’absence va quand même sur la ligne DU BON GARS, jamais sur celle d’un autre', () => {
+  const m = monde({ demandes: [demande('fiche-0001-abcd', 'atelier1', '2026-11-23', '2026-11-23')] });
+  // Au moment précis où le programme va relire la ligne de Marc E. (ligne 10), un gars est ajouté à la pose : tout descend de deux lignes
+  const f = m.f('2026-S48'), vrai = f.api.getRange;
+  let fait = false;
+  f.api.getRange = (r, c, nr, nc) => {
+    if (!fait && r === 10 && nr === 1 && nc === 8) { fait = true; f.api.getRange = vrai; m.ss.setActiveSheet(f.api); m.ctx.plgAjouter_(m.ss, 'Alain A.', 'pose'); }
+    return vrai(r, c, nr, nc);
+  };
+  m.ctx.passageDeNuit();
+  assert.ok(fait, 'le déplacement a bien eu lieu pendant le passage');
+  egal(m.cases('2026-S48', 'Marc E.')[0], 'Congés');
+  egal(m.cases('2026-S48', 'Thomas E.'), ['0502 CHANTIER TEST 2', '', '', '', ''], 'la ligne qui a pris la place de Marc n’est pas touchée');
+  egal(m.cases('2026-S48', 'Kévin E.')[0], '0501 CHANTIER TEST 1');
+  egal(m.journal()[0][6], 'inscrite : 1 jour(s)');
+});
+test('absence un samedi seul : rien à inscrire, et ce n’est pas « dates illisibles » ; journal protégé contre une modification par mégarde', () => {
+  const m = monde({ demandes: [demande('fiche-0001-abcd', 'kevin', '2026-11-21', '2026-11-22')] });
+  m.ctx.passageDeNuit();
+  egal(m.journal()[0][6], 'inscrite : 0 jour(s) (aucun jour du lundi au vendredi dans la période)');
+  assert.ok(m.g.journal.some(l => l[0] === 'Sheet' && l[1] === 'protect'), 'le journal ABSENCES est protégé (avertissement)');
+});
+test('journal ABSENCES effacé par mégarde : une demande acceptée depuis plus de 14 jours n’est PAS réinscrite toute seule (les cases corrigées à la main restent) ; le journal ne garde rien au-delà de 12 mois', () => {
+  const vieille = demande('fiche-0001-abcd', 'kevin', '2026-11-23', '2026-11-23'); vieille[10] = new Date(JEUDI - 20 * 86400000);
+  const recente = demande('fiche-0002-abcd', 'kevin', '2026-11-24', '2026-11-24'); recente[10] = new Date(JEUDI - 2 * 86400000);
+  const m = monde({ demandes: [vieille, recente] });
+  m.ctx.passageDeNuit();
+  egal(m.cases('2026-S48', 'Kévin E.').slice(0, 2), ['0501 CHANTIER TEST 1', 'Congés']);
+  assert.ok(/^⚠ à inscrire à la main : acceptée depuis plus de 14 jours et jamais vue/.test(m.journal()[0][6]), m.journal()[0][6]);
+  // une ligne du journal vieille de plus de 12 mois est effacée la nuit
+  m.f('ABSENCES').api.getRange(4, 1, 1, 10).setValues([['fiche-0000-abcd', 'Ancien A.', '2025-10-01', '2025-10-03', 'Journée entière', 'Congés', 'inscrite : 3 jour(s)', '2025-10-01 2025-10-02 2025-10-03', '', '']]);
+  assert.ok(/journal des absences : 1 ligne\(s\) de plus de 12 mois effacée\(s\)/.test(m.ctx.passageDeNuit()));
+  egal(m.journal().map(l => l[0]), ['fiche-0001-abcd', 'fiche-0002-abcd']);
 });
 test('pas d’onglet « Absences suivi » dans l’appli (lot 14 pas installé), ou Sheet de l’appli en panne : rien ne se passe, le reste de la nuit se fait', () => {
   const m = monde({ sansSuivi: true });

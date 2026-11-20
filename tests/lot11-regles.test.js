@@ -106,6 +106,26 @@ test('parts écrites à la main : « 1/4 901 + 903 » → ¼ et ¾ ; les parts m
   egal(R.plCompleter_('½ 901 LES TILLEULS\n½ 903 LES LILAS', index), '½ 901 LES TILLEULS\n½ 903 LES LILAS', 'déjà complet : inchangé');
   egal(R.plCompleter_('3/4 901 + 903 + 920', index), '¾ 901 LES TILLEULS\n903 LES LILAS\n920 MAIRIE', 'le reste ne tombe pas juste : rien n’est inventé');
 });
+test('un « + » dans un texte n’est PAS une coupure : « 901 R+1 », un chantier « RÉSIDENCE A+B », une tâche d’atelier', () => {
+  const avecPlus = R.plIndex_(CHANTIERS.concat([{ numero: '905', nom: 'RÉSIDENCE A+B', court: '' }, { numero: '906', nom: 'LOT 1 ; LOT 2', court: '' }]), R.lire('PL_CAS'));
+  egal(R.plCompleter_('901 R+1', avecPlus), '901 R+1');
+  egal(R.plCompleter_('901 LES TILLEULS R+2', avecPlus), '901 LES TILLEULS R+2');
+  egal(R.plCompleter_('Mr DUPONT R+1', avecPlus), 'Mr DUPONT R+1');
+  egal(R.plCompleter_('905', avecPlus), '905 RÉSIDENCE A+B');
+  egal(R.plCompleter_('905 RÉSIDENCE A+B', avecPlus), '905 RÉSIDENCE A+B', 'choisi dans la liste : jamais coupé');
+  egal(R.plCompleter_('906 LOT 1 ; LOT 2', avecPlus), '906 LOT 1 ; LOT 2');
+  egal(R.plCompleter_('905 + 901', avecPlus), '½ 905 RÉSIDENCE A+B\n½ 901 LES TILLEULS');
+  egal(R.plCompleter_('905+901', avecPlus), '½ 905 RÉSIDENCE A+B\n½ 901 LES TILLEULS', 'collé : coupé seulement si chaque morceau est un numéro connu');
+  egal(R.plCompleter_('901+R', avecPlus), '901+R');
+  // … et relu, rangé, vérifié, affiché : toujours le même texte
+  ['901 R+1', '½ 905 RÉSIDENCE A+B\n½ 901 LES TILLEULS', '906 LOT 1 ; LOT 2'].forEach(t => {
+    egal(R.plCompleter_(R.plCompleter_(t, avecPlus), avecPlus), t, t);
+    egal(R.plLireCase_(t, avecPlus).morceaux.length, t.split('\n').length, t);
+  });
+  egal(R.plTexteAffiche_('½ 905 RÉSIDENCE A+B\n½ 901 LES TILLEULS', avecPlus), '½ 905 RÉSIDENCE A+B / ½ 901 Tilleuls');
+  const s = { lundi: '2026-11-23', pose: [], atelier: [{ nom: 'Thomas R.', jours: ['Débit R+1', '', '', '', ''] }] };
+  egal(R.plVerifier_(s, avecPlus).semaine.atelier[0].jours[0], 'Débit R+1');
+});
 test('compléter deux fois ne change plus rien (aucune boucle possible)', () => {
   ['901', '901 + 903', '1/4 901 + 903', 'abs', 'Mr DUPONT + 901', '901 + 903 + 920 + 921 + 90', '¾ 901 + 903 + 920'].forEach(t => {
     const une = R.plCompleter_(t, index);
@@ -170,6 +190,10 @@ test('onglet illisible (colonne H effacée, date fausse, lundi qui n’en est pa
   egal(R.plLireSemaine_(sansReperes), null, 'les repères des lignes effacés (la date est encore là) : illisible, pas « une semaine vide »');
   const ligneEnTrop = g.map(l => l.slice()); ligneEnTrop.push(['', 'Ajouté à la main', '901', '', '', '', '', '']);
   egal(R.plLireSemaine_(ligneEnTrop), null, 'une ligne ajoutée à la main sous le tableau, sans repère');
+  assert.ok(/repères des lignes .* ont été effacés/.test(R.plPourquoiIllisible_(sansReperes)), R.plPourquoiIllisible_(sansReperes));
+  assert.ok(/^la ligne 11 \(« Ajouté à la main »\) n’est pas une ligne du planning/.test(R.plPourquoiIllisible_(ligneEnTrop)), R.plPourquoiIllisible_(ligneEnTrop));
+  assert.ok(/date de la semaine/.test(R.plPourquoiIllisible_(faux)));
+  egal(R.plPourquoiIllisible_(g), '', 'un onglet lisible : rien à dire');
   egal(R.plLireSemaine_([]), null);
   egal(R.plLireSemaine_(null), null);
 });

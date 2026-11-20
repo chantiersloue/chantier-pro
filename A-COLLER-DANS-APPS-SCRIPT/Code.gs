@@ -1,10 +1,10 @@
 // ═══════════════════════════════════════════════════════════════
 // LOUÉ APP — SERVEUR COMPLET, À COLLER DANS APPS SCRIPT (fichier « Code.gs », tout remplacer)
 // FICHIER GÉNÉRÉ AUTOMATIQUEMENT par « node outils/construire.js » — NE PAS MODIFIER À LA MAIN :
-// les sources sont dans le dossier apps-script/ du dépôt. Version du serveur 9882b3925e (pages da1c66bf9e)
+// les sources sont dans le dossier apps-script/ du dépôt. Version du serveur a1f3c7e2e8 (pages da1c66bf9e)
 // ═══════════════════════════════════════════════════════════════
 
-const EMPREINTE_SERVEUR = '9882b3925e';
+const EMPREINTE_SERVEUR = 'a1f3c7e2e8';
 
 // ████ Config.gs ████
 // ═══════════════════════════════════════════════════════════════
@@ -3840,7 +3840,10 @@ function installerLot12Production() { return installerLot12_('PRODUCTION'); }
 //   - le motif et les précisions ne sont écrits NULLE PART ailleurs que dans le mail à la direction et son PDF : ni dans le
 //     Sheet, ni dans Drive, ni dans l'onglet « Mails en attente », ni dans le Journal, ni dans une alerte ;
 //   - si le mail à la direction ne peut pas partir, la demande n'est PAS reçue : le téléphone la garde et la renvoie
-//     (même numéro : aucun doublon) ;
+//     (même numéro : aucun doublon). Tant que ce mail n'est pas parti (colonne « Mail à la direction » vide), le poseur ne
+//     voit pas la demande « En attente » ; une fois parti, il ne repart jamais une seconde fois ;
+//   - ATTENTION : la boîte « Messages envoyés » du compte Google de Loué garde le mail de la direction (donc le motif) :
+//     l'appli ne peut pas l'empêcher sans supprimer la preuve de la demande ;
 //   - le lien est SIGNÉ avec la clé secrète du serveur (numéro de la demande + date limite) : rien de secret n'est écrit dans
 //     le Sheet, lire le Sheet ne permet pas de fabriquer un lien. Usage unique : dès qu'une réponse est enregistrée, le lien
 //     ne fait plus que la redire ;
@@ -3848,8 +3851,10 @@ function installerLot12Production() { return installerLot12_('PRODUCTION'); }
 // Plan : docs/lot14-plan.md. Décisions : D14-… (DECISIONS.md).
 // ═══════════════════════════════════════════════════════════════════════════════
 const SHEET_ABS_SUIVI = 'Absences suivi';
-const ABS_ENTETES = ['Numéro', 'Reçue le', 'Compte', 'Demandeur', 'Date d’absence', 'Du', 'Au', 'Durée', 'Appellation (planning)', 'État', 'Décidée le', 'Mail au conducteur'];
-const COL_AB = { numero: 1, recue: 2, compte: 3, demandeur: 4, texte: 5, du: 6, au: 7, duree: 8, libelle: 9, etat: 10, decidee: 11, mail: 12 };
+const ABS_ENTETES = ['Numéro', 'Reçue le', 'Compte', 'Demandeur', 'Date d’absence', 'Du', 'Au', 'Durée', 'Appellation (planning)', 'État', 'Décidée le', 'Mail au conducteur', 'Mail à la direction'];
+const COL_AB = { numero: 1, recue: 2, compte: 3, demandeur: 4, texte: 5, du: 6, au: 7, duree: 8, libelle: 9, etat: 10, decidee: 11, mail: 12, direction: 13 };
+const ABS_MAX_PAR_JOUR = 5;                        // demandes par compte et par jour (chacune envoie 1 à 3 mails avec un PDF)
+const ABS_MAIL_EN_COURS = 'envoi en cours ';       // suivi de l'heure (ms) : un mail au conducteur est en train de partir
 const ABS_PROP_DIRECTION = 'ABSENCE_DIRECTION';     // adresses de la direction (jamais dans le dépôt). Absente = lot 14 éteint
 const ABS_PROP_ADRESSE = 'ADRESSE_APPLI';           // (facultatif) adresse des pages de l'appli, pour les liens du mail
 const ABS_ADRESSE_DEFAUT = 'https://chantiersloue.github.io/chantier-pro/';
@@ -3940,27 +3945,45 @@ function absVerifierLien_(corps) {
 // LA DEMANDE ARRIVE (appelée par traiterAbsence quand le réglage ABSENCE_DIRECTION existe)
 // ══════════════════════════════════════════════════════════
 function absTraiter_(brut, contexte, direction) {
-  const id = contexte && contexte.id ? String(contexte.id) : '';
-  if (!idValide_(id)) throw new Error('demande d’absence sans numéro');
+  // Une fiche de l'ancien format (sans numéro, pendant la période de transition) reçoit un numéro du serveur
+  const id = contexte && idValide_(contexte.id) ? String(contexte.id) : 'abs-' + Utilities.getUuid();
   const dates = absDates_(brut.dateAbsence), libelle = absLibelle_(brut.motif, brut.imputation);
-  const compte = contexte.auteurId ? String(contexte.auteurId) : '';
+  const compte = contexte && contexte.auteurId ? String(contexte.auteurId) : '';
+  // Colonnes C à I. Écrites en « texte brut » : « 30/11/2026 » ne devient pas une date de tableur, le compte « 007 » reste « 007 ».
+  const contenu = [compte, brut.nom || '', brut.dateAbsence || '', dates.du, dates.au, brut.duree || '', libelle].map(cellule_);
 
-  // 1. La ligne de suivi (aucun motif). Retrouvée par son numéro si le téléphone renvoie la demande.
-  const sh = absFeuille_();
-  let ligne = absChercher_(sh, id);
-  const nouvelle = !ligne;
-  if (nouvelle) {
-    sh.appendRow([id, new Date(maintenant_()), compte, brut.nom || '', brut.dateAbsence || '', dates.du, dates.au, brut.duree || '', libelle, ABS_ETATS.attente, '', ''].map(cellule_));
-    ligne = sh.getLastRow();
-    sh.getRange(ligne, COL_AB.du, 1, 2).setNumberFormat('@').setValues([[dates.du, dates.au]]);   // des textes, pas des dates de tableur
-    // L'onglet « Absences » d'avant, sans le motif ni les précisions (écrit ici, une seule fois par demande)
-    try {
-      const ancien = feuille_(SHEET_ABSENCES, ['Horodatage', 'Demandeur', 'Date dépôt', 'Date absence', 'Durée', 'Imputation', 'Motif', 'Précisions', 'Email perso']);
-      ancien.appendRow([new Date(maintenant_()), brut.nom || '', brut.dateDepot || '', brut.dateAbsence || '', brut.duree || '', brut.imputation || '', ABS_RESERVE, ABS_RESERVE, ''].map(cellule_));
-    } catch (err) { console.error('Sheet absences:', err.message); }
-  } else if (String(sh.getRange(ligne, COL_AB.etat).getValue()) !== ABS_ETATS.attente) {
-    return;   // déjà décidée (renvoi tardif d'un téléphone) : rien à refaire, la demande est « reçue »
-  }
+  // 1. La ligne de suivi (aucun motif), sous verrou. Retrouvée par son numéro si le téléphone renvoie la demande.
+  const verrou = LockService.getScriptLock();
+  if (!verrou.tryLock(10000)) absReessayer_('le serveur est occupé', true);
+  let sh, ligne;
+  try {
+    sh = absFeuille_();
+    ligne = absChercher_(sh, id);
+    if (ligne) {
+      const r = sh.getRange(ligne, 1, 1, ABS_ENTETES.length).getValues()[0];
+      if (String(r[COL_AB.etat - 1]) !== ABS_ETATS.attente) return;      // déjà décidée : rien à refaire, la demande est « reçue »
+      if (String(r[COL_AB.direction - 1])) return;                       // le mail à la direction est déjà parti : jamais deux fois
+      // Le mail n'est pas encore parti : la ligne reprend le contenu reçu maintenant (elle dira ce que dira le mail)
+      absEcrireTexte_(sh, ligne, COL_AB.compte, contenu);
+    } else {
+      if (compte && absDuJour_(sh, compte) >= ABS_MAX_PAR_JOUR) {
+        const e = new Error('Déjà ' + ABS_MAX_PAR_JOUR + ' demandes d’absence aujourd’hui : voyez avec le bureau.'); e.refusDefinitif = true; throw e;
+      }
+      ligne = sh.getLastRow() + 1;
+      if (sh.getMaxRows() < ligne) sh.insertRowsAfter(sh.getMaxRows(), 50);
+      absEcrireTexte_(sh, ligne, COL_AB.numero, [id]);
+      sh.getRange(ligne, COL_AB.recue).setValue(new Date(maintenant_()));
+      absEcrireTexte_(sh, ligne, COL_AB.compte, contenu.concat([ABS_ETATS.attente]));
+      // L'onglet « Absences » d'avant, sans le motif, les précisions ni l'imputation (écrit ici, une seule fois par demande)
+      try {
+        const ancien = feuille_(SHEET_ABSENCES, ['Horodatage', 'Demandeur', 'Date dépôt', 'Date absence', 'Durée', 'Imputation', 'Motif', 'Précisions', 'Email perso']);
+        const l = ancien.getLastRow() + 1;
+        if (ancien.getMaxRows() < l) ancien.insertRowsAfter(ancien.getMaxRows(), 50);
+        ancien.getRange(l, 1).setValue(new Date(maintenant_()));
+        absEcrireTexte_(ancien, l, 2, [brut.nom || '', brut.dateDepot || '', brut.dateAbsence || '', brut.duree || '', ABS_RESERVE, ABS_RESERVE, ABS_RESERVE, ''].map(cellule_));
+      } catch (err) { console.error('Sheet absences:', err.message); }
+    }
+  } finally { verrou.releaseLock(); }
 
   // 2. Le PDF (avec le motif) : fabriqué une fois, joint au mail. Il n'est PAS rangé dans Drive.
   const htmlPDF = modele_absence(validerImages_(brut), esc_);
@@ -3981,12 +4004,26 @@ function absTraiter_(brut, contexte, direction) {
     } catch (err) { erreur = err.message; console.error('Mail à la direction échoué :', err.message); }
   });
   if (!partis) absReessayer_('le mail à la direction n’a pas pu partir (' + erreur + ')');
+  // Noté AUSSITÔT : à partir d'ici le poseur voit « En attente », et ce mail ne repartira jamais (même si le téléphone renvoie la demande)
+  sh.getRange(ligne, COL_AB.direction).setNumberFormat('@').setValue('envoyé le ' + absQuand_(maintenant_()));
   // Une adresse sur plusieurs a échoué : la direction est prévenue par l'autre ; Franck l'apprend, sans aucun détail de la demande
   if (partis < direction.length) alerte_('Une demande d’absence est partie à ' + partis + ' adresse(s) de la direction sur ' + direction.length + ' (' + erreur + '). Vérifier le réglage ' + ABS_PROP_DIRECTION + '.', 'erreur');
-
 }
-// « Le téléphone réessaiera » : aucune alerte quotidienne, la fiche reste dans la file du téléphone
-function absReessayer_(raison) { const e = new Error('Demande gardée dans le téléphone : ' + raison + '. Nouvel essai automatique.'); e.occupe = true; throw e; }
+function absEcrireTexte_(sh, ligne, colonne, valeurs) { sh.getRange(ligne, colonne, 1, valeurs.length).setNumberFormat('@').setValues([valeurs]); }
+// Combien de demandes ce compte a déjà faites aujourd'hui
+function absDuJour_(sh, compte) {
+  const n = sh.getLastRow() - 1;
+  if (n < 1) return 0;
+  const jour = t => Utilities.formatDate(new Date(t), 'Europe/Paris', 'yyyy-MM-dd'), aujourdhui = jour(maintenant_());
+  return sh.getRange(2, 1, n, COL_AB.compte).getValues().filter(r => String(r[COL_AB.compte - 1]) === compte && absMs_(r[COL_AB.recue - 1]) && jour(absMs_(r[COL_AB.recue - 1])) === aujourdhui).length;
+}
+// « Le téléphone réessaiera » : la fiche reste dans la file du téléphone. Franck est prévenu (une alerte par jour au plus, sans
+// aucun détail de la demande), sauf pour un simple « serveur occupé ».
+function absReessayer_(raison, sansAlerte) {
+  if (!sansAlerte) alerte_('Une demande d’absence n’a pas pu partir vers la direction (' + raison + '). Elle est gardée dans le téléphone du salarié et repartira toute seule ; '
+    + 'si cela dure, vérifier le quota de mails du jour et le réglage ' + ABS_PROP_DIRECTION + '.', 'erreur');
+  const e = new Error('Demande gardée dans le téléphone : ' + raison + '. Nouvel essai automatique.'); e.occupe = true; throw e;
+}
 
 // Le mail à la direction : texte brut (liens écrits en entier) et version mise en forme avec deux gros boutons, faits en
 // tableau (la seule façon d'avoir de vrais boutons dans Outlook)
@@ -4064,20 +4101,33 @@ function absConducteurs_() {
   if (!liste.length) decouperAdresses_(emailAdmin_()).forEach(a => liste.push(a));
   return liste;
 }
-// Rend true si le mail est parti (ou n'a plus à partir)
+// Rend true si le mail est parti (ou n'a plus à partir). Jamais deux fois : avant d'envoyer, la ligne est marquée « envoi en
+// cours » sous le verrou ; un second passage qui arrive pendant l'envoi ne fait rien.
 function absMailConducteur_(sh, ligne) {
-  const r = sh.getRange(ligne, 1, 1, ABS_ENTETES.length).getValues()[0];
-  if (String(r[COL_AB.etat - 1]) !== ABS_ETATS.acceptee || String(r[COL_AB.mail - 1]) !== ABS_MAIL_A_ENVOYER) return true;
-  const a = absConducteurs_();
-  if (!a.length) { sh.getRange(ligne, COL_AB.mail).setValue('aucune adresse de conducteur'); return true; }
-  let quota = 0;
-  try { quota = MailApp.getRemainingDailyQuota(); } catch (e) {}
-  if (quota < a.length) return false;
+  const verrou = LockService.getScriptLock();
+  if (!verrou.tryLock(5000)) return false;
+  let r, a;
+  try {
+    r = sh.getRange(ligne, 1, 1, ABS_ENTETES.length).getValues()[0];
+    const marque = String(r[COL_AB.mail - 1]), enCours = marque.indexOf(ABS_MAIL_EN_COURS) === 0;
+    if (String(r[COL_AB.etat - 1]) !== ABS_ETATS.acceptee) return true;
+    if (enCours && maintenant_() - (Number(marque.slice(ABS_MAIL_EN_COURS.length)) || 0) < 15 * 60000) return false;   // un autre passage l'envoie
+    if (!enCours && marque !== ABS_MAIL_A_ENVOYER) return true;
+    a = absConducteurs_();
+    if (!a.length) { sh.getRange(ligne, COL_AB.mail).setValue('aucune adresse de conducteur'); return true; }
+    let quota = 0;
+    try { quota = MailApp.getRemainingDailyQuota(); } catch (e) {}
+    if (quota < a.length) { if (enCours) sh.getRange(ligne, COL_AB.mail).setValue(ABS_MAIL_A_ENVOYER); return false; }
+    sh.getRange(ligne, COL_AB.mail).setValue(ABS_MAIL_EN_COURS + maintenant_());
+    SpreadsheetApp.flush();
+  } finally { verrou.releaseLock(); }
   const nom = String(r[COL_AB.demandeur - 1]) || '?', quand = String(r[COL_AB.texte - 1]) || '?';
-  GmailApp.sendEmail(a.join(', '), '[Loué App] Absence acceptée — ' + nom + ' — ' + quand,
-    'Bonjour,\n\nLa direction a accepté une demande d\'absence.\n\nSalarié : ' + nom + '\nDate : ' + quand + '\nDurée : ' + (String(r[COL_AB.duree - 1]) || '?')
-    + '\nDans le planning : ' + String(r[COL_AB.libelle - 1]) + '\n\nElle s\'inscrit toute seule dans le planning (dans la nuit, ou à la prochaine publication).\n\nLoué App',
-    { name: NOM_ENTREPRISE });
+  try {
+    GmailApp.sendEmail(a.join(', '), '[Loué App] Absence acceptée — ' + nom + ' — ' + quand,
+      'Bonjour,\n\nLa direction a accepté une demande d\'absence.\n\nSalarié : ' + nom + '\nDate : ' + quand + '\nDurée : ' + (String(r[COL_AB.duree - 1]) || '?')
+      + '\nDans le planning : ' + String(r[COL_AB.libelle - 1]) + '\n\nElle s\'inscrit toute seule dans le planning (dans la nuit, ou à la prochaine publication).\n\nLoué App',
+      { name: NOM_ENTREPRISE });
+  } catch (err) { sh.getRange(ligne, COL_AB.mail).setValue(ABS_MAIL_A_ENVOYER); throw err; }
   sh.getRange(ligne, COL_AB.mail).setValue('envoyé le ' + absQuand_(maintenant_()));
   return true;
 }
@@ -4090,7 +4140,7 @@ function absPassage_() {
     const n = sh ? sh.getLastRow() - 1 : 0;
     let restent = 0, partis = 0;
     if (n > 0) sh.getRange(2, COL_AB.mail, n, 1).getValues().forEach((l, i) => {
-      if (String(l[0]) !== ABS_MAIL_A_ENVOYER) return;
+      if (String(l[0]) !== ABS_MAIL_A_ENVOYER && String(l[0]).indexOf(ABS_MAIL_EN_COURS) !== 0) return;
       let fait = false;
       if (partis < 5) { try { fait = absMailConducteur_(sh, i + 2); } catch (err) { console.error('absPassage_ :', err.message); } }
       if (fait) partis++; else restent++;
@@ -4104,13 +4154,16 @@ function absPassage_() {
 // LE POSEUR VOIT L'ÉTAT DE SES DEMANDES (action « absencesMiennes », avec son compte)
 // ══════════════════════════════════════════════════════════
 function absMiennes_(compte) {
-  const suivi = absDirection_().length > 0;
-  const rep = demandes => ({ ok: true, code: 'OK', message: '', data: { suivi: suivi, demandes: demandes, jours: ABS_LIEN_JOURS } });
-  if (!suivi || !compte || !compte.id) return rep([]);
+  // direction : le réglage est allumé (la page cache alors le champ « e-mail personnel ») ; suivi : il y a quelque chose à
+  // montrer (réglage allumé, ou demandes déjà faites avant qu'il soit retiré : leurs liens marchent encore)
+  const direction = absDirection_().length > 0;
+  const rep = demandes => ({ ok: true, code: 'OK', message: '', data: { suivi: direction || demandes.length > 0, direction: direction, demandes: demandes, jours: ABS_LIEN_JOURS } });
+  if (!compte || !compte.id) return rep([]);
   const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_ABS_SUIVI), n = sh ? sh.getLastRow() - 1 : 0;
   if (n < 1) return rep([]);
   const moi = String(compte.id), limite = maintenant_() - ABS_LIEN_JOURS * 86400000;
-  const demandes = sh.getRange(2, 1, n, ABS_ENTETES.length).getValues().filter(r => String(r[COL_AB.compte - 1]) === moi).map(r => {
+  // Une demande dont le mail à la direction n'est pas encore parti n'est pas montrée : le téléphone l'affiche lui-même (« ⏳ »)
+  const demandes = sh.getRange(2, 1, n, ABS_ENTETES.length).getValues().filter(r => String(r[COL_AB.compte - 1]) === moi && String(r[COL_AB.direction - 1])).map(r => {
     const recue = absMs_(r[COL_AB.recue - 1]);
     let etat = String(r[COL_AB.etat - 1]);
     if (etat === ABS_ETATS.attente && recue && recue < limite) etat = ABS_ETATS.sansReponse;      // le lien de la direction a expiré

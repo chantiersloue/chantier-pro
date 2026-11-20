@@ -140,9 +140,30 @@ function plPart_(texte) {
   const q = { '¼': 1, '1/4': 1, '½': 2, '1/2': 2, '2/4': 2, '¾': 3, '3/4': 3 }[m[1]];
   return { quarts: q, texte: plTexte_(m[2]) };
 }
-// Les morceaux d'une case : séparés par un retour à la ligne, « + » ou « ; » (avec ou sans espaces : « 901+903 »)
+// Les morceaux d'une case RANGÉE : un par ligne (c'est ainsi que le programme les écrit)
 function plMorceaux_(valeur) {
-  return String(valeur === null || valeur === undefined ? '' : valeur).replace(/\r/g, '').split(/\n|\s*\+\s*|\s*;\s*/).map(plTexte_).filter(Boolean);
+  return String(valeur === null || valeur === undefined ? '' : valeur).replace(/\r/g, '').split('\n').map(plTexte_).filter(Boolean);
+}
+// Les morceaux d'une SAISIE : en plus des lignes, « + » et « ; » séparent deux chantiers. Avec précaution, pour ne jamais
+// abîmer un texte (« 901 R+1 », un chantier « RÉSIDENCE A+B ») :
+//   - une ligne qui est, en entier, un chantier ou un cas de la liste n'est jamais coupée ;
+//   - « + » sépare s'il est entouré d'espaces (« 901 + 903 ») ; collé (« 901+903 »), seulement si CHAQUE morceau est un numéro connu ;
+//   - « ; » sépare toujours.
+function plDecouperSaisie_(valeur, index) {
+  const connus = {};
+  index.libelles.concat(index.cas).forEach(l => { connus[plNorm_(l)] = true; });
+  const estNumero = p => { const c = index.parNumero[plNorm_(plPart_(p).texte)]; return !!c && !c.double; };
+  const morceaux = [];
+  plMorceaux_(valeur).forEach(ligne => {
+    if (connus[plNorm_(plPart_(ligne).texte)]) { morceaux.push(ligne); return; }
+    let pieces = ligne.split(/\s+\+\s+|\s*;\s*/).map(plTexte_).filter(Boolean);
+    if (pieces.length === 1 && ligne.indexOf('+') > -1) {
+      const serres = ligne.split('+').map(plTexte_).filter(Boolean);
+      if (serres.length > 1 && serres.every(estNumero)) pieces = serres;
+    }
+    pieces.forEach(p => morceaux.push(p));
+  });
+  return morceaux;
 }
 // Ce que contient une case : { morceaux: [{ quarts, texte, numero }], probleme }
 function plLireCase_(valeur, index) {
@@ -160,7 +181,7 @@ function plLireCase_(valeur, index) {
 //   « 1/4 901 + 903 »  → « ¼ 901 … » / « ¾ 903 … »                  (les parts manquantes se partagent le reste)
 //   3 morceaux → ½ + ¼ + ¼ ; 4 morceaux → ¼ chacun
 function plCompleter_(valeur, index) {
-  const brut = plMorceaux_(valeur);
+  const brut = plDecouperSaisie_(valeur, index);
   if (!brut.length) return '';
   const m = brut.map(x => { const p = plPart_(x); return { quarts: p.quarts, texte: plCompleterMorceau_(p.texte, index) }; }).filter(x => x.texte);
   if (!m.length) return '';
@@ -216,6 +237,22 @@ function plLireSemaine_(valeurs) {
   }
   Object.defineProperty(s, 'lignesDe', { value: lignesDe, enumerable: false });   // à part : n'entre ni dans la grille ni dans l'empreinte
   return s;
+}
+// Pourquoi un onglet de semaine n'est pas lisible, en clair ('' s'il l'est) : pour le dire à Franck au lieu de « illisible »
+function plPourquoiIllisible_(valeurs) {
+  const v = valeurs || [], cel = (l, c) => plTexte_((v[l - 1] || [])[c - 1]);
+  const lundi = cel(PL_S.ligTitre, PL_S.colMarque);
+  if (!plEstIso_(lundi) || plLundi_(lundi) !== lundi) return 'la date de la semaine (colonne H, cachée, ligne 1) a été effacée ou changée';
+  const connues = [PL_M.titre, PL_M.pose, PL_M.vehicule, PL_M.atelier];
+  let reperes = 0;
+  for (let l = PL_S.lig1; l <= v.length; l++) if (connues.indexOf(cel(l, PL_S.colMarque)) > -1) reperes++;
+  if (!reperes && v.length >= PL_S.lig1) return 'les repères des lignes (colonne H, cachée) ont été effacés : restaure l’onglet par Fichier → Historique des versions';
+  for (let l = PL_S.lig1; l <= v.length; l++) {
+    if (connues.indexOf(cel(l, PL_S.colMarque)) > -1) continue;
+    const texte = (v[l - 1] || []).slice(0, 7).map(plTexte_).filter(Boolean)[0];
+    if (texte) return 'la ligne ' + l + ' (« ' + texte.slice(0, 30) + ' ») n’est pas une ligne du planning : efface-la (une note se met ailleurs ; un gars s’ajoute par le menu « Ajouter un gars »)';
+  }
+  return '';
 }
 // Le tableau de valeurs à écrire dans l'onglet, à partir du modèle (l'inverse de plLireSemaine_)
 function plGrilleSemaine_(s) {
@@ -474,13 +511,30 @@ function plJoursAbsence_(du, au) {
 function plAvecAbsence_(valeur, duree, libelle) {
   const d = plNorm_(duree), matin = d === 'matin', demi = matin || d === 'apres-midi' || d === 'apres midi';
   const lignes = plMorceaux_(valeur), avant = lignes.join(PL_SEPARATEUR_AFFICHE);
-  const deja = lignes.some(l => plNorm_(plPart_(l).texte) === plNorm_(libelle));
+  const est = (l, t) => plNorm_(plPart_(l).texte) === plNorm_(t), quarts = l => plPart_(l).quarts;
+  const rien = () => ({ valeur: lignes.join('\n'), change: false, avant: '' });
+  // Un jour férié reste un jour férié
+  if (lignes.length === 1 && est(lignes[0], 'Férié')) return rien();
+  const rang = lignes.findIndex(l => est(l, libelle));
   if (!demi) {
-    if (lignes.length === 1 && deja && !plPart_(lignes[0]).quarts) return { valeur: lignes[0], change: false, avant: '' };
+    if (lignes.length === 1 && rang === 0 && !quarts(lignes[0])) return rien();          // déjà inscrite
     return { valeur: libelle, change: true, avant: avant };
   }
-  if (deja) return { valeur: lignes.join('\n'), change: false, avant: '' };
   const part = PL_PARTS[2] + ' ' + libelle;
-  const autres = lignes.length === 1 && !plPart_(lignes[0]).quarts ? [PL_PARTS[2] + ' ' + lignes[0]] : lignes;
-  return { valeur: (matin ? [part].concat(autres) : autres.concat([part])).join('\n'), change: true, avant: '' };
+  if (rang > -1) {
+    if (lignes.length === 1 && !quarts(lignes[0])) return rien();                         // déjà absent toute la journée
+    if (lignes.length > 1 && rang === (matin ? 0 : lignes.length - 1)) return rien();     // cette demi-journée y est déjà
+    // l'AUTRE demi-journée y était déjà (deux demandes pour le même jour) : la journée entière devient l'absence
+    return { valeur: libelle, change: true, avant: lignes.filter((l, i) => i !== rang).join(PL_SEPARATEUR_AFFICHE) };
+  }
+  if (!lignes.length) return { valeur: part, change: true, avant: '' };
+  if (lignes.length === 1 && !quarts(lignes[0])) {                                        // un chantier seul : il garde l'autre demi-journée
+    const autre = PL_PARTS[2] + ' ' + lignes[0];
+    return { valeur: (matin ? [part, autre] : [autre, part]).join('\n'), change: true, avant: '' };
+  }
+  if (lignes.length === 2 && quarts(lignes[0]) === 2 && quarts(lignes[1]) === 2) {         // journée déjà coupée en deux : l'absence REMPLACE sa moitié
+    return { valeur: (matin ? [part, lignes[1]] : [lignes[0], part]).join('\n'), change: true, avant: matin ? lignes[0] : lignes[1] };
+  }
+  // autre découpage (quarts, part seule…) : ajoutée ; « Vérifier la semaine » dira si les parts dépassent la journée
+  return { valeur: (matin ? [part].concat(lignes) : lignes.concat([part])).join('\n'), change: true, avant: '' };
 }

@@ -43,7 +43,7 @@ Copie d'essai (icône « Loué ESSAI »), connecté avec un compte de **poseur**
 
 **D. La demande d'absence (lot 14)**
 12. Tuile **Demande d'absence** : « Mes demandes » est en haut (vide), le champ e-mail a disparu.
-13. Fais une demande pour dans trois semaines, **motif « Médical »**, précisions « essai ». Envoie : la date et **En attente** s'affichent.
+13. Fais une demande pour **un seul jour**, dans trois semaines, **motif « Médical »**, précisions « essai ». Envoie : la date (**écrite normalement, « 14/12/2026 »**) et **En attente** s'affichent.
 14. Fais-en une seconde, **motif « École »**.
 
 **E. Tout ce qui se fait sans réseau, en une fois**
@@ -58,7 +58,7 @@ Copie d'essai (icône « Loué ESSAI »), connecté avec un compte de **poseur**
 
 **F. Outlook : la direction, c'est toi le temps de l'essai**
 21. Le mail « [Loué App] Demande d'absence — … » (motif Médical) : **deux vrais boutons, vert et rouge ?** PDF joint ? motif dans le mail ? boîte de réception ? **Envoie-moi une capture.**
-22. Clique **✅ Accepter** : la page rappelle la demande **sans le motif**. **N'appuie pas encore** : sur le téléphone, la demande est toujours « En attente ».
+22. Clique **✅ Accepter** : la page rappelle la demande (**date écrite normalement ?**) **sans le motif**. **N'appuie pas encore** : sur le téléphone, la demande est toujours « En attente ».
 23. Appuie sur **Confirmer** : « ✅ Demande acceptée ». Un second mail arrive, « Absence acceptée » : il dit **« Dans le planning : Absent »**, pas un mot du motif.
 24. Dans le premier mail, clique **❌ Refuser** : « Une réponse a déjà été donnée ». Aucun bouton.
 25. Dans le mail de la demande « École » : **❌ Refuser**, puis **Confirmer**. Pas de mail « Absence acceptée ».

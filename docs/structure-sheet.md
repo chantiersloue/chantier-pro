@@ -359,8 +359,9 @@ Une ligne par demande d'absence. **Aucun motif n'y est écrit.** Le programme de
 |J|État|En attente, Acceptée ou Refusée (écrit par la réponse de la direction)|
 |K|Décidée le|heure de la réponse|
 |L|Mail au conducteur|« à envoyer », puis « envoyé le … » (demandes acceptées)|
+|M|Mail à la direction|« envoyé le … » ; vide tant que le mail n'est pas parti (le poseur ne voit alors pas la demande « En attente »)|
 
-Onglet *Absences* (d'avant) : avec le lot 14 allumé, les colonnes Motif et Précisions contiennent « (réservé à la direction) » et « Email perso » reste vide.
+Onglet *Absences* (d'avant) : avec le lot 14 allumé, les colonnes Imputation, Motif et Précisions contiennent « (réservé à la direction) » et « Email perso » reste vide.
 
 Réglages (Propriétés du script) : `ABSENCE_DIRECTION` (adresses de la direction ; absent = lot 14 éteint), `ADRESSE_APPLI` (facultatif : adresse des pages pour les liens du mail, utile sur la copie TEST).
 
