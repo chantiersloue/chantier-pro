@@ -9,15 +9,15 @@
 ## 1. En deux lignes
 
 Les cinq points de ton programme sont faits, et le lot 14 aussi : **8d, 12, 13 construits, relus, corrigés** ; **10a-1, 10a-2, 10b et le mail unique remis à jour sur le lot 8** (mail unique relu) ; **le planning (11.1) et la demande d'absence reliée au planning (14) construits, relus, corrigés**.
-Pour toi : **3 envois sur TEST et 3 mises en production au lieu de 8**, si tu acceptes de regrouper (partie 3).
+Pour toi : **3 envois sur TEST et 3 mises en production au lieu de 8** : tu as choisi de regrouper le 20/11 (partie 3).
 
 ## 2. Tes actions, dans l'ordre
 
 | # | Quoi | Où | Temps |
 |---|---|---|---|
 | 1 | **Fusionner le lot 8** avec le lien que je t'ai donné (si ce n'est pas fait vendredi). Après : « À propos » affiche **10.1** | navigateur | 5 min |
-| 2 | **Me répondre sur la partie 3** (regrouper ou non) et la partie 4 (ce que j'ai tranché) : un mot par ligne suffit | ici | 10 min |
-| 3 | **Groupe A — lots 8d, 12, 13 et 14** : un envoi sur TEST, puis une seule séance d'essais : `docs/essais-groupes.md` (branche `lot-14`). J'attends ton « vas-y » pour te confirmer « dossier prêt, branche lot-14, serveur v11.4 » | PC, téléphone, Outlook | 45 min |
+| 2 | **Me répondre sur la partie 4** (ce que j'ai tranché, dont le point 6) : un mot par ligne suffit. La partie 3 est décidée : on regroupe | ici | 10 min |
+| 3 | **Groupe A — lots 8d, 12, 13 et 14** : un envoi sur TEST, puis une seule séance d'essais : `docs/essais-groupes.md` (branche `lot-14`). **Dossier prêt, branche lot-14, serveur v11.4** (confirmé le 20/11 ; empreinte avec porte 26c5a6bb64, sans porte a1f3c7e2e8). Adresse à mettre dans `ADRESSE_APPLI` sur TEST : `https://loue-essai.github.io/chantier-pro/` | PC, téléphone, Outlook | 45 min |
 | 4 | **Groupe A en production** : un collage, un déploiement, deux installations (`installerLot8dProduction`, `installerLot12Production`), une fusion. Les lots 12 et 14 arrivent **éteints** | éditeur Apps Script | 20 min |
 | 5 | Le programme du PC pour le récapitulatif des notes (lot 8d, étape C de sa procédure) | PC | 5 min |
 | 6 | **Groupe B — lots 10a-1, 10a-2 et 10b** : un envoi, une séance, une production. Je remets d'abord la branche sur le groupe A | PC, téléphone | 40 min |
@@ -27,7 +27,7 @@ Pour toi : **3 envois sur TEST et 3 mises en production au lieu de 8**, si tu ac
 
 **Archivage des anciens déploiements** : « Lot 5 — production » le **26/11** ; « Lot 5c — production » une semaine après la fusion du lot 8 ; ensuite, toujours une semaine après chaque fusion (les liens des mails d'absence valent 7 jours).
 
-## 3. Ma proposition : regrouper (à toi de dire oui ou non)
+## 3. Décidé le 20/11 : on regroupe
 
 | | Regroupé (ce que je propose) | Un lot à la fois (comme prévu avant) |
 |---|---|---|
