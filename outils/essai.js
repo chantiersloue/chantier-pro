@@ -112,10 +112,12 @@ function fabriquer(o) {
        .replace(/var enTest = [^;]*;/, "var enTest = true; // copie d'essai : toujours en mode TEST")
        .replace(/ {2}if \(demande === 'test'\) ecrire\('loue_env', 'test'\);\n {2}if \(demande === 'prod'\) ecrire\('loue_env', null\);\n/,
                 "  // copie d'essai : ?env=test / ?env=prod sans effet (toujours en mode TEST)\n")
+       // lot 14 : « ?env1=prod » (le serveur d'une page seulement) est sans effet lui aussi sur la copie d'essai
+       .replace(/ {2}if \(unique === 'prod'\) enTest = false;\n/, "  // copie d'essai : ?env1=prod sans effet (toujours en mode TEST)\n")
        .replace(/'MODE TEST — copie TEST — pour revenir : ajouter \?env=prod à l’adresse'/,
                 "'COPIE D’ESSAI — données de la copie TEST uniquement — la vraie appli : chantiersloue.github.io/chantier-pro'");
   if (c === avant || c.indexOf('var enTest = true;') < 0 || c.indexOf('COPIE D’ESSAI') < 0 || c.indexOf("ecrire('loue_env'") > -1
-      || c.indexOf("var URL_PRODUCTION = '';") < 0 || /AKfycb[\w-]+/.test(c.split('var URL_TEST')[0])) {
+      || c.indexOf('enTest = false') > -1 || c.indexOf("var URL_PRODUCTION = '';") < 0 || /AKfycb[\w-]+/.test(c.split('var URL_TEST')[0])) {
     throw new Error('commun/config.js a changé : adapter outils/essai.js (copie d’essai NON fabriquée)');
   }
   fs.writeFileSync(config, c);

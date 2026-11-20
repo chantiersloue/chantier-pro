@@ -169,6 +169,7 @@ test('essai : la copie est en mode TEST forcé, sans adresse de production, et .
   const prod = /var URL_PRODUCTION = '([^']+)'/.exec(fs.readFileSync(RACINE + '/commun/config.js', 'utf8'))[1];
   assert.ok(prod.length > 60 && c.indexOf(prod) < 0, 'l’adresse de production n’est nulle part dans la copie');
   assert.ok(c.indexOf("var URL_PRODUCTION = '';") > -1 && c.indexOf('var enTest = true;') > -1 && c.indexOf('COPIE D’ESSAI') > -1);
+  assert.ok(c.indexOf('enTest = false') < 0, 'aucun paramètre d’adresse (env, env1) ne fait sortir la copie d’essai du mode TEST');
   assert.ok(c.indexOf("ecrire('loue_env'") < 0, '?env=prod ne peut plus changer le mode');
   assert.ok(/var URL_TEST = 'https:\/\/script\.google\.com\//.test(c), 'l’adresse TEST est gardée');
   const m = JSON.parse(fs.readFileSync(VOISIN + '/manifest.json', 'utf8'));
