@@ -35,12 +35,12 @@ Ouvre le Sheet de production, onglet ***Stockage***, et lis la ligne de **Gmail*
 ## Avant tout envoi : le bon dossier, la bonne branche
 
 - Le lot 5b est sur la branche `lot-5b` (une branche = une version du code tenue à part), qui **contient déjà les groupes A et B**. Il se met en service **après le groupe B en production**, pas avant.
-- **C'est moi qui prépare ton dossier principal sur cette branche avant de te demander l'envoi**, et je te le confirme par écrit (« dossier prêt, branche lot-5b, serveur v11.6 »). Si je ne te l'ai pas confirmé, n'envoie rien.
+- **Ton dossier principal reste sur sa branche** (la tâche automatique du programme du PC en dépend) : l'envoi se fait depuis le dossier **`chantier-pro-lot5b`**, que je prépare. Je te le confirme par écrit (« dossier prêt, branche lot-5b, serveur v11.6 »). Si je ne te l'ai pas confirmé, n'envoie rien.
 - La copie TEST ne porte qu'un lot à la fois : cet envoi remplace le serveur du lot précédent.
 
 ## Étape A — envoi sur la copie TEST (toi : 2 minutes)
 
-1. Ouvre PowerShell **dans ton dossier principal de l'appli**, comme pour les lots précédents, et lance :
+1. Ouvre PowerShell **dans le dossier `chantier-pro-lot5b`** et lance :
    ```
    node outils\envoyer-test.js --avec-porte
    ```
