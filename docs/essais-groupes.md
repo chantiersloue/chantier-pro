@@ -15,7 +15,7 @@
 
 ## Partie 2 — moi (10 minutes, sans toi)
 
-Installation des lots 8d, 12 et 14 sur TEST — celle du lot 14 met **ton adresse** (celle des alertes) dans la ligne « Adresses de la direction » de l'onglet *Réglages* : pour les essais, la direction, c'est toi. Essais automatiques (le lot 8d t'envoie **3 mails** d'essai ; les lots 12 et 14 aucun), publication de la copie d'essai en **10.5**. Je te dis « à toi ».
+Installation des lots 8d, 12 et 14 sur TEST — celle du lot 14 met **ton adresse** (celle des alertes) dans la ligne « Adresses de la direction » de l'onglet *Réglages* : pour les essais, la direction, c'est toi. Si cette adresse est celle du compte Google de Loué lui-même, je te le dis : il faudra ajouter ton Outlook dans la case, sinon la corbeille de Gmail ne serait pas essayée. Essais automatiques (le lot 8d t'envoie **3 mails** d'essai ; les lots 12 et 14 aucun), publication de la copie d'essai en **10.5**. Je te dis « à toi ».
 
 ## Partie 3 — toi, au téléphone (30 minutes)
 
@@ -60,11 +60,11 @@ Copie d'essai (icône « Loué ESSAI »), connecté avec un compte de **poseur**
 24. Dans le premier mail, clique **❌ Refuser** : « Une réponse a déjà été donnée ». Aucun bouton.
 25. Dans le mail de la demande « École » : **❌ Refuser**, puis **Confirmer**. Pas de mail « Absence acceptée ».
 26. Sur le téléphone, *Demande d'absence* : **Acceptée** et **Refusée**.
-27. Gmail **du compte de Loué**, « Messages envoyés » : les deux mails « [Loué App] Demande d'absence — … » **n'y sont plus** ; ils sont dans la **corbeille**. (Si ton adresse est celle du compte de Loué lui-même, ils sont gardés : c'est voulu, voir `docs/lot14-procedure.md`.)
+27. Gmail **du compte de Loué**, « Messages envoyés » : les deux mails « [Loué App] Demande d'absence — … » **n'y sont plus** ; ils sont dans la **corbeille**. (Si ton adresse est celle du compte de Loué lui-même, ils sont gardés : c'est voulu, voir `docs/lot14-procedure.md`.) Depuis Outlook, **réponds** « Bien reçu » au premier mail : ta réponse, qui arrive dans la boîte du compte de Loué, n'est **pas** jetée.
 
 **G. Le Sheet et le Drive de TEST**
 28. Onglet ***Absences suivi*** : deux lignes, aucun motif ; colonne « Copie dans Gmail » : « à la corbeille le … ». Onglet *Absences* : « (réservé à la direction) ».
-29. Onglet ***Réglages***, ligne « Adresses de la direction » : colonne C « Allumé : 1 adresse(s) lue(s) ». **Efface ta case B**, attends 10 minutes (« Éteint »), fais une demande d'absence au téléphone : elle part comme aujourd'hui, et tu reçois l'alerte « Demande d'absence partie sans la direction ». **Remets ton adresse.**
+29. Onglet ***Réglages***, ligne « Adresses de la direction » : colonne C « Allumé : 1 adresse(s) lue(s) ». **Efface ta case B**, attends 10 minutes (« Éteint »), fais une demande d'absence au téléphone : elle part comme aujourd'hui, et tu reçois l'alerte « Demande d'absence partie comme avant ». **Remets ton adresse.**
 30. Onglet ***Réglages***, ligne « Tous les comptes ouvrent tous les chantiers » : **coche** la case. Sur le téléphone, ferme complètement l'appli et rouvre-la : « Tous les chantiers » en montre plus ; ouvre un chantier qui n'était pas à toi (carnet, notes, récapitulatif s'ouvrent).
 31. Attends que la colonne « État » dise « Allumé depuis le … » (10 minutes au plus). Puis **décoche**, ferme et rouvre l'appli : ce chantier a disparu. Dix minutes plus tard : « Éteint depuis le … ».
 32. Drive de TEST, dossier du chantier de la note de réunion : le fichier « RÉCAPITULATIF DES NOTES - … » contient ta note (dix minutes après l'envoi).
