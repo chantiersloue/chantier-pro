@@ -1,7 +1,58 @@
 # Lot 10 — « À commander » et le mail du vendredi — PLAN
 
-> Plan du 17/11/2026, **version 2, corrigée après une relecture indépendante (un tour). Rien n'est construit : pas de code avant ta validation.**
+> Plan du 17/11/2026, **version 3, validée par Franck le 17/11/2026.**
 > D'après ta commande du 17/11 au soir. Tes choix du lot 10 : idées 4 (point de santé) et 7 (points ouverts des notes de réunion, après le lot 8) retenues ; idées 1, 2, 3, 5, 6 et 8 refusées.
+
+## 0. Tes réponses du 17/11/2026 et où en est le lot
+
+**Tes réponses aux 9 questions du chapitre 11**
+
+| N° | Question | Ta réponse |
+|---|---|---|
+| 1 | Heure limite 15 h 45 | **oui** |
+| 2 | « Mes demandes » : le poseur ne voit que les siennes | **oui** |
+| 3 | Le mail du vendredi part toujours, même vide | **oui** |
+| 4 | Mail du vendredi vers 14 h | **oui** |
+| 5 | Idée 7 (points ouverts des notes de réunion) | **ni l'un ni l'autre pour l'instant** : le lot 10c est abandonné pour le moment |
+| 6 | Lot 10b-2 (les téléphones disent ce qu'ils gardent en attente) | **oui, mais plus tard** : pas maintenant |
+| 7 | Rappel des signalements « Bloquant » restés « À traiter » | **oui** |
+| 8 | « Outil en panne » : autre chose que « Précision (facultatif) » ? | **non**, rien de plus ; écrire « Précision (facultative) » (18/11) |
+| 9 | Ordre de mise en production | **lot 8, puis 10a-1 et 10a-2, puis 10b, puis le mail unique** |
+
+**Ce qui est construit**
+
+| Lot | Construit le | Versions | Branche | Contenu |
+|---|---|---|---|---|
+| **10a-1** | 17/11/2026 | serveur **v11.2**, appli **10.3** | `lot-10a1` (partie de `lot-8`) | la page, la tuile, l'onglet *Demandes*, le mail de 15 h 45, « Mes demandes », « ✓ Commandé » |
+| **10a-2** | 18/11/2026 | serveur **v11.3**, appli **10.4** | `lot-10a2` (partie de `lot-10a1`) | les gros boutons des articles habituels (avec la dernière quantité), les propositions pendant la frappe, l'onglet *Articles* |
+| **10b** | 18/11/2026 | serveur **v11.4**, appli inchangée (**10.4**) | `lot-10b` (partie de `lot-10a2`) | le mail du vendredi : signalements de la semaine, rappel des « Bloquant » restés « À traiter », point de santé |
+
+Testé contre le faux serveur (un faux Google qui tourne sur mon ordinateur) et dans un vrai Chrome. **Rien n'a tourné chez Google, aucun mail n'est parti.**
+Procédure : `docs/lot10-procedure.md` (une partie par lot). Choix faits seul : `DECISIONS.md`, lignes D10-1 et suivantes (10a-2 : D10-27 et suivantes ; 10b : D10-43 et suivantes).
+
+**Pas construit** : 10b-2 (plus tard), 10c (abandonné pour le moment).
+
+**Le lot 10a-2 en clair** (chapitres 3.4 et 4)
+- **Les gros boutons** : sous « À commander / Outil en panne », les **5 articles que ce compte demande le plus**, deux par ligne, avec la dernière quantité demandée écrite dessous. Un toucher remplit « Quoi ? » **et** la quantité (qu'on peut changer) ; il reste « Demander ». Rien tant qu'il n'a rien demandé. Ils ne sont pas comptés à part : ils sont **recomptés à chaque affichage** à partir de « Mes demandes » (90 jours, gardées dans le téléphone) et des demandes encore en attente d'envoi. Téléphone changé ou appli réinstallée : ils reviennent tout seuls à la connexion.
+- **Les propositions pendant la frappe** : dès 2 lettres, **3 gros boutons au plus sous le champ** (48 px au moins) : ses demandes passées d'abord, puis ta liste du Sheet. Sans majuscules ni accents, au début de chaque mot, « x » comme « × ». Aucune liste à dérouler ; le texte libre reste toujours possible.
+- **L'onglet *Articles*** : créé vide par l'installation, une colonne, un article par ligne. Le serveur le donne avec « Mes demandes », donc aux comptes connectés seulement ; le téléphone le garde pour le hors réseau. 500 articles et 80 caractères au plus, doublons retirés. Vide, absent, très long ou illisible : tout marche.
+- **Clavier ouvert** : quand il reste peu de hauteur à l'écran, la barre du haut ne reste plus collée : le champ, ses 3 propositions, puis « Quantité » et « Demander » tiennent dans 280 px. **C'est mesuré dans Chrome avec un écran réduit, pas avec un vrai clavier** : c'est ton essai, avec des gants.
+- Seulement pour « À commander » : « Outil en panne » n'a ni boutons ni propositions (D10-30).
+
+**Le lot 10b en clair** (chapitre 6, avec tes réponses 3, 4 et 7)
+- **Un mail par semaine, à toi seul, le vendredi vers 14 h** (au premier passage du réveil des 10 minutes après 14 h, heure de Paris). **Il part toujours**, même s'il n'y a rien à signaler.
+- Objet : « Point du vendredi 20/11 — 4 signalements, 1 bloquant en retard, santé à regarder » ou « … — rien à signaler ».
+- Trois parties : **les signalements de la semaine** (créés depuis le mail précédent : chantier, type, urgence, auteur, état) ; **le rappel** des « Bloquant » restés « À traiter » depuis 7 jours ou plus ; **le point de santé** (mails reportés encore en attente, place du compte d'après l'onglet *Stockage*, fiches arrivées au bureau mais en erreur ou en attente de leurs photos).
+- Une partie vide dit « rien à signaler ». Un onglet absent ou illisible ne bloque pas le mail : sa partie dit « indisponible », les autres sont remplies.
+- **Si le mail ne peut pas partir** : nouvel essai toutes les 10 minutes jusqu'à 18 h, puis abandon pour la semaine (une ligne dans l'onglet *Journal*). Jamais de mail le samedi, jamais deux la même semaine. Le vendredi suivant reprend depuis le dernier mail parti : aucun signalement n'est oublié.
+- **Il faut le mettre en service une fois** : fonction `demarrerPointDuVendredi` (D10-44). `arreterPointDuVendredi` l'arrête. `essaiPointDuVendredi` fabrique le mail tout de suite, pour le voir.
+- **Aucune page ne change. Aucun onglet n'est modifié** : le serveur ne fait que lire.
+- Pas dans ce mail, comme prévu : comptes bloqués, fiches restées dans un téléphone, dernière connexion (le serveur ne le sait pas ; lot 10b-2, plus tard).
+
+**Trois écarts avec le texte ci-dessous, pour la sécurité des données** (détail dans `DECISIONS.md`) :
+1. **Titres de l'onglet *Demandes* changés** (chapitre 5) : le plan disait « les demandes sont quand même notées ». Au vu du code, les noter dans un onglet dont les colonnes ont bougé, c'est risquer de les écrire au mauvais endroit et d'envoyer un mail faux. J'ai fait comme pour les notes de chantier : **rien n'est lu ni écrit, les demandes attendent dans les téléphones** (« ⏳ en attente d'envoi ») **et repartent dès que les titres sont remis** (après 12 essais refusés, le téléphone affiche « à vérifier » : le poseur touche « Réessayer ») ; tu reçois le mail d'alerte (un par jour au plus). Rien n'est perdu.
+2. **Le premier passage du réveil arrive après 17 h 30** (panne chez Google, réveils retirés) : le mail ne part plus ce jour-là, même s'il n'y a eu aucun essai avant ; les demandes partent en tête du récapitulatif suivant (« Demandes non envoyées hier »). Même règle que pour un mail en échec : après 17 h 30, il est trop tard pour commander.
+3. **Après 17 h 30 sans passage du jour**, le téléphone n'annonce plus « aujourd'hui » : il nomme le jour suivant (c'est ce qui va se passer).
 
 ## 1. Ce que tu as demandé
 
@@ -89,7 +140,7 @@ Page `commander.html`, ouverte par la tuile « À commander » de l'accueil :
 1. Deux gros boutons en haut : **À commander** (choisi d'avance) · **Outil en panne**.
 2. Ses 4 ou 5 articles habituels, en gros boutons.
 3. **Quoi ?** (80 caractères au plus), avec les propositions en dessous dès 2 lettres.
-4. **Quantité** (texte court : « 2 boîtes », « 1 ») ; pour « Outil en panne », ce champ devient « Précision (facultatif) ».
+4. **Quantité** (texte court : « 2 boîtes », « 1 ») ; pour « Outil en panne », ce champ devient « Précision (facultative) ».
 5. Bouton **Demander**. La page affiche tout de suite « ⏳ Demande notée », puis, à la réponse du serveur :
    - passage du jour pas encore fait : « ✓ Elle part dans le récapitulatif d'aujourd'hui (vers 15 h 45). »
    - passage déjà fait : « ✓ Le récapitulatif d'aujourd'hui est déjà parti : elle sera dans celui de lundi 23/11. » (le serveur nomme le jour)
@@ -149,12 +200,12 @@ Ces deux dernières lignes sont pourtant les plus utiles du point de santé (voi
 | Lot | Contenu | Touche | Pour toi |
 |---|---|---|---|
 | **10a-1** | « À commander » : page, tuile, onglet *Demandes*, récapitulatif de 15 h 45, « Mes demandes », « ✓ Commandé », les deux phrases de renvoi | serveur + pages | un envoi sur TEST, 15 min d'essais téléphone, production (30 min) |
-| **10a-2** | les gros boutons appris, les propositions pendant la frappe, l'onglet *Articles* | pages surtout (le serveur donne la liste) | 10 min d'essais téléphone avec des gants, une fusion |
-| **10b** | le mail du vendredi, avec ce que le serveur sait déjà | serveur seul | un envoi sur TEST, lire le mail, production (20 min) |
+| **10a-2** | les gros boutons appris, les propositions pendant la frappe, l'onglet *Articles* | pages surtout (le serveur donne la liste) | un envoi sur TEST, 10 min d'essais téléphone avec des gants, production (le serveur change : coller, relancer `installerLot10Production`, nouveau déploiement, fusion) |
+| **10b** | le mail du vendredi, avec ce que le serveur sait déjà | serveur seul | un envoi sur TEST, lire le mail fabriqué par `essaiPointDuVendredi`, production (coller, `demarrerPointDuVendredi`, nouveau déploiement) : 20 min |
 | **10b-2** | (si tu dis oui) les téléphones déclarent leurs fiches en attente ; deux lignes de plus dans le mail du vendredi | serveur + pages | à décider |
 | **10c** | idée 7 : les points ouverts des notes de réunion, par chantier | serveur | après un mois de lot 8 en service |
 
-- Ordre de mise en production (le tien), pour ne pas mélanger les versions du serveur : **lot 8, puis mail unique, puis 10a-1, 10a-2, 10b**. Le lot 10 n'a pas besoin du mail unique pour marcher : si tu préfères « À commander » plus tôt, il peut passer avant lui (ta question 9).
+- Ordre de mise en production (ta réponse 9 du 17/11/2026), pour ne pas mélanger les versions du serveur : **lot 8, puis 10a-1 et 10a-2, puis 10b, puis le mail unique**. Le lot 10 n'a pas besoin du mail unique pour marcher.
 - Mesure sur la copie TEST : pour voir l'heure réelle du mail pendant deux jours, il faut y laisser les réveils automatiques. Ils partagent les 90 minutes par jour avec la production : je les retire à la fin de l'essai.
 
 ## 8. Les endroits touchés (lots 10a-1 et 10a-2)
@@ -196,7 +247,7 @@ Aucune page existante ne change de comportement ; « Signaler » ne gagne qu'une
 - **Page** (vrai Chrome, 375 px et PC) : boutons appris après 1, 5, 20 demandes ; quantité reprise ; propositions dès 2 lettres avec et sans accents ; hors réseau ; réseau lent ; brouillon restauré ; second compte sur le même téléphone ; boutons refaits après réinstallation.
 - **Sur la copie TEST, avec toi** : l'heure réelle du mail pendant deux jours ; le mail lu sur ton téléphone ; la case cochée vue par un compte de poseur ; **le clavier ouvert, avec des gants**.
 
-## 11. Tes questions (réponds par le numéro)
+## 11. Tes questions (réponds par le numéro) — **répondues le 17/11/2026 : voir le chapitre 0**
 
 1. **Heure limite 15 h 45** (mail en général avant 16 h) : d'accord ? (ou 15 h 30)
 2. **« Mes demandes »** : le poseur voit **seulement les siennes**. D'accord ? (l'autre choix : tout le monde voit tout, pour éviter les doubles demandes)

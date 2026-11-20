@@ -11,12 +11,20 @@
 // Lot 4 — LOUE_RACINE_ESSAI=<dossier> : ce dossier (un faux « Drive de l'appli » rempli par outils/depot_carnet.py) est recopié dans le faux Drive ;
 //   GET /reglage?mode=acces&id=poseur1&valeur=0 retire au compte la case de CHANTIER TEST 1 (1 : la remet) ; /recharger-carnet relit le dossier.
 //   GET /reglage?mode=transition-finie (fin de la période sans compte) | transition-ouverte | deconnecter&id=poseur1 | jeton-ancien
+// Lot 10 — LOUE_FUSEAUX=1 : l'heure de Paris est calculée comme chez Google (quel que soit le réglage du PC) ;
+//   GET /reglage?mode=horloge&quand=2026-11-17T10:00:00%2B01:00 règle l'horloge du serveur (quand=reel : la vraie heure) ;
+//   mode=reveil : un passage du réveil des 10 minutes (traiterComptes, donc le récapitulatif « À commander ») ;
+//   mode=oublier-passage : efface la marque « passage du jour fait » (le faux serveur a pu la poser à son démarrage, à la vraie heure) ;
+//   mode=commande&quoi=<texte>&valeur=1 : coche (0 : décoche) la case « Commandé » des demandes dont « Quoi » est ce texte.
+// Lot 10a-2 — mode=articles&liste=<a|b|c> : remplit l'onglet « Articles » (sous son titre ; liste vide : onglet vidé) ;
+//   mode=articles&nombre=600 : 600 articles « Article long 001 »… ; mode=articles&absent=1 : l'onglet est retiré.
 'use strict';
 const http = require('http');
 const { creerGoogle, chargerScript } = require('./gas-harness');
 
 const port = Number(process.argv[2] || 8790);
 const google = creerGoogle({
+  fuseaux: process.env.LOUE_FUSEAUX === '1',
   proprietes: { DRIVE_ROOT_ID: 'RACINE', DRIVE_PLANNING_ID: 'PLANNING' },
   feuilles: {
     'Contacts': [['Nom', 'Role', 'Email', 'ChefEquipe', 'Destinataire', 'ConducteurDefaut', 'ChefAtelier', 'absenceNotif'],
@@ -71,6 +79,8 @@ ctx.traiterComptes();
 ctx.installerLot3Production();   // lot 3 : onglets des notes de chantier
 console.log(ctx.installerLot7Production().split(String.fromCharCode(10)).filter(l => /installation terminée|❌|Refusé/.test(l)).join(' ') || 'Lot 7 : installation non confirmée');   // lot 7 : onglet Signalements
 if (typeof ctx.installerLot8Production === 'function') ctx.installerLot8Production();   // lot 8b : onglet « Comptes rendus » (absent d'un ancien serveur)
+if (typeof ctx.installerLot10Production === 'function') ctx.installerLot10Production();   // lot 10 : onglet « Demandes » (absent d'un ancien serveur)
+if (typeof ctx.installerLot8dProduction === 'function') ctx.installerLot8dProduction();   // lot 8d : colonne « Texte de la note » (absente d'un ancien serveur)
 U.lignes.slice(1).filter(l => l[0]).forEach(l => {
   if (l[0] === 'nouveau1') { console.log('Compte « nouveau1 » : mot de passe provisoire ' + l[5]); return; }
   const r = ctx.motDePasse_({ identifiant: l[0], ancien: l[5], nouveau: 'Essai-2026' });
@@ -87,16 +97,81 @@ http.createServer((req, res) => {
   if (url.pathname === '/reglage') {
     const m = url.searchParams.get('mode') || 'normal';
     if (m === 'transition-finie') { google.proprietes.FIN_TRANSITION = String(Date.now() - 1000); res.writeHead(200, entetes); return res.end('{"transition":"finie"}'); }
+    // Lot 14 : la direction répond aux demandes d'absence depuis son mail (ligne « Adresses de la direction » de l'onglet Réglages)
+    if (m === 'absences-direction' || m === 'absences-avant') {
+      if (!google.feuilles['Réglages']) ctx.feuille_('Réglages', ['Réglage', 'Allumé', 'État (écrit par l’appli)']);
+      const NOM = 'Adresses de la direction (demandes d’absence)';
+      const r = google.feuilles['Réglages'], l = r.lignes.find(x => x[0] === NOM);
+      const valeur = m === 'absences-direction' ? 'direction@loue.test' : null;
+      if (l && valeur === null) r.lignes.splice(r.lignes.indexOf(l), 1);
+      else if (l) l[1] = valeur; else if (valeur !== null) r.lignes.push([NOM, valeur, '']);
+      res.writeHead(200, entetes); return res.end(JSON.stringify({ absences: m === 'absences-direction' ? 'direction' : 'avant' }));
+    }
     if (m === 'transition-ouverte') { delete google.proprietes.FIN_TRANSITION; res.writeHead(200, entetes); return res.end('{"transition":"ouverte"}'); }
     if (m === 'deconnecter') {
       const l = U.lignes.find(x => x[0] === url.searchParams.get('id'));
       if (l) { l[7] = true; ctx.traiterComptes(); }
       res.writeHead(200, entetes); return res.end('{"deconnecte":' + !!l + '}');
     }
+    // Lot 12 — /reglage?mode=lot12 : prépare le monde du lot 12 (numéros de chantier, cinq chantiers de plus dont un terminé,
+    //   onglet Réglages). mode=tous-chantiers&valeur=1|0 : allume ou éteint le réglage. mode=planifie&id=…&numero=…&debut=AAAA-MM-JJ :
+    //   pose une ligne dans l'onglet Planifiés, comme l'aurait fait la lecture du planning (testée côté serveur, sans page).
+    if (m === 'lot12') {
+      const C = google.feuilles['Chantiers'].lignes;
+      if (C.length < 5) {
+        C[1][4] = '0501'; C[2][4] = '0502';
+        C.push(['CHANTIER TEST 3', 'LIEU 3', 'En cours', 'Franck TEST', '90'], ['CHANTIER TEST 4', 'LIEU 4', 'En cours', 'Franck TEST', '1201'],
+          ['CHANTIER SANS NUMERO', 'LIEU 5', 'En cours', 'Franck TEST', ''], ['CHANTIER TEST 5', 'LIEU 7', 'En cours', 'Franck TEST', '0700'], ['CHANTIER FINI', 'LIEU 6', 'Terminé', 'Sébastien TEST', '0400']);
+        ctx.installerLot12Production();
+        ctx.traiterComptes();
+      }
+      res.writeHead(200, entetes); return res.end('{"lot12":true}');
+    }
+    if (m === 'tous-chantiers') {
+      const l = (google.feuilles['Réglages'] || { lignes: [] }).lignes.find(x => /Tous les comptes/.test(String(x[0])));
+      if (l) l[1] = url.searchParams.get('valeur') === '1';
+      res.writeHead(200, entetes); return res.end('{"reglage":' + !!l + '}');
+    }
+    if (m === 'planifie') {
+      google.proprietes.PLANNING_SHEET_ID = 'PLAN';
+      const sh = ctx.feuille_('Planifiés', ['Compte', 'N° du chantier', 'Chantier', 'Série commencée le (lundi)', 'Dernière semaine planifiée (lundi)', 'Mis à jour le', '', 'À voir (écrit par l’appli)']);
+      const P = google.feuilles['Planifiés'].lignes, id = url.searchParams.get('id'), numero = url.searchParams.get('numero'), debut = url.searchParams.get('debut');
+      const aujourdhui = new Date().toISOString().slice(0, 10);
+      const ligne = P.find(x => x[0] === id && x[1] === numero);
+      if (ligne) { ligne[3] = debut; ligne[4] = aujourdhui; } else P.push([id, numero, '', debut, aujourdhui, new Date()]);
+      res.writeHead(200, entetes); return res.end('{"planifie":' + !!sh + '}');
+    }
     if (m === 'acces') {
       const col = A.lignes[0].indexOf(url.searchParams.get('id'));
-      if (col > 1) A.lignes.forEach(l => { if (l[0] === 'CHANTIER TEST 1') l[col] = url.searchParams.get('valeur') === '1'; });
+      const lequel = url.searchParams.get('chantier') || 'CHANTIER TEST 1';   // lot 12 : &chantier=… pour une autre case
+      if (col > 1) A.lignes.forEach(l => { if (l[0] === lequel) l[col] = url.searchParams.get('valeur') === '1'; });
       res.writeHead(200, entetes); return res.end('{"acces":' + (col > 1) + '}');
+    }
+    // Lot 10 : horloge du serveur, passage du réveil des 10 minutes, case « Commandé »
+    if (m === 'horloge') {
+      const quand = url.searchParams.get('quand') || 'reel', ms = quand === 'reel' ? 0 : Date.parse(quand);
+      if (quand !== 'reel' && !(ms > 0)) { res.writeHead(400, entetes); return res.end('{"erreur":"date illisible"}'); }
+      ctx.maintenant_ = quand === 'reel' ? () => Date.now() : () => ms;
+      res.writeHead(200, entetes); return res.end(JSON.stringify({ horloge: quand === 'reel' ? 'reel' : ms }));
+    }
+    if (m === 'oublier-passage') { delete google.proprietes.DEMANDES_PASSAGE; delete google.proprietes.DEMANDES_REPORT; res.writeHead(200, entetes); return res.end('{"passage":"oublié"}'); }
+    if (m === 'reveil') { res.writeHead(200, entetes); return res.end(JSON.stringify({ reveil: ctx.traiterComptes() })); }
+    if (m === 'commande') {
+      const quoi = url.searchParams.get('quoi') || '', valeur = url.searchParams.get('valeur') === '1';
+      let n = 0;
+      ((google.feuilles['Demandes'] || { lignes: [] }).lignes).slice(1).forEach(l => { if (l[3] === quoi) { l[5] = valeur; n++; } });
+      res.writeHead(200, entetes); return res.end(JSON.stringify({ commande: n }));
+    }
+    if (m === 'articles') {
+      if (url.searchParams.get('absent') === '1') delete google.feuilles['Articles'];
+      else {
+        if (!google.feuilles['Articles']) ctx.installerLot10Production();   // recrée l'onglet, vide
+        const nombre = Number(url.searchParams.get('nombre') || 0);
+        const liste = nombre > 0 ? Array.from({ length: nombre }, (_, i) => 'Article long ' + String(i + 1).padStart(3, '0'))
+          : (url.searchParams.get('liste') || '').split('|').filter(Boolean);
+        google.feuilles['Articles'].lignes = [['Article']].concat(liste.map(t => [t]));
+      }
+      res.writeHead(200, entetes); return res.end(JSON.stringify({ articles: google.feuilles['Articles'] ? google.feuilles['Articles'].lignes.length - 1 : 'absent' }));
     }
     if (m === 'recharger-carnet') { chargerCarnet(); viderCacheCarnet(); res.writeHead(200, entetes); return res.end('{"carnet":"relu"}'); }
     // Lot 4 : la liste carnet.json absente (en cours d'arrivée) puis revenue ; un second état du Drive (redépôt, nouvel indice) ; un compte désactivé
@@ -128,8 +203,14 @@ http.createServer((req, res) => {
     return res.end(JSON.stringify({ mode, mails: google.mails.map(m => ({ to: m.to, sujet: m.sujet, bcc: m.opts.bcc || '' })),
       envois: (google.feuilles['Envois'] || { lignes: [] }).lignes, quota: google.etat.quota,
       signalements: (google.feuilles['Signalements'] || { lignes: [] }).lignes,   // lot 7
+      // lot 14 : le suivi des absences, et les liens « accepter » / « refuser » du dernier mail à la direction
+      absences: (google.feuilles['Absences suivi'] || { lignes: [] }).lignes.slice(1).map(l => [l[0], l[2], l[3], l[4], l[7], l[8], l[9], l[11]]),
+      liensAbsence: (google.mails.filter(m => /Demande d'absence/.test(m.sujet)).slice(-1)[0] || { texte: '' }).texte.match(/https:\/\/\S+absence-reponse\.html\?\S+/g) || [],
       notes: (google.feuilles['Notes'] || { lignes: [] }).lignes,                 // lot 3
       comptesRendus: (google.feuilles['Comptes rendus'] || { lignes: [] }).lignes,   // lot 8b
+      // lot 10 : l'onglet « Demandes » et les récapitulatifs « À commander » partis (sujet et texte)
+      demandes: (google.feuilles['Demandes'] || { lignes: [] }).lignes,
+      recaps: google.mails.filter(m => /^À commander — /.test(m.sujet)).map(m => ({ to: m.to, sujet: m.sujet, texte: m.texte })),
       // lot 8b : le texte des 5 derniers PDF envoyés (sans les images), pour vérifier ce qui est imprimé
       pdfs: google.mails.filter(m => m.opts && m.opts.attachments && m.opts.attachments[0]).slice(-5)
         .map(m => ({ sujet: m.sujet, texte: String(m.opts.attachments[0].contenu).replace(/base64,[A-Za-z0-9+\/=]+/g, 'base64,…').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').slice(0, 3000),

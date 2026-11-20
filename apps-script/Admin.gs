@@ -78,7 +78,9 @@ function renvoyerMailsEnAttente() {
 // À lancer après le déploiement (le relancer ne crée pas de doublon : chaque déclencheur est supprimé puis recréé)
 //  - renvoyerMailsEnAttente toutes les 2 h (lot 0)
 //  - traiterComptes toutes les 10 min, et surModificationSheet à chaque modification du Sheet (lot 2 : cases
-//    « Réinitialiser » et « Déconnecter », onglet « Accès chantiers »)
+//    « Réinitialiser » et « Déconnecter », onglet « Accès chantiers ») ; lot 10 : traiterComptes lance aussi, après les
+//    comptes, le récapitulatif « À commander » (du lundi au vendredi, au premier passage après 15 h 45) ; lot 10b : puis le
+//    point du vendredi (le vendredi, au premier passage après 14 h, une fois mis en service par demarrerPointDuVendredi)
 //  - mesurerStockage chaque nuit vers 2 h, poursuivreMesureStockage une heure plus tard (ne fait quelque chose que si le
 //    tour de mesure n'est pas fini), traiterPurges toutes les 30 min (sort tout de suite s'il n'y a rien à faire) (lot 5)
 const DECLENCHEURS = ['renvoyerMailsEnAttente', 'traiterComptes', 'surModificationSheet', 'mesurerStockage', 'poursuivreMesureStockage', 'traiterPurges'];
@@ -137,6 +139,8 @@ function verifierConfig() {
   });
   lignes.push(verifierComptes_());    // lot 2 : comptes, clé, partage du Sheet, transition
   lignes.push(verifierStockage_());   // lot 5 : onglets Stockage et Purges, place du compte
+  lignes.push(verifierDemandes_());   // lot 10 : onglet Demandes, récapitulatif « À commander »
+  lignes.push(verifierVendredi_());   // lot 10b : le point du vendredi
   // Outillage : les outils d'essai (porte de service et sa clé) ne doivent exister que sur la copie TEST
   const ou = environnementReel_(), porte = typeof outilTest_ === 'function', cleOutils = !!propriete_('CLE_OUTILS_TEST');
   if (ou.env === 'INCOHERENT') ok(false, 'Environnement incohérent : la propriété ENVIRONNEMENT et le nom du Sheet « ' + ou.sheet + ' » ne disent pas la même chose');
@@ -157,6 +161,12 @@ function verifierConfig() {
       conducteur: 'conducteur — un seul mail par fiche pour les adresses connues, « À » = le conducteur du chantier s’il est destinataire, les autres en copie cachée',
     }[mailUnique]);
   }
+  // Lot 14 : les demandes d'absence (ligne « Adresses de la direction » de l'onglet Réglages). Les adresses ne sont pas affichées.
+  const absR = absReglage_();
+  if (!absR.installe) lignes.push('• Absences (lot 14) : pas installé — les demandes partent comme avant');
+  else if (!absR.adresses.length) ok(false, 'Absences (onglet ' + SHEET_REGLAGES + ', ligne « ' + ABS_REGLAGE + ' ») : éteint, ' + absR.probleme + ' — les demandes partent comme avant, avec une alerte à Franck');
+  else ok(true, 'Absences (onglet ' + SHEET_REGLAGES + ', ligne « ' + ABS_REGLAGE + ' ») : allumé — ' + absR.adresses.length + ' adresse(s) de la direction'
+    + (absR.ignorees ? ', ' + absR.ignorees + ' texte(s) ignoré(s)' : '') + ' ; boutons du mail vers ' + absAdresseAppli_());
   lignes.push("Destinataires de mails encore possibles aujourd'hui : " + MailApp.getRemainingDailyQuota());
   Logger.log(lignes.join('\n'));
   return lignes.join('\n');

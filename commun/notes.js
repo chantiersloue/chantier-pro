@@ -79,7 +79,8 @@
         var c = req.result; if (!c) return;
         var e = c.value;
         if (e.sorte === 'texte') { c.continue(); return; }
-        if (e.sorte !== 'elements' || !id || e.compte !== id) c.delete();
+        // (« recap » : lot 8d, le récapitulatif des notes de réunion d'un chantier, gardé comme une liste)
+        if ((e.sorte !== 'elements' && e.sorte !== 'recap') || !id || e.compte !== id) c.delete();
         c.continue();
       };
     }).catch(function () {});
@@ -107,10 +108,14 @@
   // La liste d'un chantier (sans filtre) est gardée dans le téléphone et sert quand il n'y a pas de réseau.
   N.lire = function (o) {
     o = o || {};
-    var gardable = !!o.chantier && !o.recherche && !o.nouveau;
-    var cle = 'elements|' + cleChantier(o.chantier), qui = moi();
+    // Lot 13 — o.miennes : « Mes notes » (tous chantiers), gardée dans le téléphone sous sa propre clé
+    var gardable = (!!o.chantier || !!o.miennes) && !o.recherche && !o.nouveau;
+    var cle = 'elements|' + (o.miennes && !o.chantier ? N.CLE_MIENNES : cleChantier(o.chantier)), qui = moi();
     var depart = Date.now();
-    return appel({ action: 'notes', chantier: o.chantier || '', recherche: o.recherche || '', nouveau: !!o.nouveau, termines: !!o.termines }, 20000, 'Notes indisponibles').then(function (d) {
+    return appel({ action: 'notes', chantier: o.chantier || '', recherche: o.recherche || '', nouveau: !!o.nouveau, termines: !!o.termines, miennes: !!o.miennes && !o.chantier }, 20000, 'Notes indisponibles').then(function (d) {
+      // Un serveur d'avant le lot 13 ne connaît pas « les miennes » : il rendrait la vue « tous chantiers » à un conducteur.
+      // Sa réponse est refusée AVANT d'être gardée dans le téléphone.
+      if (o.miennes && !o.chantier && d.miennes !== true) throw Object.assign(new Error('le serveur n’est pas encore à jour'), { serveur: true });
       // gardée seulement si aucun envoi n'a été confirmé depuis le départ de la demande : une réponse partie avant un ajout
       // et arrivée après ne doit pas remplacer la liste gardée par une liste sans cet ajout
       if (gardable && qui === moi() && depart > dernierEnvoi) misesAJour = misesAJour.then(function () { return ecrireEntree(cle, 'elements', d); });
@@ -118,12 +123,31 @@
     }, function (err) {
       if (err && err.code === 'INTERDIT' && gardable) effacerEntree(cle);   // accès retiré : la liste gardée ne doit plus se lire hors réseau
       if (err && (err.connexion || err.serveur) || !gardable) throw err;
-      return N.gardee(o.chantier).then(function (g) { if (g) return g; throw err; });   // pas de réseau : la dernière liste de CE compte
+      return N.gardee(o.miennes && !o.chantier ? N.CLE_MIENNES : o.chantier).then(function (g) { if (g) return g; throw err; });   // pas de réseau : la dernière liste de CE compte
     });
   };
+  N.CLE_MIENNES = '__mes notes__';   // jamais le nom d'un chantier
   // La dernière liste gardée dans le téléphone pour ce chantier (ou null) : affichée tout de suite, avant la réponse du serveur
   N.gardee = function (chantier) {
     return lireEntree('elements|' + cleChantier(chantier)).then(function (e) { return e && e.valeur ? { donnees: e.valeur, date: e.date, depuisLeTelephone: true } : null; });
+  };
+  // ── Lot 8d : le récapitulatif des notes de RÉUNION d'un chantier (lecture seule) ──
+  // → { donnees: { chantier, notes: [{ date, objet, auteur, texte, sansTexte }], heure }, date, depuisLeTelephone }
+  // Gardé dans le téléphone comme la liste d'un chantier : rendu au seul compte qui l'a reçu, effacé à la déconnexion
+  // et dès que le serveur répond que le chantier n'est plus dans la liste du compte.
+  N.recap = function (chantier) {
+    var cle = 'recap|' + cleChantier(chantier), qui = moi();
+    return appel({ action: 'recapNotes', chantier: chantier || '' }, 20000, 'Récapitulatif indisponible').then(function (d) {
+      if (qui === moi()) misesAJour = misesAJour.then(function () { return ecrireEntree(cle, 'recap', d); });
+      return { donnees: d, date: Date.now(), depuisLeTelephone: false };
+    }, function (err) {
+      if (err && err.code === 'INTERDIT') effacerEntree(cle);
+      if (err && (err.connexion || err.serveur)) throw err;
+      return N.recapGarde(chantier).then(function (g) { if (g) return g; throw err; });   // pas de réseau : le dernier reçu par CE compte
+    });
+  };
+  N.recapGarde = function (chantier) {
+    return lireEntree('recap|' + cleChantier(chantier)).then(function (e) { return e && e.valeur ? { donnees: e.valeur, date: e.date, depuisLeTelephone: true } : null; });
   };
   // Après l'affichage : « j'ai vu la liste de ce chantier jusqu'à telle heure du serveur ». Un échec est sans gravité.
   // chantier vide + tous = vrai : tous les chantiers (vue « Tous chantiers » des conducteurs).
@@ -149,6 +173,18 @@
     if (d.geste === 'defaire') n.fait = false;
     return donnees;
   };
+  // Lot 13 — le même report dans la liste « Mes notes » : une note que la personne vient d'ajouter y entre EN TÊTE, avec son
+  // chantier et sa date ; un geste (cocher, décocher, modifier) est reporté sur la note si elle y est.
+  N.integrerMiennes = function (donnees, a) {
+    if (!donnees || !a) return donnees;
+    var d = a.donnees || {};
+    if (a.type !== 'note-chantier') return N.integrer(donnees, a);
+    donnees.aFaire = donnees.aFaire || []; donnees.termines = donnees.termines || [];
+    if (!donnees.aFaire.concat(donnees.termines).some(function (n) { return n.id === a.id; })) {
+      donnees.aFaire.unshift({ id: a.id, texte: d.texte || '', fait: false, nouveau: false, chantier: d.chantier || '', cree: a.cree || Date.now() });
+    }
+    return donnees;
+  };
   // … et la liste GARDÉE du chantier est mise à jour à chaque envoi confirmé, quelle que soit la page ouverte (la file peut
   // partir depuis l'accueil) : hors réseau, on retrouve ce qu'on a ajouté ou coché, même si la liste n'a pas été relue depuis.
   if (LOUE.surEvenement) LOUE.surEvenement(function (ev) {
@@ -158,6 +194,10 @@
     var cle = 'elements|' + cleChantier(a.donnees.chantier);
     misesAJour = misesAJour.then(function () {   // l'une après l'autre : deux envois de suite ne s'écrasent pas
       return lireEntree(cle).then(function (e) { if (e && e.valeur && a.saisiPar === moi()) return ecrireEntree(cle, 'elements', N.integrer(e.valeur, a)); });
+    }).then(function () {
+      // Lot 13 : la liste gardée « Mes notes » suit aussi (une note ajoutée ou cochée depuis un chantier s'y retrouve hors réseau)
+      var cleM = 'elements|' + N.CLE_MIENNES;
+      return lireEntree(cleM).then(function (e) { if (e && e.valeur && a.saisiPar === moi()) return ecrireEntree(cleM, 'elements', N.integrerMiennes(e.valeur, a)); });
     }).catch(function () {});
   });
   // Chiffres rouges de l'accueil : { parChantier: { nom: n }, total }
@@ -169,12 +209,13 @@
   N.effacerTexte = function (chantier) { return effacerEntree('texte|' + cleChantier(chantier)); };
 
   // ── Ajouts et gestes encore dans la file d'envoi, pour CE compte et ce chantier (du plus ancien au plus récent) ──
-  N.enAttente = function (chantier) {
+  // tous (lot 13) : vrai = tous chantiers confondus (« Mes notes »)
+  N.enAttente = function (chantier, tous) {
     var id = moi(), cle = cleChantier(chantier);
     if (!id || !LOUE.stockage) return Promise.resolve([]);
     return LOUE.stockage.tout('file').then(function (liste) {
       return liste.filter(function (e) {
-        return /^note-/.test(e.type || '') && (!e.env || e.env === CONFIG.env) && e.saisiPar === id && e.donnees && cleChantier(e.donnees.chantier) === cle;
+        return /^note-/.test(e.type || '') && (!e.env || e.env === CONFIG.env) && e.saisiPar === id && e.donnees && (tous === true || cleChantier(e.donnees.chantier) === cle);
       }).sort(function (a, b) { return a.cree - b.cree; });
     }).catch(function () { return []; });
   };

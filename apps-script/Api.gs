@@ -217,7 +217,11 @@ const TRAITEMENTS = {
   'signalement'        : 'traiterSignalement',   // lot 7 (Signalements.gs)
   'note-chantier'      : 'traiterNoteChantier',  // lot 3 (Notes.gs) : un nouvel élément de la liste du chantier
   'note-action'        : 'traiterNoteAction',    // lot 3 : un geste sur un élément (modifier, cocher, décocher)
+  'demande'            : 'traiterDemande',       // lot 10 (Demandes.gs) : « À commander » ou « Outil en panne », sans chantier
 };
+// Fiches qui suivent le chemin des notes de chantier : compte obligatoire (elles attendent dans le téléphone sinon), ni PDF,
+// ni mail à l'envoi, ni photo. Lot 3 : « note-chantier », « note-action » ; lot 10 : « demande ».
+function ficheSansMail_(type) { return /^note-/.test(String(type || '')) || type === 'demande'; }
 
 function doPost(e) {
   let corps;
@@ -249,13 +253,15 @@ function repondre_(objet) {
 function traiterFiche_(brut, contexte) {
   const nom = brut && Object.prototype.hasOwnProperty.call(TRAITEMENTS, brut.type) ? TRAITEMENTS[brut.type] : '';
   if (!nom) throw new Error('Type de fiche inconnu');
-  globalThis[nom](preparerDonnees_(brut), brut, contexte);
+  // Lot 10 : ce que rend le traitement (pour une demande : le récapitulatif où elle part) repart dans la réponse
+  return globalThis[nom](preparerDonnees_(brut), brut, contexte);
 }
 
 // Lot 2 : chaque action (sauf ping, connexion, motDePasse) passe par identifier_ : jeton valable, ou transition ouverte
 function routerV5_(corps) {
   try {
     UTILISATEURS_ = null;   // l'onglet Utilisateurs est relu à chaque requête (un changement agit tout de suite)
+    REGLAGE_TOUS_LU_ = null; PLANIFIES_LUS_ = null;   // lot 12 : le réglage « tous les chantiers » et l'onglet Planifiés aussi
     if (corps.action === 'ping') {
       let fin = null;
       try { fin = finTransition_(); } catch (e) {}
@@ -269,13 +275,17 @@ function routerV5_(corps) {
     if (corps.action === 'outilTest' && typeof outilTest_ === 'function') return outilTest_(corps);
     if (corps.action === 'connexion')  return connexion_(corps);
     if (corps.action === 'motDePasse') return motDePasse_(corps);
+    // Lot 14 : la réponse de la direction à une demande d'absence. Sans compte : c'est le lien signé du mail qui fait foi.
+    if (corps.action === 'absenceVoir')    return absVoir_(corps);
+    if (corps.action === 'absenceDecider') return absDecider_(corps);
     if (['photo', 'fiche', 'moi', 'listes', 'dossiers', 'signalements', 'signalementStatut',
-      'notes', 'notesNouvelles', 'notesVues', 'carnet', 'carnetTuiles', 'planningFichier'].indexOf(corps.action) < 0) return { ok: false, code: 'ACTION_INCONNUE', message: 'Action inconnue' };
+      'notes', 'notesNouvelles', 'notesVues', 'carnet', 'carnetTuiles', 'planningFichier', 'demandes', 'recapNotes', 'absencesMiennes'].indexOf(corps.action) < 0) return { ok: false, code: 'ACTION_INCONNUE', message: 'Action inconnue' };
     let qui = identifier_(corps);
     const envoi = corps.action === 'photo' || corps.action === 'fiche';
     // Lot 3 : une note de chantier (ou un geste sur une note) demande TOUJOURS un compte en règle : ni « compte désactivé »,
     // ni « sans compte ». Elle attend dans le téléphone (jamais de note sans auteur, rien dans l'onglet « Sans compte »).
-    const estNote = corps.action === 'fiche' && /^note-/.test(String((corps.donnees || {}).type || ''));
+    // Lot 10 : une demande « À commander » aussi (le nom du poseur vient du compte, jamais d'une saisie).
+    const estNote = corps.action === 'fiche' && ficheSansMail_((corps.donnees || {}).type);
     // Fiche ou photo d'un compte désactivé : acceptée, notée « (compte désactivé) »
     if (qui.refus && qui.desactive && envoi && !estNote) qui = { compte: { id: qui.desactive, etiquette: qui.desactive + ' (compte désactivé)' } };
     // Comptes illisibles (panne) pendant la transition : la fiche passe « sans compte »
@@ -307,7 +317,13 @@ function routerV5_(corps) {
     if (corps.action === 'notesVues')      return marquerNotesVues_(qui.compte, corps);
     // Lot 4 : carnet de chantier (droits vérifiés dans Carnet.gs)
     if (corps.action === 'carnet')       return carnetLister_(qui.compte, corps);
+    // Lot 8d : le récapitulatif des notes de réunion d'un chantier (droits vérifiés dans Recapitulatif.gs)
+    if (corps.action === 'recapNotes')   return recapLire_(qui.compte, corps);
+    // Lot 14 : l'état des demandes d'absence du compte (aucun motif)
+    if (corps.action === 'absencesMiennes') return absMiennes_(qui.compte);
     if (corps.action === 'carnetTuiles') return carnetTuiles_(qui.compte, corps);
+    // Lot 10 : « Mes demandes » (seulement celles du compte ; Demandes.gs) ; lot 10a-2 : avec la liste « Articles »
+    if (corps.action === 'demandes')     return listerDemandes_(qui.compte, corps);
   } catch (err) {
     console.error('routerV5_:', err.message);
     return { ok: false, code: 'ERREUR', message: 'Erreur du serveur : ' + err.message };
@@ -415,19 +431,26 @@ function recevoirFiche_(corps, compte) {
   // Auteur : le compte qui envoie (et celui qui était connecté quand la fiche a été rangée, s'il est différent)
   const saisiPar = normaliserId_(corps.saisiPar);
   // Lot 3 : notes de chantier. Tout est contrôlé ICI, avant de réserver un numéro : aucun nouvel essai inutile, aucune alerte.
-  const estNote = /^note-/.test(String(donnees.type));
+  // Lot 10 : une demande « À commander » suit le même chemin (contrôlée par refusDemande_, Demandes.gs)
+  const estNote = ficheSansMail_(donnees.type), estDemande = donnees.type === 'demande';
   if (estNote) {
     // Renvoi après une réponse perdue : déjà enregistrée → on le dit, sans recontrôler des droits qui ont pu changer
     // (ni qui tient le téléphone : la note est arrivée, elle doit quitter la file)
     const shEnvois = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_ENVOIS);
     const deja = shEnvois ? chercherEnvoi_(shEnvois, corps.id) : 0;
-    if (deja && String(shEnvois.getRange(deja, 5).getValue()).indexOf('traité') === 0) return { ok: true, code: 'DEJA_RECU', message: 'Déjà enregistré', data: { id: corps.id } };
+    if (deja && String(shEnvois.getRange(deja, 5).getValue()).indexOf('traité') === 0) {
+      const dejaRecu = { ok: true, code: 'DEJA_RECU', message: 'Déjà enregistré', data: { id: corps.id } };
+      // lot 10 : le téléphone redit dans quel récapitulatif la demande part (ou est partie)
+      const recapDeja = estDemande ? demEtatFiche_(corps.id) : null;
+      if (recapDeja) dejaRecu.data.recap = recapDeja;
+      return dejaRecu;
+    }
     // Téléphone partagé : ce qu'a écrit X ne part jamais sous le nom de Y (cela attend que X se reconnecte)
     if (compte && saisiPar && saisiPar !== compte.id) return { ok: false, code: 'COMPTE_REFUSE',
       message: 'En attente : écrit par « ' + saisiPar + ' ». Cela partira quand cette personne se reconnectera sur ce téléphone.' };
     let refusNote;
     // onglet des notes aux titres changés : même réponse pour un ajout et pour un geste (le téléphone garde et réessaie)
-    try { refusNote = refusNote_(donnees, compte); }
+    try { refusNote = estDemande ? refusDemande_(donnees, compte, corps.id) : refusNote_(donnees, compte); }
     catch (err) { if (err && err.occupe) return { ok: false, code: 'SERVEUR_OCCUPE', message: err.message }; throw err; }
     if (refusNote) return { ok: false, code: refusNote.code, message: refusNote.message };
   }
@@ -476,9 +499,10 @@ function recevoirFiche_(corps, compte) {
 
   // 3. PDF, classement, mails
   RAPPORT_ = {};
+  let resultat = null;
   try {
     // Ce que le serveur sait de la fiche : son numéro, et le compte vérifié par le jeton (vide si sans compte)
-    traiterFiche_(brut, { id: corps.id, auteurId: compte && compte.id ? compte.id : '',
+    resultat = traiterFiche_(brut, { id: corps.id, auteurId: compte && compte.id ? compte.id : '',
       auteurNom: compte ? (compte.nom || compte.etiquette || compte.id) : 'sans compte', compte: compte || null });
   } catch (err) {
     // Lot 3 (notes) : « occupé » → le téléphone réessaie ; « refus » → définitif. Ni l'un ni l'autre ne prévient Franck
@@ -510,9 +534,14 @@ function recevoirFiche_(corps, compte) {
   // Lot 5b : on compte des DESTINATAIRES (vrai avec un mail par adresse comme avec un seul mail en copie cachée)
   const detail = 'envoyé à ' + n('envoyé') + ' destinataire(s)' + (n('reporté') ? ', ' + n('reporté') + ' reporté(s)' : '')
     + (n('refusé') ? ', ' + n('refusé') + ' adresse(s) refusée(s)' : '');
-  sh.getRange(ligne, 5, 1, 2).setValues([['traité', estNote ? 'note de chantier (aucun mail)' : detail]]);
+  sh.getRange(ligne, 5, 1, 2).setValues([['traité', estDemande ? 'demande « À commander » (aucun mail à l’envoi)' : estNote ? 'note de chantier (aucun mail)' : detail]]);
   // aucun mail pour une note : pas de « 0 mail envoyé » alarmant sur le téléphone
-  if (estNote) return { ok: true, code: 'ENREGISTRE', message: 'Enregistré', data: { id: corps.id } };
+  if (estNote) {
+    const enregistre = { ok: true, code: 'ENREGISTRE', message: 'Enregistré', data: { id: corps.id } };
+    // lot 10 : dans quel récapitulatif part la demande (« aujourd'hui », ou le jour nommé)
+    if (estDemande && resultat && resultat.recap) enregistre.data.recap = resultat.recap;
+    return enregistre;
+  }
   if (dossierPhotos) { try { dossierPhotos.setTrashed(true); } catch (e) {} }   // les photos sont dans le PDF
 
   return {

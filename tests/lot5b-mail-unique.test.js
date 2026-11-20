@@ -2,6 +2,7 @@
 // Tout se passe dans le faux Google (tests/gas-harness.js) : aucun vrai mail n'est envoyé.
 // Le réglage MAIL_UNIQUE est une « propriété du script » : non (défaut) | cache | conducteur.
 'use strict';
+const VERSION_SERVEUR = (/VERSION_API = '([^']+)'/.exec(require('fs').readFileSync(require('path').join(__dirname, '..', 'apps-script', 'Config.gs'), 'utf8')) || [])[1];
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
@@ -452,12 +453,12 @@ test('essai E1 (essaiMailUnique) : refusé hors de la copie TEST ; sur la copie 
   const texteBas = bas.ctx.essaiMailUnique();
   assert.ok(/Essai non lancé : il ne reste que 21 destinataire/.test(texteBas) && !/E1/.test(texteBas) && bas.mails.length === 0, texteBas);
 });
-test('livraison : le serveur à coller contient le lot 5b, en version v11.2, éteint par défaut', () => {
+test('livraison : le serveur à coller contient le lot 5b, dans la version de Config.gs, éteint par défaut', () => {
   const code = fs.readFileSync(path.join(RACINE, 'A-COLLER-DANS-APPS-SCRIPT', 'Code.gs'), 'utf8');
-  ["const VERSION_API = 'v11.2'", 'function envoyerGroupe_(', 'function modeMailUnique_(', 'const MAX_GROUPE_MAIL = 40;', "propriete_('MAIL_UNIQUE')", 'function essaiMailUnique('].forEach(t => assert.ok(code.indexOf(t) > -1, t));
+  ["const VERSION_API = '" + VERSION_SERVEUR + "'", 'function envoyerGroupe_(', 'function modeMailUnique_(', 'const MAX_GROUPE_MAIL = 40;', "propriete_('MAIL_UNIQUE')", 'function essaiMailUnique('].forEach(t => assert.ok(code.indexOf(t) > -1, t));
   assert.ok(!/MAIL_UNIQUE\s*=\s*(true|'cache'|'conducteur')/.test(code), 'aucune valeur allumée écrite dans le code');
   const config = fs.readFileSync(path.join(RACINE, 'commun', 'config.js'), 'utf8');
-  assert.ok(/VERSION_APPLI = '10\.3'/.test(config));
+  assert.ok(/lot 5b : textes « destinataires »/.test(config), 'la version de l’appli cite le lot 5b');
 });
 
 console.log('\n' + reussis + ' test(s) réussi(s)' + (process.exitCode ? ' — DES TESTS ONT ÉCHOUÉ' : ''));

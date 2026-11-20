@@ -177,6 +177,17 @@
       var estNote = !!ev.element && /^note-/.test(ev.element.type || '');
       if (ev.type === 'envoyee' && estNote) { LOUE.message(ev.element.type === 'note-chantier' ? '✓ Ajouté à la liste' : '✓ ' + ev.element.libelle, 2500); return; }
       if (ev.type === 'erreur' && estNote) { LOUE.message('⚠ Pas enregistré dans la liste du chantier : ' + ev.element.message + ' (détail : indicateur en haut de l’écran)', 8000); return; }
+      // Lot 10 : une demande « À commander » ne donne lieu à aucun mail à l'envoi. La page « À commander » affiche elle-même
+      // sa réponse (dans quel récapitulatif elle part) ; ailleurs (la file part souvent de l'accueil), un message court.
+      var estDemande = !!ev.element && ev.element.type === 'demande';
+      if (estDemande && (ev.type === 'envoyee' || ev.type === 'erreur')) {
+        if (document.body.hasAttribute('data-page-commander')) return;
+        var quoi = ((ev.element.donnees || {}).quoi || '').slice(0, 40);
+        if (ev.type === 'erreur') { LOUE.message('⚠ Demande « ' + quoi + ' » refusée : ' + ev.element.message + ' (détail : indicateur en haut de l’écran)', 8000); return; }
+        var recap = ((ev.reponse || {}).data || {}).recap;
+        LOUE.message('✓ Demande « ' + quoi + ' » notée par le bureau' + (recap && recap.texte ? '. ' + recap.texte.replace(/^✓ /, '') : ''), 6000);
+        return;
+      }
       if (ev.type === 'envoyee' && ev.element && ev.element.type === 'note') { var m = LOUE.messageNoteEnvoyee(ev.reponse, (ev.element.donnees || {}).date); LOUE.message(m.texte, m.duree); return; }
       if (ev.type === 'envoyee') {
         var d = (ev.reponse && ev.reponse.data) || {};

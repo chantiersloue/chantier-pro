@@ -1,9 +1,9 @@
 # Lot 5b — Un seul mail par fiche : procédure de déploiement et d'essai
 
 > Pour Franck. Le plan et ses raisons sont dans `docs/lot5-mail-unique.md` (version 2).
-> Cette livraison se compose du **serveur v11.2** (le programme chez Google) et des **pages, appli 10.3** (deux textes changés).
+> Cette livraison se compose du **serveur v11.6** (le programme chez Google) et des **pages, appli 10.7** (deux textes changés).
 > **État au 19/11/2026 : construit et testé contre le faux Google seulement** (un faux Google qui tourne sur mon ordinateur), **remis à jour sur le lot 8 en production, relu par un agent indépendant (un tour, rien de bloquant) et corrigé**. Rien n'a touché la copie TEST ni la production. Aucun mail n'est parti.
-> **Les numéros v11.2 / 10.3 seront réattribués** au moment de sa mise en production (d'autres lots passent avant) : je te donnerai les bons.
+> **Il passe en dernier, après le groupe B en production** (ta décision du 20/11 : groupe A, groupe B, puis mail unique). La branche `lot-5b` (dossier `chantier-pro-lot5b`) contient les deux groupes : serveur **v11.6**, appli **10.7**.
 > **Le mail unique est livré ÉTEINT.** Tant que tu n'as pas ajouté le réglage `MAIL_UNIQUE`, le serveur envoie les mails exactement comme aujourd'hui.
 > **Ne passe à l'étape suivante que si la précédente est verte.** Sinon : arrête-toi et envoie-moi une capture.
 
@@ -34,8 +34,8 @@ Ouvre le Sheet de production, onglet ***Stockage***, et lis la ligne de **Gmail*
 
 ## Avant tout envoi : le bon dossier, la bonne branche
 
-- Le lot 5b est sur la branche `lot-5b` (une branche = une version du code tenue à part), qui **contient déjà le lot 8**. Il se met en service **une semaine après le lot 8**, pas avant.
-- **C'est moi qui prépare ton dossier principal sur cette branche avant de te demander l'envoi**, et je te le confirme par écrit (« dossier prêt, branche lot-5b, serveur v11.2 »). Si je ne te l'ai pas confirmé, n'envoie rien.
+- Le lot 5b est sur la branche `lot-5b` (une branche = une version du code tenue à part), qui **contient déjà les groupes A et B**. Il se met en service **après le groupe B en production**, pas avant.
+- **C'est moi qui prépare ton dossier principal sur cette branche avant de te demander l'envoi**, et je te le confirme par écrit (« dossier prêt, branche lot-5b, serveur v11.6 »). Si je ne te l'ai pas confirmé, n'envoie rien.
 - La copie TEST ne porte qu'un lot à la fois : cet envoi remplace le serveur du lot précédent.
 
 ## Étape A — envoi sur la copie TEST (toi : 2 minutes)
@@ -44,7 +44,7 @@ Ouvre le Sheet de production, onglet ***Stockage***, et lis la ligne de **Gmail*
    ```
    node outils\envoyer-test.js --avec-porte
    ```
-   Page Google → compte de Loué → **Autoriser**. Attends `✅ Envoi réussi`. La version affichée doit être **v11.2**. Dis-moi « envoi fait », avec l'empreinte affichée.
+   Page Google → compte de Loué → **Autoriser**. Attends `✅ Envoi réussi`. La version affichée doit être **v11.6**. Dis-moi « envoi fait », avec l'empreinte affichée.
 2. Dans l'éditeur Apps Script **de la copie TEST** : choisis la fonction `verifierConfig` dans la liste en haut, clique **Exécuter**, ouvre le **Journal d'exécution**. Tu dois lire la ligne :
    `✅ Mail unique (propriété MAIL_UNIQUE) : non — un mail par adresse connue, comme avant le lot 5b`
 
@@ -103,10 +103,10 @@ Dis-moi « essais faits », avec tes notes. **Je te réponds « on peut allumer 
 
 ## Étape C — production (toi : 20 minutes) — le réglage reste à `non`
 
-1. Je te confirme que le fichier `A-COLLER-DANS-APPS-SCRIPT/Code.gs` de la branche `lot-5b` est prêt, avec son empreinte. Il doit contenir `VERSION_API = 'v11.2'`.
+1. Je te confirme que le fichier `A-COLLER-DANS-APPS-SCRIPT/Code.gs` de la branche `lot-5b` est prêt, avec son empreinte. Il doit contenir `VERSION_API = 'v11.6'`.
 2. Éditeur Apps Script **de production** : ouvre `Code.gs`, sélectionne tout (Ctrl+A), colle le nouveau fichier (Ctrl+V), enregistre (Ctrl+S).
 3. Exécute `verifierConfig`. Tout doit être ✅, dont `Mail unique (propriété MAIL_UNIQUE) : non`.
-4. **Déployer → Nouveau déploiement** (type « Application Web », exécuter en tant que « Moi », accès « Tout le monde »), description `Lot 5b`. Copie l'adresse qui finit par `/exec` et **donne-la-moi** : je l'écris dans `commun/config.js` et je publie les pages (appli 10.3).
+4. **Déployer → Nouveau déploiement** (type « Application Web », exécuter en tant que « Moi », accès « Tout le monde »), description `Lot 5b`. Copie l'adresse qui finit par `/exec` et **donne-la-moi** : je l'écris dans `commun/config.js` et je publie les pages (appli 10.7).
 5. Envoie une fiche réelle habituelle : elle doit partir **comme avant** (un mail par adresse). Seul le texte de fin a changé (« Envoyé à N destinataire(s) »).
 
 ## Étape D — allumer le mail unique (toi : 5 minutes) — seulement après mon « on peut allumer »

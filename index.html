@@ -6,7 +6,7 @@
 <title>Loué App</title>
 <link rel="icon" type="image/png" href="apple-touch-icon.png">
 <link rel="manifest" href="manifest.json">
-<link rel="stylesheet" href="commun/style.css?v=ce8167d0eb">
+<link rel="stylesheet" href="commun/style.css?v=01e603456d">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -75,9 +75,24 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 
 /* CHANTIERS */
 .list-wrap{display:flex;flex-direction:column;gap:10px;}
-.chantier-card{background:var(--card);border:1px solid var(--border);border-radius:var(--rl);padding:14px 16px;cursor:pointer;display:flex;align-items:center;gap:14px;transition:.15s;}
+.chantier-card{background:var(--card);border:1px solid var(--border);border-radius:var(--rl);padding:0;cursor:pointer;display:flex;align-items:stretch;gap:0;transition:.15s;overflow:hidden;}
 .chantier-card:active{background:#F0F5FF;}
-.ch-num{width:40px;height:40px;border-radius:10px;background:var(--blue-l);display:flex;align-items:center;justify-content:center;font-family:'Syne',sans-serif;font-weight:700;font-size:13px;color:var(--blue);flex-shrink:0;}
+/* Lot 12 : l'étoile, à gauche, large (une zone de 56 px pour un doigt ganté), séparée de la zone qui ouvre le chantier */
+.ch-etoile{flex:0 0 56px;width:56px;min-height:56px;border:0;border-right:1px solid var(--border);background:transparent;font-size:27px;line-height:1;color:#B8860B;cursor:pointer;padding:0;}
+.ch-etoile.vide{color:#5F5A55;}
+.ch-etoile:active{background:#FFF4D6;}
+.ch-etoile-vide{flex:0 0 56px;width:56px;border-right:1px solid var(--border);}
+.ch-ouvrir{flex:1;min-width:0;min-height:56px;display:flex;align-items:center;gap:10px;padding:12px 14px;border:0;background:transparent;text-align:left;font:inherit;color:inherit;cursor:pointer;}
+.chantier-card.fini{background:var(--bg);}
+.chantier-card.fini .ch-name,.chantier-card.fini .ch-ref{color:var(--muted);}
+.titre-finis{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin:10px 2px 0;}
+.btn-tous-ch{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;min-height:48px;margin:14px 0 0;padding:8px 16px;border:1px solid var(--border);border-radius:12px;background:var(--card);color:var(--muted);font:700 14px system-ui,sans-serif;cursor:pointer;}
+.btn-tous-ch .chevron{font-size:18px;transition:transform .15s;}
+.btn-tous-ch.ouvert .chevron{transform:rotate(180deg);}
+#tous-chantiers{margin-top:12px;}
+.annuler-favori{position:fixed;left:12px;right:12px;bottom:calc(12px + env(safe-area-inset-bottom,0px));z-index:700;display:flex;align-items:center;justify-content:space-between;gap:12px;background:#1A2B4A;color:#fff;border-radius:12px;padding:8px 8px 8px 16px;font:600 15px system-ui,sans-serif;box-shadow:0 6px 20px rgba(0,0,0,.25);}
+.annuler-favori[hidden]{display:none;}
+.annuler-favori button{min-height:44px;padding:6px 16px;border:0;border-radius:10px;background:#fff;color:#1A2B4A;font:700 15px system-ui,sans-serif;}
 .ch-name{font-family:'Syne',sans-serif;font-weight:700;font-size:14px;color:var(--text);}
 .ch-ref{font-size:11.5px;color:var(--muted);margin-top:2px;}
 .ch-arrow{margin-left:auto;color:var(--border2);}
@@ -152,7 +167,6 @@ body.loue-test .installer{padding-top:calc(56px + env(safe-area-inset-top,0px));
 .bandeau-sans-compte[hidden]{display:none;}
 .bandeau-sans-compte button{min-height:44px;padding:6px 14px;border-radius:10px;border:0;background:#1A2B4A;color:#fff;font:700 15px system-ui,sans-serif;}
 .recherche{width:100%;min-height:48px;border:1.5px solid var(--border2);border-radius:10px;padding:8px 14px;font-size:16px;margin-bottom:12px;background:#fff;}
-.btn-tous{display:block;width:100%;min-height:48px;margin-top:12px;border:1.5px dashed var(--border2);border-radius:12px;background:transparent;color:var(--blue-d);font:700 15px system-ui,sans-serif;}
 .ch-entete{font-size:15px;color:var(--muted);line-height:1.45;margin-bottom:14px;}
 .tuile-chantier{width:100%;text-align:left;font:inherit;color:inherit;margin-bottom:18px;}
 .label-section{margin:18px 0 12px;}
@@ -229,12 +243,28 @@ body.loue-test .installer{padding-top:calc(56px + env(safe-area-inset-top,0px));
     <div class="bonjour" id="bonjour"></div>
     <div class="bandeau-sans-compte" id="bandeau-sans-compte" hidden><span>Vous n’êtes pas connecté.</span><button type="button" onclick="allerConnexion()">Se connecter</button></div>
     <div class="home-label" id="label-chantiers">Mes chantiers</div>
-    <input type="search" id="recherche" class="recherche" placeholder="🔍 Rechercher un chantier" autocomplete="off" hidden>
     <div id="chantiers-container"><div class="loading"><div class="spinner"></div>Chargement…</div></div>
-    <button type="button" class="btn-tous" id="btn-tous" hidden onclick="basculerTous()">Voir tous les chantiers</button>
+    <button type="button" class="btn-tous-ch" id="btn-tous-ch" hidden aria-expanded="false" aria-controls="tous-chantiers" onclick="basculerTousChantiers()"><span id="btn-tous-ch-texte">Tous les chantiers</span><span class="chevron" aria-hidden="true">▾</span></button>
+    <div id="tous-chantiers" hidden>
+      <input type="search" id="recherche" class="recherche" placeholder="🔍 Rechercher un chantier" autocomplete="off" hidden>
+      <div id="tous-container"></div>
+    </div>
+    <div class="annuler-favori" id="annuler-favori" role="status" hidden><span>Retiré de « Mes chantiers »</span><button type="button" onclick="annulerRetrait()">Annuler</button></div>
 
     <div class="home-label label-section">Hors chantier</div>
     <div class="home-tiles">
+
+      <!-- Lot 10 : petit matériel des poseurs (rattaché à aucun chantier) -->
+      <div class="home-tile" id="tuile-commander" style="border-color:#B8DCC6" onclick="location.href='commander.html'">
+        <div class="tile-icon" style="background:var(--green-l)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="1.8"><circle cx="9" cy="20" r="1.4"/><circle cx="18" cy="20" r="1.4"/><path d="M2 3h3l2.6 12.2a1.5 1.5 0 001.5 1.2h8.6a1.5 1.5 0 001.5-1.2L21 7H6"/></svg>
+        </div>
+        <div class="tile-body">
+          <div class="tile-title">À commander</div>
+          <div class="tile-sub">Vis, consommables, outil en panne</div>
+        </div>
+        <div class="tile-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg></div>
+      </div>
 
       <div class="home-tile" style="border-color:#F0D8B0" onclick="showPage('planning')">
         <div class="tile-icon" style="background:var(--amber-l)">
@@ -280,11 +310,11 @@ body.loue-test .installer{padding-top:calc(56px + env(safe-area-inset-top,0px));
         <div class="tile-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg></div>
       </div>
 
-      <div class="home-tile" id="tuile-notes-accueil" style="border-color:#EBD9A8" onclick="ouvrirNotes(true)" hidden>
+      <div class="home-tile" id="tuile-notes-accueil" style="border-color:#EBD9A8" onclick="ouvrirMesNotes()" hidden>
         <div class="tile-icon" style="background:#FCF1D6"><svg viewBox="0 0 24 24" fill="none" stroke="#7A5200" stroke-width="1.8"><path d="M14 3H6a2 2 0 00-2 2v14a2 2 0 002 2h12a2 2 0 002-2V9z"/><polyline points="14 3 14 9 20 9"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="13" y2="17"/></svg></div>
         <div class="tile-body">
-          <div class="tile-title">Notes de chantier<span class="badge-notes" id="badge-notes-accueil" hidden></span></div>
-          <div class="tile-sub">Les listes de tous les chantiers</div>
+          <div class="tile-title">Notes<span class="badge-notes" id="badge-notes-accueil" hidden></span></div>
+          <div class="tile-sub">Les notes que j’ai écrites, tous chantiers</div>
         </div>
         <div class="tile-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg></div>
       </div>
@@ -364,6 +394,14 @@ body.loue-test .installer{padding-top:calc(56px + env(safe-area-inset-top,0px));
       <div class="tile-body">
         <div class="tile-title">Notes<span class="badge-notes" id="badge-notes" hidden></span></div>
         <div class="tile-sub">La liste des choses à faire du chantier</div>
+      </div>
+      <div class="tile-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg></div>
+    </button>
+    <button type="button" class="home-tile tuile-chantier" id="tuile-recap" style="border-color:#B0D8CC" onclick="ouvrirRecap()">
+      <div class="tile-icon" style="background:var(--teal-l)"><svg viewBox="0 0 24 24" fill="none" stroke="#0D7A6B" stroke-width="1.8"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="15" x2="16" y2="15"/><line x1="8" y1="18" x2="13" y2="18"/></svg></div>
+      <div class="tile-body">
+        <div class="tile-title">Récapitulatif des notes</div>
+        <div class="tile-sub">Les notes de réunion du chantier, à la suite</div>
       </div>
       <div class="tile-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg></div>
     </button>
@@ -500,19 +538,20 @@ body.loue-test .installer{padding-top:calc(56px + env(safe-area-inset-top,0px));
 </div>
 
 
-<script src="commun/config.js?v=ce8167d0eb"></script>
-<script src="commun/api.js?v=ce8167d0eb"></script>
-<script src="commun/ui.js?v=ce8167d0eb"></script>
-<script src="commun/notes.js?v=ce8167d0eb"></script>
-<script src="commun/hors-ligne.js?v=ce8167d0eb"></script>
+<script src="commun/config.js?v=01e603456d"></script>
+<script src="commun/api.js?v=01e603456d"></script>
+<script src="commun/ui.js?v=01e603456d"></script>
+<script src="commun/favoris.js?v=01e603456d"></script>
+<script src="commun/notes.js?v=01e603456d"></script>
+<script src="commun/commander.js?v=01e603456d"></script>
+<script src="commun/hors-ligne.js?v=01e603456d"></script>
 <script>
 // ── Accueil (lot 2) : connexion, « Mes chantiers », fiches du chantier avec le chantier pré-rempli ──
 // Rien ici n'empêche de remplir une fiche : « Remplir une fiche sans être connecté » est toujours proposé,
 // avec ou sans réseau. Les fiches rangées sans compte attendent la connexion (ou partent pendant la transition).
 const esc = LOUE.esc;
 let MODE = null;               // 'compte' (connecté) ou 'sans' (sans compte, pendant la transition)
-let CHANTIERS = [];            // chantiers affichés : { nom, reference, statut, conducteur, adresse, mien }
-let voirTous = false;
+let CHANTIERS = [];            // chantiers reçus : { nom, reference, statut, conducteur, numero, adresse, mien, planifie }
 let currentChantier = null;    // chantier ouvert (null : fiches sans chantier choisi)
 let mdpEnCours = null;         // { id, ancien } pendant le choix du mot de passe
 const FLECHE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>';
@@ -605,7 +644,7 @@ $('form-connexion').addEventListener('submit', e => {
   btn.disabled = true; btn.textContent = 'Connexion…';
   montrerErreur('cnx-erreur', '');
   LOUE.connexion(id, mdp).then(rep => {
-    if (rep.ok) { MODE = 'compte'; voirTous = false; afficherAccueil(); rafraichirCompte(); return; }
+    if (rep.ok) { MODE = 'compte'; tousOuvert = false; afficherAccueil(); rafraichirCompte(); return; }
     if (rep.code === 'NOUVEAU_MDP') { ouvrirChoixMdp(id, mdp, false); return; }
     if (rep.code === 'ACTION_INCONNUE') { montrerErreur('cnx-erreur', 'Le serveur n’a pas encore les comptes : touchez « Continuer sans compte ».'); $('cnx-sans-compte').hidden = false; return; }
     montrerErreur('cnx-erreur', rep.message || 'Connexion refusée.');
@@ -638,7 +677,7 @@ $('form-mdp').addEventListener('submit', e => {
   btn.disabled = true; btn.textContent = 'Enregistrement…';
   LOUE.changerMotDePasse(mdpEnCours.id, ancien, nouveau).then(rep => {
     if (!rep.ok) { montrerErreur('mdp-erreur', rep.message || 'Mot de passe refusé.'); return; }
-    mdpEnCours = null; MODE = 'compte'; voirTous = false;
+    mdpEnCours = null; MODE = 'compte'; tousOuvert = false;
     LOUE.message('✓ Mot de passe enregistré', 5000);
     afficherAccueil(); rafraichirCompte();
   }).catch(() => montrerErreur('mdp-erreur', 'Pas de réseau : réessayez quand le téléphone capte.'))
@@ -661,12 +700,21 @@ function afficherAccueil() {
   $('bonjour').textContent = c ? 'Bonjour ' + (String(c.profil.nom || '').split(/\s+/)[0] || c.profil.id) : '';
   $('bonjour').hidden = !c;
   if (c && c.chantiers) { CHANTIERS = c.chantiers; renderChantiers(); }
-  else if (c) $('chantiers-container').innerHTML = CHARGEMENT;
+  else {
+    // rien à montrer encore : la liste du compte (ou du mode) précédent ne reste pas à l'écran
+    CHANTIERS = [];
+    $('tous-container').innerHTML = ''; $('tous-chantiers').hidden = true; $('btn-tous-ch').hidden = true;
+    if (c) $('chantiers-container').innerHTML = CHARGEMENT;
+  }
   if (MODE === 'sans') chargerChantiersSansCompte();
 }
 // Profil et chantiers à jour (jeton prolongé) ; hors réseau, la dernière liste gardée suffit
 function rafraichirCompte() {
+  const pour = (LOUE.compte() || { profil: {} }).profil.id;
+  // une réponse qui arrive après un changement de compte (ou un passage sans compte) n'est ni affichée ni reportée dans les étoiles
+  const perime = () => MODE !== 'compte' || !LOUE.compte() || LOUE.compte().profil.id !== pour;
   LOUE.moi().then(rep => {
+    if (perime()) return;
     if (rep.ok) {
       CHANTIERS = rep.data.chantiers || []; renderChantiers();
       chargerBadgesNotes();                    // lot 3 : nombre de notes nouvelles par chantier
@@ -685,6 +733,7 @@ function rafraichirCompte() {
 function chargerChantiersSansCompte() {
   $('chantiers-container').innerHTML = CHARGEMENT;
   LOUE.chargerListes().then(r => {
+    if (MODE !== 'sans') return;   // connecté entre-temps : cette liste (tout « mien ») ne doit pas devenir les étoiles du compte
     CHANTIERS = ((r.donnees && r.donnees.chantiers) || []).map(c => Object.assign({}, c, { mien: true }));
     renderChantiers();
     if (r.depuisLeTelephone) LOUE.message('Pas de réseau : liste gardée dans le téléphone', 5000);
@@ -693,63 +742,140 @@ function chargerChantiersSansCompte() {
   });
 }
 
-// Derniers chantiers ouverts en premier (mémorisés dans le téléphone, par personne)
-function cleRecents() { const c = LOUE.compte(); return 'loue_recents_' + LOUE.env + '_' + (c ? c.profil.id : 'sans'); }
-function noterRecent(nom) {
-  const l = (lireLocal(cleRecents()) || []).filter(n => n !== nom);
-  l.unshift(nom); ecrireLocal(cleRecents(), l.slice(0, 20));
+// ── Lot 12 : « Mes chantiers » (les étoiles de la personne, classées par numéro) et « Tous les chantiers » (repliés) ──
+// Les étoiles sont tenues par commun/favoris.js, dans le téléphone, par compte : elles marchent sans réseau.
+let tousOuvert = false;       // « Tous les chantiers » déplié ; replié à chaque ouverture de l'appli
+let FAVORIS = null;           // les étoiles du compte connecté
+let retrait = null;           // dernière étoile retirée, annulable pendant 6 secondes : { cle, minuteur }
+let favorisEnMemoire = false; // vrai : le téléphone a refusé de garder les étoiles, elles ne vivent qu'à l'écran
+let favorisPour = '';         // le compte dont FAVORIS porte les étoiles
+function majFavoris() {
+  const c = LOUE.compte();
+  if (MODE !== 'compte' || !c) { FAVORIS = null; favorisPour = ''; return; }
+  if (favorisPour !== c.profil.id) { FAVORIS = null; favorisEnMemoire = false; favorisPour = c.profil.id; }   // autre compte : ses étoiles à lui
+  const base = favorisEnMemoire && FAVORIS ? FAVORIS : LOUE.favoris.lire(c.profil.id);
+  const r = LOUE.favoris.integrer(base, CHANTIERS);   // ce que le serveur signale (cases, planning) devient une étoile, une fois
+  FAVORIS = r.etat;
+  if (r.change) garderFavoris(c.profil.id);
+  try { localStorage.removeItem('loue_recents_' + LOUE.env + '_' + c.profil.id); } catch (e) {}   // l'ancien classement « derniers ouverts » n'existe plus
+}
+function carteChantier(x, cle, avecEtoile) {
+  // Le numéro du chantier (la liste est classée par numéro), sauf si le nom commence déjà par lui
+  const no = String(x.numero || '').trim();
+  const sous = [no && x.nom.indexOf(no) !== 0 ? 'N° ' + esc(no) : '', x.reference ? 'Réf. ' + esc(x.reference) : '', x.adresse ? esc(x.adresse) : ''].filter(Boolean).join(' · ');
+  const fini = LOUE.favoris.estTermine(x);
+  const statut = x.statut ? '<span class="ch-statut ' + (x.statut === 'En cours' ? 's-cours' : 's-fin') + '">' + esc(x.statut) + '</span>' : '';
+  const nouvelles = Number(NOTES_NOUVELLES.parChantier[x.nom]) || 0;
+  const badge = nouvelles ? '<span class="badge-notes" title="Éléments nouveaux dans la liste du chantier">' + (nouvelles > 9 ? '9+' : nouvelles) + '</span>' : '';
+  const a = LOUE.favoris.aEtoile(FAVORIS, cle);
+  // Un chantier terminé n'a pas d'étoile (il ne va plus dans « Mes chantiers ») : une place vide garde les noms alignés
+  const etoile = !avecEtoile ? '' : (fini ? '<span class="ch-etoile-vide" aria-hidden="true"></span>'
+    : '<button type="button" class="ch-etoile' + (a ? '' : ' vide') + '" data-etoile="' + esc(cle) + '" aria-pressed="' + (a ? 'true' : 'false') + '" aria-label="'
+      + (a ? 'Retirer de mes chantiers : ' : 'Ajouter à mes chantiers : ') + esc(x.nom) + '">' + (a ? '★' : '☆') + '</button>');
+  return '<div class="chantier-card' + (fini ? ' fini' : '') + '" data-nom="' + esc(x.nom) + '">' + etoile
+    + '<button type="button" class="ch-ouvrir"><div style="flex:1;min-width:0"><div class="ch-name">' + esc(x.nom) + badge + '</div>'
+    + (sous ? '<div class="ch-ref">' + sous + '</div>' : '') + '</div>' + statut + '<div class="ch-arrow">' + FLECHE + '</div></button></div>';
 }
 function renderChantiers() {
-  const el = $('chantiers-container');
   const c = LOUE.compte();
-  const peutTout = MODE === 'compte' && c && c.profil.tous;
-  const autres = CHANTIERS.filter(x => !x.mien).length;
-  const liste = CHANTIERS.filter(x => voirTous || x.mien);
-  $('label-chantiers').textContent = MODE === 'sans' ? 'Chantiers' : (voirTous ? 'Tous les chantiers' : 'Mes chantiers');
+  const compte = MODE === 'compte' && !!c;
   $('tuile-signalements-accueil').hidden = MODE !== 'compte';   // lot 7 : le suivi demande un compte
-  $('tuile-notes-accueil').hidden = !(MODE === 'compte' && c && c.profil.conducteur);   // lot 3 : vue « tous chantiers » des conducteurs et de l'admin
+  $('tuile-notes-accueil').hidden = !compte;   // lot 13 : « Mes notes », pour tout compte (les conducteurs y retrouvent la vue « tous chantiers »)
   majBadgesNotes();
-  $('btn-tous').hidden = !(peutTout && autres);
-  $('btn-tous').textContent = voirTous ? 'Revenir à mes chantiers' : 'Voir tous les chantiers (' + CHANTIERS.length + ')';
-  const rech = $('recherche');
-  rech.hidden = liste.length <= 6;
-  const filtre = rech.hidden ? '' : rech.value.trim().toLowerCase();
-  const recents = lireLocal(cleRecents()) || [];
-  const rang = n => { const i = recents.indexOf(n); return i < 0 ? 999 : i; };
-  const affiches = liste.filter(x => !filtre || (x.nom + ' ' + (x.reference || '') + ' ' + (x.adresse || '')).toLowerCase().indexOf(filtre) > -1)
-    .map((x, i) => ({ x, i })).sort((a, b) => (rang(a.x.nom) - rang(b.x.nom)) || (a.i - b.i)).map(o => o.x);
-  if (!liste.length) {
-    el.innerHTML = MODE === 'compte' && !peutTout
+  majFavoris();
+  const rg = LOUE.favoris.ranger(FAVORIS, CHANTIERS);
+  const mes = compte ? rg.mes : [];
+  const elMes = $('chantiers-container'), elTous = $('tous-container'), btn = $('btn-tous-ch'), zone = $('tous-chantiers'), rech = $('recherche');
+  $('label-chantiers').textContent = compte ? 'Mes chantiers' : 'Chantiers';
+
+  // 1. « Mes chantiers » : les chantiers étoilés, par numéro (sans compte : rien ici, la liste entière est en dessous)
+  if (!CHANTIERS.length) {
+    elMes.innerHTML = compte && !c.profil.tous
       ? vide('Aucun chantier pour l’instant', 'Le bureau doit cocher vos chantiers dans le Sheet. En attendant, toutes les fiches sont dans « Fiche sans chantier choisi », plus bas.', ICONE_MAISON)
-      : (peutTout && autres ? vide('Aucun chantier à votre nom', 'Touchez « Voir tous les chantiers » ci-dessous.', ICONE_MAISON)
-        : vide('Aucun chantier', 'Ajoutez des chantiers dans l’onglet Chantiers du Sheet.', ICONE_MAISON));
-    return;
+      : vide('Aucun chantier', 'Ajoutez des chantiers dans l’onglet Chantiers du Sheet.', ICONE_MAISON);
+  } else if (!compte) {
+    elMes.innerHTML = '';
+  } else if (!mes.length) {
+    elMes.innerHTML = vide('Aucun chantier dans « Mes chantiers »', 'Touchez l’étoile ☆ d’un chantier, juste en dessous, pour le mettre ici.', ICONE_MAISON);
+  } else {
+    elMes.innerHTML = '<div class="list-wrap">' + mes.map(x => carteChantier(x, rg.cles[x.nom], true)).join('') + '</div>';
   }
-  if (!affiches.length) { el.innerHTML = vide('Aucun résultat', 'Aucun chantier ne correspond à « ' + esc(filtre) + ' ».', ICONE_MAISON); return; }
-  el.innerHTML = '<div class="list-wrap">' + affiches.map((x, i) => {
-    const sous = [x.reference ? 'Réf. ' + esc(x.reference) : '', x.adresse ? esc(x.adresse) : ''].filter(Boolean).join(' · ');
-    const statut = x.statut ? '<span class="ch-statut ' + (x.statut === 'En cours' ? 's-cours' : 's-fin') + '">' + esc(x.statut) + '</span>' : '';
-    const nouvelles = Number(NOTES_NOUVELLES.parChantier[x.nom]) || 0;
-    const badge = nouvelles ? '<span class="badge-notes" title="Éléments nouveaux dans la liste du chantier">' + (nouvelles > 9 ? '9+' : nouvelles) + '</span>' : '';
-    return '<button type="button" class="chantier-card" data-nom="' + esc(x.nom) + '">'
-      + '<div class="ch-num">' + String(i + 1).padStart(2, '0') + '</div>'
-      + '<div style="flex:1;min-width:0"><div class="ch-name">' + esc(x.nom) + badge + '</div>' + (sous ? '<div class="ch-ref">' + sous + '</div>' : '') + '</div>'
-      + statut + '<div class="ch-arrow">' + FLECHE + '</div></button>';
-  }).join('') + '</div>';
+
+  // 2. « Tous les chantiers » : repliés ; dépliés d'office sans compte, ou tant que « Mes chantiers » est vide
+  const ouvert = CHANTIERS.length > 0 && (!compte || tousOuvert || !mes.length);
+  btn.hidden = !compte || !CHANTIERS.length;
+  $('btn-tous-ch-texte').textContent = 'Tous les chantiers (' + CHANTIERS.length + ')';
+  btn.setAttribute('aria-expanded', ouvert ? 'true' : 'false');
+  btn.classList.toggle('ouvert', ouvert);
+  zone.hidden = !ouvert;
+  if (!ouvert) { elTous.innerHTML = ''; return; }
+  rech.hidden = rg.tous.length <= 6;
+  const filtre = rech.hidden ? '' : rech.value.trim().toLowerCase();
+  const affiches = rg.tous.filter(x => !filtre || (x.nom + ' ' + (x.numero || '') + ' ' + (x.reference || '') + ' ' + (x.adresse || '')).toLowerCase().indexOf(filtre) > -1);
+  if (!affiches.length) { elTous.innerHTML = vide('Aucun résultat', 'Aucun chantier ne correspond à « ' + esc(filtre) + ' ».', ICONE_MAISON); return; }
+  // Les chantiers en cours d'abord ; les « Terminé » en bas, grisés, sous leur titre
+  const enCours = affiches.filter(x => !LOUE.favoris.estTermine(x)), finis = affiches.filter(x => LOUE.favoris.estTermine(x));
+  elTous.innerHTML = '<div class="list-wrap">' + enCours.map(x => carteChantier(x, rg.cles[x.nom], compte)).join('')
+    + (finis.length ? '<div class="titre-finis">Chantiers terminés</div>' + finis.map(x => carteChantier(x, rg.cles[x.nom], compte)).join('') : '') + '</div>';
 }
 $('recherche').addEventListener('input', renderChantiers);
-function basculerTous() { voirTous = !voirTous; renderChantiers(); }
-$('chantiers-container').addEventListener('click', e => {
-  const b = e.target.closest('[data-nom]');
-  if (!b) return;
-  const ch = CHANTIERS.find(x => x.nom === b.getAttribute('data-nom'));
+function basculerTousChantiers() { tousOuvert = !tousOuvert; renderChantiers(); }
+// Une étoile : ★ retire le chantier de « Mes chantiers » (annulable 6 secondes), ☆ l'y met. Rien n'est envoyé au serveur.
+// carte (facultatif) : la carte touchée dans « Tous les chantiers ». Après le dessin, la page est décalée pour qu'elle
+// reste sous le doigt (« Mes chantiers », au-dessus, vient de gagner ou de perdre une ligne).
+function basculerEtoile(cle, carte) {
+  const c = LOUE.compte();
+  if (!c || MODE !== 'compte') return;
+  // La liste affichée (même dépliée d'office parce que « Mes chantiers » était vide) reste dépliée : elle ne se
+  // referme pas sous le doigt à la première étoile
+  if (!$('tous-chantiers').hidden) tousOuvert = true;
+  const nomCarte = carte ? carte.getAttribute('data-nom') : '', avant = carte ? carte.getBoundingClientRect().top : 0;
+  const avait = LOUE.favoris.aEtoile(FAVORIS, cle);
+  FAVORIS = LOUE.favoris.basculer(FAVORIS, cle, !avait);
+  garderFavoris(c.profil.id);
+  cacherAnnulation();
+  if (avait) {
+    retrait = { cle: cle, minuteur: setTimeout(cacherAnnulation, 6000) };
+    $('annuler-favori').hidden = false;
+  }
+  renderChantiers();
+  if (nomCarte) {
+    const apres = Array.from(document.querySelectorAll('#tous-container .chantier-card')).find(x => x.getAttribute('data-nom') === nomCarte);
+    if (apres) window.scrollBy(0, apres.getBoundingClientRect().top - avant);
+  }
+}
+// Les étoiles vont dans le téléphone. S'il refuse (mémoire pleine, navigation privée), elles restent au moins à l'écran
+// jusqu'à la fermeture de l'appli, et la page le dit une fois.
+function garderFavoris(id) {
+  if (LOUE.favoris.ecrire(id, FAVORIS)) { favorisEnMemoire = false; return; }
+  if (!favorisEnMemoire) LOUE.message('⚠ Le téléphone ne peut pas garder vos étoiles (mémoire pleine ?). Elles resteront jusqu’à la fermeture de l’appli.', 9000);
+  favorisEnMemoire = true;
+}
+function cacherAnnulation() {
+  if (retrait) clearTimeout(retrait.minuteur);
+  retrait = null;
+  $('annuler-favori').hidden = true;
+}
+function annulerRetrait() {
+  const c = LOUE.compte();
+  if (retrait && c) { FAVORIS = LOUE.favoris.basculer(FAVORIS, retrait.cle, true); garderFavoris(c.profil.id); }
+  cacherAnnulation();
+  renderChantiers();
+}
+function clicChantier(e) {
+  const etoile = e.target.closest('[data-etoile]');
+  if (etoile) { basculerEtoile(etoile.getAttribute('data-etoile'), etoile.closest('#tous-container .chantier-card')); return; }
+  const carte = e.target.closest('[data-nom]');
+  if (!carte) return;
+  const ch = CHANTIERS.find(x => x.nom === carte.getAttribute('data-nom'));
   if (ch) ouvrirFiches(ch);
-});
+}
+$('chantiers-container').addEventListener('click', clicChantier);
+$('tous-container').addEventListener('click', clicChantier);
 
 // ── Un chantier : ses tuiles (carnet, signalements, notes) et ses fiches (chantier passé dans l'adresse) ; ou toutes les fiches sans chantier ──
 function ouvrirFiches(ch) {
   currentChantier = ch;
-  if (ch) noterRecent(ch.nom);
   $('titre-chantier').textContent = ch ? ch.nom : 'Fiches (chantier à taper)';
   $('ch-entete').innerHTML = ch
     ? [ch.reference ? 'Réf. ' + esc(ch.reference) : '', ch.adresse ? esc(ch.adresse) : '', ch.conducteur ? 'Conducteur : ' + esc(ch.conducteur) : ''].filter(Boolean).join('<br>')
@@ -757,6 +883,7 @@ function ouvrirFiches(ch) {
   $('tuile-signalements').hidden = !ch || MODE !== 'compte';   // le suivi demande un compte
   $('tuile-notes').hidden = !ch || MODE !== 'compte';           // lot 3 : les notes demandent un compte
   $('tuile-carnet').hidden = !ch || MODE !== 'compte';          // lot 4 : le carnet demande un compte
+  $('tuile-recap').hidden = !ch || MODE !== 'compte';           // lot 8d : le récapitulatif des notes de réunion aussi
   majBadgesNotes();
   document.querySelectorAll('#page-chantier-fiches a.fiche-card[data-base]').forEach(a => {
     const base = a.getAttribute('data-base');
@@ -765,18 +892,25 @@ function ouvrirFiches(ch) {
   showPage('chantier-fiches');
 }
 
-// ── Notes de chantier (lot 3) : celles du chantier ouvert, ou toutes (conducteurs, depuis l'accueil) ──
+// ── Notes (lot 3) : celles du chantier ouvert ; lot 13 : « Mes notes » depuis l'accueil ──
 function ouvrirCarnet() {
   if (currentChantier) location.href = 'carnet.html?chantier=' + encodeURIComponent(currentChantier.nom);
 }
-function ouvrirNotes(tous) {
-  location.href = 'notes.html' + (!tous && currentChantier ? '?chantier=' + encodeURIComponent(currentChantier.nom) : '');
+function ouvrirRecap() {
+  if (currentChantier) location.href = 'recap-notes.html?chantier=' + encodeURIComponent(currentChantier.nom);
 }
+function ouvrirNotes() {
+  if (currentChantier) location.href = 'notes.html?chantier=' + encodeURIComponent(currentChantier.nom);
+}
+// Lot 13 : la tuile « Notes » de l'accueil ouvre « Mes notes » (ce que la personne a écrit, tous chantiers confondus)
+function ouvrirMesNotes() { location.href = 'mes-notes.html'; }
 // Badges « notes nouvelles » : demandés en tâche de fond (l'accueil ne les attend jamais) ; sans réseau, pas de badge
 let NOTES_NOUVELLES = { parChantier: {}, total: 0 };
 function majBadgesNotes() {
   const pose = (id, n) => { const b = $(id); b.hidden = !n; b.textContent = n > 9 ? '9+' : String(n || ''); };
-  pose('badge-notes-accueil', MODE === 'compte' ? NOTES_NOUVELLES.total : 0);
+  // le chiffre rouge de la tuile compte ce que LES AUTRES ont ajouté : il n'a de sens que pour les conducteurs (vue « tous chantiers »)
+  const cb = LOUE.compte();
+  pose('badge-notes-accueil', MODE === 'compte' && cb && cb.profil.conducteur ? NOTES_NOUVELLES.total : 0);
   pose('badge-notes', MODE === 'compte' && currentChantier ? Number(NOTES_NOUVELLES.parChantier[currentChantier.nom]) || 0 : 0);
 }
 function chargerBadgesNotes() {
@@ -984,7 +1118,7 @@ async function seDeconnecter() {
   if (!confirm(texte)) return;
   MODE = null;
   LOUE.deconnecter();
-  CHANTIERS = []; voirTous = false;
+  CHANTIERS = []; tousOuvert = false; FAVORIS = null; favorisEnMemoire = false; cacherAnnulation();
   allerConnexion();
 }
 // Incidents récents gardés par l'appli (rangement bloqué ou lent…) : à me transmettre s'il y en a

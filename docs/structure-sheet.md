@@ -48,6 +48,29 @@ Les empreintes des mots de passe ne sont **pas** dans le Sheet (Propriétés du 
 
 Ligne 1 : « Chantier », « Remarque (appli) », puis un identifiant de poseur / atelier par colonne. Une ligne par chantier, une case par personne. Lignes et colonnes ajoutées par l'appli, jamais supprimées.
 
+Lot 12 : quand le réglage « Tous les comptes ouvrent tous les chantiers » est allumé, la case B1 affiche « CASES SANS EFFET SUR LES ACCÈS » ; les cases sont gardées telles quelles (éteindre le réglage leur rend leur effet). Une case cochée met encore le chantier, une fois, dans « Mes chantiers » de la personne.
+
+## Onglet « Réglages » (lot 12 — créé par `installerLot12Test` / `installerLot12Production`)
+
+|Colonne|Titre|Contenu|
+|-|-|-|
+|A|Réglage|« Tous les comptes ouvrent tous les chantiers »|
+|B|Allumé|**Une case à cocher.** Cochée : tout compte actif voit et ouvre tous les chantiers. Décochée (livraison) : chacun voit ses chantiers cochés|
+|C|État (écrit par l'appli)|« Allumé depuis le … » / « Éteint depuis le … », mis à jour dans les 10 minutes|
+
+- La case agit **tout de suite** (elle est lue à chaque demande d'un téléphone).
+- Tout ce qui n'est pas « une seule ligne à ce nom, case cochée » vaut **éteint** : un texte (« oui »), la ligne en double, la ligne renommée, l'onglet absent. « VRAI » tapé à la main dans la case devient une case cochée (Google Sheets le transforme) : cela allume.
+- Toute personne qui peut modifier le Sheet peut cocher la case.
+- Ne change pas le texte de la colonne A.
+
+## Onglet « Planifiés » (lot 12 — créé par l'appli au premier passage, quand le planning existera)
+
+Une ligne par gars et par chantier où il a été planifié : Compte, N° du chantier, Chantier, Série commencée le (lundi), Dernière semaine planifiée (lundi), Mis à jour le. En colonne H, « À voir » : ce que l'appli a ignoré dans le planning (compte inconnu, numéro qui n'est pas celui d'un seul chantier en cours — un chantier « Terminé » qui porte le même numéro ne compte pas —, plus de 4 chantiers nouveaux pour un gars). **Écrit par l'appli seulement** ; ne rien y modifier.
+
+- **Propriété du script `PLANNING_SHEET_ID`** : l'identifiant du Sheet « Planning Loué ». Tant qu'elle n'existe pas, l'appli ne lit aucun planning et cet onglet n'est pas créé.
+- **Propriété `PLANIF_ETAT`** : ce que l'appli retient d'une lecture à l'autre (semaines déjà lues, mails d'alerte déjà envoyés). Ne pas la modifier.
+- L'appli **lit** l'onglet « APPLI » du planning ; elle n'écrit **jamais** dans le planning.
+
 ## Onglet « Intervenants » (lot 2, 9a)
 
 Chantier, Nom, Société, Lot / fonction, Mail, Téléphone, Mis à jour le. Vide pour l'instant : la transmission des intervenants par les skills a été abandonnée le 13/11/2026 (D9b-5). La note de réunion (lot 8) laissera ajouter les intervenants à la main.
@@ -143,12 +166,73 @@ Une ligne par note de réunion reçue, écrite **en une fois** par l'appli. Un c
 |H|Nom du PDF|Le fichier rangé dans Drive|
 |I|Reçu le|Heure du serveur|
 |J|Remarque de l'appli|« chantier hors liste », « reçu après le compte rendu du … »…|
+|K|Texte de la note|**Lot 8d**, colonne posée par `installerLot8dTest` / `installerLot8dProduction`. Le texte saisi dans la note (20 000 caractères au plus ; au-delà il est coupé, et le dit). Sert au récapitulatif des notes du chantier|
 
 - Colonnes de texte en « texte brut » ; une formule tapée dans l'objet ou un nom reste du texte.
 - **Ne change pas la ligne de titres.** Si elle change, l'appli n'écrit plus rien dans l'onglet : les notes partent quand même (PDF et mails), mais sans ligne ici, et Franck reçoit un mail (un par jour au plus). Remets les titres : tout reprend.
 - Tu peux trier l'onglet : l'appli retrouve une note par son numéro de fiche, jamais par sa place.
-- **Aucune adresse de destinataire** n'est gardée ici. Ni le texte de la note ni ses **photos** ne sont gardés ici : ils sont dans le PDF.
-- Les colonnes K à N (« Points ouverts… », « Données de l'appli ») n'existent que sur la copie TEST : elles datent des points (lot 8c), retirés le 19/11/2026 avant toute mise en production. Le serveur ne les lit pas.
+- **Aucune adresse de destinataire** n'est gardée ici. Les **photos** ne sont pas gardées ici : elles sont dans le PDF. Le **texte** de la note est gardé en colonne K depuis le lot 8d (avant : dans le PDF seulement).
+- **Colonne K (lot 8d)** : tant qu'elle n'existe pas, le serveur ne garde aucun texte et ne fait aucun récapitulatif. **Changer son titre arrête le récapitulatif** (les notes partent comme avant) ; remettre « Texte de la note » le fait reprendre. Un texte qui commence par « = », « + », « - » ou « @ » est précédé d'une apostrophe : il reste du texte, jamais une formule.
+- **Propriété du script `RECAP_A_REFAIRE`** (lot 8d) : la liste des chantiers dont le fichier « RÉCAPITULATIF DES NOTES - … » est à refaire au prochain passage de 10 minutes. Elle se vide toute seule ; ne pas la modifier.
+- Sur la copie TEST seulement, les colonnes K à N portaient encore les titres des points (lot 8c, retiré le 19/11/2026 avant toute mise en production). Elles sont vidées par la porte de service (`viderColonnesPoints`) avant l'installation du lot 8d, qui a besoin de la colonne K.
+- **Deux chantiers de même N°** : le récapitulatif (lot 8d) ne les mélange jamais ; il suit alors chaque chantier par son nom exact.
+
+## Onglet « Demandes » (lot 10a-1 — créé par `installerLot10Test` / `installerLot10Production`, ou à la première demande)
+
+Une ligne par demande « À commander » ou « Outil en panne » d'un poseur (petit matériel : visserie, consommables, outillage). Aucun chantier.
+
+|Colonne|Titre|Contenu|Exemple fictif|
+|-|-|-|-|
+|A|Date|Heure d'arrivée au serveur. **C'est elle qui décide du récapitulatif**, pas l'heure du téléphone|17/11/2026 10:02|
+|B|Poseur|Le nom du **compte** qui a envoyé (jamais saisi)|Poseur A|
+|C|Type|« À commander » ou « Outil en panne »|À commander|
+|D|Quoi|80 caractères au plus|Vis 4×40|
+|E|Quantité|30 caractères au plus ; pour un outil en panne : la précision (facultative)|2 boîtes|
+|F|Commandé|**Case à cocher, posée par l'appli sur chaque nouvelle ligne. C'est la seule colonne que Franck remplit.** Cochée : le poseur voit « ✓ Commandé »|☐|
+|G|Récapitulatif du|Vide = pas encore partie dans un mail. Sinon la date du mail (jj/mm/aaaa), écrite par l'appli|17/11/2026|
+|H|Compte|Identifiant du compte (technique)|poseura|
+|I|N° de fiche|Créé par le téléphone ; sert à ne jamais noter deux fois la même demande (technique)||
+
+- **Le mail** : du lundi au vendredi, au premier passage du réveil des 10 minutes après 15 h 45 (heure de Paris), toutes les lignes dont la colonne G est vide partent dans un mail à Franck, puis la date est écrite en G. Réglages : `DEMANDES_HEURE_LIMITE` et `DEMANDES_FIN_ESSAIS` dans `apps-script/Config.gs`.
+- Case cochée **avant** le mail : la ligne y figure quand même, avec « (déjà commandé) ».
+- Une cellule F **sans case** (colonne refaite à la main) est tolérée : « oui », « x », « ok » comptent comme cochée.
+- **Ne change pas la ligne de titres et ne déplace pas les colonnes.** Sinon l'appli ne lit et n'écrit plus rien ici : les demandes attendent dans les téléphones, le mail ne part pas, et Franck reçoit un mail d'alerte (un par jour au plus). Remets les titres : tout repart, rien n'est perdu.
+- **Ne vide pas la colonne G à la main** : la ligne repartirait dans le prochain mail.
+- Tu peux **trier** l'onglet et **supprimer** une ligne (demande faite par erreur) : l'appli retrouve une demande par son N° de fiche, jamais par sa place.
+- Colonnes de texte en « texte brut » ; une formule tapée dans « Quoi » reste du texte.
+- 30 demandes par compte et par jour au plus.
+- Deux réglages techniques sont gardés dans les Propriétés du script (pas dans le Sheet) : `DEMANDES_PASSAGE` (le dernier jour dont le récapitulatif est fait) et `DEMANDES_REPORT` (un récapitulatif qui n'a pas pu partir avant 17 h 30).
+
+## Onglet « Articles » (lot 10a-2 — facultatif ; créé vide par `installerLot10Test` / `installerLot10Production`)
+
+La liste des articles que Franck propose à **tous** les poseurs pendant la frappe, sur la page « À commander ». **Une seule colonne, un article par ligne.**
+
+|Colonne|Titre|Contenu|Exemple fictif|
+|-|-|-|-|
+|A|Article|Le nom de l'article, comme tu veux le voir écrit dans les demandes. 80 caractères au plus (le reste est coupé)|Vis 4×40|
+
+- **Facultatif** : vide ou absent, tout marche (les poseurs ont quand même les propositions tirées de leurs propres demandes).
+- **500 articles au plus** : les 500 premiers sont proposés (lus dans les 2 000 premières lignes). `verifierConfig` le dit si la liste est trop longue.
+- **L'ordre compte** : quand plusieurs articles conviennent, ceux du haut sont proposés d'abord (3 propositions au plus).
+- **Doublons retirés tout seuls** : « Vis 4×40 », « vis 4x40 » et « VIS 4 X 40 » ne font qu'un (le premier écrit est gardé).
+- La première ligne « Article » est un titre : elle n'est pas proposée. Tu peux la retirer.
+- Lignes vides et formules en erreur : ignorées. Une formule tapée ici n'est jamais exécutée dans les téléphones : c'est du texte.
+- La liste n'est donnée qu'aux **comptes connectés**. Un téléphone la reçoit à l'ouverture de « À commander » (avec du réseau), seulement si elle a changé, et la garde pour le hors réseau.
+- Tu peux trier, vider ou supprimer l'onglet : rien ne casse.
+
+## Le point du vendredi (lot 10b) : ce qu'il lit, sans rien écrire
+
+Le mail du vendredi ne crée et ne modifie aucun onglet. Il **lit** :
+
+|Onglet|Ce qui est lu|Si l'onglet manque|
+|-|-|-|
+|*Signalements*|« Reçu le », Chantier, Auteur, Type, Urgence, Statut. **La ligne de titres doit rester celle de l'appli**|la partie dit « indisponible »|
+|*Mails en attente*|les lignes au statut « en attente » et leur date|« rien à signaler »|
+|*Stockage*|les cellules « Place utilisée » et « Mesurée le » (lignes 2 et 3)|« pas encore mesurée »|
+|*Envois*|les fiches au statut « erreur » ou « en attente de photos », reçues depuis 30 jours|« rien à signaler »|
+
+- Sa mémoire est dans les Propriétés du script (pas dans le Sheet) : `VENDREDI_POINT` (en service ou non, dernier vendredi réglé, date du dernier mail parti).
+- Un mail abandonné (pas parti avant 18 h) laisse une ligne dans l'onglet *Journal* : fiche « point du vendredi », statut « abandonné ».
 
 ## Onglet « Installation » (outillage)
 
@@ -314,6 +398,32 @@ Une ligne **par matériau** ; le même type est répété sur plusieurs lignes. 
 |C|Quantité|Quantité proposée (modifiable sur le téléphone), telle quelle|20|
 
 Si l'onglet est vide, le champ « Type » propose l'onglet *Materiaux*, comme avant.
+
+## Onglet « Absences suivi » (lot 14 — créé tout seul à la première demande, quand la ligne « Adresses de la direction » de l'onglet Réglages donne une adresse)
+
+Une ligne par demande d'absence. **Aucun motif n'y est écrit.** Le programme de publication du planning vient y lire les demandes « Acceptée ».
+
+|Colonne|Titre|Contenu|
+|-|-|-|
+|A|Numéro|le numéro de la fiche (celui de l'onglet *Envois*)|
+|B|Reçue le|heure du serveur|
+|C|Compte|l'identifiant du compte qui a envoyé la demande (vide : sans compte)|
+|D|Demandeur|le nom écrit dans la demande|
+|E|Date d'absence|le texte de la demande (« Du 30/11/2026 au 02/12/2026 »)|
+|F, G|Du, Au|les mêmes dates, en AAAA-MM-JJ (vides si illisibles)|
+|H|Durée|Matin, Après-midi ou Journée entière|
+|I|Appellation (planning)|Absent, Congés, École ou Formation|
+|J|État|En attente, Acceptée ou Refusée (écrit par la réponse de la direction)|
+|K|Décidée le|heure de la réponse|
+|L|Mail au conducteur|« à envoyer », puis « envoyé le … » (demandes acceptées)|
+|M|Mail à la direction|« envoyé le … » ; vide tant que le mail n'est pas parti (le poseur ne voit alors pas la demande « En attente »)|
+|N|Copie dans Gmail|« à mettre à la corbeille … », puis « à la corbeille le … » (le mail envoyé à la direction sort de « Messages envoyés ») ; « gardé » s'il est aussi dans la boîte de réception du compte ; « pas trouvé… : à supprimer à la main » après 24 h|
+
+Onglet *Absences* (d'avant) : avec le lot 14 allumé, les colonnes Imputation, Motif et Précisions contiennent « (réservé à la direction) » et « Email perso » reste vide.
+
+**Onglet « Réglages », ligne « Adresses de la direction (demandes d'absence) »** (lot 14, posée par `installerLot14Test` / `installerLot14Production`) : colonne B = 1 à 3 adresses séparées par une virgule (vide en production à l'installation : Franck les écrit) ; colonne C = ce que l'appli a compris, écrit par elle. Case vide : les demandes partent comme avant, avec une alerte à Franck.
+
+Propriété du script facultative : `ADRESSE_APPLI` (adresse des pages pour les liens du mail ; sans elle, l'appli de production, ou la copie d'essai sur la copie TEST).
 
 ## Autres onglets
 

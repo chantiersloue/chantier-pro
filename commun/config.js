@@ -10,7 +10,7 @@
   // Copie de test (Sheet « ChantierPro TEST ») : s'active en ouvrant l'appli avec ?env=test, se coupe avec ?env=prod
   var URL_TEST = 'https://script.google.com/macros/s/AKfycby2f8c3dSG8ZNHNFOf3xFmd-75jytlBBK-Ji87YpqhDU8V8nMjYSB66VhnRGepRykMZTg/exec';
 
-  var VERSION_APPLI = '10.3';   // lot 5b (textes : « destinataires » au lieu de « mails ») ; 10.1 : lot 8b (onglet « Comptes rendus », compteur de mails) ; la 10.2 (lot 8c, note de réunion en points) a été retirée le 19/11/2026 avant toute mise en production ; 10.0 : lot 8a (annotation des photos qu'on peut rouvrir) ; 9.1 : lot 5c (planning envoyé par le serveur aux seuls comptes) ; 9.0 : lot 4a (carnet de chantier) ; 8.0 : lot 3 (notes de chantier) ; 7.0 : lot 7 (signalements) ; 6.0 : lot 2 (comptes)
+  var VERSION_APPLI = '10.7';   // mail unique (lot 5b : textes « destinataires » au lieu de « mails »), par-dessus le groupe B ; 10.6 : groupe B : lots 10a-1 et 10a-2 (« À commander » : demandes de petit matériel, « Mes demandes », gros boutons des articles habituels, liste « Articles ») ; 10.5 : lot 14 (demande d'absence : « Mes demandes », page de réponse de la direction) ; 10.4 : lot 13 (tuile « Notes » : mes notes ; « Garder pour plus tard » et « Brouillons gardés ») ; 10.3 : lot 12 (accueil « Mes chantiers » / « Tous les chantiers », étoiles) ; 10.2 : lot 8d (récapitulatif des notes de réunion ; ce numéro avait servi aux essais du lot 8c, les points, retirés le 19/11/2026 avant toute mise en production) ; 10.1 : lot 8b (onglet « Comptes rendus », compteur de mails) ; 10.0 : lot 8a (annotation des photos qu'on peut rouvrir) ; 9.1 : lot 5c (planning envoyé par le serveur aux seuls comptes) ; 9.0 : lot 4a (carnet de chantier) ; 8.0 : lot 3 (notes de chantier) ; 7.0 : lot 7 (signalements) ; 6.0 : lot 2 (comptes)
 
   function lire(cle) { try { return localStorage.getItem(cle); } catch (e) { return null; } }
   function ecrire(cle, v) { try { if (v === null) localStorage.removeItem(cle); else localStorage.setItem(cle, v); } catch (e) {} }
@@ -21,6 +21,12 @@
   if (demande === 'prod') ecrire('loue_env', null);
 
   var enTest = lire('loue_env') === 'test';
+  // Lot 14 : « ?env1=test » ou « ?env1=prod » choisit le serveur POUR CETTE PAGE SEULEMENT, sans rien retenir dans le
+  // navigateur (les liens du mail d'une demande d'absence : ils ne doivent pas changer le mode de l'appli de celui qui clique)
+  var unique = null;
+  try { unique = new URLSearchParams(location.search).get('env1'); } catch (e) {}
+  if (unique === 'test') enTest = true;
+  if (unique === 'prod') enTest = false;
   window.LOUE_CONFIG = {
     env: enTest ? 'test' : 'prod',
     // Adresse volontairement invalide si le test n'est pas réglé : l'envoi échoue au lieu de partir ailleurs

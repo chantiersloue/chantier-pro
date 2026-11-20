@@ -3,7 +3,7 @@
 // Loué Menuiserie
 // ═══════════════════════════════════════════════════════════════
 
-const VERSION_API = 'v11.2';   // 11.2 : lot 5b (un seul mail par fiche pour les adresses connues, ÉTEINT par défaut : propriété MAIL_UNIQUE) ; 11.0 : lot 8b (onglet « Comptes rendus », une ligne par note de réunion) ; la v11.1 (lot 8c, points) a été retirée le 19/11/2026 avant toute mise en production ; 10.1 : lot 5c (planning lisible par les seuls comptes, plus aucun lien de partage) ; 10.0 : lot 5 (suivi du stockage, purge sur case cochée) ; 9.1 : retrait de la lecture du dossier Plans (lot 4b) ; 9.0 : lot 4a (carnet de chantier) ; 8.0 : lot 3 (notes de chantier) ; 7.0 : lot 7 (signalements) ; 6.0 : lot 2 (comptes)
+const VERSION_API = 'v11.6';   // 11.6 : mail unique (lot 5b : un seul mail par fiche pour les adresses connues, ÉTEINT par défaut : propriété MAIL_UNIQUE), par-dessus le groupe B ; 11.5 : groupe B, par-dessus le groupe A — lots 10a-1 (« À commander » : onglet « Demandes », un mail par jour), 10a-2 (onglet « Articles », propositions pendant la frappe) et 10b (le point du vendredi : un mail par semaine à Franck) ; 11.4 : lot 14 (demande d'absence : réponse de la direction par lien signé, état pour le poseur ; ÉTEINT tant que la ligne « Adresses de la direction » de l'onglet Réglages est vide) ; 11.3 : lot 13 (« Mes notes » : les notes écrites par le compte, tous chantiers) ; 11.2 : lot 12 (réglage « tous les comptes ouvrent tous les chantiers », chantiers du planning en favoris) ; 11.1 : lot 8d (récapitulatif des notes de réunion par chantier ; ce numéro avait servi aux essais du lot 8c, les points, retirés le 19/11/2026 avant toute mise en production) ; 11.0 : lot 8b (onglet « Comptes rendus », une ligne par note de réunion) ; 10.1 : lot 5c (planning lisible par les seuls comptes, plus aucun lien de partage) ; 10.0 : lot 5 (suivi du stockage, purge sur case cochée) ; 9.1 : retrait de la lecture du dossier Plans (lot 4b) ; 9.0 : lot 4a (carnet de chantier) ; 8.0 : lot 3 (notes de chantier) ; 7.0 : lot 7 (signalements) ; 6.0 : lot 2 (comptes)
 
 // ── CONFIGURATION ──
 const SHEET_CONTACTS      = 'Contacts';
@@ -31,6 +31,18 @@ const MAX_LIBRES_PAR_JOUR   = 10;  // adresses tapées à la main acceptées par
 const MAX_ESSAIS_ATTENTE    = 12;  // un mail reporté est retenté toutes les 2 h, 12 fois au plus
 const MAX_GROUPE_MAIL = 40;        // lot 5b : adresses connues au plus dans un mail groupé (Google refuse plus de 50 destinataires par mail)
 
+// ── LOT 10 — « À COMMANDER » (petit matériel des poseurs) : les réglages. Les heures sont à l'heure de Paris, été comme hiver ──
+const DEMANDES_HEURE_LIMITE  = '15:45';  // du lundi au vendredi : le récapitulatif part au premier passage du réveil des 10 minutes après cette heure
+const DEMANDES_FIN_ESSAIS    = '17:30';  // si le mail n'a pas pu partir : nouvel essai toutes les 10 minutes jusqu'à cette heure, puis report au récapitulatif suivant
+const DEMANDES_MAX_PAR_JOUR  = 30;       // demandes acceptées par compte et par jour
+const DEMANDES_JOURS_LISTE   = 90;       // « Mes demandes » : les 90 derniers jours
+
+// ── LOT 10b — LE POINT DU VENDREDI (un mail par semaine à Franck). Heures de Paris, été comme hiver ──
+// Mis en service par demarrerPointDuVendredi(), arrêté par arreterPointDuVendredi() (éditeur Apps Script).
+const VENDREDI_HEURE      = '14:00';  // le vendredi : le mail part au premier passage du réveil des 10 minutes après cette heure
+const VENDREDI_FIN_ESSAIS = '18:00';  // si le mail n'a pas pu partir : nouvel essai toutes les 10 minutes jusqu'à cette heure, puis abandon pour la semaine
+const VENDREDI_RAPPEL_JOURS = 7;      // rappel des signalements « Bloquant » restés « À traiter » depuis ce nombre de jours ou plus
+
 // Sous-dossiers que listerPartages() (lot 0) marque « garder » : leurs partages par lien ne sont pas retirés par retirerPartages().
 // Tout le reste est en « accès limité » depuis le lot 0.
 // Depuis le lot 4b, l'appli ne lit plus le dossier Plans et n'y pose plus aucun partage : les partages restants se
@@ -46,6 +58,9 @@ const SOUS_DOSSIERS_PARTAGES = ['Plans'];
 //   MAIL_UNIQUE       : (facultatif, lot 5b) non | cache | conducteur — un seul mail par fiche pour les adresses connues
 //                       du Sheet. Absente ou inconnue = non (un mail par adresse). Lue à chaque fiche : le changement est
 //                       immédiat, sans nouveau déploiement. Voir modeMailUnique_() et envoyerGroupe_() dans Securite.gs.
+//   ADRESSE_APPLI     : (facultatif, lot 14) adresse des pages de l'appli pour les liens du mail d'absence ; sans elle :
+//                       l'appli de production, ou la copie d'essai sur la copie TEST. Les adresses de la direction, elles,
+//                       sont dans l'onglet « Réglages » du Sheet (voir Absences.gs).
 function propriete_(cle) {
   return PropertiesService.getScriptProperties().getProperty(cle) || '';
 }

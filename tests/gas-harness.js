@@ -15,7 +15,7 @@ function creerGoogle(options = {}) {
     const f = { nom, lignes: (lignes || []).map(l => l.slice()) };
     const largeur = () => Math.max(1, ...f.lignes.map(l => l.length));
     const cellule = (r, c) => (f.lignes[r - 1] || [])[c - 1];
-    const ecrire = (r, c, v) => { while (f.lignes.length < r) f.lignes.push([]); f.lignes[r - 1][c - 1] = v; };
+    const ecrire = (r, c, v) => { f.ecritures = (f.ecritures || 0) + 1; while (f.lignes.length < r) f.lignes.push([]); f.lignes[r - 1][c - 1] = v; };
     // Comme Sheets : une plage qui dépasse la taille de la feuille (1000 lignes, 26 colonnes au départ) lève une erreur
     f.maxLignes = f.maxLignes || 1000;
     const plage = (r, c, nr, nc) => {
@@ -49,7 +49,7 @@ function creerGoogle(options = {}) {
       setName: n => { if (feuilles[n]) throw new Error('Un onglet porte déjà ce nom'); delete feuilles[f.nom]; f.nom = n; feuilles[n] = f; return f.api; },
       deleteRow: r => { f.lignes.splice(r - 1, 1); },
       getMaxColumns: () => 26, isSheetHidden: () => false,
-      appendRow: l => { f.lignes.push(l.slice()); },
+      appendRow: l => { f.ecritures = (f.ecritures || 0) + 1; f.lignes.push(l.slice()); },
       getDataRange: () => plage(1, 1, Math.max(1, f.lignes.length), largeur()),
       getRange: (r, c, nr = 1, nc = 1) => plage(r, c, nr, nc),
       getMaxRows: () => Math.max(f.maxLignes, f.lignes.length),
@@ -196,6 +196,18 @@ function creerGoogle(options = {}) {
       etat.quota -= n;
       mails.push({ to, sujet, texte, opts: opts || {} });
     },
+    // Lot 14 : chaque mail envoyé est un fil d'un seul message. La recherche comprend « subject:"…" » (le reste de la requête
+    // est ignoré) ; un message à la corbeille n'est plus trouvé. etat.gmailPasEncore = n : les n prochaines recherches ne trouvent
+    // rien (Gmail n'a pas encore rangé le message). Un message envoyé à l'adresse du compte est aussi « dans la boîte de réception ».
+    search: (q, debut, max) => {
+      etat.recherchesGmail = (etat.recherchesGmail || 0) + 1;
+      if (etat.gmailPasEncore > 0) { etat.gmailPasEncore--; return []; }
+      const sujet = (/subject:"([^"]*)"/.exec(String(q || '')) || [])[1];
+      const moi = 'franck@loue.test';
+      return mails.filter(m => !m.corbeille && (!sujet || String(m.sujet).indexOf(sujet) > -1)).slice(debut || 0, (debut || 0) + (max || 500)).map(m => ({
+        getMessages: () => [{ getSubject: () => m.sujet, getTo: () => m.to, getPlainBody: () => m.texte, isInTrash: () => !!m.corbeille,
+          isInInbox: () => String(m.to).toLowerCase() === moi, moveToTrash: () => { m.corbeille = true; etat.corbeillesGmail = (etat.corbeillesGmail || 0) + 1; } }] }));
+    },
   };
   const MailApp = { getRemainingDailyQuota: () => etat.quota };
 
@@ -221,8 +233,18 @@ function creerGoogle(options = {}) {
     base64EncodeWebSafe: o => (typeof o === 'string' ? Buffer.from(o, 'utf8') : Buffer.from(o.map(x => x & 0xFF))).toString('base64').replace(/\+/g, '-').replace(/\//g, '_'),
     base64DecodeWebSafe: t => Array.from(Buffer.from(String(t).replace(/-/g, '+').replace(/_/g, '/'), 'base64')).map(o => o > 127 ? o - 256 : o),
     sleep: ms => { etat.pauses = (etat.pauses || 0) + ms; },
-    formatDate: (d, tz, f) => f.replace('yyyy', d.getFullYear()).replace('MM', deux(d.getMonth() + 1))
-      .replace('dd', deux(d.getDate())).replace('HH', deux(d.getHours())).replace('mm', deux(d.getMinutes())),
+    formatDate: (d, tz, f) => {
+      // Par défaut : l'heure du PC (comme depuis le lot 0). Lot 10 — option « fuseaux » : l'heure est calculée dans le
+      // fuseau DEMANDÉ (« Europe/Paris »), comme le vrai Apps Script, quel que soit le réglage du PC (heure d'été comprise).
+      let p = { a: d.getFullYear(), m: d.getMonth() + 1, j: d.getDate(), h: d.getHours(), mi: d.getMinutes() };
+      if (options.fuseaux && tz) {
+        const morceaux = {};
+        new Intl.DateTimeFormat('en-CA', { timeZone: tz, hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
+          .formatToParts(new Date(d.getTime())).forEach(x => { morceaux[x.type] = Number(x.value); });
+        p = { a: morceaux.year, m: morceaux.month, j: morceaux.day, h: morceaux.hour % 24, mi: morceaux.minute };
+      }
+      return f.replace('yyyy', p.a).replace('MM', deux(p.m)).replace('dd', deux(p.j)).replace('HH', deux(p.h)).replace('mm', deux(p.mi));
+    },
   };
   const declencheurs = [];
   const cache = {};
@@ -238,8 +260,21 @@ function creerGoogle(options = {}) {
       forSpreadsheet: () => ({ onEdit: () => ({ create: () => declencheurs.push(fn) }) }),
     }),
   };
+  // Lot 12 : d'autres classeurs (le planning), ouverts par leur identifiant : options.classeurs = { ID: { 'Onglet': [[…]] } }.
+  // Chaque onglet compte ses écritures (f.ecritures) : un test vérifie que l'appli n'écrit jamais dans le planning.
+  const classeurs = {};
+  Object.entries(options.classeurs || {}).forEach(([id, onglets]) => {
+    classeurs[id] = { feuilles: {}, ouvertures: 0 };
+    Object.entries(onglets).forEach(([n, l]) => { classeurs[id].feuilles[n] = creerFeuille(n, l); });
+  });
+  const ouvrirClasseur = id => {
+    const c = classeurs[id];
+    if (!c || c.enPanne) throw new Error('Document ' + id + ' is missing (perhaps it was deleted, or you don’t have read access?)');
+    c.ouvertures++;
+    return { getName: () => 'Planning', getSheetByName: n => (c.feuilles[n] ? c.feuilles[n].api : null), getSheets: () => Object.keys(c.feuilles).map(n => c.feuilles[n].api) };
+  };
   const contexte = {
-    SpreadsheetApp: { getActiveSpreadsheet: () => ss, flush: () => { etat.flush++; },
+    SpreadsheetApp: { getActiveSpreadsheet: () => ss, openById: ouvrirClasseur, flush: () => { etat.flush++; },
       newDataValidation: () => { const v = { liste: null, invalide: true,
         requireValueInList: l => { v.liste = l; return v; }, requireValueInRange: () => v, requireCheckbox: () => { v.liste = [true, false]; return v; },
         setAllowInvalid: b => { v.invalide = b; return v; }, setHelpText: () => v, build: () => v }; return v; } },
@@ -303,7 +338,7 @@ function creerGoogle(options = {}) {
       untrash: (moi, id) => { const m = trouver(id); m.labels = m.labels.filter(l => l !== 'TRASH'); etat.corbeillesMail.push({ id: id, valeur: false }); return { id: id }; },
     } } };
   }
-  return { contexte, feuilles, elements, mails, etat, proprietes, creerElement, declencheurs, cache };
+  return { contexte, feuilles, elements, mails, etat, proprietes, creerElement, declencheurs, cache, classeurs };
 }
 
 // Charge tous les fichiers .gs du dossier apps-script dans un contexte simulé

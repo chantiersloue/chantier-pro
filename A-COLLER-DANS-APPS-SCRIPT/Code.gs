@@ -1,10 +1,10 @@
 // ═══════════════════════════════════════════════════════════════
 // LOUÉ APP — SERVEUR COMPLET, À COLLER DANS APPS SCRIPT (fichier « Code.gs », tout remplacer)
 // FICHIER GÉNÉRÉ AUTOMATIQUEMENT par « node outils/construire.js » — NE PAS MODIFIER À LA MAIN :
-// les sources sont dans le dossier apps-script/ du dépôt. Version du serveur e74556e875 (pages ce8167d0eb)
+// les sources sont dans le dossier apps-script/ du dépôt. Version du serveur bf006d12d5 (pages 01e603456d)
 // ═══════════════════════════════════════════════════════════════
 
-const EMPREINTE_SERVEUR = 'e74556e875';
+const EMPREINTE_SERVEUR = 'bf006d12d5';
 
 // ████ Config.gs ████
 // ═══════════════════════════════════════════════════════════════
@@ -12,7 +12,7 @@ const EMPREINTE_SERVEUR = 'e74556e875';
 // Loué Menuiserie
 // ═══════════════════════════════════════════════════════════════
 
-const VERSION_API = 'v11.2';   // 11.2 : lot 5b (un seul mail par fiche pour les adresses connues, ÉTEINT par défaut : propriété MAIL_UNIQUE) ; 11.0 : lot 8b (onglet « Comptes rendus », une ligne par note de réunion) ; la v11.1 (lot 8c, points) a été retirée le 19/11/2026 avant toute mise en production ; 10.1 : lot 5c (planning lisible par les seuls comptes, plus aucun lien de partage) ; 10.0 : lot 5 (suivi du stockage, purge sur case cochée) ; 9.1 : retrait de la lecture du dossier Plans (lot 4b) ; 9.0 : lot 4a (carnet de chantier) ; 8.0 : lot 3 (notes de chantier) ; 7.0 : lot 7 (signalements) ; 6.0 : lot 2 (comptes)
+const VERSION_API = 'v11.6';   // 11.6 : mail unique (lot 5b : un seul mail par fiche pour les adresses connues, ÉTEINT par défaut : propriété MAIL_UNIQUE), par-dessus le groupe B ; 11.5 : groupe B, par-dessus le groupe A — lots 10a-1 (« À commander » : onglet « Demandes », un mail par jour), 10a-2 (onglet « Articles », propositions pendant la frappe) et 10b (le point du vendredi : un mail par semaine à Franck) ; 11.4 : lot 14 (demande d'absence : réponse de la direction par lien signé, état pour le poseur ; ÉTEINT tant que la ligne « Adresses de la direction » de l'onglet Réglages est vide) ; 11.3 : lot 13 (« Mes notes » : les notes écrites par le compte, tous chantiers) ; 11.2 : lot 12 (réglage « tous les comptes ouvrent tous les chantiers », chantiers du planning en favoris) ; 11.1 : lot 8d (récapitulatif des notes de réunion par chantier ; ce numéro avait servi aux essais du lot 8c, les points, retirés le 19/11/2026 avant toute mise en production) ; 11.0 : lot 8b (onglet « Comptes rendus », une ligne par note de réunion) ; 10.1 : lot 5c (planning lisible par les seuls comptes, plus aucun lien de partage) ; 10.0 : lot 5 (suivi du stockage, purge sur case cochée) ; 9.1 : retrait de la lecture du dossier Plans (lot 4b) ; 9.0 : lot 4a (carnet de chantier) ; 8.0 : lot 3 (notes de chantier) ; 7.0 : lot 7 (signalements) ; 6.0 : lot 2 (comptes)
 
 // ── CONFIGURATION ──
 const SHEET_CONTACTS      = 'Contacts';
@@ -40,6 +40,18 @@ const MAX_LIBRES_PAR_JOUR   = 10;  // adresses tapées à la main acceptées par
 const MAX_ESSAIS_ATTENTE    = 12;  // un mail reporté est retenté toutes les 2 h, 12 fois au plus
 const MAX_GROUPE_MAIL = 40;        // lot 5b : adresses connues au plus dans un mail groupé (Google refuse plus de 50 destinataires par mail)
 
+// ── LOT 10 — « À COMMANDER » (petit matériel des poseurs) : les réglages. Les heures sont à l'heure de Paris, été comme hiver ──
+const DEMANDES_HEURE_LIMITE  = '15:45';  // du lundi au vendredi : le récapitulatif part au premier passage du réveil des 10 minutes après cette heure
+const DEMANDES_FIN_ESSAIS    = '17:30';  // si le mail n'a pas pu partir : nouvel essai toutes les 10 minutes jusqu'à cette heure, puis report au récapitulatif suivant
+const DEMANDES_MAX_PAR_JOUR  = 30;       // demandes acceptées par compte et par jour
+const DEMANDES_JOURS_LISTE   = 90;       // « Mes demandes » : les 90 derniers jours
+
+// ── LOT 10b — LE POINT DU VENDREDI (un mail par semaine à Franck). Heures de Paris, été comme hiver ──
+// Mis en service par demarrerPointDuVendredi(), arrêté par arreterPointDuVendredi() (éditeur Apps Script).
+const VENDREDI_HEURE      = '14:00';  // le vendredi : le mail part au premier passage du réveil des 10 minutes après cette heure
+const VENDREDI_FIN_ESSAIS = '18:00';  // si le mail n'a pas pu partir : nouvel essai toutes les 10 minutes jusqu'à cette heure, puis abandon pour la semaine
+const VENDREDI_RAPPEL_JOURS = 7;      // rappel des signalements « Bloquant » restés « À traiter » depuis ce nombre de jours ou plus
+
 // Sous-dossiers que listerPartages() (lot 0) marque « garder » : leurs partages par lien ne sont pas retirés par retirerPartages().
 // Tout le reste est en « accès limité » depuis le lot 0.
 // Depuis le lot 4b, l'appli ne lit plus le dossier Plans et n'y pose plus aucun partage : les partages restants se
@@ -55,6 +67,9 @@ const SOUS_DOSSIERS_PARTAGES = ['Plans'];
 //   MAIL_UNIQUE       : (facultatif, lot 5b) non | cache | conducteur — un seul mail par fiche pour les adresses connues
 //                       du Sheet. Absente ou inconnue = non (un mail par adresse). Lue à chaque fiche : le changement est
 //                       immédiat, sans nouveau déploiement. Voir modeMailUnique_() et envoyerGroupe_() dans Securite.gs.
+//   ADRESSE_APPLI     : (facultatif, lot 14) adresse des pages de l'appli pour les liens du mail d'absence ; sans elle :
+//                       l'appli de production, ou la copie d'essai sur la copie TEST. Les adresses de la direction, elles,
+//                       sont dans l'onglet « Réglages » du Sheet (voir Absences.gs).
 function propriete_(cle) {
   return PropertiesService.getScriptProperties().getProperty(cle) || '';
 }
@@ -471,6 +486,7 @@ function alerte_(texte, sorte) {
       erreur : "[Loué App] Fiche non traitée — voir l'onglet Envois",
       notes  : '[Loué App] Listes « Notes » bloquées — titres d’un onglet changés',
       comptesrendus: '[Loué App] Notes de réunion non notées — titres de l’onglet « Comptes rendus » changés',
+      demandes: '[Loué App] « À commander » bloqué — titres de l’onglet « Demandes » changés',
       photos : "[Loué App] Trop de photos aujourd'hui",
       dossiers : '[Loué App] dossiers.json illisible',
       rangement: '[Loué App] Document non rangé dans Drive',
@@ -479,11 +495,32 @@ function alerte_(texte, sorte) {
       transition: '[Loué App] Fin de la période sans compte dans 3 jours',
       demarrage : '[Loué App] Période de transition pas démarrée',
       planning  : '[Loué App] Planning encore lisible par lien',
+      recap     : '[Loué App] Récapitulatif des notes en retard',
+      absence   : '[Loué App] Demande d’absence partie sans la direction — onglet Réglages',
+      absenceenvoi: '[Loué App] Demande d’absence pas encore partie vers la direction',
+      absencecorbeille: '[Loué App] Mail d’absence à supprimer à la main dans « Messages envoyés »',
     }[sorte] || "[Loué App] Envoi refusé — voir l'onglet Journal";
     GmailApp.sendEmail(emailAdmin_(), sujet,
       texte + "\n\nLes cas suivants de la journée sont notés dans l'onglet « Journal » du Sheet, sans autre mail.\n\nLoué App",
       { name: NOM_ENTREPRISE });
   } catch (err) { console.error('alerte_ :', err.message); }
+}
+
+// Lot 10 — un mail au bureau (Franck), SANS pièce jointe : le récapitulatif « À commander ».
+// Même chemin que les alertes : il part tant qu'il reste UN mail dans le quota du jour (il est pris sur la réserve du bureau,
+// RESERVE_ADMIN), sans passer par l'onglet « Mails en attente » (c'est l'appelant qui décide de réessayer).
+// Rend '' si le mail est parti, sinon la raison (texte court).
+function mailBureau_(sujet, texte, html) {
+  try {
+    if (MailApp.getRemainingDailyQuota() < 1) return 'quota de mails du jour épuisé';
+    const opts = { name: NOM_ENTREPRISE };
+    if (html) opts.htmlBody = html;
+    GmailApp.sendEmail(emailAdmin_(), sujet, texte, opts);
+    return '';
+  } catch (err) {
+    console.error('mailBureau_ :', err.message);
+    return 'erreur : ' + String(err && err.message ? err.message : err).slice(0, 200);
+  }
 }
 
 // Réserve une place dans le plafond quotidien des adresses libres
@@ -882,19 +919,32 @@ function chantierObjet_(r) {
   return { nom: String(r[0] || '').trim(), reference: String(r[1] || ''), statut: String(r[2] || ''), conducteur: String(r[3] || ''),
     numero: String(r[4] || ''), nomCourt: String(r[5] || ''), adresse: String(r[6] || '') };
 }
+// LES DEUX SEULES FONCTIONS qui décident quels chantiers un compte peut voir et lire (documents, notes, carnet,
+// récapitulatif passent tous par elles). Lot 12 : le réglage « Tous les comptes ouvrent tous les chantiers »
+// (Reglages.gs) n'est lu qu'ici. Éteint (ou illisible) : exactement le comportement d'avant le lot 12.
+//   « mien » = le chantier va tout seul dans « Mes chantiers » de l'accueil (une fois : le téléphone tient les étoiles) ;
+//   « planifie » (Planifies.gs) = le gars y est planifié : même effet, à chaque nouvelle série.
 function chantiersVisibles_(compte) {
   const lignes = lignesChantiers_();
   if (compte.tous) {
     const moi = String(compte.nom || '').trim().toLowerCase();
-    return lignes.map(r => Object.assign(chantierObjet_(r), {
-      mien: compte.conducteur ? String(r[3] || '').trim().toLowerCase() === moi : String(r[2] || '').trim() !== 'Terminé' }));
+    return planifMarquer_(compte, lignes.map(r => Object.assign(chantierObjet_(r), {
+      mien: compte.conducteur ? String(r[3] || '').trim().toLowerCase() === moi : String(r[2] || '').trim() !== 'Terminé' })));
   }
   const coches = chantiersCoches_(compte.id);
-  return lignes.filter(r => coches[cleChantier_(r[0])] && String(r[2] || '').trim() !== 'Terminé')
-    .map(r => Object.assign(chantierObjet_(r), { mien: true }));
+  const enCours = r => String(r[2] || '').trim() !== 'Terminé';
+  // Réglage allumé : TOUS les chantiers, « Terminé » compris (décision de Franck du 19/11/2026 : visibles, en bas de la
+  // liste, grisés — c'est la page qui les range). Une case cochée met encore le chantier dans « Mes chantiers ».
+  if (tousChantiersOuverts_()) {
+    return planifMarquer_(compte, lignes.map(r => Object.assign(chantierObjet_(r), { mien: !!coches[cleChantier_(r[0])] && enCours(r) })));
+  }
+  return planifMarquer_(compte, lignes.filter(r => coches[cleChantier_(r[0])] && enCours(r))
+    .map(r => Object.assign(chantierObjet_(r), { mien: true })));
 }
 function peutLireChantier_(compte, nom) {
   if (compte.tous) return true;
+  // Réglage allumé : tout chantier DE LA LISTE (un nom inconnu reste refusé)
+  if (tousChantiersOuverts_()) return !!ligneChantier_(nom);
   return !!chantiersCoches_(compte.id)[cleChantier_(nom)];
 }
 
@@ -907,7 +957,9 @@ function moi_(compte) {
 }
 function listes_(compte) {
   const d = donneesListes_();
-  d.chantiers = chantiersVisibles_(compte);
+  // Les fiches ne proposent pas un chantier « Terminé » à un poseur (comme avant le lot 12) : s'il en tape un, la page
+  // lui demande de confirmer, comme pour tout chantier hors de sa liste
+  d.chantiers = chantiersVisibles_(compte).filter(c => compte.tous || String(c.statut || '').trim() !== 'Terminé');
   d.partiel = !compte.tous;   // la page demande confirmation pour un chantier hors de la liste
   return avecJeton_({ ok: true, code: 'OK', message: 'Listes', data: d }, compte);
 }
@@ -1081,6 +1133,7 @@ function traiterComptes() {
       if (etat !== etatAvant) u.sh.getRange(ligne, COL_U.etat).setValue(cellule_(etat));
     });
     synchroniserAcces_(u);
+    reglagesEtat_();           // lot 12 : ce que l'appli a compris du réglage « tous les chantiers », écrit dans l'onglet Réglages
     recopierCompteursSansCompte_();
     alerteFinTransition_();
     if (transitionOublieeDepuis_()) alerte_('Les comptes Loué App servent depuis le ' + texteDate_(transitionOublieeDepuis_())
@@ -1092,7 +1145,21 @@ function traiterComptes() {
     return 'erreur : ' + err.message;
   } finally {
     UTILISATEURS_ = null;
+    // Lot 10 : le récapitulatif « À commander » (Demandes.gs), après les comptes, SOUS LE MÊME VERROU (il n'est ni repris ni
+    // rendu là-bas) et dans son propre try/catch : s'il plante, les comptes ont déjà été traités et le verrou est rendu ;
+    // si le traitement des comptes a planté plus haut, le récapitulatif est lancé quand même.
+    try { demRecapituler_(); } catch (err) { console.error('récapitulatif « À commander » :', err && err.message ? err.message : err); }
+    // Lot 10b : le point du vendredi (PointVendredi.gs), même règle : sous le même verrou, dans son propre try/catch, après le
+    // récapitulatif (l'un qui plante n'empêche ni l'autre, ni les comptes). Hors du vendredi après 14 h, il ne lit rien.
+    try { venPasser_(); } catch (err) { console.error('point du vendredi :', err && err.message ? err.message : err); }
     verrou.releaseLock();
+    // Lot 8d : les récapitulatifs des notes à refaire, APRÈS avoir rendu le verrou (une note peut partir pendant ce temps)
+    recapPassage_();
+    // Lot 12 : les chantiers du planning (éteint tant que la propriété PLANNING_SHEET_ID n'existe pas)
+    REGLAGE_TOUS_LU_ = null; PLANIFIES_LUS_ = null;
+    planifPassage_();
+    // Lot 14 : un mail « absence acceptée » au conducteur qui n'a pas pu partir (ne fait rien s'il n'y en a pas)
+    absPassage_();
   }
 }
 
@@ -1484,7 +1551,11 @@ const TRAITEMENTS = {
   'signalement'        : 'traiterSignalement',   // lot 7 (Signalements.gs)
   'note-chantier'      : 'traiterNoteChantier',  // lot 3 (Notes.gs) : un nouvel élément de la liste du chantier
   'note-action'        : 'traiterNoteAction',    // lot 3 : un geste sur un élément (modifier, cocher, décocher)
+  'demande'            : 'traiterDemande',       // lot 10 (Demandes.gs) : « À commander » ou « Outil en panne », sans chantier
 };
+// Fiches qui suivent le chemin des notes de chantier : compte obligatoire (elles attendent dans le téléphone sinon), ni PDF,
+// ni mail à l'envoi, ni photo. Lot 3 : « note-chantier », « note-action » ; lot 10 : « demande ».
+function ficheSansMail_(type) { return /^note-/.test(String(type || '')) || type === 'demande'; }
 
 function doPost(e) {
   let corps;
@@ -1516,13 +1587,15 @@ function repondre_(objet) {
 function traiterFiche_(brut, contexte) {
   const nom = brut && Object.prototype.hasOwnProperty.call(TRAITEMENTS, brut.type) ? TRAITEMENTS[brut.type] : '';
   if (!nom) throw new Error('Type de fiche inconnu');
-  globalThis[nom](preparerDonnees_(brut), brut, contexte);
+  // Lot 10 : ce que rend le traitement (pour une demande : le récapitulatif où elle part) repart dans la réponse
+  return globalThis[nom](preparerDonnees_(brut), brut, contexte);
 }
 
 // Lot 2 : chaque action (sauf ping, connexion, motDePasse) passe par identifier_ : jeton valable, ou transition ouverte
 function routerV5_(corps) {
   try {
     UTILISATEURS_ = null;   // l'onglet Utilisateurs est relu à chaque requête (un changement agit tout de suite)
+    REGLAGE_TOUS_LU_ = null; PLANIFIES_LUS_ = null;   // lot 12 : le réglage « tous les chantiers » et l'onglet Planifiés aussi
     if (corps.action === 'ping') {
       let fin = null;
       try { fin = finTransition_(); } catch (e) {}
@@ -1536,13 +1609,17 @@ function routerV5_(corps) {
     if (corps.action === 'outilTest' && typeof outilTest_ === 'function') return outilTest_(corps);
     if (corps.action === 'connexion')  return connexion_(corps);
     if (corps.action === 'motDePasse') return motDePasse_(corps);
+    // Lot 14 : la réponse de la direction à une demande d'absence. Sans compte : c'est le lien signé du mail qui fait foi.
+    if (corps.action === 'absenceVoir')    return absVoir_(corps);
+    if (corps.action === 'absenceDecider') return absDecider_(corps);
     if (['photo', 'fiche', 'moi', 'listes', 'dossiers', 'signalements', 'signalementStatut',
-      'notes', 'notesNouvelles', 'notesVues', 'carnet', 'carnetTuiles', 'planningFichier'].indexOf(corps.action) < 0) return { ok: false, code: 'ACTION_INCONNUE', message: 'Action inconnue' };
+      'notes', 'notesNouvelles', 'notesVues', 'carnet', 'carnetTuiles', 'planningFichier', 'demandes', 'recapNotes', 'absencesMiennes'].indexOf(corps.action) < 0) return { ok: false, code: 'ACTION_INCONNUE', message: 'Action inconnue' };
     let qui = identifier_(corps);
     const envoi = corps.action === 'photo' || corps.action === 'fiche';
     // Lot 3 : une note de chantier (ou un geste sur une note) demande TOUJOURS un compte en règle : ni « compte désactivé »,
     // ni « sans compte ». Elle attend dans le téléphone (jamais de note sans auteur, rien dans l'onglet « Sans compte »).
-    const estNote = corps.action === 'fiche' && /^note-/.test(String((corps.donnees || {}).type || ''));
+    // Lot 10 : une demande « À commander » aussi (le nom du poseur vient du compte, jamais d'une saisie).
+    const estNote = corps.action === 'fiche' && ficheSansMail_((corps.donnees || {}).type);
     // Fiche ou photo d'un compte désactivé : acceptée, notée « (compte désactivé) »
     if (qui.refus && qui.desactive && envoi && !estNote) qui = { compte: { id: qui.desactive, etiquette: qui.desactive + ' (compte désactivé)' } };
     // Comptes illisibles (panne) pendant la transition : la fiche passe « sans compte »
@@ -1574,7 +1651,13 @@ function routerV5_(corps) {
     if (corps.action === 'notesVues')      return marquerNotesVues_(qui.compte, corps);
     // Lot 4 : carnet de chantier (droits vérifiés dans Carnet.gs)
     if (corps.action === 'carnet')       return carnetLister_(qui.compte, corps);
+    // Lot 8d : le récapitulatif des notes de réunion d'un chantier (droits vérifiés dans Recapitulatif.gs)
+    if (corps.action === 'recapNotes')   return recapLire_(qui.compte, corps);
+    // Lot 14 : l'état des demandes d'absence du compte (aucun motif)
+    if (corps.action === 'absencesMiennes') return absMiennes_(qui.compte);
     if (corps.action === 'carnetTuiles') return carnetTuiles_(qui.compte, corps);
+    // Lot 10 : « Mes demandes » (seulement celles du compte ; Demandes.gs) ; lot 10a-2 : avec la liste « Articles »
+    if (corps.action === 'demandes')     return listerDemandes_(qui.compte, corps);
   } catch (err) {
     console.error('routerV5_:', err.message);
     return { ok: false, code: 'ERREUR', message: 'Erreur du serveur : ' + err.message };
@@ -1682,19 +1765,26 @@ function recevoirFiche_(corps, compte) {
   // Auteur : le compte qui envoie (et celui qui était connecté quand la fiche a été rangée, s'il est différent)
   const saisiPar = normaliserId_(corps.saisiPar);
   // Lot 3 : notes de chantier. Tout est contrôlé ICI, avant de réserver un numéro : aucun nouvel essai inutile, aucune alerte.
-  const estNote = /^note-/.test(String(donnees.type));
+  // Lot 10 : une demande « À commander » suit le même chemin (contrôlée par refusDemande_, Demandes.gs)
+  const estNote = ficheSansMail_(donnees.type), estDemande = donnees.type === 'demande';
   if (estNote) {
     // Renvoi après une réponse perdue : déjà enregistrée → on le dit, sans recontrôler des droits qui ont pu changer
     // (ni qui tient le téléphone : la note est arrivée, elle doit quitter la file)
     const shEnvois = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_ENVOIS);
     const deja = shEnvois ? chercherEnvoi_(shEnvois, corps.id) : 0;
-    if (deja && String(shEnvois.getRange(deja, 5).getValue()).indexOf('traité') === 0) return { ok: true, code: 'DEJA_RECU', message: 'Déjà enregistré', data: { id: corps.id } };
+    if (deja && String(shEnvois.getRange(deja, 5).getValue()).indexOf('traité') === 0) {
+      const dejaRecu = { ok: true, code: 'DEJA_RECU', message: 'Déjà enregistré', data: { id: corps.id } };
+      // lot 10 : le téléphone redit dans quel récapitulatif la demande part (ou est partie)
+      const recapDeja = estDemande ? demEtatFiche_(corps.id) : null;
+      if (recapDeja) dejaRecu.data.recap = recapDeja;
+      return dejaRecu;
+    }
     // Téléphone partagé : ce qu'a écrit X ne part jamais sous le nom de Y (cela attend que X se reconnecte)
     if (compte && saisiPar && saisiPar !== compte.id) return { ok: false, code: 'COMPTE_REFUSE',
       message: 'En attente : écrit par « ' + saisiPar + ' ». Cela partira quand cette personne se reconnectera sur ce téléphone.' };
     let refusNote;
     // onglet des notes aux titres changés : même réponse pour un ajout et pour un geste (le téléphone garde et réessaie)
-    try { refusNote = refusNote_(donnees, compte); }
+    try { refusNote = estDemande ? refusDemande_(donnees, compte, corps.id) : refusNote_(donnees, compte); }
     catch (err) { if (err && err.occupe) return { ok: false, code: 'SERVEUR_OCCUPE', message: err.message }; throw err; }
     if (refusNote) return { ok: false, code: refusNote.code, message: refusNote.message };
   }
@@ -1743,9 +1833,10 @@ function recevoirFiche_(corps, compte) {
 
   // 3. PDF, classement, mails
   RAPPORT_ = {};
+  let resultat = null;
   try {
     // Ce que le serveur sait de la fiche : son numéro, et le compte vérifié par le jeton (vide si sans compte)
-    traiterFiche_(brut, { id: corps.id, auteurId: compte && compte.id ? compte.id : '',
+    resultat = traiterFiche_(brut, { id: corps.id, auteurId: compte && compte.id ? compte.id : '',
       auteurNom: compte ? (compte.nom || compte.etiquette || compte.id) : 'sans compte', compte: compte || null });
   } catch (err) {
     // Lot 3 (notes) : « occupé » → le téléphone réessaie ; « refus » → définitif. Ni l'un ni l'autre ne prévient Franck
@@ -1777,9 +1868,14 @@ function recevoirFiche_(corps, compte) {
   // Lot 5b : on compte des DESTINATAIRES (vrai avec un mail par adresse comme avec un seul mail en copie cachée)
   const detail = 'envoyé à ' + n('envoyé') + ' destinataire(s)' + (n('reporté') ? ', ' + n('reporté') + ' reporté(s)' : '')
     + (n('refusé') ? ', ' + n('refusé') + ' adresse(s) refusée(s)' : '');
-  sh.getRange(ligne, 5, 1, 2).setValues([['traité', estNote ? 'note de chantier (aucun mail)' : detail]]);
+  sh.getRange(ligne, 5, 1, 2).setValues([['traité', estDemande ? 'demande « À commander » (aucun mail à l’envoi)' : estNote ? 'note de chantier (aucun mail)' : detail]]);
   // aucun mail pour une note : pas de « 0 mail envoyé » alarmant sur le téléphone
-  if (estNote) return { ok: true, code: 'ENREGISTRE', message: 'Enregistré', data: { id: corps.id } };
+  if (estNote) {
+    const enregistre = { ok: true, code: 'ENREGISTRE', message: 'Enregistré', data: { id: corps.id } };
+    // lot 10 : dans quel récapitulatif part la demande (« aujourd'hui », ou le jour nommé)
+    if (estDemande && resultat && resultat.recap) enregistre.data.recap = resultat.recap;
+    return enregistre;
+  }
   if (dossierPhotos) { try { dossierPhotos.setTrashed(true); } catch (e) {} }   // les photos sont dans le PDF
 
   return {
@@ -2102,7 +2198,14 @@ function getContactsRaw() {
 // ══════════════════════════════════════════════════════════
 // DEMANDE D'ABSENCE
 // ══════════════════════════════════════════════════════════
-function traiterAbsence(data, brut) {
+function traiterAbsence(data, brut, contexte) {
+  // Lot 14 : la ligne « Adresses de la direction » de l'onglet « Réglages » donne 1 à 3 adresses : la demande part à la
+  // direction seule, avec ses deux boutons (Absences.gs). Sinon : tout ce qui suit, exactement comme avant — et si la ligne
+  // existe mais ne donne aucune adresse, Franck est prévenu (une fois par jour au plus). Une panne de lecture : comme avant.
+  let reglage = { installe: false, adresses: [] };
+  try { reglage = absReglage_(); } catch (err) { console.error('Réglage de la direction illisible :', err.message); }
+  if (reglage.adresses.length) return absTraiter_(brut, contexte || {}, reglage.adresses);
+  if (reglage.installe) absAlerterReglage_(reglage);
   // 1. Sheet « Absences » — mêmes colonnes qu'avant ; protégé contre les erreurs (données brutes, formules neutralisées)
   try {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -3212,12 +3315,22 @@ function marquerNotesVues_(compte, corps) {
 
 // ── Lecture ──
 // Ce que l'appli reçoit d'un élément : son numéro, son texte, s'il est fait, s'il est nouveau. Ni auteur, ni date.
-function noteObjet_(r, compte, vues, avecChantier) {
+function noteObjet_(r, compte, vues, avecChantier, avecDate) {
   const o = { id: String(r[COL_N.id - 1]), texte: String(r[COL_N.texte - 1] || ''), fait: noteFaite_(r), nouveau: noteNouvelle_(r, compte, vues) };
   if (avecChantier) o.chantier = String(r[COL_N.chantier - 1] || '');
+  if (avecDate) o.cree = noteMs_(r[COL_N.cree - 1]);   // lot 13 : la date de l'élément, pour « Mes notes »
   return o;
 }
-// corps : { chantier?, recherche?, nouveau?, termines? }.
+// Lot 13 — l'identifiant du compte qui a CRÉÉ l'élément : le serveur écrit « Nom (identifiant) » à la création (noteQui_),
+// l'identifiant est donc toujours la dernière parenthèse. Jamais lu dans ce que dit le téléphone.
+function noteAuteurId_(r) {
+  const m = /\(([^()\s]+)\)\s*$/.exec(String(r[COL_N.creePar - 1] || ''));
+  return m ? normaliserId_(m[1]) : '';
+}
+// corps : { chantier?, recherche?, nouveau?, termines?, miennes? }.
+// Lot 13 — miennes: true (sans chantier) : « Mes notes », pour tout compte : les éléments que CE compte a créés, sur les
+// chantiers qu'il peut encore lire et qui ne sont pas « Terminé », le plus récent en haut, avec le chantier et la date ;
+// les éléments terminés sont rendus aussi.
 // Avec un chantier (accès au chantier) : ses éléments à faire (dans l'ordre où ils ont été ajoutés), puis ses éléments terminés
 // (les derniers cochés en haut). Sans chantier : vue « Tous chantiers », réservée aux conducteurs et à l'admin ;
 // les éléments terminés n'y sont rendus que sur demande (termines: true).
@@ -3229,12 +3342,18 @@ function listerNotes_(compte, corps) {
   if (demande) {
     chantier = noteChantierConnu_(demande);
     if (!chantier || !notePeutLire_(compte, chantier)) return avecJeton_(REFUS, compte);
-  } else if (!noteChef_(compte)) {
+  } else if (corps.miennes !== true && !noteChef_(compte)) {
     return avecJeton_({ ok: false, code: 'INTERDIT', message: 'La vue « Tous chantiers » est réservée aux conducteurs : ouvrez les notes depuis un chantier.' }, compte);
   }
   const minus = v => String(v || '').toLowerCase();
   const recherche = typeof corps.recherche === 'string' ? minus(corps.recherche.trim().slice(0, 100)) : '';
-  const nouveau = corps.nouveau === true, avecTermines = !!demande || corps.termines === true;
+  const miennes = !demande && corps.miennes === true;
+  const nouveau = corps.nouveau === true, avecTermines = !!demande || corps.termines === true || miennes;
+  let lisibles = null;
+  if (miennes) {
+    lisibles = {};
+    chantiersVisibles_(compte).forEach(c => { if (String(c.statut || '').trim() !== 'Terminé') lisibles[cleChantier_(c.nom)] = true; });
+  }
   const heure = Date.now();   // heure du serveur de cette liste : la page la renvoie dans « notesVues »
   const vues = notesVues_(compte.id), lignes = lignesNotes_();
   const maxAFaire = demande ? NOTE_MAX_A_FAIRE : NOTE_MAX_TOUS, aFaire = [], termines = [];
@@ -3242,17 +3361,20 @@ function listerNotes_(compte, corps) {
   for (let i = lignes.length - 1; i >= 0; i--) {   // du plus récent au plus ancien : au-delà du plafond, ce sont les plus anciens qui manquent
     const r = lignes[i];
     if (demande && cleChantier_(r[COL_N.chantier - 1]) !== cleChantier_(chantier)) continue;
+    if (miennes && (noteAuteurId_(r) !== compte.id || !lisibles[cleChantier_(r[COL_N.chantier - 1])])) continue;
     if (recherche && minus(r[COL_N.texte - 1]).indexOf(recherche) < 0 && minus(r[COL_N.chantier - 1]).indexOf(recherche) < 0) continue;
     if (nouveau && !noteNouvelle_(r, compte, vues)) continue;
     if (noteFaite_(r)) { if (avecTermines) termines.push(r); continue; }
-    if (aFaire.length < maxAFaire) aFaire.push(noteObjet_(r, compte, vues, !demande)); else plein = true;
+    if (aFaire.length < maxAFaire) aFaire.push(noteObjet_(r, compte, vues, !demande, miennes)); else plein = true;
   }
-  aFaire.reverse();   // affichés comme une liste dictée : le plus ancien en haut, le dernier ajouté en bas
+  // La liste d'un chantier s'affiche comme une liste dictée : le plus ancien en haut, le dernier ajouté en bas.
+  // « Mes notes » : le plus récent en haut (ce qu'on vient d'écrire est sous les yeux).
+  if (!miennes) aFaire.reverse();
   // Éléments terminés : les derniers cochés en haut ; le nombre total est rendu même au-delà du plafond
   termines.sort((a, b) => noteMs_(b[COL_N.cocheLe - 1]) - noteMs_(a[COL_N.cocheLe - 1]));
   return avecJeton_({ ok: true, code: 'OK', message: aFaire.length + ' élément(s) à faire',
-    data: { aFaire: aFaire, termines: termines.slice(0, NOTE_MAX_TERMINES).map(r => noteObjet_(r, compte, vues, !demande)), nbTermines: termines.length,
-      chantier: chantier, heure: heure, plein: plein } }, compte);
+    data: { aFaire: aFaire, termines: termines.slice(0, NOTE_MAX_TERMINES).map(r => noteObjet_(r, compte, vues, !demande, miennes)), nbTermines: termines.length,
+      chantier: chantier, heure: heure, plein: plein, miennes: miennes } }, compte);
 }
 // Nombre d'éléments nouveaux par chantier visible (chiffres rouges de l'accueil)
 function notesNouvelles_(compte) {
@@ -3293,6 +3415,765 @@ function etapesLot3_() {
 function installerLot3_(attendu) { return installer_('Lot 3', attendu, etapesLot3_()).texte; }
 function installerLot3Test() { return installerLot3_('TEST'); }
 function installerLot3Production() { return installerLot3_('PRODUCTION'); }
+
+// ████ Demandes.gs ████
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+// LOT 10a-1 — « À COMMANDER » : le petit matériel des poseurs (quincaillerie, visserie, consommables, outillage)
+//
+// Une demande = UN article, rattaché à AUCUN chantier : « À commander » ou « Outil en panne », quoi, quantité.
+// Elle arrive comme une fiche (action « fiche », type « demande ») et suit le chemin des notes de chantier (Api.gs) :
+// compte obligatoire, attente dans le téléphone tant qu'on n'est pas connecté, contrôle du téléphone partagé, pas de PDF,
+// pas de mail à l'envoi, pas de recherche de photos, renvoi sans doublon (onglet « Envois »).
+//
+// Onglet « Demandes » : Date · Poseur · Type · Quoi · Quantité · Commandé (case) · Récapitulatif du · Compte · N° de fiche.
+//   - « Récapitulatif du » VIDE = la demande n'est pas encore partie dans un mail ;
+//   - une ligne se retrouve par son N° de fiche, jamais par sa position (Franck peut trier l'onglet) ;
+//   - titres changés : rien n'est lu ni écrit, les téléphones gardent tout et réessaient, Franck reçoit un mail (un par jour).
+//
+// LE RÉCAPITULATIF (demRecapituler_), lancé par le réveil des 10 minutes à la fin de traiterComptes (Comptes.gs), sous le
+// verrou que traiterComptes tient déjà (il n'est ni repris ni rendu ici) et dans son propre try/catch :
+//   - du lundi au vendredi, au premier passage après DEMANDES_HEURE_LIMITE (heure de Paris, calculée ici, jamais avec le
+//     fuseau du projet) : toutes les lignes au « Récapitulatif du » vide partent dans UN mail à Franck, puis la date est
+//     écrite sur ces lignes, puis la marque « passage du jour fait » est posée (propriété DEMANDES_PASSAGE) ;
+//   - aucune demande : aucun mail, mais la marque est posée ;
+//   - mail en échec (quota épuisé, panne) : la marque n'est PAS posée, nouvel essai au passage suivant, jusqu'à
+//     DEMANDES_FIN_ESSAIS ; après, on abandonne pour ce jour (marque posée, lignes laissées vides, propriété
+//     DEMANDES_REPORT) : elles partent en tête du récapitulatif suivant, sous « Demandes non envoyées hier ».
+// La réponse donnée au téléphone se lit sur cette MARQUE (pas sur l'horloge) : avant le passage du jour, la demande part
+// aujourd'hui ; après, dans le récapitulatif suivant, dont le jour est nommé.
+//
+// LOT 10a-2 — L'ONGLET « ARTICLES » (facultatif) : une colonne, un article par ligne, tenu par Franck. Le serveur donne
+// cette liste avec « Mes demandes » (action « demandes »), donc aux comptes connectés seulement ; le téléphone la garde et
+// s'en sert pour ses propositions pendant la frappe. Onglet vide, absent, très long ou illisible : tout marche.
+//
+// Plan : docs/lot10-plan.md. Décisions : D10-… (DECISIONS.md).
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+const SHEET_DEMANDES = 'Demandes';
+const DEM_ENTETES = ['Date', 'Poseur', 'Type', 'Quoi', 'Quantité', 'Commandé', 'Récapitulatif du', 'Compte', 'N° de fiche'];
+const COL_DEM = { date: 1, poseur: 2, type: 3, quoi: 4, quantite: 5, commande: 6, recap: 7, compte: 8, fiche: 9 };
+// Tout ce qui est du texte reste du texte (« 12/11 » ne devient pas une date, « 0403 » ne perd pas son zéro)
+const DEM_COLONNES_TEXTE = [COL_DEM.poseur, COL_DEM.type, COL_DEM.quoi, COL_DEM.quantite, COL_DEM.recap, COL_DEM.compte, COL_DEM.fiche];
+const DEM_SORTES = { commander: 'À commander', panne: 'Outil en panne' };   // ce que le téléphone envoie → ce qui est écrit
+const DEM_MAX_QUOI = 80, DEM_MAX_QUANTITE = 30;
+const DEM_MAX_LISTE = 300;           // « Mes demandes » : lignes rendues au plus
+const DEM_NOMS_JOURS = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
+const DEM_PROP_PASSAGE = 'DEMANDES_PASSAGE';   // « aaaa-mm-jj » du dernier jour dont le passage est fait
+const DEM_PROP_ENVOI = 'DEMANDES_ENVOI';       // { jour, ms } : le mail de ce jour-là est parti à cet instant (même si les dates n'ont pas pu être écrites)
+const DEM_PROP_REPORT = 'DEMANDES_REPORT';    // { jour, ms } : récapitulatif abandonné ce jour-là, à cet instant
+// Lot 10a-2 : la liste d'articles que Franck propose à tous (facultative)
+const SHEET_ARTICLES = 'Articles';
+const ART_TITRE = 'Article';         // titre de la colonne A (posé par l'installation ; la liste marche aussi sans lui)
+const ART_MAX = 500;                 // articles donnés au téléphone, au plus (les 500 premiers)
+const ART_MAX_LIGNES = 2000;         // lignes lues dans l'onglet, au plus (un onglet très long ne ralentit pas la réponse)
+
+// ── L'heure de Paris, calculée par le code (été comme hiver) ──
+// { jour: « aaaa-mm-jj », minutes: depuis minuit, semaine: 1 (lundi) … 7 (dimanche) } de l'instant « ms »
+function demHeure_(ms) {
+  const m = Utilities.formatDate(new Date(ms), 'Europe/Paris', 'yyyy-MM-dd HH:mm').match(/^(\d{4}-\d{2}-\d{2}) (\d{2}):(\d{2})$/);
+  if (!m) throw new Error('heure de Paris illisible');
+  return { jour: m[1], minutes: Number(m[2]) * 60 + Number(m[3]), semaine: demSemaine_(m[1]) };
+}
+// Calculs sur un jour « aaaa-mm-jj » (un simple calendrier : aucun fuseau horaire n'entre ici)
+function demDateDuJour_(jour, plus) { const p = String(jour).split('-').map(Number); return new Date(Date.UTC(p[0], p[1] - 1, p[2] + (plus || 0))); }
+function demSemaine_(jour) { const n = demDateDuJour_(jour).getUTCDay(); return n === 0 ? 7 : n; }
+function demJourPlus_(jour, n) { return demDateDuJour_(jour, n).toISOString().slice(0, 10); }
+function demCourt_(jour) { return String(jour).slice(8, 10) + '/' + String(jour).slice(5, 7); }                    // « 23/11 »
+function demLong_(jour) { return demCourt_(jour) + '/' + String(jour).slice(0, 4); }                              // « 23/11/2026 »
+function demNomJour_(jour) { return DEM_NOMS_JOURS[demDateDuJour_(jour).getUTCDay()] + ' ' + demCourt_(jour); }   // « lundi 23/11 »
+function demMinutes_(hhmm) { const p = String(hhmm).split(':'); return Number(p[0]) * 60 + Number(p[1]); }
+function demHeureTexte_(hhmm) { const p = String(hhmm).split(':'); return Number(p[0]) + ' h ' + p[1]; }           // « 15 h 45 »
+function demEstDate_(v) { return Object.prototype.toString.call(v) === '[object Date]' && !isNaN(v.getTime()); }
+function demMs_(v) { return demEstDate_(v) ? v.getTime() : 0; }
+
+// ── Lecture des cellules ──
+// Case « Commandé » : une vraie case cochée, ou (colonne refaite à la main, sans case) un « oui », un « x »…
+function demCommande_(v) { return v === true || /^(true|vrai|oui|o|x|ok|✓|✔)$/i.test(String(v === undefined || v === null ? '' : v).trim()); }
+// « Récapitulatif du » : « jj/mm/aaaa » ('' : pas encore parti). Une date (cellule remise au format date) est relue de même.
+function demRecapTexte_(v) {
+  if (demEstDate_(v)) return Utilities.formatDate(v, 'Europe/Paris', 'dd/MM/yyyy');
+  return String(v === undefined || v === null ? '' : v).trim();
+}
+function demSorte_(type) { return String(type) === DEM_SORTES.panne ? 'panne' : 'commander'; }
+
+// ── Onglet ──
+function demFormats_(sh) {
+  noteFormats_(sh, DEM_COLONNES_TEXTE);
+  try { sh.getRange(2, COL_DEM.date, Math.max(1, sh.getMaxRows() - 1), 1).setNumberFormat('dd/MM/yyyy HH:mm'); } catch (e) {}
+}
+// Titres changés (colonne déplacée, titre renommé) : le serveur ne devine rien. Rien n'est lu ni écrit, les téléphones
+// gardent leurs demandes et réessaient, et Franck est prévenu par mail (une fois par jour au plus).
+function demOngletVerifie_(sh) {
+  if (noteTitresBons_(sh, DEM_ENTETES)) return sh;
+  let fonction = 'installerLot10Production';
+  try { if (environnementReel_().env === 'TEST') fonction = 'installerLot10Test'; } catch (e) {}
+  alerte_('Les demandes « À commander » des poseurs sont bloquées : la ligne de titres de l’onglet « ' + SHEET_DEMANDES + ' » n’est plus celle attendue ('
+    + DEM_ENTETES.join(' | ') + '). Remets ces titres, dans cet ordre ; ou renomme l’onglet, puis lance ' + fonction + ' (un onglet neuf sera créé). '
+    + 'Rien n’est perdu : les demandes attendent dans les téléphones et repartent une fois les titres remis (si un téléphone affiche « à vérifier », le poseur touche « Réessayer »). Tant que ce n’est pas réparé, le récapitulatif de '
+    + demHeureTexte_(DEMANDES_HEURE_LIMITE) + ' ne part pas.', 'demandes');
+  throw Object.assign(new Error('L’onglet des demandes n’est pas à jour sur le serveur (titres changés, ou installation du lot 10 à faire) : le bureau est prévenu.'), { occupe: true });
+}
+// Pour ÉCRIRE : l'onglet est créé s'il manque, vérifié dans tous les cas
+function demFeuille_() {
+  const existait = !!SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_DEMANDES);
+  const sh = feuille_(SHEET_DEMANDES, DEM_ENTETES);
+  if (!existait) demFormats_(sh);
+  return demOngletVerifie_(sh);
+}
+// Pour LIRE : jamais créé (null s'il n'existe pas encore), vérifié s'il existe
+function demFeuilleLue_() {
+  const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_DEMANDES);
+  return sh ? demOngletVerifie_(sh) : null;
+}
+// Les lignes de l'onglet (sans les titres) qui portent un N° de fiche : [{ r: valeurs, ligne: numéro dans l'onglet }]
+function demLignes_(sh) {
+  const derniere = sh ? sh.getLastRow() : 0;
+  const valeurs = derniere > 1 ? sh.getRange(2, 1, derniere - 1, DEM_ENTETES.length).getValues() : [];
+  return valeurs.map((r, i) => ({ r: r, ligne: i + 2 })).filter(x => String(x.r[COL_DEM.fiche - 1] || '') !== '');
+}
+// Ligne d'une demande d'après son N° de fiche, ou 0
+function demChercher_(sh, idFiche) {
+  const derniere = sh ? sh.getLastRow() : 0;
+  if (derniere < 2) return 0;
+  const ids = sh.getRange(2, COL_DEM.fiche, derniere - 1, 1).getValues();
+  for (let i = 0; i < ids.length; i++) if (String(ids[i][0]) === String(idFiche)) return i + 2;
+  return 0;
+}
+// Demandes de ce compte arrivées AUJOURD'HUI (jour de Paris), sans compter la fiche « sauf » (un renvoi de la même)
+function demNombreDuJour_(sh, idCompte, sauf) {
+  const maintenant = maintenant_(), aujourdhui = demHeure_(maintenant).jour;
+  return demLignes_(sh).filter(x => {
+    const r = x.r, t = demMs_(r[COL_DEM.date - 1]);
+    if (String(r[COL_DEM.compte - 1]) !== idCompte || String(r[COL_DEM.fiche - 1]) === String(sauf || '')) return false;
+    return t > maintenant - 36 * 3600 * 1000 && demHeure_(t).jour === aujourdhui;
+  }).length;
+}
+
+// ── Quand part le prochain récapitulatif ? (lu sur la MARQUE du jour, pas sur l'horloge) ──
+// { aujourdhui: vrai/faux, jour: « lundi 23/11 », texte: la phrase affichée par le téléphone }
+function demProchain_() {
+  const t = demHeure_(maintenant_());
+  const fait = propriete_(DEM_PROP_PASSAGE) === t.jour;
+  // Jour ouvré, passage du jour pas encore fait, et encore temps de l'envoyer : elle part aujourd'hui
+  if (t.semaine <= 5 && !fait && t.minutes < demMinutes_(DEMANDES_FIN_ESSAIS)) {
+    return { aujourdhui: true, jour: demNomJour_(t.jour),
+      texte: '✓ Elle part dans le récapitulatif d’aujourd’hui (vers ' + demHeureTexte_(DEMANDES_HEURE_LIMITE) + ').' };
+  }
+  let suivant = demJourPlus_(t.jour, 1);
+  while (demSemaine_(suivant) > 5) suivant = demJourPlus_(suivant, 1);   // samedi, dimanche : lundi
+  const nom = demNomJour_(suivant);
+  return { aujourdhui: false, jour: nom,
+    texte: fait ? '✓ Le récapitulatif d’aujourd’hui est déjà parti : elle sera dans celui de ' + nom + '.'
+                : '✓ Elle sera dans le récapitulatif de ' + nom + '.' };
+}
+// Où en est une demande déjà écrite (renvoi par le téléphone après une réponse perdue)
+function demEtatLigne_(r) {
+  const recap = demRecapTexte_(r[COL_DEM.recap - 1]);
+  if (!recap) return demProchain_();
+  return { aujourdhui: false, jour: '', texte: '✓ Demande déjà reçue : elle est dans le récapitulatif du ' + recap.slice(0, 5) + '.' };
+}
+// Appelée par Api.gs pour une fiche « demande » déjà traitée (réponse « déjà reçue ») : jamais d'erreur
+function demEtatFiche_(idFiche) {
+  try {
+    const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_DEMANDES);
+    if (!sh || !noteTitresBons_(sh, DEM_ENTETES)) return null;
+    const ligne = demChercher_(sh, idFiche);
+    return ligne ? demEtatLigne_(sh.getRange(ligne, 1, 1, DEM_ENTETES.length).getValues()[0]) : null;
+  } catch (e) { return null; }
+}
+
+// ── Contrôle AVANT tout traitement : null si tout va bien, sinon { code, message } ──
+// DONNEES_INVALIDES = refus définitif (la demande reste dans le téléphone, marquée « à vérifier ») ;
+// CONNEXION_REQUISE = elle attend dans le téléphone que la personne se connecte (jamais de demande sans nom).
+// Peut lever une erreur « occupé » (onglet aux titres changés) : le téléphone garde la demande et réessaie.
+function refusDemande_(d, compte, idFiche) {
+  d = d || {};
+  const refus = m => ({ code: 'DONNEES_INVALIDES', message: m });
+  const CONTROLE = /[\u0000-\u001f\u007f-\u009f\u2028\u2029]/;
+  if (!compte || !compte.id) return { code: 'CONNEXION_REQUISE', message: 'Connectez-vous depuis l’accueil : c’est gardé dans le téléphone et partira ensuite.' };
+  if (!Object.prototype.hasOwnProperty.call(DEM_SORTES, d.sorte)) return refus('Choix manquant : « À commander » ou « Outil en panne »');
+  if (typeof d.quoi !== 'string') return refus('« Quoi ? » manquant');
+  if (d.quantite !== undefined && d.quantite !== null && typeof d.quantite !== 'string') return refus('Quantité invalide');
+  const quoi = noteLigne_(d.quoi), quantite = noteLigne_(d.quantite || '');
+  if (!quoi) return refus('« Quoi ? » est vide : écris ce qu’il faut');
+  if (quoi.length > DEM_MAX_QUOI) return refus('« Quoi ? » trop long (' + DEM_MAX_QUOI + ' caractères au plus)');
+  if (quantite.length > DEM_MAX_QUANTITE) return refus('Quantité trop longue (' + DEM_MAX_QUANTITE + ' caractères au plus)');
+  if (CONTROLE.test(quoi) || CONTROLE.test(quantite)) return refus('Texte invalide');
+  const sh = demFeuilleLue_();
+  if (sh && demNombreDuJour_(sh, compte.id, idFiche) >= DEMANDES_MAX_PAR_JOUR) {
+    return refus(DEMANDES_MAX_PAR_JOUR + ' demandes par jour au plus : pour le reste, appelle le bureau (ou touche « Réessayer » demain)');
+  }
+  return null;
+}
+
+// ── Réception d'une demande (appelée par traiterFiche_) ──
+// contexte : { id (numéro de la fiche), compte (profil vérifié par le jeton) }. Rend { recap } : quand elle partira.
+function traiterDemande(data, brut, contexte) {
+  if (!contexte || !contexte.id) throw new Error('Demande refusée : numéro de fiche absent (page trop ancienne)');
+  const compte = contexte.compte;
+  const verrou = LockService.getScriptLock();
+  if (!verrou.tryLock(15000)) throw noteOccupe_();
+  try {
+    const sh = demFeuille_();
+    const deja = demChercher_(sh, contexte.id);   // déjà écrite (nouvel essai après une coupure) : rien à refaire, la case n'est pas touchée
+    if (deja) return { recap: demEtatLigne_(sh.getRange(deja, 1, 1, DEM_ENTETES.length).getValues()[0]) };
+    const refus = refusDemande_(brut, compte, contexte.id);   // recontrôlé sous verrou (deux demandes au même instant)
+    if (refus) throw noteRefus_(refus.message);
+    const ligne = [];
+    for (let c = 1; c <= DEM_ENTETES.length; c++) ligne.push('');
+    ligne[COL_DEM.date - 1] = new Date(maintenant_());
+    ligne[COL_DEM.poseur - 1] = compte.nom || compte.id;
+    ligne[COL_DEM.type - 1] = DEM_SORTES[brut.sorte];
+    ligne[COL_DEM.quoi - 1] = noteLigne_(brut.quoi);
+    ligne[COL_DEM.quantite - 1] = noteLigne_(brut.quantite || '');
+    ligne[COL_DEM.compte - 1] = compte.id;
+    ligne[COL_DEM.fiche - 1] = contexte.id;
+    const numero = noteAjouterLigne_(sh, ligne, DEM_COLONNES_TEXTE);   // textes passés par cellule_ (jamais une formule)
+    // La case « Commandé », posée sur CETTE ligne seulement. Si elle ne peut pas l'être, la demande est notée quand même
+    // (la lecture accepte une cellule sans case).
+    try { sh.getRange(numero, COL_DEM.commande).insertCheckboxes(); } catch (e) { console.error('case Commandé :', e.message); }
+    // L'écriture est POUSSÉE dans le Sheet avant de rendre le verrou : sans cela, la demande suivante (un autre téléphone,
+    // au même instant) pourrait lire « dernière ligne » avant que celle-ci y soit, et s'écrire par-dessus.
+    SpreadsheetApp.flush();
+    // La demande est notée : si le calcul du prochain récapitulatif échoue, elle n'est pas refusée pour autant
+    let recap = null;
+    try { recap = demProchain_(); } catch (e) { console.error('prochain récapitulatif :', e.message); }
+    return { recap: recap };
+  } finally { verrou.releaseLock(); }
+}
+
+// ── « Mes demandes » : celles du compte, 90 jours, les plus récentes d'abord ──
+function demObjet_(r) {
+  const recap = demRecapTexte_(r[COL_DEM.recap - 1]), commande = demCommande_(r[COL_DEM.commande - 1]);
+  return { id: String(r[COL_DEM.fiche - 1]), date: demMs_(r[COL_DEM.date - 1]), sorte: demSorte_(r[COL_DEM.type - 1]), type: String(r[COL_DEM.type - 1] || ''),
+    quoi: String(r[COL_DEM.quoi - 1] || ''), quantite: String(r[COL_DEM.quantite - 1] || ''),
+    etat: commande ? 'commande' : (recap ? 'recap' : 'attente'),
+    etatTexte: commande ? '✓ Commandé' : (recap ? 'récapitulatif du ' + recap.slice(0, 5) : 'partira dans le prochain récapitulatif') };
+}
+function listerDemandes_(compte, corps) {
+  let sh;
+  try { sh = demFeuilleLue_(); }
+  catch (err) { if (err && err.occupe) return avecJeton_({ ok: false, code: 'SERVEUR_OCCUPE', message: err.message }, compte); throw err; }
+  const maintenant = maintenant_(), limite = maintenant - DEMANDES_JOURS_LISTE * 24 * 3600 * 1000;
+  const miennes = demLignes_(sh).map(x => x.r)
+    .filter(r => String(r[COL_DEM.compte - 1]) === compte.id && demMs_(r[COL_DEM.date - 1]) >= limite)
+    .map((r, i) => ({ r: r, i: i })).sort((a, b) => (demMs_(b.r[COL_DEM.date - 1]) - demMs_(a.r[COL_DEM.date - 1])) || (b.i - a.i)).map(x => x.r);
+  const prochain = demProchain_();
+  const data = { demandes: miennes.slice(0, DEM_MAX_LISTE).map(demObjet_), plein: miennes.length > DEM_MAX_LISTE,
+    prochain: { aujourdhui: prochain.aujourdhui, jour: prochain.jour }, heure: maintenant };
+  // Lot 10a-2 : la liste « Articles ». Le téléphone dit quelle liste il garde déjà (corps.articles : son empreinte, '' s'il
+  // n'en a pas) ; elle n'est renvoyée que si elle a changé. Une page d'avant le lot 10a-2 ne dit rien : rien de plus pour elle.
+  if (corps && typeof corps.articles === 'string') {
+    const articles = demArticles_();
+    if (articles) {
+      data.articlesEmpreinte = articles.empreinte;
+      if (articles.empreinte !== corps.articles) data.articles = articles.liste;
+    }
+  }
+  return avecJeton_({ ok: true, code: 'OK', message: miennes.length + ' demande(s)', data: data }, compte);
+}
+
+// ── Lot 10a-2 : la liste « Articles » ──
+// Deux textes sont « le même article » s'ils ne diffèrent que par les majuscules, les accents, « x » ou « × », les espaces.
+// (La même règle que dans le téléphone : commun/commander.js, D.cle.)
+function demCleArticle_(t) {
+  return String(t).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/×/g, 'x').replace(/œ/g, 'oe').replace(/æ/g, 'ae')
+    .replace(/(\d)\s*x\s*(?=\d)/g, '$1x').replace(/\s+/g, ' ').trim();
+}
+// Empreinte courte de la liste : le téléphone ne la retélécharge que si elle a changé
+function demEmpreinte_(liste) {
+  const t = liste.join('\n');
+  let h = 5381;
+  for (let i = 0; i < t.length; i++) h = ((h * 33) ^ t.charCodeAt(i)) >>> 0;
+  return liste.length + '-' + h.toString(36);
+}
+// { liste: [textes], empreinte, trop: vrai si l'onglet a plus d'articles que ce qui est donné } ; onglet absent ou vide :
+// liste vide ; onglet illisible : null (le téléphone garde alors la liste qu'il a déjà).
+// Un article par ligne, colonne A, lu tel qu'il est AFFICHÉ dans le Sheet (« 4×40 » reste « 4×40 ») ; une seule ligne de
+// texte, DEM_MAX_QUOI caractères au plus (le reste est coupé) ; doublons retirés ; une première ligne « Article » est un titre.
+function demArticles_() {
+  try {
+    const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_ARTICLES);
+    const derniere = sh ? sh.getLastRow() : 0, lues = Math.min(derniere, ART_MAX_LIGNES);
+    const valeurs = lues > 0 ? sh.getRange(1, 1, lues, 1).getDisplayValues() : [];
+    const vus = {}, liste = [];
+    let trop = derniere > lues;
+    for (let i = 0; i < valeurs.length; i++) {
+      const texte = noteLigne_(String(valeurs[i][0] === undefined || valeurs[i][0] === null ? '' : valeurs[i][0]))
+        .replace(/[\u0000-\u001f\u007f-\u009f]/g, '').slice(0, DEM_MAX_QUOI).trim();
+      const cle = demCleArticle_(texte);
+      if (!cle || vus[cle]) continue;
+      if (i === 0 && /^articles?$/.test(cle)) continue;                                        // la ligne de titre
+      if (/^#(REF!|N\/A|NAME\?|VALUE!|DIV\/0!|ERROR!|NUM!|NULL!)$/.test(texte)) continue;   // une formule en erreur n'est pas un article
+      if (liste.length >= ART_MAX) { trop = true; break; }
+      vus[cle] = true;
+      liste.push(texte);
+    }
+    return { liste: liste, empreinte: demEmpreinte_(liste), trop: trop };
+  } catch (err) {
+    console.error('onglet « ' + SHEET_ARTICLES + ' » :', err && err.message ? err.message : err);
+    return null;
+  }
+}
+
+// ── Le récapitulatif ──
+// Le mail : { sujet, texte, html }. lignes : [{ r }] au « Récapitulatif du » vide ; report : { jour, ms } ou null.
+function demMail_(lignes, jour, report) {
+  const anciennes = report ? lignes.filter(x => demMs_(x.r[COL_DEM.date - 1]) <= report.ms) : [];
+  const duJour = lignes.filter(x => anciennes.indexOf(x) < 0);
+  const parPoseur = l => l.slice().sort((a, b) => String(a.r[COL_DEM.poseur - 1]).localeCompare(String(b.r[COL_DEM.poseur - 1]))
+    || (demMs_(a.r[COL_DEM.date - 1]) - demMs_(b.r[COL_DEM.date - 1])) || (a.ligne - b.ligne));
+  const champs = x => [String(x.r[COL_DEM.poseur - 1] || ''), String(x.r[COL_DEM.quoi - 1] || ''),
+    String(x.r[COL_DEM.quantite - 1] || '') + (demCommande_(x.r[COL_DEM.commande - 1]) ? (x.r[COL_DEM.quantite - 1] ? ' ' : '') + '(déjà commandé)' : '')];
+  const texte = [], html = [];
+  const cellule = 'style="padding:3px 14px 3px 0;vertical-align:top"';
+  const partie = (titre, l, retrait) => {
+    if (!l.length) return;
+    texte.push(retrait + titre);
+    html.push('<tr><td colspan="3" style="padding:10px 0 3px"><b>' + esc_(titre) + '</b></td></tr>');
+    parPoseur(l).forEach(x => {
+      const c = champs(x);
+      texte.push(retrait + '  ' + c.filter(Boolean).join(' — '));
+      html.push('<tr><td ' + cellule + '>' + esc_(c[0]) + '</td><td ' + cellule + '>' + esc_(c[1]) + '</td><td ' + cellule + '>' + esc_(c[2]) + '</td></tr>');
+    });
+  };
+  const deuxParties = (l, retrait) => {
+    partie('À COMMANDER', l.filter(x => demSorte_(x.r[COL_DEM.type - 1]) === 'commander'), retrait);
+    partie('OUTIL EN PANNE', l.filter(x => demSorte_(x.r[COL_DEM.type - 1]) === 'panne'), retrait);
+  };
+  if (anciennes.length) {
+    const titre = 'DEMANDES NON ENVOYÉES ' + (report.jour === demJourPlus_(jour, -1) ? 'HIER' : 'DU ' + demCourt_(report.jour));
+    texte.push(titre);
+    html.push('<tr><td colspan="3" style="padding:10px 0 0;color:#B32E2E"><b>' + esc_(titre) + '</b></td></tr>');
+    deuxParties(anciennes, '  ');
+    if (duJour.length) { texte.push(''); texte.push('DEMANDES DU JOUR'); html.push('<tr><td colspan="3" style="padding:14px 0 0;color:#1A2B4A"><b>DEMANDES DU JOUR</b></td></tr>'); }
+    deuxParties(duJour, duJour.length ? '  ' : '');
+  } else deuxParties(duJour, '');
+  const n = lignes.length;
+  const pied = 'Quand c’est commandé : coche la case « Commandé » de l’onglet « ' + SHEET_DEMANDES + ' » du Sheet. Le poseur voit alors « ✓ Commandé » dans son téléphone.';
+  return { sujet: 'À commander — ' + demNomJour_(jour) + ' (' + n + (n > 1 ? ' demandes' : ' demande') + ')',
+    texte: texte.join('\n') + '\n\n' + pied + '\n\nLoué App',
+    html: '<table style="border-collapse:collapse;font-family:Arial,sans-serif;font-size:14px">' + html.join('') + '</table>'
+      + '<p style="font-family:Arial,sans-serif;font-size:13px;color:#555">' + esc_(pied) + '<br><br>Loué App</p>' };
+}
+// Écrit la date du récapitulatif sur les demandes parties. Les lignes sont RETROUVÉES par leur N° de fiche juste avant
+// l'écriture (l'onglet a pu être trié pendant l'envoi du mail), et seules les cellules encore vides sont écrites.
+function demMarquer_(sh, fiches, date) {
+  const voulues = {};
+  fiches.forEach(f => { voulues[f] = true; });
+  demLignes_(sh).forEach(x => {
+    if (!voulues[String(x.r[COL_DEM.fiche - 1])] || demRecapTexte_(x.r[COL_DEM.recap - 1])) return;
+    sh.getRange(x.ligne, COL_DEM.recap).setNumberFormat('@').setValue(date);
+  });
+}
+// À APPELER SOUS LE VERROU DU SCRIPT (traiterComptes le tient déjà). Rend un mot qui dit ce qui s'est passé.
+function demRecapituler_() {
+  const maintenant = maintenant_(), t = demHeure_(maintenant);
+  if (t.semaine > 5) return 'week-end';
+  if (t.minutes < demMinutes_(DEMANDES_HEURE_LIMITE)) return 'avant l’heure';
+  const props = PropertiesService.getScriptProperties();
+  if (props.getProperty(DEM_PROP_PASSAGE) === t.jour) return 'déjà fait';
+  const tropTard = t.minutes >= demMinutes_(DEMANDES_FIN_ESSAIS);
+  let sh = null, lignes = [], illisible = '';
+  try { sh = demFeuilleLue_(); lignes = demLignes_(sh).filter(x => !demRecapTexte_(x.r[COL_DEM.recap - 1])); }
+  catch (err) { illisible = String(err && err.message ? err.message : err); }
+  // Trop tard pour commander aujourd'hui : on abandonne pour ce jour. Les lignes restent vides : elles partiront en tête
+  // du récapitulatif suivant (« Demandes non envoyées hier »).
+  const abandonner = pourquoi => {
+    props.setProperty(DEM_PROP_REPORT, JSON.stringify({ jour: t.jour, ms: maintenant }));
+    props.setProperty(DEM_PROP_PASSAGE, t.jour);
+    journal_({ fiche: 'récapitulatif « À commander »' }, emailAdmin_(), 'reporté', 'pas parti avant ' + demHeureTexte_(DEMANDES_FIN_ESSAIS)
+      + ' (' + pourquoi + ') : ses demandes seront en tête du récapitulatif suivant');
+    return 'abandonné';
+  };
+  if (illisible) return tropTard ? abandonner('onglet « ' + SHEET_DEMANDES + ' » illisible') : 'onglet illisible';
+  // Le mail d'aujourd'hui est DÉJÀ parti, mais la date n'a pas pu être écrite sur ses lignes (panne entre les deux) :
+  // on refait seulement l'écriture, sans renvoyer de mail. Seules les demandes arrivées avant l'envoi sont datées ;
+  // celles arrivées depuis partiront dans le récapitulatif suivant.
+  let envoi = null;
+  try { envoi = JSON.parse(props.getProperty(DEM_PROP_ENVOI) || 'null'); } catch (e) {}
+  if (envoi && envoi.jour === t.jour && Number(envoi.ms) > 0) {
+    const parties = lignes.filter(x => demMs_(x.r[COL_DEM.date - 1]) <= Number(envoi.ms));
+    demMarquer_(sh, parties.map(x => String(x.r[COL_DEM.fiche - 1])), demLong_(t.jour));
+    SpreadsheetApp.flush();
+    props.deleteProperty(DEM_PROP_REPORT);
+    props.setProperty(DEM_PROP_PASSAGE, t.jour);
+    return 'dates écrites (' + parties.length + '), mail déjà parti';
+  }
+  if (!lignes.length) {   // aucune demande : aucun mail, mais le passage du jour est fait
+    props.deleteProperty(DEM_PROP_REPORT);
+    props.setProperty(DEM_PROP_PASSAGE, t.jour);
+    return 'rien';
+  }
+  if (tropTard) return abandonner(lignes.length + ' demande(s) en attente');
+  let report = null;
+  try { report = JSON.parse(props.getProperty(DEM_PROP_REPORT) || 'null'); } catch (e) {}
+  if (!report || typeof report.jour !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(report.jour) || !(Number(report.ms) > 0)) report = null;
+  const mail = demMail_(lignes, t.jour, report);
+  const echec = mailBureau_(mail.sujet, mail.texte, mail.html);
+  if (echec) return 'mail non parti (' + echec + ')';   // la marque n'est PAS posée : nouvel essai au passage suivant
+  // Le mail est parti. On le note tout de suite (une panne pendant l'écriture des dates ne le fera pas repartir : le passage
+  // suivant ne refera que l'écriture), puis la date sur les lignes, POUSSÉE dans le Sheet, et enfin la marque du jour.
+  props.setProperty(DEM_PROP_ENVOI, JSON.stringify({ jour: t.jour, ms: maintenant }));
+  demMarquer_(sh, lignes.map(x => String(x.r[COL_DEM.fiche - 1])), demLong_(t.jour));
+  SpreadsheetApp.flush();
+  props.deleteProperty(DEM_PROP_REPORT);
+  props.setProperty(DEM_PROP_PASSAGE, t.jour);
+  return 'envoyé (' + lignes.length + ')';
+}
+
+// ── Contrôles du lot 10, ajoutés à verifierConfig() ──
+function verifierDemandes_() {
+  const lignes = [];
+  const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_DEMANDES);
+  const bon = !!sh && noteTitresBons_(sh, DEM_ENTETES);
+  lignes.push((bon ? '✅ ' : '❌ ') + 'Onglet « ' + SHEET_DEMANDES + ' » (sinon lancer installerLot10Test ou installerLot10Production)');
+  let attente = '';
+  try { if (bon) attente = ' ; demandes en attente du prochain : ' + demLignes_(sh).filter(x => !demRecapTexte_(x.r[COL_DEM.recap - 1])).length; } catch (e) {}
+  const passage = propriete_(DEM_PROP_PASSAGE);
+  lignes.push('Récapitulatif « À commander » : du lundi au vendredi, au premier passage du réveil des 10 minutes (traiterComptes) après '
+    + demHeureTexte_(DEMANDES_HEURE_LIMITE) + ' ; dernier passage fait : ' + (/^\d{4}-\d{2}-\d{2}$/.test(passage) ? demLong_(passage) : 'jamais') + attente);
+  let report = null;
+  try { report = JSON.parse(propriete_(DEM_PROP_REPORT) || 'null'); } catch (e) {}
+  if (report && /^\d{4}-\d{2}-\d{2}$/.test(String(report.jour))) lignes.push('⚠ Le récapitulatif du ' + demLong_(report.jour) + ' n’a pas pu partir : ses demandes seront en tête du suivant');
+  // Lot 10a-2 : la liste « Articles » (facultative : son absence n'est pas une erreur)
+  if (!SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_ARTICLES)) {
+    lignes.push('➖ Onglet « ' + SHEET_ARTICLES + ' » : absent (facultatif ; installerLot10Test ou installerLot10Production le crée, vide)');
+  } else {
+    const articles = demArticles_();
+    lignes.push(!articles ? '❌ Onglet « ' + SHEET_ARTICLES + ' » : illisible (les téléphones gardent la liste qu’ils ont déjà)'
+      : '✅ Onglet « ' + SHEET_ARTICLES + ' » : ' + articles.liste.length + ' article(s) proposé(s) aux poseurs pendant la frappe'
+        + (articles.trop ? ' — ⚠ liste trop longue : seuls les ' + ART_MAX + ' premiers articles (lus dans les ' + ART_MAX_LIGNES + ' premières lignes) sont proposés' : ''));
+  }
+  return lignes.join('\n');
+}
+
+// ── Installation du lot 10 (une fonction par environnement ; relançable sans danger) ──
+function etapesLot10_() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  return [{
+    nom: 'Onglet « ' + SHEET_DEMANDES + ' »',
+    fait: () => { const sh = ss.getSheetByName(SHEET_DEMANDES); return !!sh && noteTitresBons_(sh, DEM_ENTETES); },
+    action: () => {
+      const sh = ss.getSheetByName(SHEET_DEMANDES);
+      if (!sh) { demFormats_(feuille_(SHEET_DEMANDES, DEM_ENTETES)); return 'onglet créé'; }
+      // Onglet déjà là : jamais rien réécrire par-dessus des données
+      const titres = sh.getRange(1, 1, 1, Math.max(DEM_ENTETES.length, sh.getLastColumn())).getValues()[0];
+      if (sh.getLastRow() > 1 || titres.some(t => String(t === undefined || t === null ? '' : t).trim() !== '')) throw new Error('un onglet « ' + SHEET_DEMANDES + ' » existe déjà avec d’autres titres : le renommer, puis relancer');
+      sh.getRange(1, 1, 1, DEM_ENTETES.length).setValues([DEM_ENTETES]);
+      demFormats_(sh);
+      return 'onglet prêt';
+    } },
+  // Lot 10a-2 : la liste d'articles proposés à tous. Créé VIDE (un titre, rien d'autre) ; s'il existe déjà, il n'est jamais touché.
+  { nom: 'Onglet « ' + SHEET_ARTICLES + ' » (facultatif : ta liste d’articles proposés pendant la frappe)',
+    fait: () => !!ss.getSheetByName(SHEET_ARTICLES),
+    action: () => {
+      const sh = feuille_(SHEET_ARTICLES, [ART_TITRE]);
+      // colonne au format texte (« 12/11 » ne devient pas une date), assez large pour lire un article
+      try { sh.getRange(2, 1, Math.max(1, sh.getMaxRows() - 1), 1).setNumberFormat('@'); sh.setColumnWidth(1, 360); } catch (e) {}
+      return 'onglet créé, vide : un article par ligne, dans la colonne A';
+    } },
+  // Le récapitulatif est lancé par le réveil des 10 minutes. Sur TEST, les réveils ne sont posés que pendant les essais
+  // (les 90 minutes par jour sont partagées avec la production).
+  { nom: 'Réveil des 10 minutes (traiterComptes), qui lance le récapitulatif', seulement: 'PRODUCTION',
+    fait: () => ScriptApp.getProjectTriggers().some(d => d.getHandlerFunction() === 'traiterComptes'),
+    action: () => installerDeclencheurs() }];
+}
+function installerLot10_(attendu) {
+  const r = installer_('Lot 10', attendu, etapesLot10_());
+  let infos = '';
+  if (r.ok) {
+    infos = '\nRécapitulatif « À commander » : du lundi au vendredi, au premier passage après ' + demHeureTexte_(DEMANDES_HEURE_LIMITE)
+      + ' (heure de Paris), un mail à l’adresse du bureau. Aucun mail s’il n’y a aucune demande.'
+      + '\nOnglet « ' + SHEET_ARTICLES + ' » : facultatif. Un article par ligne dans la colonne A (' + ART_MAX + ' au plus, ' + DEM_MAX_QUOI
+      + ' caractères au plus) : ils sont proposés aux poseurs pendant la frappe. Vide, tout marche quand même.'
+      + (attendu === 'TEST' ? '\nCopie TEST : pour recevoir ce mail, pose les réveils le temps de l’essai (installerDeclencheurs), puis retire-les (retirerDeclencheurs).' : '');
+    Logger.log(infos);
+  }
+  return r.texte + infos;
+}
+function installerLot10Test() { return installerLot10_('TEST'); }
+function installerLot10Production() { return installerLot10_('PRODUCTION'); }
+
+// ████ PointVendredi.gs ████
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+// LOT 10b — LE POINT DU VENDREDI : un mail par semaine à Franck (et à lui seul), sans pièce jointe
+//
+//   1. les signalements de la semaine (créés depuis le mail précédent ; depuis 7 jours la première fois) et leur état ;
+//   2. le rappel des signalements « Bloquant » restés « À traiter » depuis VENDREDI_RAPPEL_JOURS jours ou plus ;
+//   3. le point de santé, avec ce que le serveur sait déjà : mails reportés encore en attente (onglet « Mails en attente »),
+//      place du compte (dernier chiffre de l'onglet « Stockage »), fiches arrivées au bureau mais en erreur ou en attente
+//      de leurs photos (onglet « Envois »).
+// Le mail part TOUJOURS, même s'il n'y a rien à signaler : s'il n'arrive pas un vendredi, quelque chose ne tourne plus.
+// Ce fichier ne fait que LIRE les onglets : il n'écrit dans aucun (sauf une ligne au Journal en cas d'abandon).
+//
+// MÊME MÉCANIQUE QUE LE RÉCAPITULATIF « À COMMANDER » (Demandes.gs) : venPasser_ est lancée par le réveil des 10 minutes,
+// à la fin de traiterComptes (Comptes.gs), sous le verrou que traiterComptes tient déjà (ni repris ni rendu ici), dans son
+// propre try/catch : les comptes, le récapitulatif des demandes et ce mail ne se gênent pas.
+//   - le vendredi (jour et heure de Paris, calculés par demHeure_, jamais avec le fuseau du projet), au premier passage
+//     après VENDREDI_HEURE ;
+//   - mail en échec (quota épuisé, panne) : nouvel essai à chaque passage jusqu'à VENDREDI_FIN_ESSAIS, puis abandon pour
+//     cette semaine, avec une ligne au Journal (pas de mail le samedi) ;
+//   - une seule propriété du script, VENDREDI_POINT : { actif, fait: « aaaa-mm-jj » du vendredi réglé (mail parti ou
+//     abandonné), envoi: instant du dernier mail PARTI, echec: raison du dernier essai raté }.
+// Coût quand il n'y a rien à faire : du samedi au jeudi et le vendredi avant l'heure, RIEN (pas même une lecture de
+// mémoire) ; le vendredi après l'heure, une lecture de mémoire par passage ; le Sheet n'est lu que pour fabriquer le mail.
+//
+// MISE EN SERVICE : le mail ne part pas tant que demarrerPointDuVendredi() n'a pas été lancée (arreterPointDuVendredi()
+// l'arrête). essaiPointDuVendredi() fabrique le mail à la demande, sans toucher à la marque de la semaine.
+//
+// Plan : docs/lot10-plan.md, chapitre 6. Décisions : D10-43 et suivantes (DECISIONS.md).
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+const VEN_PROP = 'VENDREDI_POINT';
+const VEN_MAX_LIGNES = 60;          // lignes de signalements écrites dans le mail, au plus (le reste est compté)
+const VEN_MAX_ENVOIS = 3000;        // dernières lignes de l'onglet « Envois » lues, au plus
+const VEN_JOURS_ENVOIS = 30;        // une fiche « en erreur » ou « en attente de photos » est citée pendant 30 jours
+const VEN_MAX_FICHES = 8;           // fiches citées une par une dans le point de santé, au plus
+const VEN_JOUR_MS = 24 * 3600 * 1000;
+
+// ── La marque de la semaine (une seule propriété) ──
+function venEtat_() {
+  let e = null;
+  try { e = JSON.parse(PropertiesService.getScriptProperties().getProperty(VEN_PROP) || 'null'); } catch (err) {}
+  return e && typeof e === 'object' && !Array.isArray(e) ? e : {};
+}
+function venEcrire_(e) { PropertiesService.getScriptProperties().setProperty(VEN_PROP, JSON.stringify(e)); }
+
+// ── Petits outils d'écriture ──
+function venEstDate_(v) { return Object.prototype.toString.call(v) === '[object Date]' && !isNaN(v.getTime()); }
+function venMs_(v) { return venEstDate_(v) ? v.getTime() : 0; }
+// « 18/11 à 9 h 12 » (heure de Paris)
+function venQuand_(ms) {
+  const m = Utilities.formatDate(new Date(ms), 'Europe/Paris', 'dd/MM HH:mm').match(/^(\d{2}\/\d{2}) (\d{2}):(\d{2})$/);
+  return m ? m[1] + ' à ' + Number(m[2]) + ' h ' + m[3] : '';
+}
+function venJourCourt_(ms) { return Utilities.formatDate(new Date(ms), 'Europe/Paris', 'dd/MM'); }
+function venPluriel_(n, un, plusieurs) { return n + ' ' + (n > 1 ? plusieurs : un); }
+function venTexte_(v) { return String(v === undefined || v === null ? '' : v).replace(/\s+/g, ' ').trim(); }
+
+// ── 1 et 2. Les signalements (lecture seule de l'onglet « Signalements ») ──
+// → { semaine: [{ chantier, type, urgence, auteur, statut, recu }], rappels: [{ …, jours }] }
+// Lève une erreur (texte court) si l'onglet est absent, si ses titres ont changé, ou s'il est illisible.
+function venSignalements_(depuis, maintenant) {
+  const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_SIGNALEMENTS);
+  if (!sh) throw new Error('onglet « ' + SHEET_SIGNALEMENTS + ' » absent');
+  // Titres changés ou colonnes déplacées : on ne devine rien (un état lu dans la mauvaise colonne serait un mail faux)
+  if (!noteTitresBons_(sh, SIG_ENTETES)) throw new Error('les titres de l’onglet « ' + SHEET_SIGNALEMENTS + ' » ont changé');
+  const derniere = sh.getLastRow();
+  const lignes = derniere > 1 ? sh.getRange(2, 1, derniere - 1, SIG_ENTETES.length).getValues() : [];
+  const limiteRappel = maintenant - VENDREDI_RAPPEL_JOURS * VEN_JOUR_MS;
+  const semaine = [], rappels = [];
+  lignes.forEach(r => {
+    if (String(r[COL_S.id - 1] || '') === '') return;
+    const recu = venMs_(r[COL_S.recu - 1]);
+    if (!recu) return;   // sans date de réception lisible, impossible de dire de quelle semaine il est
+    const s = { chantier: venTexte_(r[COL_S.chantier - 1]), type: venTexte_(r[COL_S.type - 1]), urgence: venTexte_(r[COL_S.urgence - 1]),
+      auteur: venTexte_(r[COL_S.auteur - 1]), statut: statutLu_(r[COL_S.statut - 1]), recu: recu };
+    if (recu > depuis && recu <= maintenant) semaine.push(s);
+    if (s.urgence === SIG_URGENCES[0] && s.statut === SIG_STATUTS[0] && recu <= limiteRappel) {
+      rappels.push(Object.assign({ jours: Math.floor((maintenant - recu) / VEN_JOUR_MS) }, s));
+    }
+  });
+  semaine.sort((a, b) => a.chantier.localeCompare(b.chantier) || (a.recu - b.recu));
+  rappels.sort((a, b) => a.recu - b.recu);   // le plus ancien d'abord
+  return { semaine: semaine, rappels: rappels };
+}
+
+// ── 3. Le point de santé : trois lectures indépendantes. Chacune rend { texte, alerte: vrai s'il y a quelque chose à regarder } ──
+// Mails reportés encore en attente. Onglet absent : aucun mail n'a jamais été reporté.
+function venMailsEnAttente_() {
+  const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_ATTENTE);
+  const derniere = sh ? sh.getLastRow() : 0;
+  if (derniere < 2) return { texte: 'rien à signaler', alerte: false };
+  const lignes = sh.getRange(2, 1, derniere - 1, 11).getValues().filter(r => String(r[10]) === 'en attente');
+  if (!lignes.length) return { texte: 'rien à signaler', alerte: false };
+  const dates = lignes.map(r => venMs_(r[0])).filter(Boolean);
+  return { texte: venPluriel_(lignes.length, 'mail', 'mails') + (dates.length ? ' (le plus ancien : ' + venQuand_(Math.min.apply(null, dates)) + ')' : '')
+    + ' — voir l’onglet « ' + SHEET_ATTENTE + ' »', alerte: true };
+}
+// Place du compte : le dernier chiffre écrit par la mesure de la nuit dans l'onglet « Stockage » (rien n'est remesuré ici)
+function venPlace_() {
+  const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_STOCKAGE);
+  if (!sh) return { texte: 'pas encore mesurée (onglet « ' + SHEET_STOCKAGE + ' » absent)', alerte: false };
+  const v = sh.getRange(STK_R.place, 1, 2, 2).getValues();   // lignes « Place utilisée » et « Mesurée le », colonnes A et B
+  if (String(v[0][0]) !== STK_RESUME[STK_R.place - 1] || String(v[1][0]) !== STK_RESUME[STK_R.date - 1]) throw new Error('les titres de l’onglet « ' + SHEET_STOCKAGE + ' » ont changé');
+  const place = venTexte_(v[0][1]);
+  if (!place) return { texte: 'pas encore mesurée', alerte: false };
+  const date = venEstDate_(v[1][1]) ? Utilities.formatDate(v[1][1], 'Europe/Paris', 'dd/MM/yyyy') : venTexte_(v[1][1]);
+  const pourcent = place.match(/\((\d+)\s*%\)/);
+  return { texte: place + (date ? ', mesurée le ' + date : ''), alerte: !!pourcent && Number(pourcent[1]) >= STK_SEUIL_ALERTE };
+}
+// Fiches arrivées au bureau mais pas traitées : statut « erreur » ou « en attente de photos » dans l'onglet « Envois »
+// (les deux statuts écrits par recevoirFiche_, Api.gs), reçues depuis VEN_JOURS_ENVOIS jours au plus.
+function venFiches_(maintenant) {
+  const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_ENVOIS);
+  const derniere = sh ? sh.getLastRow() : 0;
+  if (derniere < 2) return { texte: 'rien à signaler', alerte: false, lignes: [] };
+  const n = Math.min(derniere - 1, VEN_MAX_ENVOIS);
+  const limite = maintenant - VEN_JOURS_ENVOIS * VEN_JOUR_MS;
+  const fiches = sh.getRange(derniere - n + 1, 1, n, 5).getValues()
+    .map(r => ({ recu: venMs_(r[1]), type: venTexte_(r[2]), chantier: venTexte_(r[3]), statut: String(r[4]) }))
+    .filter(f => (f.statut === 'erreur' || f.statut === 'en attente de photos') && f.recu >= limite)
+    .sort((a, b) => a.recu - b.recu);
+  if (!fiches.length) return { texte: 'rien à signaler', alerte: false, lignes: [] };
+  const erreurs = fiches.filter(f => f.statut === 'erreur').length, photos = fiches.length - erreurs;
+  const morceaux = [];
+  if (erreurs) morceaux.push(erreurs + ' en erreur');
+  if (photos) morceaux.push(photos + ' en attente de ' + (photos > 1 ? 'leurs' : 'ses') + ' photos');
+  return { texte: morceaux.join(', ') + ' (la plus ancienne : ' + venQuand_(fiches[0].recu) + ') — voir l’onglet « ' + SHEET_ENVOIS + ' »', alerte: true,
+    lignes: fiches.slice(0, VEN_MAX_FICHES).map(f => [LIBELLES_FICHES[f.type] || f.type || 'fiche', f.chantier, f.statut === 'erreur' ? 'en erreur' : 'en attente de ses photos', 'reçue le ' + venQuand_(f.recu)]),
+    autres: Math.max(0, fiches.length - VEN_MAX_FICHES) };
+}
+
+// ── Le mail : { sujet, texte, html } ──
+// Chaque partie est lue à part : un onglet illisible ou absent ne fait jamais échouer le mail, sa partie dit
+// « indisponible » et les autres sont remplies. Tous les textes venus du Sheet sont échappés dans le HTML (esc_).
+function venMail_(maintenant, depuis, essai) {
+  const jour = demHeure_(maintenant).jour;
+  const partie = lecture => { try { return lecture(); } catch (err) { return { indisponible: String(err && err.message ? err.message : err).slice(0, 150) }; } };
+  const sig = partie(() => venSignalements_(depuis, maintenant));
+  const mails = partie(venMailsEnAttente_), place = partie(venPlace_), fiches = partie(() => venFiches_(maintenant));
+  const indispo = p => 'indisponible (' + p.indisponible + ')';
+
+  const texte = [], html = [];
+  const cel = 'style="padding:3px 14px 3px 0;vertical-align:top"';
+  const titre = t => { texte.push(''); texte.push(t); html.push('<h3 style="font-family:Arial,sans-serif;font-size:15px;color:#1A2B4A;margin:18px 0 6px">' + esc_(t) + '</h3>'); };
+  const phrase = t => { texte.push('  ' + t); html.push('<p style="font-family:Arial,sans-serif;font-size:14px;margin:0 0 4px">' + esc_(t) + '</p>'); };
+  const tableau = (entetes, lignes) => {
+    lignes.forEach(l => texte.push('  ' + l.filter(Boolean).join(' — ')));
+    html.push('<table style="border-collapse:collapse;font-family:Arial,sans-serif;font-size:14px"><tr>'
+      + entetes.map(e => '<th ' + cel + ' align="left">' + esc_(e) + '</th>').join('') + '</tr>'
+      + lignes.map(l => '<tr>' + l.map(c => '<td ' + cel + '>' + esc_(c) + '</td>').join('') + '</tr>').join('') + '</table>');
+  };
+
+  // 1. Signalements de la semaine
+  const nSemaine = sig.indisponible ? 0 : sig.semaine.length;
+  titre('SIGNALEMENTS DE LA SEMAINE (depuis le ' + venQuand_(depuis) + ')' + (sig.indisponible ? '' : ' : ' + nSemaine));
+  if (sig.indisponible) phrase(indispo(sig));
+  else if (!nSemaine) phrase('rien à signaler');
+  else {
+    tableau(['Chantier', 'Type', 'Urgence', 'Signalé par', 'État'], sig.semaine.slice(0, VEN_MAX_LIGNES).map(s => [s.chantier, s.type, s.urgence, s.auteur, s.statut]));
+    if (nSemaine > VEN_MAX_LIGNES) phrase('… et ' + (nSemaine - VEN_MAX_LIGNES) + ' autre(s) : voir l’onglet « ' + SHEET_SIGNALEMENTS + ' »');
+  }
+  // 2. Rappel : « Bloquant » restés « À traiter »
+  const nRappels = sig.indisponible ? 0 : sig.rappels.length;
+  titre('RAPPEL — « ' + SIG_URGENCES[0].toUpperCase() + ' » RESTÉS « ' + SIG_STATUTS[0].toUpperCase() + ' » DEPUIS ' + VENDREDI_RAPPEL_JOURS + ' JOURS OU PLUS' + (sig.indisponible ? '' : ' : ' + nRappels));
+  if (sig.indisponible) phrase(indispo(sig));
+  else if (!nRappels) phrase('rien à signaler');
+  else {
+    tableau(['Chantier', 'Type', 'Signalé par', 'Signalé le', 'Depuis'], sig.rappels.slice(0, VEN_MAX_LIGNES).map(s => [s.chantier, s.type, s.auteur, 'le ' + venJourCourt_(s.recu), s.jours + ' jours']));
+    if (nRappels > VEN_MAX_LIGNES) phrase('… et ' + (nRappels - VEN_MAX_LIGNES) + ' autre(s) : voir l’onglet « ' + SHEET_SIGNALEMENTS + ' »');
+  }
+  // 3. Point de santé
+  titre('POINT DE SANTÉ');
+  const sante = [['Mails reportés encore en attente', mails], ['Place du compte Google', place], ['Fiches arrivées au bureau mais pas traitées', fiches]];
+  texte.push.apply(texte, sante.map(l => '  ' + l[0] + ' : ' + (l[1].indisponible ? indispo(l[1]) : l[1].texte)));
+  html.push('<table style="border-collapse:collapse;font-family:Arial,sans-serif;font-size:14px">'
+    + sante.map(l => '<tr><td ' + cel + '>' + esc_(l[0]) + '</td><td ' + cel + '>' + (l[1].alerte || l[1].indisponible ? '<b>' : '')
+      + esc_(l[1].indisponible ? indispo(l[1]) : l[1].texte) + (l[1].alerte || l[1].indisponible ? '</b>' : '') + '</td></tr>').join('') + '</table>');
+  if (!fiches.indisponible && fiches.lignes && fiches.lignes.length) {
+    tableau(['Fiche', 'Chantier', 'État', 'Reçue'], fiches.lignes);
+    if (fiches.autres) phrase('… et ' + fiches.autres + ' autre(s)');
+  }
+
+  // L'objet dit l'essentiel : « Point du vendredi 20/11 — 4 signalements, rien d'autre à signaler »
+  const aRegarder = sante.some(l => l[1].alerte || l[1].indisponible) || !!sig.indisponible;
+  const morceaux = [];
+  if (nSemaine) morceaux.push(venPluriel_(nSemaine, 'signalement', 'signalements'));
+  if (nRappels) morceaux.push(venPluriel_(nRappels, 'bloquant', 'bloquants') + ' en retard');
+  if (aRegarder) morceaux.push('santé à regarder');
+  else morceaux.push(morceaux.length ? 'rien d’autre à signaler' : 'rien à signaler');
+  const entete = 'Point du vendredi ' + demLong_(jour);
+  const pied = 'Ce mail part tous les vendredis vers ' + demHeureTexte_(VENDREDI_HEURE) + ', même quand il n’y a rien à signaler : s’il n’arrive pas, quelque chose ne tourne plus.';
+  return { sujet: (essai ? '[ESSAI] ' : '') + 'Point du vendredi ' + demCourt_(jour) + ' — ' + morceaux.join(', '),
+    texte: entete + '\n' + texte.join('\n') + '\n\n' + pied + '\n\nLoué App',
+    html: '<p style="font-family:Arial,sans-serif;font-size:16px;margin:0"><b>' + esc_(entete) + '</b></p>' + html.join('')
+      + '<p style="font-family:Arial,sans-serif;font-size:13px;color:#555;margin-top:18px">' + esc_(pied) + '<br><br>Loué App</p>' };
+}
+
+// ── Le passage du réveil des 10 minutes. À APPELER SOUS LE VERROU DU SCRIPT (traiterComptes le tient déjà). ──
+// Rend un mot qui dit ce qui s'est passé.
+function venPasser_() {
+  const maintenant = maintenant_(), t = demHeure_(maintenant);
+  if (t.semaine !== 5) return 'pas vendredi';
+  if (t.minutes < demMinutes_(VENDREDI_HEURE)) return 'avant l’heure';
+  const e = venEtat_();   // la seule lecture de mémoire ; le Sheet n'est pas encore lu
+  if (!e.actif) return 'pas en service';
+  if (e.fait === t.jour) return 'déjà fait';
+  // Trop tard (mail en échec tout l'après-midi, ou réveil en panne) : abandon pour cette semaine, pas de mail le samedi
+  if (t.minutes >= demMinutes_(VENDREDI_FIN_ESSAIS)) {
+    const raison = e.echec ? ' (' + e.echec + ')' : '';
+    e.fait = t.jour; delete e.echec;
+    venEcrire_(e);
+    journal_({ fiche: 'point du vendredi' }, emailAdmin_(), 'abandonné', 'pas parti avant ' + demHeureTexte_(VENDREDI_FIN_ESSAIS) + raison + ' : pas de point cette semaine');
+    return 'abandonné';
+  }
+  // Signalements « de la semaine » : depuis le dernier mail PARTI (une semaine abandonnée n'en fait perdre aucun) ;
+  // la première fois, ou si cette date est illisible ou dans le futur : depuis 7 jours
+  const depuis = Number(e.envoi) > 0 && Number(e.envoi) < maintenant ? Number(e.envoi) : maintenant - 7 * VEN_JOUR_MS;
+  const mail = venMail_(maintenant, depuis, false);
+  const echec = mailBureau_(mail.sujet, mail.texte, mail.html);
+  if (echec) {   // la marque n'est PAS posée : nouvel essai au passage suivant
+    if (e.echec !== echec) { e.echec = echec; venEcrire_(e); }
+    return 'mail non parti (' + echec + ')';
+  }
+  e.fait = t.jour; e.envoi = maintenant; delete e.echec;
+  venEcrire_(e);
+  return 'envoyé';
+}
+
+// ── Mise en service et arrêt (à lancer dans l'éditeur : choisir la fonction, puis ▶ Exécuter) ──
+function demarrerPointDuVendredi() {
+  const e = venEtat_();
+  const deja = !!e.actif;
+  e.actif = true;
+  venEcrire_(e);
+  const reveil = ScriptApp.getProjectTriggers().some(d => d.getHandlerFunction() === 'traiterComptes');
+  const m = (deja ? 'Le point du vendredi était déjà en service' : '✅ Point du vendredi mis en service') + ' : un mail à ' + emailAdmin_() + ', le vendredi, au premier passage du réveil des 10 minutes après '
+    + demHeureTexte_(VENDREDI_HEURE) + ' (heure de Paris), même s’il n’y a rien à signaler. Pour l’arrêter : arreterPointDuVendredi.'
+    + (reveil ? '' : '\n⚠ Le réveil des 10 minutes (traiterComptes) n’est pas posé ici : sans lui, le mail ne partira pas (installerDeclencheurs ; sur la copie TEST, seulement le temps d’un essai).');
+  Logger.log(m); return m;
+}
+function arreterPointDuVendredi() {
+  const e = venEtat_();
+  e.actif = false;
+  venEcrire_(e);
+  const m = '✅ Point du vendredi arrêté : plus aucun mail le vendredi. Pour le remettre : demarrerPointDuVendredi.';
+  Logger.log(m); return m;
+}
+
+// ── Essai à la demande (éditeur : choisir essaiPointDuVendredi, puis ▶) ──
+// Fabrique le mail tel qu'il partirait MAINTENANT et l'envoie à Franck seul (l'adresse du bureau), avec « [ESSAI] » dans
+// l'objet. Ne touche pas à la marque de la semaine : le vrai mail du vendredi part quand même, avec les mêmes signalements.
+// Marche sur la copie TEST comme en production (aucune donnée n'est modifiée) ; refusé si l'environnement est incohérent.
+function essaiPointDuVendredi() {
+  const ou = environnementReel_();
+  if (ou.env === 'INCOHERENT') {
+    const refus = '❌ Refusé : la propriété ENVIRONNEMENT et le nom du Sheet « ' + ou.sheet + ' » ne disent pas la même chose. Rien n’a été envoyé.';
+    Logger.log(refus); return refus;
+  }
+  const maintenant = maintenant_(), e = venEtat_();
+  const depuis = Number(e.envoi) > 0 && Number(e.envoi) < maintenant ? Number(e.envoi) : maintenant - 7 * VEN_JOUR_MS;
+  const mail = venMail_(maintenant, depuis, true);
+  const echec = mailBureau_(mail.sujet, mail.texte, mail.html);
+  const m = (echec ? '❌ Essai du point du vendredi : le mail n’est pas parti (' + echec + ').'
+    : '✅ Essai du point du vendredi (' + ou.env + ') : mail envoyé à ' + emailAdmin_() + ' seulement, objet « ' + mail.sujet + ' ». Le vrai mail du vendredi n’est pas touché.')
+    + '\n\n' + mail.texte;
+  Logger.log(m);
+  journal_({ fiche: 'point du vendredi' }, emailAdmin_(), echec ? 'essai raté' : 'essai', echec || 'mail d’essai envoyé à la demande (essaiPointDuVendredi)');
+  return m;
+}
+
+// ── Contrôles du lot 10b, ajoutés à verifierConfig() ──
+function verifierVendredi_() {
+  const e = venEtat_(), lignes = [];
+  lignes.push((e.actif ? '✅ ' : '⚠ ') + 'Point du vendredi : ' + (e.actif ? 'en service' : 'PAS en service (lancer demarrerPointDuVendredi)') + ' — le vendredi, au premier passage du réveil des 10 minutes (traiterComptes) après '
+    + demHeureTexte_(VENDREDI_HEURE) + ' ; dernier mail parti : ' + (Number(e.envoi) > 0 ? venQuand_(Number(e.envoi)) : 'jamais'));
+  if (/^\d{4}-\d{2}-\d{2}$/.test(String(e.fait || '')) && !(Number(e.envoi) > 0 && demHeure_(Number(e.envoi)).jour === e.fait)) {
+    lignes.push('⚠ Le point du vendredi ' + demLong_(e.fait) + ' n’a pas pu partir (abandonné à ' + demHeureTexte_(VENDREDI_FIN_ESSAIS) + ' : voir l’onglet Journal)');
+  }
+  if (e.echec) lignes.push('⚠ Dernier essai raté du point du vendredi : ' + e.echec);
+  return lignes.join('\n');
+}
 
 // ████ ComptesRendus.gs ████
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
@@ -3425,11 +4306,16 @@ function crEnregistrer_(idFiche, brut, qui) {
     ligne[COL_CR.compte - 1] = String(qui || 'sans compte');
     ligne[COL_CR.recu - 1] = new Date();
     ligne[COL_CR.remarque - 1] = remarque;
+    // Lot 8d : le texte de la note va en colonne K, SI cette colonne est installée (sinon rien ne change : lot 8)
+    const avecTexte = recapAvecTexte_(sh);
+    if (avecTexte) ligne.push(recapTexte_(brut));
     // La ligne entière en une écriture (colonnes de texte en « texte brut » avant d'écrire)
-    noteAjouterLigne_(sh, ligne, CR_COLONNES_TEXTE);
+    noteAjouterLigne_(sh, ligne, avecTexte ? CR_COLONNES_TEXTE.concat([COL_CR_TEXTE]) : CR_COLONNES_TEXTE);
     // Écriture poussée dans le Sheet AVANT de rendre le verrou : la note suivante du même chantier doit lire cette ligne
     // (sans cela, Google peut la garder en attente jusqu'à la fin de la fabrication du PDF)
     SpreadsheetApp.flush();
+    // Lot 8d : le récapitulatif du chantier sera refait au prochain passage de 10 minutes (jamais pendant l'envoi)
+    if (avecTexte) recapDemander_(chantier);
     return { horsListe: !chantier.nom, sansOnglet: false, dejaLa: false };
   } finally { verrou.releaseLock(); }
 }
@@ -3465,6 +4351,1143 @@ function etapesLot8_() {
 function installerLot8_(attendu) { return installer_('Lot 8', attendu, etapesLot8_()).texte; }
 function installerLot8Test() { return installerLot8_('TEST'); }
 function installerLot8Production() { return installerLot8_('PRODUCTION'); }
+
+// ████ Recapitulatif.gs ████
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+// LOT 8d — RÉCAPITULATIF DES NOTES DE RÉUNION, par chantier
+//
+// Demande de Franck (19/11/2026) : pour chaque chantier, un seul document qui reprend toutes les notes de réunion,
+// la date et le texte, sans les photos, la plus récente en haut.
+//   - le TEXTE de chaque note est gardé dans l'onglet « Comptes rendus », colonne K « Texte de la note ». Cette colonne
+//     est posée par installerLot8dTest / installerLot8dProduction. TANT QU'ELLE N'EXISTE PAS, RIEN NE CHANGE : le serveur
+//     se comporte comme celui du lot 8 (ni texte gardé, ni récapitulatif) ;
+//   - le fichier « RÉCAPITULATIF DES NOTES - <chantier>.pdf » est REFAIT dans le dossier des notes du chantier
+//     (05 - CHANTIER/COMPTE RENDU), dans les 10 minutes, par le passage qui existe déjà (traiterComptes). L'envoi d'une
+//     note n'est donc jamais ralenti ni bloqué par le récapitulatif ; un échec est retenté au passage suivant ;
+//   - l'ancien fichier part à la corbeille de Drive (il y reste 30 jours) : c'est le seul fichier que le serveur remplace ;
+//   - l'appli lit la même liste par l'action « recapNotes » (réservée aux comptes qui ont accès au chantier).
+// Plan : docs/lot8d-plan.md. Décisions : D8d-… (DECISIONS.md).
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+const CR_TITRE_TEXTE = 'Texte de la note';
+const COL_CR_TEXTE = 11;                     // colonne K, juste après les 10 colonnes du lot 8
+const RECAP_TEXTE_MAX = 20000;               // caractères gardés par note dans l'onglet (une cellule en accepte 50 000)
+const RECAP_PROP = 'RECAP_A_REFAIRE';        // propriété du script : les chantiers dont le fichier est à refaire
+const RECAP_PREFIXE = 'RÉCAPITULATIF DES NOTES - ';
+const RECAP_MAX_PAR_PASSAGE = 4;             // fichiers refaits par passage de 10 minutes, au plus
+const RECAP_BUDGET_MS = 60000;               // et jamais plus d'une minute par passage
+const RECAP_ESSAIS_ALERTE = 6;               // un fichier raté 6 fois de suite (une heure) : Franck est prévenu
+const RECAP_ESSAIS_MAX = 30;                 // raté 30 fois : on n'insiste plus (la prochaine note le redemandera)
+const RECAP_NOTES_MAX = 300;                 // notes d'un chantier reprises, au plus (les plus récentes)
+const RECAP_REFUS = 'Ce chantier n’est pas dans votre liste.';
+
+// ── L'onglet a-t-il la colonne du texte ? (non : le lot 8d n'est pas installé, rien ne change) ──
+function recapAvecTexte_(sh) {
+  return !!sh && sh.getLastColumn() >= COL_CR_TEXTE && String(sh.getRange(1, COL_CR_TEXTE).getValue()) === CR_TITRE_TEXTE;
+}
+// Le texte d'une note, tel qu'il est gardé : les retours à la ligne restent, les caractères invisibles partent
+function recapTexte_(brut) {
+  const saisi = typeof brut.remarques === 'string' ? brut.remarques : (typeof brut.commentaires === 'string' ? brut.commentaires : '');
+  const propre = saisi.replace(/\r\n?/g, '\n').replace(/[\u0000-\u0009\u000b-\u001f\u007f-\u009f\u2028\u2029]+/g, ' ').replace(/[ \t]+\n/g, '\n').trim();
+  return propre.length > RECAP_TEXTE_MAX ? propre.slice(0, RECAP_TEXTE_MAX) + '\n[… texte coupé : la suite est dans le PDF de la note]' : propre;
+}
+
+// ── La liste d'attente : { clé du chantier : { nom, n (nombre de demandes), essais } } ──
+function recapAttente_() {
+  try {
+    const lu = JSON.parse(PropertiesService.getScriptProperties().getProperty(RECAP_PROP) || '{}');
+    return lu && typeof lu === 'object' && !Array.isArray(lu) ? lu : {};
+  } catch (e) { return {}; }
+}
+function recapEcrireAttente_(attente) {
+  const props = PropertiesService.getScriptProperties();
+  if (Object.keys(attente).length) props.setProperty(RECAP_PROP, JSON.stringify(attente));
+  else props.deleteProperty(RECAP_PROP);
+}
+// Le chantier vu par le récapitulatif : { nom, numero, cleNum, cleNom } (nom vide : hors liste).
+// cleNum n'est rempli que si ce N° est porté par UNE SEULE ligne de l'onglet Chantiers. Deux chantiers de même N° (deux
+// lots d'une même opération) ne partagent donc jamais leurs notes : chacun est suivi par son NOM EXACT, celui sur
+// lequel les droits d'accès sont vérifiés (cleChantier_, comme peutLireChantier_). Après relecture indépendante (B1).
+function recapNumeroLigne_(r) { return crCleNumero_(r.length > 4 ? r[4] : ''); }
+function recapChantier_(nom) {
+  const c = crChantier_(nom);
+  if (!c.nom) return { nom: '', numero: '', cleNum: '', cleNom: '' };
+  const num = crCleNumero_(c.numero);
+  const memes = num ? lignesChantiers_().filter(r => recapNumeroLigne_(r) === num).length : 0;
+  return { nom: c.nom, numero: c.numero, cleNum: memes === 1 ? num : '', cleNom: cleChantier_(c.nom) };
+}
+// Le chantier d'une entrée de la liste d'attente : retrouvé par son N° s'il a été renommé entre la note et le passage
+function recapChantierEntree_(entree) {
+  const c = recapChantier_(entree.nom);
+  if (c.nom || !entree.numero) return c;
+  const num = crCleNumero_(entree.numero);
+  const lignes = lignesChantiers_().filter(r => recapNumeroLigne_(r) === num);
+  return lignes.length === 1 ? recapChantier_(String(lignes[0][0]).trim()) : c;
+}
+function recapCle_(chantier) { return chantier.cleNum ? 'n:' + chantier.cleNum : 'c:' + chantier.cleNom; }
+// À appeler SOUS VERROU (crEnregistrer_ le tient) : le fichier de ce chantier sera refait au prochain passage.
+// Ne lève jamais d'erreur : une note ne doit pas échouer à cause du récapitulatif.
+function recapDemander_(chantierNote) {
+  try {
+    const chantier = chantierNote && chantierNote.nom ? recapChantier_(chantierNote.nom) : null;
+    if (!chantier || !chantier.nom) return;
+    const attente = recapAttente_(), cle = recapCle_(chantier), avant = attente[cle] || {};
+    // Les essais ratés ne repartent pas de zéro à chaque note : sinon, sur un chantier actif en panne, l'alerte ne partirait jamais
+    attente[cle] = { nom: chantier.nom.slice(0, 100), numero: chantier.cleNum ? String(chantier.numero).slice(0, 30) : '',
+      n: Number(avant.n || 0) + 1, essais: Number(avant.essais || 0) };
+    // Une propriété du script contient 9 000 caractères au plus : au-delà de 8 000 (des dizaines de chantiers en attente,
+    // jamais vu), ce chantier n'est pas noté ; sa prochaine note le redemandera
+    if (JSON.stringify(attente).length > 8000) return;
+    recapEcrireAttente_(attente);
+  } catch (e) { console.error('recapDemander_ :', e.message); }
+}
+
+// ── Les notes d'un chantier, la plus récente en haut ──
+// Rend [{ date, objet, auteur, texte, sansTexte, pdf }] ; chantier : { nom, numero, cleNum, cleNom } (recapChantier_).
+function recapNotes_(sh, chantier) {
+  const derniere = sh.getLastRow();
+  if (derniere < 2) return [];
+  const avecTexte = recapAvecTexte_(sh);
+  const lignes = sh.getRange(2, 1, derniere - 1, avecTexte ? COL_CR_TEXTE : CR_ENTETES.length).getValues();
+  // (un texte qui commence par « - », « = », « + » ou « @ » est écrit avec une apostrophe devant, pour ne jamais devenir
+  // une formule : cellule_. Sheets ne la rend pas à la lecture ; si elle est là quand même, elle est retirée.)
+  const lu = v => String(v === undefined || v === null ? '' : v).replace(/^'(?=[=+@-])/, '');
+  const notes = [];
+  lignes.forEach((r, i) => {
+    if (!String(r[COL_CR.fiche - 1])) return;
+    const numLigne = crCleNumero_(r[COL_CR.numChantier - 1]);
+    // même N° de chantier quand ce N° est celui d'un seul chantier et que la ligne en porte un ; sinon même nom EXACT
+    const meme = chantier.cleNum && numLigne ? numLigne === chantier.cleNum : cleChantier_(r[COL_CR.chantier - 1]) === chantier.cleNom;
+    if (!meme) return;
+    const texte = avecTexte ? lu(r[COL_CR_TEXTE - 1]) : '';
+    notes.push({ date: String(r[COL_CR.date - 1] || ''), objet: lu(r[COL_CR.objet - 1]), auteur: lu(r[COL_CR.auteur - 1]),
+      texte: texte, sansTexte: !texte, pdf: String(r[COL_CR.pdf - 1] || ''), jour: crJour_(r[COL_CR.date - 1]), recu: crMs_(r[COL_CR.recu - 1]), rang: i });
+  });
+  // date de réunion la plus récente d'abord ; même jour : la dernière arrivée d'abord ; sinon la plus basse de l'onglet
+  notes.sort((a, b) => (b.jour - a.jour) || (b.recu - a.recu) || (b.rang - a.rang));
+  return notes.slice(0, RECAP_NOTES_MAX).map(n => ({ date: n.date, objet: n.objet, auteur: n.auteur, texte: n.texte, sansTexte: n.sansTexte, pdf: n.pdf }));
+}
+
+// ── Le document (tableaux et styles en ligne seulement : le convertisseur PDF de Google ne connaît ni flex ni grid) ──
+function recapNomFichier_(nomChantier) {
+  return nomFichier_((RECAP_PREFIXE + String(nomChantier || '').trim()).replace(/[\\\/:*?"<>|]+/g, '-').replace(/\s+/g, ' ')) + '.pdf';
+}
+function recapHtml_(nomChantier, notes, quand) {
+  const TEXTE = 'white-space:pre-wrap;word-break:break-word;overflow-wrap:break-word;';
+  const blocs = notes.map(n => {
+    const titre = 'Réunion du ' + esc_(n.date || '—') + (n.objet ? ' — ' + esc_(n.objet) : '');
+    const corps = n.sansTexte
+      ? '<div style="font-size:10px;color:#6A6460;font-style:italic">Texte dans le PDF de la note' + (n.pdf ? ' (' + esc_(n.pdf) + ')' : '') + '.</div>'
+      : '<div style="font-size:11px;line-height:1.6;' + TEXTE + '">' + esc_(n.texte) + '</div>';
+    return '<div style="margin-bottom:10px;padding:8px 10px;border:1px solid #D8D4CE;border-left:4px solid #0D7A6B;border-radius:4px">'
+      + '<div style="font-size:11.5px;font-weight:800;color:#1A2B4A;' + TEXTE + '">' + titre + '</div>'
+      + (n.auteur ? '<div style="font-size:9px;color:#6A6460;margin-bottom:5px">Rédigé par ' + esc_(n.auteur) + '</div>' : '<div style="margin-bottom:5px"></div>')
+      + corps + '</div>';
+  }).join('');
+  return '<html><head><meta charset="utf-8"><style>@page{size:A4;margin:1.5cm}body{font-family:Arial,sans-serif;font-size:10px;margin:0}*{box-sizing:border-box}</style></head><body>'
+    + '<table style="width:100%;border-collapse:collapse;margin-bottom:12px;border-bottom:3px solid #0D7A6B"><tr>'
+    + '<td style="vertical-align:middle;padding:0 0 10px">'
+    + '<div style="font-weight:800;font-size:15px;color:#1A2B4A">' + esc_(NOM_ENTREPRISE) + '</div>'
+    + '<div style="font-weight:800;font-size:14px;color:#0D7A6B;margin-top:4px">RÉCAPITULATIF DES NOTES DE RÉUNION</div>'
+    + '<div style="font-size:12px;font-weight:800;color:#141210;margin-top:4px;' + TEXTE + '">' + esc_(nomChantier) + '</div>'
+    + '<div style="font-size:9px;color:#6A6460;margin-top:4px">' + notes.length + (notes.length > 1 ? ' notes' : ' note') + ', la plus récente en haut — mis à jour le '
+    + esc_(quand) + '. Les photos sont dans le PDF de chaque note.</div>'
+    + '</td></tr></table>'
+    + blocs
+    + '</body></html>';
+}
+
+// ── Refaire le fichier d'un chantier ──
+// entree : { nom, numero } (liste d'attente). Rend 'fait', ou 'rien' (chantier sorti de la liste, aucune note).
+// Lève une erreur si le fichier n'a pas pu être fait.
+function recapRefaire_(entree) {
+  const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_CR);
+  if (!sh || !crTitresBons_(sh)) throw new Error('onglet « ' + SHEET_CR + ' » illisible');
+  if (!recapAvecTexte_(sh)) return 'rien';
+  const chantier = recapChantierEntree_(entree);
+  if (!chantier.nom) return 'rien';
+  const notes = recapNotes_(sh, chantier);
+  if (!notes.length) return 'rien';
+  const nom = recapNomFichier_(chantier.nom);
+  const quand = Utilities.formatDate(new Date(), 'Europe/Paris', 'dd/MM/yyyy') + ' à ' + Utilities.formatDate(new Date(), 'Europe/Paris', 'HH:mm').replace(':', ' h ');
+  // Le PDF est fabriqué AVANT de toucher à l'ancien : si la fabrication échoue, l'ancien reste en place
+  const blob = HtmlService.createHtmlOutput(recapHtml_(chantier.nom, notes, quand)).getAs('application/pdf').setName(nom);
+  const dossier = dossierParChemin_(dossierChantier_(chantier.nom, true), dossiers_().documents['note'] || 'Divers', true);
+  // Les anciens récapitulatifs de ce dossier (même nom, ou ancien nom d'un chantier renommé) : reconnus à leur nom, qui
+  // commence par « RÉCAPITULATIF DES NOTES - » et finit par « .pdf ». Aucun autre fichier n'est jamais touché.
+  const anciens = [], it = dossier.getFiles();
+  while (it.hasNext()) {
+    const f = it.next(), n = String(f.getName());
+    if (!f.isTrashed() && n.indexOf(RECAP_PREFIXE) === 0 && /\.pdf$/i.test(n)) anciens.push(f);
+  }
+  // Ancien à la corbeille PUIS nouveau créé : jamais deux fichiers du même nom (Drive pour ordinateur en ferait un « (1) »)
+  anciens.forEach(f => f.setTrashed(true));
+  try {
+    dossier.createFile(blob);
+  } catch (e) {
+    anciens.forEach(f => { try { f.setTrashed(false); } catch (x) {} });   // le nouveau n'est pas là : l'ancien revient
+    throw e;
+  }
+  return 'fait';
+}
+
+// ── Le passage (appelé par traiterComptes toutes les 10 minutes, APRÈS qu'il a rendu son verrou) ──
+// Rend le nombre de chantiers traités. Ne lève jamais d'erreur.
+function recapPassage_() {
+  try {
+    const props = PropertiesService.getScriptProperties();
+    if (!props.getProperty(RECAP_PROP)) return 0;           // rien en attente : une seule lecture, et c'est tout
+    // Un seul passage à la fois (traiterComptes peut être lancé deux fois de suite : minuterie, et case cochée dans le
+    // Sheet) : sans cela, deux passages feraient deux fichiers du même nom. La marque tombe seule au bout de 6 minutes.
+    const cache = cacheScript_();
+    if (cache.get('recap:passage')) return 0;
+    cache.put('recap:passage', '1', 360);
+    const debut = Date.now();
+    let traites = 0;
+    const cles = Object.keys(recapAttente_());
+    for (let i = 0; i < cles.length; i++) {
+      if (traites >= RECAP_MAX_PAR_PASSAGE || Date.now() - debut > RECAP_BUDGET_MS) break;
+      const entree = recapAttente_()[cles[i]];
+      if (!entree) continue;
+      let erreur = '';
+      try { recapRefaire_(entree); } catch (e) { erreur = String(e && e.message || e); console.error('recapRefaire_ (' + entree.nom + ') :', erreur); }
+      recapSolder_(cles[i], entree, erreur);
+      traites++;
+    }
+    cache.remove('recap:passage');
+    return traites;
+  } catch (e) { console.error('recapPassage_ :', e.message); try { cacheScript_().remove('recap:passage'); } catch (x) {} return 0; }
+}
+// Retire le chantier de la liste d'attente (fichier fait), ou compte un essai raté. Sous verrou, très court.
+function recapSolder_(cle, traitee, erreur) {
+  const verrou = LockService.getScriptLock();
+  if (!verrou.tryLock(10000)) return;                        // occupé : le chantier reste en attente, il sera refait (sans dommage)
+  try {
+    const attente = recapAttente_(), e = attente[cle];
+    if (!e) return;
+    if (!erreur) {
+      // Une note du même chantier est arrivée pendant la fabrication : le fichier est déjà en retard, on le garde en attente
+      if (Number(e.n) === Number(traitee.n)) delete attente[cle]; else e.essais = 0;
+    } else {
+      e.essais = Number(e.essais || 0) + 1;
+      if (e.essais === RECAP_ESSAIS_ALERTE) {
+        alerte_('Le récapitulatif des notes du chantier « ' + e.nom + ' » n’a pas pu être refait (' + erreur.slice(0, 200) + '). '
+          + 'L’appli réessaie toutes les 10 minutes. Les notes elles-mêmes sont bien envoyées et rangées : seul le fichier « '
+          + RECAP_PREFIXE + '… » du dossier du chantier est en retard.', 'recap');
+      }
+      if (e.essais >= RECAP_ESSAIS_MAX) delete attente[cle];
+    }
+    recapEcrireAttente_(attente);
+  } finally { verrou.releaseLock(); }
+}
+
+// ── Lecture par l'appli (action « recapNotes ») : les notes d'un chantier, pour un compte qui y a accès ──
+// Chantier inconnu et chantier interdit reçoivent la même réponse (on ne dit pas quels chantiers existent).
+function recapLire_(compte, corps) {
+  const demande = typeof corps.chantier === 'string' ? corps.chantier.trim().slice(0, NOTE_MAX_CHANTIER) : '';
+  const nom = demande ? noteChantierConnu_(demande) : '';
+  if (!nom || !notePeutLire_(compte, nom)) return avecJeton_({ ok: false, code: 'INTERDIT', message: RECAP_REFUS }, compte);
+  const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_CR);
+  // Onglet absent (aucune note encore) ou titres changés : une liste vide, jamais une erreur pour le poseur
+  const lisible = !!sh && crTitresBons_(sh);
+  const notes = lisible ? recapNotes_(sh, recapChantier_(nom)) : [];
+  return avecJeton_({ ok: true, code: 'OK', message: notes.length + ' note(s)',
+    data: { chantier: nom, notes: notes.map(n => ({ date: n.date, objet: n.objet, auteur: n.auteur, texte: n.texte, sansTexte: n.sansTexte })),
+      heure: Date.now() } }, compte);
+}
+
+// ── Installation du lot 8d (une fonction par environnement ; relançable sans danger) ──
+function etapesLot8d_() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  return etapesLot8_().concat([{
+    nom: 'Colonne « ' + CR_TITRE_TEXTE + ' » de l’onglet « ' + SHEET_CR + ' »',
+    fait: () => recapAvecTexte_(ss.getSheetByName(SHEET_CR)),
+    action: () => {
+      const sh = ss.getSheetByName(SHEET_CR);
+      if (!sh || !crTitresBons_(sh)) throw new Error('l’onglet « ' + SHEET_CR + ' » n’a pas les titres du lot 8 : corriger d’abord');
+      // Jamais rien réécrire par-dessus des données : la colonne K doit être libre (ou déjà à nous)
+      if (sh.getMaxColumns && sh.getMaxColumns() < COL_CR_TEXTE) sh.insertColumnsAfter(sh.getMaxColumns(), COL_CR_TEXTE - sh.getMaxColumns());
+      const lignes = Math.max(1, sh.getLastRow());
+      const occupee = sh.getLastColumn() >= COL_CR_TEXTE
+        && sh.getRange(1, COL_CR_TEXTE, lignes, 1).getValues().some(r => String(r[0]).trim() !== '');
+      if (occupee) throw new Error('la colonne K de l’onglet « ' + SHEET_CR + ' » contient déjà autre chose : la vider ou la déplacer, puis relancer');
+      sh.getRange(1, COL_CR_TEXTE).setValue(CR_TITRE_TEXTE).setFontWeight('bold');
+      sh.getRange(2, COL_CR_TEXTE, Math.max(1, sh.getMaxRows() - 1), 1).setNumberFormat('@');
+      // Un long texte ne doit pas faire des lignes de 40 cm de haut dans le Sheet : il est coupé à l'affichage, pas dans la cellule
+      try { sh.getRange(1, COL_CR_TEXTE, sh.getMaxRows(), 1).setWrapStrategy(SpreadsheetApp.WrapStrategy.CLIP); } catch (e) {}
+      return 'colonne ajoutée';
+    } }]);
+}
+function installerLot8d_(attendu) { return installer_('Lot 8d', attendu, etapesLot8d_()).texte; }
+function installerLot8dTest() { return installerLot8d_('TEST'); }
+function installerLot8dProduction() { return installerLot8d_('PRODUCTION'); }
+
+// ████ Reglages.gs ████
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+// LOT 12a — RÉGLAGES : « Tous les comptes ouvrent tous les chantiers »
+//
+// Décision de Franck (19/11/2026) : tout gars qui a un compte peut ouvrir tous les chantiers (carnet, documents, notes,
+// récapitulatif, fiches). Sans compte : rien, comme avant. C'est un RÉGLAGE allumé / éteint, pour pouvoir revenir en arrière.
+//   - le réglage est UNE CASE À COCHER de l'onglet « Réglages » (posé par installerLot12Test / installerLot12Production) ;
+//   - il est LIVRÉ ÉTEINT : sans onglet, sans la ligne, ou case décochée, tout se passe exactement comme avant ce lot ;
+//   - il est lu à chaque requête : cocher ou décocher agit tout de suite, sans rien redéployer ;
+//   - tout ce qui n'est pas « une seule ligne à ce nom, case cochée » vaut ÉTEINT (un texte « oui », deux lignes, un
+//     onglet absent) : dans le doute, l'appli reste fermée. À savoir : Google Sheets transforme « VRAI » ou « TRUE »
+//     tapés à la main en case cochée : cela allume le réglage, comme cocher la case (qui peut écrire dans le Sheet
+//     peut de toute façon cocher) ;
+//   - il n'est lu qu'à DEUX endroits : chantiersVisibles_ et peutLireChantier_ (Comptes.gs). Toutes les lectures par
+//     chantier (documents, notes, carnet, récapitulatif) passent par ces deux fonctions ;
+//   - les cases de l'onglet « Accès chantiers » sont GARDÉES : éteindre le réglage leur rend leur effet, telles quelles.
+// Ce que le réglage ne change pas : conducteurs et admin (tout, comme avant), comptes inactifs et sans compte (rien),
+// signalements (droits par rôle, pas par chantier).
+// Plan : docs/lot12-plan.md. Décisions : D12-… (DECISIONS.md).
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+const SHEET_REGLAGES = 'Réglages';
+const REGLAGES_ENTETES = ['Réglage', 'Allumé', 'État (écrit par l’appli)'];
+const REGLAGE_TOUS = 'Tous les comptes ouvrent tous les chantiers';
+const REGLAGE_PROP_VU = 'REGLAGE_TOUS_VU';     // ce que le dernier passage a vu : « 1|<heure> » ou « 0|<heure> »
+const ACCES_TITRE_REMARQUE = 'Remarque (appli)';
+const ACCES_SANS_EFFET = ACCES_TITRE_REMARQUE + ' — CASES SANS EFFET SUR LES ACCÈS : le réglage « ' + REGLAGE_TOUS + ' » est allumé (onglet ' + SHEET_REGLAGES + ')';
+
+let REGLAGE_TOUS_LU_ = null;   // lu une fois par requête (remis à zéro par routerV5_ et par traiterComptes)
+
+// La ligne du réglage dans l'onglet : { sh, ligne (numéro), coche (vrai seulement si la case est cochée) }, ou null
+function reglageLigne_() {
+  const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_REGLAGES);
+  if (!sh || sh.getLastRow() < 2) return null;
+  const lignes = sh.getRange(2, 1, Math.min(50, sh.getLastRow() - 1), 2).getValues();
+  const trouvees = [];
+  lignes.forEach((r, i) => { if (String(r[0]).trim() === REGLAGE_TOUS) trouvees.push({ sh: sh, ligne: i + 2, coche: r[1] === true }); });
+  return trouvees.length === 1 ? trouvees[0] : null;
+}
+// Vrai si le réglage est allumé. Un contenu douteux (texte, ligne en double, onglet absent) vaut ÉTEINT.
+// Une PANNE de lecture du Sheet, elle, n'est pas avalée : elle remonte, et le téléphone reçoit « erreur du serveur »
+// (toujours fermé) au lieu de « ce chantier n'est pas à vous » — sur ce refus-là, il effacerait les plans et les
+// listes qu'il garde pour le hors réseau (après relecture indépendante, I5).
+function tousChantiersOuverts_() {
+  if (REGLAGE_TOUS_LU_ !== null) return REGLAGE_TOUS_LU_;
+  const l = reglageLigne_();
+  REGLAGE_TOUS_LU_ = !!l && l.coche === true;
+  return REGLAGE_TOUS_LU_;
+}
+
+// ── Le passage de 10 minutes écrit ce que l'appli a compris, pour que Franck le voie (appelé par traiterComptes, sous son verrou) ──
+function reglagesEtat_() {
+  try {
+    REGLAGE_TOUS_LU_ = null;
+    const l = reglageLigne_();
+    if (!l) return;
+    const allume = l.coche === true;
+    const props = PropertiesService.getScriptProperties();
+    const vu = String(props.getProperty(REGLAGE_PROP_VU) || '').split('|');
+    if (vu[0] === (allume ? '1' : '0')) return;                       // rien n'a changé : rien n'est écrit
+    const quand = maintenant_();
+    props.setProperty(REGLAGE_PROP_VU, (allume ? '1' : '0') + '|' + quand);
+    l.sh.getRange(l.ligne, 3).setValue(allume
+      ? 'Allumé depuis le ' + texteDate_(quand) + ' : tout compte actif ouvre tous les chantiers'
+      : (vu[0] === '1' ? 'Éteint depuis le ' + texteDate_(quand) : 'Éteint') + ' : chacun voit les chantiers cochés dans « ' + SHEET_ACCES + ' »');
+    // Dans l'onglet des cases : dire qu'elles sont sans effet, pour que Franck ne coche pas pour rien
+    const acces = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_ACCES);
+    if (acces && acces.getLastColumn() >= 2) acces.getRange(1, 2).setValue(allume ? ACCES_SANS_EFFET : ACCES_TITRE_REMARQUE);
+  } catch (e) { console.error('reglagesEtat_ :', e.message); }
+}
+
+// ── Installation du lot 12 (une fonction par environnement ; relançable sans danger) ──
+function etapesLot12_() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  return [{
+    nom: 'Onglet « ' + SHEET_REGLAGES + ' » et sa ligne « ' + REGLAGE_TOUS + ' » (case décochée)',
+    fait: () => !!reglageLigne_(),
+    action: () => {
+      const existait = !!ss.getSheetByName(SHEET_REGLAGES);
+      const sh = feuille_(SHEET_REGLAGES, REGLAGES_ENTETES);
+      // Jamais deux lignes du même réglage : une ligne en double vaut « éteint », elle est signalée, pas corrigée
+      if (sh.getLastRow() >= 2 && sh.getRange(2, 1, sh.getLastRow() - 1, 1).getValues().some(r => String(r[0]).trim() === REGLAGE_TOUS)) {
+        throw new Error('l’onglet « ' + SHEET_REGLAGES + ' » contient plusieurs lignes « ' + REGLAGE_TOUS + ' » : n’en garder qu’une');
+      }
+      const ligne = sh.getLastRow() + 1;
+      sh.getRange(ligne, 1).setValue(REGLAGE_TOUS);
+      sh.getRange(ligne, 2).insertCheckboxes();
+      sh.getRange(ligne, 3).setValue('Éteint');
+      try { sh.setColumnWidth(1, 380); sh.setColumnWidth(3, 520); } catch (e) {}
+      return existait ? 'ligne ajoutée (éteinte)' : 'onglet créé, réglage éteint';
+    } }];
+}
+function installerLot12_(attendu) { return installer_('Lot 12', attendu, etapesLot12_()).texte; }
+function installerLot12Test() { return installerLot12_('TEST'); }
+function installerLot12Production() { return installerLot12_('PRODUCTION'); }
+
+// ████ Absences.gs ████
+// ═══════════════════════════════════════════════════════════════════════════════
+// LOT 14 — LA DEMANDE D'ABSENCE : RÉPONSE DE LA DIRECTION, ÉTAT POUR LE POSEUR, LIEN AVEC LE PLANNING
+//
+// Règles de Franck (19/11/2026) : le mail part UNIQUEMENT à la direction, avec deux boutons « Accepter » et « Refuser » ;
+// un clic ouvre une page de confirmation (absence-reponse.html), on y confirme : deux clics en tout. Lien unique, à usage
+// unique, valable quelques jours, sans connexion à l'appli. ACCEPTÉE : un mail au conducteur de travaux pour information, et
+// l'absence s'inscrit toute seule dans le planning (lu ici par le programme de publication du planning, lot 11) avec son
+// appellation — sauf maladie et accident : « Absent ». REFUSÉE : rien. Le poseur voit l'état de sa demande dans l'appli.
+// LE MOTIF N'EST VISIBLE QUE PAR LA DIRECTION.
+//
+//   - les adresses de la direction (1 à 3) sont dans l'onglet « Réglages » du Sheet, ligne « Adresses de la direction »
+//     (décision de Franck du 20/11/2026), posée par installerLot14Test / installerLot14Production. Sans cette ligne : tout
+//     comme avant, sans rien dire. Ligne présente mais case vide (ou illisible) : la demande part COMME AVANT (elle n'est
+//     jamais bloquée) et Franck reçoit une alerte, une fois par jour au plus ;
+//   - le motif et les précisions ne sont écrits NULLE PART ailleurs que dans le mail à la direction et son PDF : ni dans le
+//     Sheet, ni dans Drive, ni dans l'onglet « Mails en attente », ni dans le Journal, ni dans une alerte ;
+//   - si le mail à la direction ne peut pas partir, la demande n'est PAS reçue : le téléphone la garde et la renvoie
+//     (même numéro : aucun doublon). Tant que ce mail n'est pas parti (colonne « Mail à la direction » vide), le poseur ne
+//     voit pas la demande « En attente » ; une fois parti, il ne repart jamais une seconde fois ;
+//   - le mail envoyé à la direction est MIS À LA CORBEILLE de Gmail juste après l'envoi (décision de Franck du 20/11/2026),
+//     pour que le motif ne reste pas lisible dans « Messages envoyés » du compte de Loué. Google vide la corbeille au bout de
+//     30 jours. Seuls les messages qui portent le lien signé de CETTE demande sont touchés ; un message qui est aussi dans la
+//     boîte de réception (la direction = le compte lui-même) est gardé. Si Gmail ne le trouve pas encore, nouvel essai au
+//     passage de 10 minutes ; au bout de 24 h, Franck est prévenu ;
+//   - le lien est SIGNÉ avec la clé secrète du serveur (numéro de la demande + date limite) : rien de secret n'est écrit dans
+//     le Sheet, lire le Sheet ne permet pas de fabriquer un lien. Usage unique : dès qu'une réponse est enregistrée, le lien
+//     ne fait plus que la redire ;
+//   - l'onglet « Absences suivi » (aucun motif) tient l'état de chaque demande ; c'est lui que le planning vient LIRE.
+// Plan : docs/lot14-plan.md. Décisions : D14-… (DECISIONS.md).
+// ═══════════════════════════════════════════════════════════════════════════════
+const SHEET_ABS_SUIVI = 'Absences suivi';
+const ABS_ENTETES = ['Numéro', 'Reçue le', 'Compte', 'Demandeur', 'Date d’absence', 'Du', 'Au', 'Durée', 'Appellation (planning)', 'État', 'Décidée le', 'Mail au conducteur', 'Mail à la direction', 'Copie dans Gmail'];
+const COL_AB = { numero: 1, recue: 2, compte: 3, demandeur: 4, texte: 5, du: 6, au: 7, duree: 8, libelle: 9, etat: 10, decidee: 11, mail: 12, direction: 13, corbeille: 14 };
+const ABS_REGLAGE = 'Adresses de la direction (demandes d’absence)';   // une ligne de l'onglet « Réglages » (lot 12)
+const ABS_CORBEILLE_A_FAIRE = 'à mettre à la corbeille ';           // suivi de « <date limite du lien> <messages restants> »
+const ABS_PROP_CORBEILLE = 'ABS_CORBEILLE';                         // « 1 » : un mail à mettre à la corbeille attend
+const ABS_CORBEILLE_DELAI_MS = 24 * 3600 * 1000;                    // après 24 h sans le trouver, Franck est prévenu
+const ABS_RECHERCHE_GMAIL = 'in:sent newer_than:9d subject:"Demande d\'absence"';
+const ABS_MAX_PAR_JOUR = 5;                        // demandes par compte et par jour (chacune envoie 1 à 3 mails avec un PDF)
+const ABS_MAIL_EN_COURS = 'envoi en cours ';       // suivi de l'heure (ms) : un mail au conducteur est en train de partir
+const ABS_PROP_ADRESSE = 'ADRESSE_APPLI';           // (facultatif) adresse des pages de l'appli, pour les liens du mail
+const ABS_ADRESSE_DEFAUT = 'https://chantiersloue.github.io/chantier-pro/';
+const ABS_ADRESSE_TEST = 'https://loue-essai.github.io/chantier-pro/';   // la copie d'essai (copie TEST), sans réglage
+const ABS_PROP_A_ENVOYER = 'ABS_MAIL_A_ENVOYER';    // « 1 » : un mail au conducteur attend (regardé toutes les 10 minutes)
+const ABS_LIEN_JOURS = 7;                           // durée de vie d'un lien
+const ABS_DIRECTION_MAX = 3;
+const ABS_ETATS = { attente: 'En attente', acceptee: 'Acceptée', refusee: 'Refusée', sansReponse: 'Sans réponse' };
+const ABS_RESERVE = '(réservé à la direction)';
+const ABS_MAIL_A_ENVOYER = 'à envoyer';
+// Les appellations écrites dans le planning (décision de Franck du 20/11/2026) ; tout le reste est « Absent »
+const ABS_APPELLATIONS = ['Absent', 'Congés', 'École', 'Formation', 'RTT', 'Récupération'];
+// Mots de santé : l'appellation est toujours « Absent », quoi qu'il soit coché par ailleurs
+const ABS_SANTE = ['medical', 'medicale', 'medecin', 'maladie', 'malade', 'accident', 'arret', 'hopital', 'hospitalisation', 'operation', 'chirurgie', 'sante', 'soins', 'blessure'];
+
+// ── Le réglage : la ligne « Adresses de la direction » de l'onglet « Réglages » ──
+// { installe, adresses (1 à 3), ignorees (textes qui ne sont pas des adresses, ou au-delà de 3), probleme, sh, ligne }
+//   installe = la ligne existe (lot 14 installé). Deux lignes de ce nom : aucune adresse (on ne devine pas), problème dit.
+function absReglage_() {
+  const r = { installe: false, adresses: [], ignorees: 0, probleme: '', sh: null, ligne: 0 };
+  const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_REGLAGES);
+  if (!sh || sh.getLastRow() < 2) return r;
+  const lignes = sh.getRange(2, 1, Math.min(50, sh.getLastRow() - 1), 2).getValues(), trouvees = [];
+  lignes.forEach((l, i) => { if (String(l[0]).trim() === ABS_REGLAGE) trouvees.push(i); });
+  if (!trouvees.length) return r;
+  r.installe = true; r.sh = sh; r.ligne = trouvees[0] + 2;
+  if (trouvees.length > 1) { r.probleme = 'la ligne « ' + ABS_REGLAGE + ' » est écrite deux fois'; return r; }
+  const morceaux = String(lignes[trouvees[0]][1] === null || lignes[trouvees[0]][1] === undefined ? '' : lignes[trouvees[0]][1]).split(/[,;\s]+/).map(x => x.trim()).filter(Boolean);
+  const vues = {};
+  morceaux.forEach(a => {
+    if (!estEmail_(a)) { r.ignorees++; return; }
+    const c = a.toLowerCase();
+    if (vues[c]) return;
+    vues[c] = true;
+    if (r.adresses.length < ABS_DIRECTION_MAX) r.adresses.push(a); else r.ignorees++;
+  });
+  if (!r.adresses.length) r.probleme = morceaux.length ? 'aucune adresse lisible dans la case' : 'la case est vide';
+  return r;
+}
+function absDirection_() { return absReglage_().adresses; }
+// Ce que l'appli a compris, écrit en colonne C de la ligne (par le passage de 10 minutes, seulement quand ça change)
+function absTexteReglage_(r) {
+  if (r.adresses.length) return 'Allumé : ' + r.adresses.length + ' adresse(s) lue(s)' + (r.ignorees ? ' (' + r.ignorees + ' texte(s) ignoré(s))' : '')
+    + ' — la direction reçoit seule les demandes d’absence, avec les boutons Accepter / Refuser';
+  return 'Éteint (' + (r.probleme || 'case vide') + ') : les demandes d’absence partent comme avant, et Franck reçoit une alerte';
+}
+function absEtatReglage_() {
+  try {
+    const r = absReglage_();
+    if (!r.installe) return;
+    const texte = absTexteReglage_(r), c = r.sh.getRange(r.ligne, 3);
+    if (String(c.getValue()) !== texte) c.setValue(texte);
+  } catch (e) { console.error('absEtatReglage_ :', e.message); }
+}
+function absAdresseAppli_() {
+  const p = String(propriete_(ABS_PROP_ADRESSE)).trim();
+  if (/^https:\/\/[A-Za-z0-9.-]+\/[A-Za-z0-9._~\/-]*$/.test(p)) return p.slice(-1) === '/' ? p : p + '/';
+  let test = false;
+  try { test = environnementReel_().env === 'TEST'; } catch (e) {}
+  return test ? ABS_ADRESSE_TEST : ABS_ADRESSE_DEFAUT;
+}
+// La ligne de l'onglet « Réglages » est vide (ou illisible) : la demande part comme avant, Franck est prévenu (sans détail)
+function absAlerterReglage_(r) {
+  alerte_('Une demande d’absence vient de partir COMME AVANT le lot 14 (aux personnes prévenues des absences, motif compris) : '
+    + 'dans l’onglet « ' + SHEET_REGLAGES + ' », la ligne « ' + ABS_REGLAGE + ' » ne donne aucune adresse (' + r.probleme + '). '
+    + 'Écrire 1 à ' + ABS_DIRECTION_MAX + ' adresses en colonne B, séparées par une virgule, pour que la direction reçoive seule les demandes.', 'absence');
+}
+
+// ── Textes et dates ──
+function absNorm_(v) { return String(v === undefined || v === null ? '' : v).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ').trim(); }
+// L'appellation écrite dans le planning et dans le mail au conducteur. Dans le doute : « Absent ».
+function absLibelle_(motif, imputation) {
+  const m = absNorm_(motif), mots = m.split(/[^a-z0-9]+/).filter(Boolean);
+  if (mots.some(x => ABS_SANTE.indexOf(x) > -1)) return 'Absent';
+  if (mots.indexOf('ecole') > -1) return 'École';
+  if (mots.indexOf('formation') > -1) return 'Formation';
+  if (mots.indexOf('rtt') > -1) return 'RTT';
+  if (mots.some(x => x === 'recuperation' || x === 'recup')) return 'Récupération';
+  if (mots.some(x => x === 'conge' || x === 'conges')) return 'Congés';
+  // le motif ne dit rien : les heures imputées (Congés payés d'abord, puis Repos compensateur)
+  const i = absNorm_(imputation);
+  if (i.indexOf('conges payes') > -1) return 'Congés';
+  if (i.indexOf('repos compensateur') > -1) return 'Récupération';
+  return 'Absent';
+}
+// « 30/11/2026 », « Du 30/11/2026 au 04/12/2026 », « Semaine 49 (du lundi 30/11/2026 au vendredi 04/12/2026) » → { du, au } en
+// AAAA-MM-JJ ; { du: '', au: '' } si ce n'est pas lisible (l'absence sera à inscrire à la main dans le planning)
+function absDates_(texte) {
+  const trouvees = [];
+  String(texte || '').replace(/(\d{1,2})\/(\d{1,2})\/(\d{4})/g, (tout, j, m, a) => {
+    const d = new Date(Date.UTC(+a, +m - 1, +j));
+    trouvees.push(d.getUTCFullYear() === +a && d.getUTCMonth() === +m - 1 && d.getUTCDate() === +j ? d.toISOString().slice(0, 10) : null);
+    return tout;
+  });
+  if (!trouvees.length || trouvees.length > 2 || trouvees.indexOf(null) > -1) return { du: '', au: '' };
+  const du = trouvees[0], au = trouvees[trouvees.length - 1];
+  if (au < du || (new Date(au) - new Date(du)) / 86400000 > 366) return { du: '', au: '' };
+  return { du: du, au: au };
+}
+function absIso_(v) {
+  if (Object.prototype.toString.call(v) === '[object Date]' && !isNaN(v.getTime())) return Utilities.formatDate(v, 'Europe/Paris', 'yyyy-MM-dd');
+  const t = String(v === undefined || v === null ? '' : v).trim();
+  return /^\d{4}-\d{2}-\d{2}$/.test(t) ? t : '';
+}
+function absMs_(v) { return Object.prototype.toString.call(v) === '[object Date]' ? v.getTime() : (Number(v) || 0); }
+function absQuand_(ms) { return ms ? Utilities.formatDate(new Date(ms), 'Europe/Paris', 'dd/MM/yyyy') + ' à ' + Utilities.formatDate(new Date(ms), 'Europe/Paris', 'HH:mm') : ''; }
+
+// ── L'onglet de suivi ──
+function absFeuille_() {
+  const sh = feuille_(SHEET_ABS_SUIVI, ABS_ENTETES);
+  return sh;
+}
+// Ligne d'une demande (par son numéro), ou 0
+function absChercher_(sh, id) {
+  const n = sh.getLastRow() - 1;
+  if (n < 1) return 0;
+  const v = sh.getRange(2, COL_AB.numero, n, 1).getValues();
+  for (let i = v.length - 1; i >= 0; i--) if (String(v[i][0]) === String(id)) return i + 2;
+  return 0;
+}
+
+// ── Le lien signé ──
+function absSignature_(id, limite) { return signer_('absence|' + id + '|' + limite); }
+function absLien_(id, limite, choix) {
+  let test = false;
+  try { test = environnementReel_().env === 'TEST'; } catch (e) {}
+  return absAdresseAppli_() + 'absence-reponse.html?n=' + encodeURIComponent(id) + '&e=' + limite + '&s=' + absSignature_(id, limite)
+    + '&c=' + (choix === 'refuser' ? 'refuser' : 'accepter') + '&env1=' + (test ? 'test' : 'prod');   // le serveur de cette page seulement (commun/config.js)
+}
+// { ok, id, expire } : la signature est vérifiée AVANT toute lecture du Sheet
+function absVerifierLien_(corps) {
+  const id = String(corps && corps.n || ''), limite = String(corps && corps.e || ''), s = String(corps && corps.s || '');
+  if (!idValide_(id) || !/^\d{12,14}$/.test(limite) || s.length < 20 || s.length > 80) return { ok: false };
+  if (!egaux_(s, absSignature_(id, limite))) return { ok: false };
+  return { ok: true, id: id, expire: maintenant_() > Number(limite) };
+}
+
+// ══════════════════════════════════════════════════════════
+// LA DEMANDE ARRIVE (appelée par traiterAbsence quand la ligne « Adresses de la direction » donne au moins une adresse)
+// ══════════════════════════════════════════════════════════
+function absTraiter_(brut, contexte, direction) {
+  // Une fiche de l'ancien format (sans numéro, pendant la période de transition) reçoit un numéro du serveur
+  const id = contexte && idValide_(contexte.id) ? String(contexte.id) : 'abs-' + Utilities.getUuid();
+  const dates = absDates_(brut.dateAbsence), libelle = absLibelle_(brut.motif, brut.imputation);
+  const compte = contexte && contexte.auteurId ? String(contexte.auteurId) : '';
+  // Colonnes C à I. Écrites en « texte brut » : « 30/11/2026 » ne devient pas une date de tableur, le compte « 007 » reste « 007 ».
+  const contenu = [compte, brut.nom || '', brut.dateAbsence || '', dates.du, dates.au, brut.duree || '', libelle].map(cellule_);
+
+  // 1. La ligne de suivi (aucun motif), sous verrou. Retrouvée par son numéro si le téléphone renvoie la demande.
+  const verrou = LockService.getScriptLock();
+  if (!verrou.tryLock(10000)) absReessayer_('le serveur est occupé', true);
+  let sh, ligne;
+  try {
+    sh = absFeuille_();
+    ligne = absChercher_(sh, id);
+    if (ligne) {
+      const r = sh.getRange(ligne, 1, 1, ABS_ENTETES.length).getValues()[0];
+      if (String(r[COL_AB.etat - 1]) !== ABS_ETATS.attente) return;      // déjà décidée : rien à refaire, la demande est « reçue »
+      if (String(r[COL_AB.direction - 1])) return;                       // le mail à la direction est déjà parti : jamais deux fois
+      // Le mail n'est pas encore parti : la ligne reprend le contenu reçu maintenant (elle dira ce que dira le mail)
+      absEcrireTexte_(sh, ligne, COL_AB.compte, contenu);
+    } else {
+      if (compte && absDuJour_(sh, compte) >= ABS_MAX_PAR_JOUR) {
+        const e = new Error('Déjà ' + ABS_MAX_PAR_JOUR + ' demandes d’absence aujourd’hui : voyez avec le bureau.'); e.refusDefinitif = true; throw e;
+      }
+      ligne = sh.getLastRow() + 1;
+      if (sh.getMaxRows() < ligne) sh.insertRowsAfter(sh.getMaxRows(), 50);
+      absEcrireTexte_(sh, ligne, COL_AB.numero, [id]);
+      sh.getRange(ligne, COL_AB.recue).setValue(new Date(maintenant_()));
+      absEcrireTexte_(sh, ligne, COL_AB.compte, contenu.concat([ABS_ETATS.attente]));
+      // L'onglet « Absences » d'avant, sans le motif, les précisions ni l'imputation (écrit ici, une seule fois par demande)
+      try {
+        const ancien = feuille_(SHEET_ABSENCES, ['Horodatage', 'Demandeur', 'Date dépôt', 'Date absence', 'Durée', 'Imputation', 'Motif', 'Précisions', 'Email perso']);
+        const l = ancien.getLastRow() + 1;
+        if (ancien.getMaxRows() < l) ancien.insertRowsAfter(ancien.getMaxRows(), 50);
+        ancien.getRange(l, 1).setValue(new Date(maintenant_()));
+        absEcrireTexte_(ancien, l, 2, [brut.nom || '', brut.dateDepot || '', brut.dateAbsence || '', brut.duree || '', ABS_RESERVE, ABS_RESERVE, ABS_RESERVE, ''].map(cellule_));
+      } catch (err) { console.error('Sheet absences:', err.message); }
+    }
+  } finally { verrou.releaseLock(); }
+
+  // 2. Le PDF (avec le motif) : fabriqué une fois, joint au mail. Il n'est PAS rangé dans Drive.
+  const htmlPDF = modele_absence(validerImages_(brut), esc_);
+  const nomFichier = nomFichier_('Absence_' + String(brut.nom || '').replace(/ /g, '_') + '_' + String(brut.dateAbsence || '').replace(/\//g, '-') + '.pdf');
+  const pdf = HtmlService.createHtmlOutput(htmlPDF).getAs('application/pdf').setName(nomFichier);
+
+  // 3. Le mail à la direction, et à elle seule. S'il ne peut pas partir du tout, la demande reste dans le téléphone.
+  let quota = 0;
+  try { quota = MailApp.getRemainingDailyQuota(); } catch (e) {}
+  if (quota < direction.length) absReessayer_('le quota de mails du jour est atteint');
+  const limite = maintenant_() + ABS_LIEN_JOURS * 86400000;
+  const m = absMailDirection_(brut, absLien_(id, limite, 'accepter'), absLien_(id, limite, 'refuser'), limite);
+  let partis = 0, erreur = '';
+  direction.forEach(adresse => {
+    try {
+      GmailApp.sendEmail(adresse, m.sujet, m.texte, { htmlBody: m.html, attachments: [pdf.copyBlob().setName(nomFichier)], name: NOM_ENTREPRISE });
+      partis++; noter_('envoyé', adresse);
+    } catch (err) { erreur = err.message; console.error('Mail à la direction échoué :', err.message); }
+  });
+  if (!partis) absReessayer_('le mail à la direction n’a pas pu partir (' + erreur + ')');
+  // Noté AUSSITÔT : à partir d'ici le poseur voit « En attente », et ce mail ne repartira jamais (même si le téléphone renvoie la demande)
+  sh.getRange(ligne, COL_AB.direction).setNumberFormat('@').setValue('envoyé le ' + absQuand_(maintenant_()));
+  // Le mail envoyé (avec le motif) sort de « Messages envoyés » : à la corbeille de Gmail, tout de suite si Gmail le trouve déjà,
+  // sinon au passage de 10 minutes (la date limite du lien sert à recalculer sa signature, qui n'est jamais écrite dans le Sheet)
+  sh.getRange(ligne, COL_AB.corbeille).setNumberFormat('@').setValue(ABS_CORBEILLE_A_FAIRE + limite + ' ' + partis);
+  PropertiesService.getScriptProperties().setProperty(ABS_PROP_CORBEILLE, '1');
+  try { absCorbeille_(sh, ligne); } catch (err) { console.error('Corbeille Gmail :', err.message); }
+  // Une adresse sur plusieurs a échoué : la direction est prévenue par l'autre ; Franck l'apprend, sans aucun détail de la demande
+  if (partis < direction.length) alerte_('Une demande d’absence est partie à ' + partis + ' adresse(s) de la direction sur ' + direction.length + ' (' + erreur + '). Vérifier la ligne « ' + ABS_REGLAGE + ' » de l’onglet « ' + SHEET_REGLAGES + ' ».', 'absenceenvoi');
+}
+function absEcrireTexte_(sh, ligne, colonne, valeurs) { sh.getRange(ligne, colonne, 1, valeurs.length).setNumberFormat('@').setValues([valeurs]); }
+// Combien de demandes ce compte a déjà faites aujourd'hui
+function absDuJour_(sh, compte) {
+  const n = sh.getLastRow() - 1;
+  if (n < 1) return 0;
+  const jour = t => Utilities.formatDate(new Date(t), 'Europe/Paris', 'yyyy-MM-dd'), aujourdhui = jour(maintenant_());
+  return sh.getRange(2, 1, n, COL_AB.compte).getValues().filter(r => String(r[COL_AB.compte - 1]) === compte && absMs_(r[COL_AB.recue - 1]) && jour(absMs_(r[COL_AB.recue - 1])) === aujourdhui).length;
+}
+// « Le téléphone réessaiera » : la fiche reste dans la file du téléphone. Franck est prévenu (une alerte par jour au plus, sans
+// aucun détail de la demande), sauf pour un simple « serveur occupé ».
+function absReessayer_(raison, sansAlerte) {
+  if (!sansAlerte) alerte_('Une demande d’absence n’a pas pu partir vers la direction (' + raison + '). Elle est gardée dans le téléphone du salarié et repartira toute seule ; '
+    + 'si cela dure, vérifier le quota de mails du jour et la ligne « ' + ABS_REGLAGE + ' » de l’onglet « ' + SHEET_REGLAGES + ' ».', 'absenceenvoi');
+  const e = new Error('Demande gardée dans le téléphone : ' + raison + '. Nouvel essai automatique.'); e.occupe = true; throw e;
+}
+
+// Le mail à la direction : texte brut (liens écrits en entier) et version mise en forme avec deux gros boutons, faits en
+// tableau (la seule façon d'avoir de vrais boutons dans Outlook)
+function absMailDirection_(brut, lienOui, lienNon, limite) {
+  const nom = brut.nom || '?', jusquau = Utilities.formatDate(new Date(limite), 'Europe/Paris', 'dd/MM/yyyy');
+  const lignes = [['Salarié', nom], ['Date', brut.dateAbsence || '?'], ['Durée', brut.duree || '?'], ['Heures imputées sur', brut.imputation || '—'],
+    ['Motif', brut.motif || '?'], ['Précisions', brut.precisions || '—'], ['Demande déposée le', brut.dateDepot || '?']];
+  const sujet = '[Loué App] Demande d\'absence — ' + nom + ' — ' + (brut.dateAbsence || '?');
+  const texte = 'Bonjour,\n\nDemande d\'absence de ' + nom + '.\n\n' + lignes.slice(1).map(l => l[0] + ' : ' + l[1]).join('\n')
+    + '\n\nPour ACCEPTER, ouvrez ce lien puis confirmez :\n' + lienOui + '\n\nPour REFUSER, ouvrez ce lien puis confirmez :\n' + lienNon
+    + '\n\nLiens valables jusqu\'au ' + jusquau + ', pour une seule réponse. La demande signée est en pièce jointe.\n\nLoué App';
+  const bouton = (lien, libelle, couleur) => '<td bgcolor="' + couleur + '" style="background:' + couleur + ';padding:16px 30px;border-radius:8px">'
+    + '<a href="' + esc_(lien) + '" style="font-family:Arial,Helvetica,sans-serif;font-size:19px;font-weight:bold;color:#ffffff;text-decoration:none">' + libelle + '</a></td>';
+  const html = '<div style="font-family:Arial,Helvetica,sans-serif;font-size:15px;color:#1A2B4A;line-height:1.5">'
+    + '<p>Bonjour,</p><p>Demande d\'absence de <b>' + esc_(nom) + '</b>.</p>'
+    + '<table cellpadding="0" cellspacing="0" border="0" style="margin:6px 0 20px">'
+    + lignes.slice(1).map(l => '<tr><td style="padding:3px 16px 3px 0;color:#555555;vertical-align:top">' + esc_(l[0]) + '</td><td style="padding:3px 0"><b>' + esc_(l[1]).replace(/\n/g, '<br>') + '</b></td></tr>').join('')
+    + '</table>'
+    + '<table cellpadding="0" cellspacing="0" border="0"><tr>' + bouton(lienOui, '✅ Accepter', '#1E7B34') + '<td width="18">&nbsp;</td>' + bouton(lienNon, '❌ Refuser', '#B3261E') + '</tr></table>'
+    + '<p style="font-size:13px;color:#555555;margin-top:18px">Un clic ouvre une page qui rappelle la demande : vous y confirmez votre réponse. '
+    + 'Liens valables jusqu\'au ' + jusquau + ', pour une seule réponse. La demande signée est en pièce jointe.</p>'
+    + '<p style="font-size:12px;color:#777777">Si les boutons ne s\'affichent pas — Accepter : <a href="' + esc_(lienOui) + '">' + esc_(lienOui) + '</a><br>Refuser : <a href="' + esc_(lienNon) + '">' + esc_(lienNon) + '</a></p>'
+    + '<p>Loué App</p></div>';
+  return { sujet: sujet, texte: texte, html: html };
+}
+
+// ══════════════════════════════════════════════════════════
+// LA DIRECTION RÉPOND (page absence-reponse.html — sans compte : c'est le lien signé qui fait foi)
+// ══════════════════════════════════════════════════════════
+const ABS_REFUS_LIEN = { ok: false, code: 'LIEN_INVALIDE', message: 'Ce lien n’est pas valable. Ouvrez-le depuis le mail de la demande.' };
+function absResume_(r, expire) {
+  const etat = String(r[COL_AB.etat - 1]);
+  return { demandeur: String(r[COL_AB.demandeur - 1]), dateAbsence: String(r[COL_AB.texte - 1]), duree: String(r[COL_AB.duree - 1]),
+    etat: etat, decideeLe: absQuand_(absMs_(r[COL_AB.decidee - 1])), expire: etat === ABS_ETATS.attente && !!expire };
+}
+// Rappelle la demande (qui, quelles dates, quelle durée) : jamais le motif. Ne modifie rien.
+function absVoir_(corps) {
+  const lien = absVerifierLien_(corps);
+  if (!lien.ok) return ABS_REFUS_LIEN;
+  const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_ABS_SUIVI), ligne = sh ? absChercher_(sh, lien.id) : 0;
+  if (!ligne) return ABS_REFUS_LIEN;
+  return { ok: true, code: 'OK', message: '', data: absResume_(sh.getRange(ligne, 1, 1, ABS_ENTETES.length).getValues()[0], lien.expire) };
+}
+// Enregistre la réponse. Usage unique : une demande déjà décidée ne change plus ; on redit seulement la réponse donnée.
+function absDecider_(corps) {
+  const lien = absVerifierLien_(corps);
+  if (!lien.ok) return ABS_REFUS_LIEN;
+  const choix = corps.choix === 'accepter' ? ABS_ETATS.acceptee : corps.choix === 'refuser' ? ABS_ETATS.refusee : '';
+  if (!choix) return { ok: false, code: 'DONNEES_INVALIDES', message: 'Réponse inconnue.' };
+  const verrou = LockService.getScriptLock();
+  if (!verrou.tryLock(10000)) return { ok: false, code: 'SERVEUR_OCCUPE', message: 'Le serveur est occupé : appuyez de nouveau dans un instant.' };
+  let sh, ligne, r;
+  try {
+    sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_ABS_SUIVI);
+    ligne = sh ? absChercher_(sh, lien.id) : 0;
+    if (!ligne) return ABS_REFUS_LIEN;
+    r = sh.getRange(ligne, 1, 1, ABS_ENTETES.length).getValues()[0];
+    if (String(r[COL_AB.etat - 1]) !== ABS_ETATS.attente) return { ok: true, code: 'DEJA_DECIDE', message: 'Une réponse a déjà été donnée.', data: absResume_(r, false) };
+    if (lien.expire) return { ok: false, code: 'LIEN_EXPIRE', message: 'Ce lien a expiré (' + ABS_LIEN_JOURS + ' jours). Le salarié doit refaire sa demande.', data: absResume_(r, true) };
+    const quand = new Date(maintenant_());
+    r[COL_AB.etat - 1] = choix; r[COL_AB.decidee - 1] = quand; r[COL_AB.mail - 1] = choix === ABS_ETATS.acceptee ? ABS_MAIL_A_ENVOYER : '';
+    sh.getRange(ligne, COL_AB.etat, 1, 3).setValues([[choix, quand, r[COL_AB.mail - 1]]]);
+    if (choix === ABS_ETATS.acceptee) PropertiesService.getScriptProperties().setProperty(ABS_PROP_A_ENVOYER, '1');
+    SpreadsheetApp.flush();
+  } finally { verrou.releaseLock(); }
+  // Acceptée : le conducteur est prévenu (hors du verrou ; s'il ne part pas, le passage de 10 minutes le renverra)
+  if (choix === ABS_ETATS.acceptee) { try { absMailConducteur_(sh, ligne); } catch (err) { console.error('Mail au conducteur :', err.message); } }
+  return { ok: true, code: 'OK', message: 'Réponse enregistrée.', data: absResume_(r, false) };
+}
+
+// ── Le mail au conducteur de travaux (pour information) : qui, quand, quelle durée, l'appellation du planning. JAMAIS le motif. ──
+function absConducteurs_() {
+  const vues = {}, liste = [];
+  getContactsRaw().filter(r => String(r[5]).toUpperCase() === 'O').forEach(r => decouperAdresses_(r[2]).forEach(a => { if (!vues[a.toLowerCase()]) { vues[a.toLowerCase()] = true; liste.push(a); } }));
+  if (!liste.length) decouperAdresses_(emailAdmin_()).forEach(a => liste.push(a));
+  return liste;
+}
+// Rend true si le mail est parti (ou n'a plus à partir). Jamais deux fois : avant d'envoyer, la ligne est marquée « envoi en
+// cours » sous le verrou ; un second passage qui arrive pendant l'envoi ne fait rien.
+function absMailConducteur_(sh, ligne) {
+  const verrou = LockService.getScriptLock();
+  if (!verrou.tryLock(5000)) return false;
+  let r, a;
+  try {
+    r = sh.getRange(ligne, 1, 1, ABS_ENTETES.length).getValues()[0];
+    const marque = String(r[COL_AB.mail - 1]), enCours = marque.indexOf(ABS_MAIL_EN_COURS) === 0;
+    if (String(r[COL_AB.etat - 1]) !== ABS_ETATS.acceptee) return true;
+    if (enCours && maintenant_() - (Number(marque.slice(ABS_MAIL_EN_COURS.length)) || 0) < 15 * 60000) return false;   // un autre passage l'envoie
+    if (!enCours && marque !== ABS_MAIL_A_ENVOYER) return true;
+    a = absConducteurs_();
+    if (!a.length) { sh.getRange(ligne, COL_AB.mail).setValue('aucune adresse de conducteur'); return true; }
+    let quota = 0;
+    try { quota = MailApp.getRemainingDailyQuota(); } catch (e) {}
+    if (quota < a.length) { if (enCours) sh.getRange(ligne, COL_AB.mail).setValue(ABS_MAIL_A_ENVOYER); return false; }
+    sh.getRange(ligne, COL_AB.mail).setValue(ABS_MAIL_EN_COURS + maintenant_());
+    SpreadsheetApp.flush();
+  } finally { verrou.releaseLock(); }
+  const nom = String(r[COL_AB.demandeur - 1]) || '?', quand = String(r[COL_AB.texte - 1]) || '?';
+  try {
+    GmailApp.sendEmail(a.join(', '), '[Loué App] Absence acceptée — ' + nom + ' — ' + quand,
+      'Bonjour,\n\nLa direction a accepté une demande d\'absence.\n\nSalarié : ' + nom + '\nDate : ' + quand + '\nDurée : ' + (String(r[COL_AB.duree - 1]) || '?')
+      + '\nDans le planning : ' + String(r[COL_AB.libelle - 1]) + '\n\nElle s\'inscrit toute seule dans le planning (dans la nuit, ou à la prochaine publication).\n\nLoué App',
+      { name: NOM_ENTREPRISE });
+  } catch (err) { sh.getRange(ligne, COL_AB.mail).setValue(ABS_MAIL_A_ENVOYER); throw err; }
+  sh.getRange(ligne, COL_AB.mail).setValue('envoyé le ' + absQuand_(maintenant_()));
+  return true;
+}
+// Toutes les 10 minutes (traiterComptes) : les mails au conducteur qui n'ont pas pu partir. Ne lève jamais d'erreur.
+function absPassage_() {
+  absEtatReglage_();
+  try { absPassageCorbeille_(); } catch (e) { console.error('absPassageCorbeille_ :', e.message); }
+  try {
+    const props = PropertiesService.getScriptProperties();
+    if (props.getProperty(ABS_PROP_A_ENVOYER) !== '1') return 'rien';
+    const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_ABS_SUIVI);
+    const n = sh ? sh.getLastRow() - 1 : 0;
+    let restent = 0, partis = 0;
+    if (n > 0) sh.getRange(2, COL_AB.mail, n, 1).getValues().forEach((l, i) => {
+      if (String(l[0]) !== ABS_MAIL_A_ENVOYER && String(l[0]).indexOf(ABS_MAIL_EN_COURS) !== 0) return;
+      let fait = false;
+      if (partis < 5) { try { fait = absMailConducteur_(sh, i + 2); } catch (err) { console.error('absPassage_ :', err.message); } }
+      if (fait) partis++; else restent++;
+    });
+    if (!restent) props.deleteProperty(ABS_PROP_A_ENVOYER);
+    return partis + ' parti(s), ' + restent + ' en attente';
+  } catch (e) { console.error('absPassage_ :', e.message); return 'erreur : ' + e.message; }
+}
+
+// ══════════════════════════════════════════════════════════
+// LE POSEUR VOIT L'ÉTAT DE SES DEMANDES (action « absencesMiennes », avec son compte)
+// ══════════════════════════════════════════════════════════
+function absMiennes_(compte) {
+  // direction : le réglage est allumé (la page cache alors le champ « e-mail personnel ») ; suivi : il y a quelque chose à
+  // montrer (réglage allumé, ou demandes déjà faites avant qu'il soit retiré : leurs liens marchent encore)
+  const direction = absReglage_().adresses.length > 0;
+  const rep = demandes => ({ ok: true, code: 'OK', message: '', data: { suivi: direction || demandes.length > 0, direction: direction, demandes: demandes, jours: ABS_LIEN_JOURS } });
+  if (!compte || !compte.id) return rep([]);
+  const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_ABS_SUIVI), n = sh ? sh.getLastRow() - 1 : 0;
+  if (n < 1) return rep([]);
+  const moi = String(compte.id), limite = maintenant_() - ABS_LIEN_JOURS * 86400000;
+  // Une demande dont le mail à la direction n'est pas encore parti n'est pas montrée : le téléphone l'affiche lui-même (« ⏳ »)
+  const demandes = sh.getRange(2, 1, n, ABS_ENTETES.length).getValues().filter(r => String(r[COL_AB.compte - 1]) === moi && String(r[COL_AB.direction - 1])).map(r => {
+    const recue = absMs_(r[COL_AB.recue - 1]);
+    let etat = String(r[COL_AB.etat - 1]);
+    if (etat === ABS_ETATS.attente && recue && recue < limite) etat = ABS_ETATS.sansReponse;      // le lien de la direction a expiré
+    if ([ABS_ETATS.attente, ABS_ETATS.acceptee, ABS_ETATS.refusee, ABS_ETATS.sansReponse].indexOf(etat) < 0) etat = ABS_ETATS.attente;
+    return { id: String(r[COL_AB.numero - 1]), recueLe: recue, dateAbsence: String(r[COL_AB.texte - 1]), duree: String(r[COL_AB.duree - 1]), etat: etat,
+      decideeLe: absQuand_(absMs_(r[COL_AB.decidee - 1])) };
+  });
+  return rep(demandes.sort((a, b) => b.recueLe - a.recueLe).slice(0, 15));
+}
+
+// ══════════════════════════════════════════════════════════
+// LE MAIL DE LA DIRECTION À LA CORBEILLE DE GMAIL (décision de Franck du 20/11/2026)
+// ══════════════════════════════════════════════════════════
+// Rend true quand il n'y a plus rien à faire pour cette ligne. Ne touche QUE les messages envoyés qui contiennent la signature
+// du lien de cette demande (impossible à confondre avec un autre mail) ; garde un message qui est aussi dans la boîte de
+// réception (adresse de la direction = celle du compte : ce serait la supprimer de la boîte de la direction).
+function absCorbeille_(sh, ligne) {
+  const r = sh.getRange(ligne, 1, 1, ABS_ENTETES.length).getValues()[0];
+  const marque = String(r[COL_AB.corbeille - 1]);
+  if (marque.indexOf(ABS_CORBEILLE_A_FAIRE) !== 0) return true;
+  const p = marque.slice(ABS_CORBEILLE_A_FAIRE.length).trim().split(' ');
+  const limite = p[0], restants = Math.max(1, Number(p[1]) || 1), id = String(r[COL_AB.numero - 1]);
+  if (!/^\d{12,14}$/.test(limite) || !idValide_(id)) { sh.getRange(ligne, COL_AB.corbeille).setValue('illisible : à supprimer à la main dans « Messages envoyés »'); return true; }
+  const signature = absSignature_(id, limite);
+  let jetes = 0, gardes = 0;
+  GmailApp.search(ABS_RECHERCHE_GMAIL, 0, 100).forEach(fil => fil.getMessages().forEach(m => {
+    if (m.isInTrash() || String(m.getPlainBody()).indexOf(signature) < 0) return;
+    if (m.isInInbox()) { gardes++; return; }
+    m.moveToTrash(); jetes++;
+  }));
+  const reste = restants - jetes - gardes;
+  const quand = absQuand_(maintenant_());
+  if (reste <= 0) {
+    sh.getRange(ligne, COL_AB.corbeille).setValue(jetes ? 'à la corbeille le ' + quand + (gardes ? ' (' + gardes + ' gardé(s) : aussi dans la boîte de réception du compte)' : '')
+      : 'gardé : ce mail est aussi dans la boîte de réception du compte (le 1er essai du ' + quand + ')');
+    return true;
+  }
+  if (jetes || gardes) sh.getRange(ligne, COL_AB.corbeille).setValue(ABS_CORBEILLE_A_FAIRE + limite + ' ' + reste);
+  // Pas (tout) trouvé : nouvel essai au passage suivant ; 24 h après l'envoi, on abandonne et Franck est prévenu (sans détail)
+  const envoye = Number(limite) - ABS_LIEN_JOURS * 86400000;
+  if (maintenant_() - envoye > ABS_CORBEILLE_DELAI_MS) {
+    sh.getRange(ligne, COL_AB.corbeille).setValue('pas trouvé dans « Messages envoyés » : à supprimer à la main (le ' + quand + ')');
+    alerte_('Le mail envoyé à la direction pour une demande d’absence n’a pas été retrouvé dans « Messages envoyés » pour être mis à la corbeille. '
+      + 'Ouvrir Gmail avec le compte de Loué, « Messages envoyés », et supprimer le mail « [Loué App] Demande d’absence — … » (numéro ' + id + ' dans l’onglet « ' + SHEET_ABS_SUIVI + ' »).', 'absencecorbeille');
+    return true;
+  }
+  return false;
+}
+function absPassageCorbeille_() {
+  const props = PropertiesService.getScriptProperties();
+  if (props.getProperty(ABS_PROP_CORBEILLE) !== '1') return 'rien';
+  const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_ABS_SUIVI), n = sh ? sh.getLastRow() - 1 : 0;
+  let restent = 0, faits = 0;
+  if (n > 0) sh.getRange(2, COL_AB.corbeille, n, 1).getValues().forEach((l, i) => {
+    if (String(l[0]).indexOf(ABS_CORBEILLE_A_FAIRE) !== 0) return;
+    let fait = false;
+    if (faits < 5) { try { fait = absCorbeille_(sh, i + 2); } catch (err) { console.error('absPassageCorbeille_ :', err.message); } }
+    if (fait) faits++; else restent++;
+  });
+  if (!restent) props.deleteProperty(ABS_PROP_CORBEILLE);
+  return faits + ' fait(s), ' + restent + ' en attente';
+}
+
+// ══════════════════════════════════════════════════════════
+// INSTALLATION DU LOT 14 (une fonction par environnement ; relançable sans danger)
+// ══════════════════════════════════════════════════════════
+// La ligne « Adresses de la direction » de l'onglet « Réglages ». En PRODUCTION la case est laissée VIDE : Franck y écrit les
+// vraies adresses lui-même avant d'allumer. Sur la copie TEST, elle reçoit l'adresse de Franck (celle des alertes), pour
+// les essais : aucune adresse n'est jamais écrite dans le programme.
+function etapesLot14_() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  return [{
+    nom: 'Onglet « ' + SHEET_REGLAGES + ' » : ligne « ' + ABS_REGLAGE + ' »',
+    fait: () => absReglage_().installe,
+    action: () => {
+      const sh = feuille_(SHEET_REGLAGES, REGLAGES_ENTETES);
+      let test = false;
+      try { test = environnementReel_().env === 'TEST'; } catch (e) {}
+      const ligne = sh.getLastRow() + 1;
+      sh.getRange(ligne, 1).setValue(ABS_REGLAGE);
+      sh.getRange(ligne, 2).setNumberFormat('@').setValue(test ? String(emailAdmin_() || '') : '');
+      sh.getRange(ligne, 3).setValue(absTexteReglage_(absReglage_()));
+      return test ? 'ligne ajoutée, avec l’adresse de Franck (copie TEST : essais)' : 'ligne ajoutée, case VIDE : y écrire les adresses de la direction avant d’allumer';
+    } }];
+}
+function installerLot14_(attendu) { return installer_('Lot 14', attendu, etapesLot14_()).texte; }
+function installerLot14Test() { return installerLot14_('TEST'); }
+function installerLot14Production() { return installerLot14_('PRODUCTION'); }
+
+// ████ Planifies.gs ████
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+// LOT 12 (plan : lot 11.1d) — LES CHANTIERS DU PLANNING, MIS TOUT SEULS EN FAVORIS
+//
+// Règles de Franck (19/11/2026) : un chantier où un gars est planifié arrive tout seul dans « Mes chantiers » de son
+// appli. Le planning ne donne AUCUN accès et ne retire jamais rien. Un favori retiré par le gars ne revient qu'après une
+// coupure (une semaine publiée sans lui sur ce chantier, puis une nouvelle planification). Plafond : 4 favoris nouveaux
+// au plus par gars et par semaine ; au-delà, rien n'est ajouté pour ce gars et Franck reçoit un mail.
+//
+//   - ÉTEINT tant que la propriété du script PLANNING_SHEET_ID n'existe pas (le Sheet « Planning Loué » est le lot 11.1) :
+//     sans elle, ce fichier ne lit rien, n'écrit rien, et ne coûte rien ;
+//   - SENS UNIQUE : le serveur de l'appli LIT le planning ; il n'y écrit jamais (une seule fonction l'ouvre : planifLire_,
+//     et elle ne fait que lire ; un test le vérifie). Le planning n'écrit jamais dans le Sheet de l'appli ;
+//   - ce qu'il lit : l'onglet « APPLI » du planning, tenu par le programme de publication du planning (compte de Loué) :
+//     une ligne « SEMAINE » par semaine publiée, une ligne « PLANIFIE » par gars et par chantier de cette semaine ;
+//   - il ne s'y fie pas : le compte doit exister et être actif dans l'onglet Utilisateurs, le numéro doit être celui d'UN
+//     SEUL chantier non « Terminé » de l'onglet Chantiers (comparé en entier : « 90 » ne vaut pas pour « 901 ») ;
+//   - ce qu'il écrit : l'onglet « Planifiés » du Sheet de l'appli (une ligne par gars et par chantier : début de la série,
+//     dernière semaine planifiée), et en colonne H ce que Franck doit regarder (« à voir ») ;
+//   - quand : toutes les 30 minutes au plus (dans le passage de 10 minutes qui existe déjà), en quelques secondes ; si le
+//     planning n'a pas changé depuis la dernière lecture, une seule cellule est lue. Une fois par jour, tout est relu ;
+//   - le téléphone reçoit, avec la liste des chantiers, « planifie : <lundi du début de la série> ». C'est lui qui tient
+//     les étoiles (commun/favoris.js) : une série qu'il ne connaît pas encore met une étoile, une fois.
+// Plan : docs/lot11-1-plan.md (chapitre 13) et docs/lot12-plan.md. Décisions : D12-… (DECISIONS.md).
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+const SHEET_PLANIFIES = 'Planifiés';
+const PLANIF_ENTETES = ['Compte', 'N° du chantier', 'Chantier', 'Série commencée le (lundi)', 'Dernière semaine planifiée (lundi)', 'Mis à jour le',
+  '', 'À voir (écrit par l’appli)'];
+const COL_PL = { compte: 1, numero: 2, chantier: 3, debut: 4, derniere: 5, maj: 6, aVoir: 8 };
+const PLANIF_PROP_ID = 'PLANNING_SHEET_ID';     // identifiant du Sheet « Planning Loué » (jamais dans le dépôt)
+const PLANIF_PROP_ETAT = 'PLANIF_ETAT';         // { dernier, jour, marque, semaines: { lundi: publié le }, alertes: { compte|lundi: 1 } }
+const PLANIF_ONGLET = 'APPLI';                  // l'onglet du planning lu par l'appli
+const PLANIF_INTERVALLE_MS = 30 * 60 * 1000;    // une lecture du planning toutes les 30 minutes au plus
+const PLANIF_PLAFOND = 4;                       // favoris nouveaux par gars et par semaine
+const PLANIF_LIGNES_MAX = 3000;                 // lignes lues dans l'onglet du planning, au plus
+// Semaines traitées : de la semaine passée à 4 semaines devant. Les semaines plus anciennes ne donnent plus de favori (à la mise
+// en service, tout l'historique du planning ne tombe pas d'un coup dans les téléphones) ; elles servent encore à reconnaître
+// une coupure.
+const PLANIF_SEMAINES_AVANT = 1, PLANIF_SEMAINES_APRES = 4;
+const PLANIF_VISIBLE_JOURS = 56;                // une série terminée depuis plus de 8 semaines n'est plus envoyée au téléphone
+const PLANIF_A_VOIR_MAX = 100;
+
+let PLANIFIES_LUS_ = null;   // onglet Planifiés lu une fois par requête (remis à zéro par routerV5_ et par traiterComptes)
+
+// ── Dates : un lundi s'écrit « AAAA-MM-JJ » (comparable comme un texte, sans problème au passage d'année) ──
+function planifIso_(v) {
+  if (Object.prototype.toString.call(v) === '[object Date]' && !isNaN(v.getTime())) return Utilities.formatDate(v, 'Europe/Paris', 'yyyy-MM-dd');
+  const t = String(v === undefined || v === null ? '' : v).trim();
+  return /^\d{4}-\d{2}-\d{2}$/.test(t) ? t : '';
+}
+function planifDecaler_(iso, jours) {
+  const p = iso.split('-').map(Number);
+  return new Date(Date.UTC(p[0], p[1] - 1, p[2] + jours)).toISOString().slice(0, 10);
+}
+function planifAujourdhui_() { return Utilities.formatDate(new Date(maintenant_()), 'Europe/Paris', 'yyyy-MM-dd'); }
+function planifEnCours_(r) { return String(r[2] || '').trim() !== 'Terminé'; }
+
+// ── L'état gardé d'un passage à l'autre ──
+function planifEtat_() {
+  let e = {};
+  try { e = JSON.parse(PropertiesService.getScriptProperties().getProperty(PLANIF_PROP_ETAT) || '{}') || {}; } catch (x) { e = {}; }
+  if (typeof e !== 'object' || Array.isArray(e)) e = {};
+  if (!e.semaines || typeof e.semaines !== 'object') e.semaines = {};
+  if (!e.alertes || typeof e.alertes !== 'object') e.alertes = {};
+  return e;
+}
+function planifEcrireEtat_(e) {
+  // On ne garde que les semaines et les alertes des 12 dernières semaines (la propriété reste petite)
+  const limite = planifDecaler_(planifAujourdhui_(), -84);
+  Object.keys(e.semaines).forEach(l => { if (l < limite) delete e.semaines[l]; });
+  Object.keys(e.alertes).forEach(k => { if (String(k).split('|')[1] < limite) delete e.alertes[k]; });
+  PropertiesService.getScriptProperties().setProperty(PLANIF_PROP_ETAT, JSON.stringify(e));
+}
+
+// ── LA SEULE FONCTION QUI OUVRE LE PLANNING. Elle ne fait que lire. ──
+// Rend null si le planning n'a pas changé depuis « marqueConnue » (une seule cellule lue), sinon { marque, lignes }.
+function planifLire_(id, marqueConnue) {
+  const sh = SpreadsheetApp.openById(id).getSheetByName(PLANIF_ONGLET);
+  if (!sh) throw new Error('onglet « ' + PLANIF_ONGLET + ' » absent du planning');
+  const marque = String(sh.getRange(1, 8).getValue());           // H1 : changée par le planning à chaque publication
+  if (marque && marqueConnue && marque === marqueConnue) return null;
+  const n = Math.min(PLANIF_LIGNES_MAX, sh.getLastRow() - 1);
+  return { marque: marque, lignes: n > 0 ? sh.getRange(2, 1, n, 5).getValues() : [] };
+}
+
+// ── Le passage (appelé par traiterComptes toutes les 10 minutes, APRÈS qu'il a rendu son verrou). Ne lève jamais d'erreur. ──
+function planifPassage_() {
+  try {
+    const id = PropertiesService.getScriptProperties().getProperty(PLANIF_PROP_ID);
+    if (!id) return 'éteint';
+    const tropTot = (e, m) => !!e.dernier && m >= e.dernier && m - e.dernier < PLANIF_INTERVALLE_MS;
+    if (tropTot(planifEtat_(), maintenant_())) return 'trop tôt';   // regard rapide, sans verrou
+    const verrou = LockService.getScriptLock();
+    if (!verrou.tryLock(5000)) return 'occupé';
+    try {
+      // L'état est RELU sous le verrou : deux passages rapprochés (minuterie, et case cochée dans le Sheet) ne traitent
+      // jamais deux fois la même chose, et n'envoient jamais le mail d'alerte en double
+      const etat = planifEtat_(), m = maintenant_();
+      if (tropTot(etat, m)) return 'trop tôt';
+      return planifTraiter_(String(id), etat, m);
+    } finally { verrou.releaseLock(); }
+  } catch (e) { console.error('planifPassage_ :', e.message); return 'erreur : ' + e.message; }
+}
+
+function planifTraiter_(id, etat, m) {
+  const aujourdhui = planifAujourdhui_();
+  const force = etat.jour !== aujourdhui;                         // une fois par jour : tout est relu, même si rien n'a changé
+  etat.dernier = m;
+  let lu;
+  try { lu = planifLire_(id, force ? '' : etat.marque); }
+  catch (e) { planifEcrireEtat_(etat); console.error('planifLire_ :', e.message); return 'planning illisible : ' + e.message; }
+  if (!lu) { planifEcrireEtat_(etat); return 'inchangé'; }
+  // À partir d'ici, une panne (Sheet de l'appli indisponible) ne doit pas faire relire le planning toutes les 10 minutes :
+  // l'heure de ce passage est enregistrée tout de suite ; ce qui a été lu (semaines, marque) ne l'est qu'une fois TOUT écrit.
+  planifEcrireEtat_(etat);
+
+  // 1. Ce que dit le planning : semaines publiées, et qui est planifié où
+  const publiees = {}, planifs = {};
+  lu.lignes.forEach(r => {
+    const sorte = String(r[0] || '').trim().toUpperCase(), lundi = planifIso_(r[1]);
+    if (!lundi) return;
+    // « Publié le » : seulement comparé à lui-même d'une lecture à l'autre (une date de Sheets est prise à la milliseconde)
+    if (sorte === 'SEMAINE') {
+      publiees[lundi] = Object.prototype.toString.call(r[4]) === '[object Date]' ? String(r[4].getTime()) : String(r[4] === undefined || r[4] === null ? '' : r[4]);
+      return;
+    }
+    if (sorte !== 'PLANIFIE') return;
+    const compte = normaliserId_(r[2]), numero = crCleNumero_(r[3]);
+    if (!compte || !numero) return;
+    planifs[lundi] = planifs[lundi] || {};
+    planifs[lundi][compte] = planifs[lundi][compte] || {};
+    planifs[lundi][compte][numero] = true;
+  });
+  const debutFenetre = planifDecaler_(aujourdhui, -7 * PLANIF_SEMAINES_AVANT - 6), finFenetre = planifDecaler_(aujourdhui, 7 * PLANIF_SEMAINES_APRES);
+  const aTraiter = Object.keys(publiees).filter(l => l >= debutFenetre && l <= finFenetre && (force || etat.semaines[l] !== publiees[l])).sort();
+  // Toutes les semaines publiées connues (déjà lues, ou dans le planning) : elles servent à reconnaître une coupure
+  const connues = {};
+  Object.keys(etat.semaines).forEach(l => { connues[l] = true; });
+  Object.keys(publiees).forEach(l => { connues[l] = true; });
+  const coupure = (derniere, lundi) => Object.keys(connues).some(x => x > derniere && x < lundi);
+
+  // 2. Ce que le bureau sait : chantiers (un numéro = un seul chantier NON TERMINÉ) et comptes actifs
+  const parNumero = {};
+  lignesChantiers_().forEach(r => { const n = crCleNumero_(r.length > 4 ? r[4] : ''); if (n && planifEnCours_(r)) (parNumero[n] = parNumero[n] || []).push(r); });
+  const chantierDe = n => { const l = parNumero[n]; return l && l.length === 1 ? String(l[0][0]).trim() : ''; };
+  UTILISATEURS_ = null;
+  const u = utilisateurs_();
+
+  // 3. L'onglet Planifiés tel qu'il est
+  const sh = feuille_(SHEET_PLANIFIES, PLANIF_ENTETES);
+  const derniereLigne = sh.getLastRow();
+  const existantes = derniereLigne > 1 ? sh.getRange(2, 1, derniereLigne - 1, COL_PL.derniere).getValues() : [];
+  const entrees = {};
+  let derniereSerie = 1;                                           // dernière ligne qui porte une série (la colonne H, « à voir », ne compte pas)
+  existantes.forEach((r, i) => {
+    const compte = normaliserId_(r[COL_PL.compte - 1]), numero = crCleNumero_(r[COL_PL.numero - 1]);
+    if (String(r[COL_PL.compte - 1] || '').trim() !== '' || String(r[COL_PL.numero - 1] || '').trim() !== '') derniereSerie = i + 2;
+    if (compte && numero) entrees[compte + '|' + numero] = { ligne: i + 2, debut: planifIso_(r[COL_PL.debut - 1]), derniere: planifIso_(r[COL_PL.derniere - 1]) };
+  });
+
+  // 4. Semaine par semaine, de la plus ancienne à la plus récente
+  const aVoir = [], modifiees = {}, nouvelles = [], depassements = [], semainesLues = {};
+  const voir = t => { if (aVoir.indexOf(t) < 0 && aVoir.length < PLANIF_A_VOIR_MAX) aVoir.push(t); };
+  aTraiter.forEach(lundi => {
+    const comptes = planifs[lundi] || {};
+    Object.keys(comptes).sort().forEach(compte => {
+      if (!compteUtilisable_(u, compte)) { voir('Semaine du ' + lundi + ' : le compte « ' + compte + ' » est inconnu ou inactif dans l’onglet Utilisateurs (ignoré)'); return; }
+      const nouveaux = [];
+      Object.keys(comptes[compte]).sort().forEach(numero => {
+        if (!chantierDe(numero)) { voir('Semaine du ' + lundi + ' : le numéro « ' + numero + ' » n’est pas celui d’un seul chantier en cours (ignoré)'); return; }
+        const cle = compte + '|' + numero, e = entrees[cle];
+        if (!e || !e.derniere) { nouveaux.push(numero); return; }
+        if (lundi <= e.derniere) return;                             // semaine déjà comptée
+        if (coupure(e.derniere, lundi)) { nouveaux.push(numero); return; }
+        e.derniere = lundi; modifiees[cle] = true;                   // la série continue
+      });
+      if (nouveaux.length > PLANIF_PLAFOND) {
+        // Trop de chantiers nouveaux d'un coup (collage raté, mauvaise ligne) : rien n'est ajouté pour ce gars cette semaine-là
+        voir('Semaine du ' + lundi + ' : ' + nouveaux.length + ' chantiers nouveaux pour « ' + compte + ' » (plus de ' + PLANIF_PLAFOND + ') : aucun n’est ajouté');
+        if (!etat.alertes[compte + '|' + lundi]) depassements.push({ marque: compte + '|' + lundi, nom: u.parId[compte].nom || compte, lundi: lundi, nombre: nouveaux.length });
+        return;
+      }
+      nouveaux.forEach(numero => {
+        const cle = compte + '|' + numero;
+        if (entrees[cle]) { entrees[cle].debut = lundi; entrees[cle].derniere = lundi; modifiees[cle] = true; }
+        else { entrees[cle] = { ligne: 0, debut: lundi, derniere: lundi }; nouvelles.push(cle); }
+      });
+    });
+    semainesLues[lundi] = publiees[lundi];
+  });
+
+  // 5. Écritures : les lignes changées, les lignes nouvelles (à la suite des séries, sans trou), la liste « à voir »
+  const quand = new Date(m);
+  Object.keys(modifiees).forEach(cle => {
+    const e = entrees[cle];
+    if (!e.ligne) return;                                            // créée pendant ce passage : écrite avec les nouvelles
+    sh.getRange(e.ligne, COL_PL.debut, 1, 2).setNumberFormat('@');
+    sh.getRange(e.ligne, COL_PL.debut, 1, 3).setValues([[e.debut, e.derniere, quand]]);
+  });
+  if (nouvelles.length) {
+    const premiere = derniereSerie + 1, besoin = premiere + nouvelles.length - 1;
+    if (sh.getMaxRows() < besoin) sh.insertRowsAfter(sh.getMaxRows(), besoin - sh.getMaxRows());
+    sh.getRange(premiere, COL_PL.compte, nouvelles.length, COL_PL.derniere).setNumberFormat('@');
+    sh.getRange(premiere, COL_PL.compte, nouvelles.length, COL_PL.maj).setValues(nouvelles.map(cle => {
+      const p = cle.split('|'), e = entrees[cle];
+      return [p[0], p[1], chantierDe(p[1]), e.debut, e.derniere, quand].map(cellule_);
+    }));
+  }
+  const hauteur = Math.max(1, sh.getLastRow() - 1, PLANIF_A_VOIR_MAX);
+  if (sh.getMaxRows() < hauteur + 1) sh.insertRowsAfter(sh.getMaxRows(), hauteur + 1 - sh.getMaxRows());
+  sh.getRange(2, COL_PL.aVoir, hauteur, 1).clearContent();
+  if (aVoir.length) sh.getRange(2, COL_PL.aVoir, aVoir.length, 1).setValues(aVoir.map(t => [cellule_(t)]));
+
+  // 6. Tout est écrit : UN SEUL mail d'alerte pour tous les dépassements de ce passage (jamais un mail par gars et par
+  //    semaine d'un coup : un collage raté viderait le quota de mails de la journée), puis l'état
+  if (depassements.length && planifAlerter_(depassements)) depassements.forEach(d => { etat.alertes[d.marque] = 1; });
+  Object.keys(semainesLues).forEach(l => { etat.semaines[l] = semainesLues[l]; });
+  etat.marque = lu.marque; etat.jour = aujourdhui;
+  planifEcrireEtat_(etat);
+  PLANIFIES_LUS_ = null;
+  return 'lu : ' + aTraiter.length + ' semaine(s), ' + nouvelles.length + ' nouvelle(s) série(s), ' + Object.keys(modifiees).length + ' prolongée(s)';
+}
+
+// Le mail d'alerte du plafond, à Franck seul : un seul mail, qui liste les dépassements (20 lignes au plus ; le reste est en
+// colonne H). Rend vrai s'il est parti (sinon il sera retenté au prochain passage complet).
+function planifAlerter_(depassements) {
+  try {
+    if (MailApp.getRemainingDailyQuota() < 1) return false;
+    const lignes = depassements.slice(0, 20).map(d => '- semaine du ' + d.lundi.split('-').reverse().join('/') + ' : ' + d.nom + ', ' + d.nombre + ' chantiers nouveaux');
+    const sujet = depassements.length === 1 ? '[Loué App] Planning : trop de chantiers nouveaux pour ' + depassements[0].nom
+      : '[Loué App] Planning : trop de chantiers nouveaux (' + depassements.length + ' cas)';
+    GmailApp.sendEmail(emailAdmin_(), sujet,
+      'Dans le planning, ces personnes sont planifiées sur plus de ' + PLANIF_PLAFOND + ' chantiers nouveaux pour elles dans la même semaine :\n\n'
+      + lignes.join('\n') + (depassements.length > 20 ? '\n… et ' + (depassements.length - 20) + ' autre(s)' : '') + '\n\n'
+      + 'Aucun de ces chantiers n’a été ajouté à leur « Mes chantiers » pour ces semaines-là (collage raté ? mauvaise ligne ?).\n'
+      + 'S’il s’agit d’une erreur : corrige le planning et publie-le de nouveau. Sinon : chacun peut mettre lui-même ses étoiles dans l’appli (« Tous les chantiers »).\n'
+      + 'Ce mail n’est envoyé qu’une fois par personne et par semaine. Le détail est en colonne H de l’onglet « ' + SHEET_PLANIFIES + ' ».\n\nLoué App',
+      { name: NOM_ENTREPRISE });
+    return true;
+  } catch (e) { console.error('planifAlerter_ :', e.message); return false; }
+}
+
+// ── Pour le téléphone : les séries du compte, { numéro du chantier : lundi du début de la série } ──
+// Éteint (pas de propriété) ou onglet absent : {} sans rien lire de plus.
+function planifiesDuCompte_(id) {
+  try {
+    if (PLANIFIES_LUS_ === null) {
+      PLANIFIES_LUS_ = [];
+      if (PropertiesService.getScriptProperties().getProperty(PLANIF_PROP_ID)) {
+        const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_PLANIFIES);
+        if (sh && sh.getLastRow() > 1) PLANIFIES_LUS_ = sh.getRange(2, 1, sh.getLastRow() - 1, COL_PL.derniere).getValues();
+      }
+    }
+    const limite = planifDecaler_(planifAujourdhui_(), -PLANIF_VISIBLE_JOURS), res = {};
+    PLANIFIES_LUS_.forEach(r => {
+      if (normaliserId_(r[COL_PL.compte - 1]) !== id) return;
+      const numero = crCleNumero_(r[COL_PL.numero - 1]), debut = planifIso_(r[COL_PL.debut - 1]), derniere = planifIso_(r[COL_PL.derniere - 1]);
+      if (numero && debut && derniere >= limite) res[numero] = debut;
+    });
+    return res;
+  } catch (e) { console.error('planifiesDuCompte_ :', e.message); return {}; }
+}
+// Ajoute « planifie » aux chantiers rendus à un compte (objets de chantierObjet_) : au seul chantier NON TERMINÉ qui porte ce
+// numéro. Un numéro porté par deux chantiers en cours ne désigne personne : rien n'est ajouté.
+function planifMarquer_(compte, chantiers) {
+  if (!compte || !compte.id || !chantiers.length) return chantiers;
+  const series = planifiesDuCompte_(compte.id);
+  if (!Object.keys(series).length) return chantiers;
+  const enCours = c => String(c.statut || '').trim() !== 'Terminé';
+  const vus = {};
+  chantiers.forEach(c => { const n = crCleNumero_(c.numero); if (n && enCours(c)) vus[n] = (vus[n] || 0) + 1; });
+  chantiers.forEach(c => { const n = crCleNumero_(c.numero); if (n && enCours(c) && vus[n] === 1 && series[n]) c.planifie = series[n]; });
+  return chantiers;
+}
+
+// ── Installation (lot 12) : l'onglet Planifiés est créé par le premier passage ; rien à installer tant que le planning n'existe pas ──
 
 // ████ Carnet.gs ████
 // ═══════════════════════════════════════════════════════════════════════════
@@ -5492,7 +7515,9 @@ function renvoyerMailsEnAttente() {
 // À lancer après le déploiement (le relancer ne crée pas de doublon : chaque déclencheur est supprimé puis recréé)
 //  - renvoyerMailsEnAttente toutes les 2 h (lot 0)
 //  - traiterComptes toutes les 10 min, et surModificationSheet à chaque modification du Sheet (lot 2 : cases
-//    « Réinitialiser » et « Déconnecter », onglet « Accès chantiers »)
+//    « Réinitialiser » et « Déconnecter », onglet « Accès chantiers ») ; lot 10 : traiterComptes lance aussi, après les
+//    comptes, le récapitulatif « À commander » (du lundi au vendredi, au premier passage après 15 h 45) ; lot 10b : puis le
+//    point du vendredi (le vendredi, au premier passage après 14 h, une fois mis en service par demarrerPointDuVendredi)
 //  - mesurerStockage chaque nuit vers 2 h, poursuivreMesureStockage une heure plus tard (ne fait quelque chose que si le
 //    tour de mesure n'est pas fini), traiterPurges toutes les 30 min (sort tout de suite s'il n'y a rien à faire) (lot 5)
 const DECLENCHEURS = ['renvoyerMailsEnAttente', 'traiterComptes', 'surModificationSheet', 'mesurerStockage', 'poursuivreMesureStockage', 'traiterPurges'];
@@ -5551,6 +7576,8 @@ function verifierConfig() {
   });
   lignes.push(verifierComptes_());    // lot 2 : comptes, clé, partage du Sheet, transition
   lignes.push(verifierStockage_());   // lot 5 : onglets Stockage et Purges, place du compte
+  lignes.push(verifierDemandes_());   // lot 10 : onglet Demandes, récapitulatif « À commander »
+  lignes.push(verifierVendredi_());   // lot 10b : le point du vendredi
   // Outillage : les outils d'essai (porte de service et sa clé) ne doivent exister que sur la copie TEST
   const ou = environnementReel_(), porte = typeof outilTest_ === 'function', cleOutils = !!propriete_('CLE_OUTILS_TEST');
   if (ou.env === 'INCOHERENT') ok(false, 'Environnement incohérent : la propriété ENVIRONNEMENT et le nom du Sheet « ' + ou.sheet + ' » ne disent pas la même chose');
@@ -5571,6 +7598,12 @@ function verifierConfig() {
       conducteur: 'conducteur — un seul mail par fiche pour les adresses connues, « À » = le conducteur du chantier s’il est destinataire, les autres en copie cachée',
     }[mailUnique]);
   }
+  // Lot 14 : les demandes d'absence (ligne « Adresses de la direction » de l'onglet Réglages). Les adresses ne sont pas affichées.
+  const absR = absReglage_();
+  if (!absR.installe) lignes.push('• Absences (lot 14) : pas installé — les demandes partent comme avant');
+  else if (!absR.adresses.length) ok(false, 'Absences (onglet ' + SHEET_REGLAGES + ', ligne « ' + ABS_REGLAGE + ' ») : éteint, ' + absR.probleme + ' — les demandes partent comme avant, avec une alerte à Franck');
+  else ok(true, 'Absences (onglet ' + SHEET_REGLAGES + ', ligne « ' + ABS_REGLAGE + ' ») : allumé — ' + absR.adresses.length + ' adresse(s) de la direction'
+    + (absR.ignorees ? ', ' + absR.ignorees + ' texte(s) ignoré(s)' : '') + ' ; boutons du mail vers ' + absAdresseAppli_());
   lignes.push("Destinataires de mails encore possibles aujourd'hui : " + MailApp.getRemainingDailyQuota());
   Logger.log(lignes.join('\n'));
   return lignes.join('\n');

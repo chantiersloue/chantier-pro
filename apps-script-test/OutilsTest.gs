@@ -89,6 +89,23 @@ function outilTest_(corps) {
         .map((l, i) => { if (i > 0 && !/^fiche-auto-/.test(String(l[0]))) l[0] = '(note réelle)'; return l; }) });
       case 'purgerComptesRendusEssai': return ok('Lignes des essais automatiques retirées', outilTestSousVerrou_(outilTestPurgerComptesRendus_));
       case 'installerLot8': { const r = installer_('Lot 8', 'TEST', etapesLot8_()); if (!r.ok) throw new Error('installation du lot 8 non terminée : ' + r.texte); return ok(r.texte); }
+      // Lot 10 : date, type, commandé, récapitulatif du, compte, n° de fiche — ni nom, ni texte saisi
+      case 'lireDemandes': return ok('Dernières lignes de l’onglet Demandes', { passage: propriete_(DEM_PROP_PASSAGE), report: propriete_(DEM_PROP_REPORT),
+        lignes: outilTestDernieresLignes_(SHEET_DEMANDES, corps.n, [COL_DEM.date, COL_DEM.type, COL_DEM.commande, COL_DEM.recap, COL_DEM.compte, COL_DEM.fiche])
+          .map((l, i) => { if (i > 0 && l[4] && !Object.prototype.hasOwnProperty.call(OUTIL_TEST_COMPTES, l[4])) l[4] = '(compte réel)';
+            if (i > 0 && !/^fiche-auto-/.test(String(l[5]))) l[5] = '(demande réelle)'; return l; }) });
+      case 'installerLot10': { const r = installer_('Lot 10', 'TEST', etapesLot10_()); if (!r.ok) throw new Error('installation du lot 10 non terminée : ' + r.texte); return ok(r.texte); }
+      // Lot 8d : la colonne « Texte de la note » de l'onglet Comptes rendus (relançable ; installe aussi l'onglet du lot 8 s'il manque)
+      case 'installerLot8d': { const r = installer_('Lot 8d', 'TEST', etapesLot8d_()); if (!r.ok) throw new Error('installation du lot 8d non terminée : ' + r.texte); return ok(r.texte); }
+      // … la copie TEST a gardé les quatre colonnes des points (lot 8c, retiré) : K à N sont vidées, SEULEMENT si leurs titres sont ceux-là
+      case 'viderColonnesPoints': return ok('Colonnes des points (lot 8c) de l’onglet Comptes rendus', outilTestSousVerrou_(outilTestViderColonnesPoints_));
+      // … et une LECTURE : combien de récapitulatifs dans le dossier des notes du chantier d'essai, combien de chantiers en attente (aucun nom)
+      case 'lireRecap': return ok('Récapitulatif des notes du chantier d’essai (lecture seule)', outilTestRecap_());
+      // Lot 12 : poser l'onglet Réglages (relançable, case décochée) ; lire, allumer ou éteindre le réglage « tous les chantiers »
+      // de la copie TEST (valeur absente : lecture seule)
+      case 'installerLot14': { const r = installer_('Lot 14', 'TEST', etapesLot14_()); if (!r.ok) throw new Error('installation du lot 14 non terminée : ' + r.texte); return ok(r.texte); }
+      case 'installerLot12': { const r = installer_('Lot 12', 'TEST', etapesLot12_()); if (!r.ok) throw new Error('installation du lot 12 non terminée : ' + r.texte); return ok(r.texte); }
+      case 'reglerTousChantiers': return ok('Réglage « tous les chantiers » de la copie TEST', outilTestSousVerrou_(() => outilTestReglerTous_(corps.valeur)));
       case 'installerLot5': { const r = installer_('Lot 5', 'TEST', etapesLot5_()); if (!r.ok) throw new Error('installation du lot 5 non terminée : ' + r.texte); return ok(r.texte); }
       // Lot 5 — LECTURES seulement (aucun geste de cette porte ne met quoi que ce soit à la corbeille, pas même dans le chantier d'essai) :
       //   placeCompte        : la place du compte vue par les deux sources (à comparer avec one.google.com/storage) ;
@@ -343,6 +360,46 @@ function outilTestTitresNotes_() {
     }
     return o;
   });
+}
+// Lot 12 — la copie TEST seulement : lit le réglage « tous les chantiers », et le change si « valeur » est vrai ou faux
+function outilTestReglerTous_(valeur) {
+  const l = reglageLigne_();
+  if (!l) throw new Error('onglet Réglages absent, ou ligne du réglage en double : lancer installerLot12');
+  const avant = l.coche === true, change = valeur === true || valeur === false;
+  if (change) { l.sh.getRange(l.ligne, 2).setValue(valeur); SpreadsheetApp.flush(); }
+  REGLAGE_TOUS_LU_ = null;
+  return { avant: avant, maintenant: change ? valeur : avant, etat: String(l.sh.getRange(l.ligne, 3).getValue()) };
+}
+// Lot 8d — la copie TEST seulement : vide les colonnes K à N de l'onglet Comptes rendus si (et seulement si) elles portent les
+// titres des points du lot 8c. Sans cela, l'installation du lot 8d refuse la colonne K (« contient déjà autre chose »).
+const OUTIL_TEST_TITRES_POINTS = ['Points ouverts après cette note', 'Points clos par cette note', 'Données de l’appli (ne pas modifier)', 'Données de l’appli (suite)'];
+function outilTestViderColonnesPoints_() {
+  const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_CR);
+  if (!sh || sh.getLastColumn() < 11) return { videes: 0, raison: 'rien en colonne K' };
+  const larg = Math.min(4, sh.getLastColumn() - 10);
+  const titres = sh.getRange(1, 11, 1, larg).getValues()[0].map(String);
+  if (titres[0] === CR_TITRE_TEXTE) return { videes: 0, raison: 'la colonne K est déjà celle du lot 8d' };
+  if (!titres.every((t, i) => t === OUTIL_TEST_TITRES_POINTS[i])) throw new Error('les colonnes K à N ne portent pas les titres des points : rien n’est vidé');
+  sh.getRange(1, 11, Math.max(1, sh.getLastRow()), larg).clearContent();
+  SpreadsheetApp.flush();
+  return { videes: larg };
+}
+// Lot 8d — lecture seule : les récapitulatifs du dossier des notes du chantier d'essai (reconnus à leur nom), sans aucun nom rendu
+function outilTestRecap_() {
+  const racine = DriveApp.getFolderById(driveRootId_());
+  if (!/TEST/i.test(racine.getName())) throw new Error('le dossier racine de ce serveur ne s’appelle pas « … TEST … »');
+  const dossier = dossierChantier_(OUTIL_TEST_CHANTIER, false);
+  const notes = dossier ? dossierParChemin_(dossier, dossiers_().documents['note'] || 'Divers', false) : null;
+  let fichiers = 0, corbeille = 0, octets = 0;
+  if (notes) {
+    const it = notes.getFiles();
+    while (it.hasNext()) {
+      const f = it.next();
+      if (String(f.getName()).indexOf(RECAP_PREFIXE) !== 0) continue;
+      if (f.isTrashed()) corbeille++; else { fichiers++; octets = f.getSize(); }
+    }
+  }
+  return { fichiers: fichiers, corbeille: corbeille, octets: octets, enAttente: Object.keys(recapAttente_()).length };
 }
 // Où le serveur range les documents du chantier d'essai : ce que dit l'onglet « Dossiers chantiers », et ce qu'il y a
 // réellement dans Drive (dossiers en double, PDF présents). Lecture seule.

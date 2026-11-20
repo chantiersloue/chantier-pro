@@ -19,10 +19,13 @@
 
 ## Mes chantiers
 
-- L'accueil montre **tes chantiers** (ceux que le bureau t'a donnés), les derniers ouverts en premier. Une recherche apparaît s'il y en a beaucoup.
+- En haut de l'accueil, **« Mes chantiers »** : les chantiers marqués d'une **étoile ★**, classés par numéro. Ceux que le bureau t'a donnés, et ceux où tu es planifié, y arrivent tout seuls.
+- En dessous, **« Tous les chantiers »** : touche pour déplier. Une recherche apparaît s'il y en a beaucoup. Les chantiers terminés sont en bas, en gris.
+- **L'étoile est à gauche du nom.** Touche **☆** : le chantier va dans « Mes chantiers ». Touche **★** : il en sort (bouton **Annuler** pendant 6 secondes si tu t'es trompé). Ça marche sans réseau.
+- Une étoile que tu as retirée ne revient pas toute seule, sauf si tu es de nouveau planifié sur ce chantier après une coupure.
 - Touche un chantier : son **Carnet** (les plans), ses **Signalements**, ses **Notes** et ses **fiches** (le chantier est **déjà rempli**).
 - Un chantier manque ? Demande au bureau de te le cocher. En attendant : **« Fiche sans chantier choisi »** (tu tapes le chantier ; l'appli te demande de confirmer s'il n'est pas dans tes chantiers).
-- Conducteurs : bouton **« Voir tous les chantiers »**.
+- Conducteurs : « Mes chantiers » reçoit tout seuls les chantiers dont tu es le conducteur ; les autres sont dans « Tous les chantiers ».
 
 ## Envoyer une fiche
 
@@ -49,6 +52,7 @@ Tuile **Note de réunion**. Tu remplis, tu touches **Envoyer la note** : le bure
 - **Notes et commentaires** : écris ce qui s'est dit, à la suite, ou **dicte-le** avec le micro du clavier.
 - **Sans réseau** : écris ta note, envoie : elle attend dans le téléphone et part toute seule. Ne refais jamais une note.
 - **Le message de fin** : « ✓ Compte rendu du 06/11/2026 envoyé — 3 destinataires » (le nombre de personnes qui la reçoivent).
+- **Relire les notes d'un chantier** : ouvre le chantier, touche **Récapitulatif des notes**. Toutes les notes de réunion du chantier sont là, à la suite, la plus récente en haut : la date, l'objet, le texte. Pas les photos. Ça marche **sans réseau** : tu vois la dernière liste reçue, avec sa date.
 - **Photos** : « 📷 Photo » ou « 🖼 Galerie ». Tu peux écrire une légende sous chaque photo.
 - **Dessiner sur une photo** : touche la photo (ou « ✏️ Annoter »).
   - ✏️ stylo, ↗ flèche, ▭ rectangle, six couleurs, taille du trait.
@@ -77,6 +81,36 @@ Dans un chantier, touche **Signaler**.
 - Comme une fiche, le signalement est d'abord rangé dans le téléphone, puis il part. Sans réseau, il part tout seul au retour du réseau.
 - **Bloquant et pas de réseau ? Téléphone au bureau** : le mail ne partira qu'au retour du réseau.
 - Après l'envoi, le chantier reste rempli : tu peux signaler autre chose tout de suite.
+
+- **Ce n'est pas une menuiserie ?** Pour des vis, des consommables ou un outil en panne, utilise **À commander** (sur l'accueil).
+
+## À commander : vis, consommables, outil en panne
+
+Sur l'accueil, sous « Hors chantier », touche **À commander**. Il n'y a pas de chantier à choisir. Il faut être connecté : ton nom est celui de ton compte.
+
+1. **À commander** est déjà choisi. Pour un outil cassé, touche **Outil en panne**.
+2. **Quoi ?** : l'article (« Vis 4×40 »). **Quantité** : « 2 boîtes », « 6 »… Pour un outil en panne, le second champ sert à préciser (« ne charge plus ») ; il n'est pas obligatoire.
+3. Touche **Demander**. **Un article à la fois** : la page se vide, tu peux demander le suivant.
+
+**Plus vite**
+- **Tes articles habituels** : dès que tu as fait des demandes, les articles que tu demandes le plus sont en haut de la page, en gros boutons verts (5 au plus), avec la dernière quantité. **Touche le bouton** : « Quoi ? » et la quantité sont remplis. Change la quantité si besoin, puis **Demander**.
+- **Pendant que tu écris** dans « Quoi ? » : dès 2 lettres, la page te propose jusqu'à 3 articles sous le champ. Touche celui que tu veux, ou continue d'écrire : tu peux toujours demander autre chose. Pas besoin des accents ni des majuscules ; « 4x40 » trouve « 4×40 ».
+- Ça marche aussi sans réseau.
+
+- La page te répond tout de suite :
+  - « ✓ Elle part dans le récapitulatif d'aujourd'hui (vers 15 h 45). » : le bureau la reçoit aujourd'hui ;
+  - « ✓ Le récapitulatif d'aujourd'hui est déjà parti : elle sera dans celui de lundi 23/11. » : tu l'as faite après 15 h 45 ;
+  - « ⏳ En attente : elle partira au retour du réseau… » : pas de réseau, elle est gardée dans le téléphone.
+- **C'est urgent et il est plus de 15 h 45 ? Téléphone au bureau.**
+- **Mes demandes** (en bas de la page) : tes demandes des 90 derniers jours, et où elles en sont : « ⏳ en attente d'envoi », « partira dans le prochain récapitulatif », « récapitulatif du 17/11 » (le bureau l'a reçue ce jour-là), « ✓ Commandé ». Sans réseau, la dernière liste reçue s'affiche, avec sa date.
+- Pas connecté ? La demande est gardée dans le téléphone et part après la connexion.
+- 30 demandes par jour au plus.
+- **Une menuiserie cassée ou manquante ne se demande pas ici** : utilise **Signaler**, dans le chantier.
+
+**Au bureau (Franck)** : un mail par jour, du lundi au vendredi, vers 15 h 45, avec toutes les demandes depuis le mail précédent ; aucun mail s'il n'y en a pas. Dans le Sheet, onglet *Demandes* : coche **Commandé** quand c'est fait, le poseur le voit dans son téléphone.
+**Le vendredi vers 14 h (Franck)** : un mail « Point du vendredi » avec les signalements de la semaine et leur état, le rappel des « Bloquant » restés « À traiter » depuis une semaine, et le point de santé de l'appli (mails en attente, place du compte, fiches bloquées). Il part toujours, même s'il n'y a rien à signaler : s'il n'arrive pas, préviens-moi.
+
+Onglet *Articles* (facultatif) : écris-y les articles que tu veux proposer à tous pendant la frappe, **un par ligne, dans la colonne A** (500 au plus). Vide, tout marche quand même. Un changement arrive dans les téléphones à l'ouverture suivante de « À commander ».
 
 ## Suivre les signalements
 
@@ -123,11 +157,26 @@ Dans un chantier, la tuile **« Carnet »** donne les plans validés par le bure
 - **Android** : en Wi-Fi, les plans du chantier que vous ouvrez se téléchargent tout seuls (case « Télécharger les plans tout seul quand le téléphone est en Wi-Fi »). Attention : un partage de connexion depuis un autre téléphone compte comme du Wi-Fi ; décochez la case si votre forfait est limité.
 - **iPhone** : rien ne part tout seul ; appuyez sur « Tout télécharger ».
 
+## Mes notes : tout ce que j'ai écrit
+
+- Sur l'accueil, la tuile **Notes** ouvre **Mes notes** : toutes les notes que **tu as écrites toi-même** dans les listes des chantiers, la plus récente en haut. Sous chaque note : le chantier et la date.
+- **Coche la grande case** quand c'est fait : la note descend dans **« Faites »**, en bas. Tu peux l'y décocher.
+- Touche le nom du chantier pour ouvrir sa liste (modifier un texte, ajouter une note).
+- Ça marche **sans réseau** : ce que tu coches part tout seul au retour du réseau (⏳ en attendant).
+
 ## Ne rien perdre : le brouillon
 
 - Tout ce que tu tapes est **gardé automatiquement** dans le téléphone, photos et signatures comprises.
 - Si tu fermes la page sans envoyer, à la prochaine ouverture : **« Brouillon retrouvé — chantier X — Le restaurer ? »**. Touche **Restaurer** pour reprendre, ou **Repartir à zéro**. **Regarde le chantier écrit dans le bandeau** : si tu as ouvert la fiche depuis un autre chantier, il le dit.
 - **Bandeau rouge « Brouillon NON enregistré »** ou « Photos non gardées » : le téléphone manque de place (ou tu es en navigation privée). **Envoie la fiche avant de fermer la page.**
+
+### Garder une fiche pour plus tard
+
+- Tu as commencé une fiche et tu dois en faire une autre de la même sorte ? En haut de la fiche, touche **« 📝 Garder pour plus tard »** : elle est rangée, et la fiche repart vide.
+- Quand tu rouvres une fiche qui a un brouillon, le bandeau propose aussi **Garder pour plus tard**.
+- Pour la retrouver : **« 📝 Brouillons gardés »**, en haut de la même fiche, puis **Reprendre**. Si une fiche est en cours à ce moment-là, elle est gardée à son tour : rien n'est écrasé.
+- 5 brouillons gardés au plus par sorte de fiche : au sixième, la page te demande d'en reprendre ou d'en effacer un.
+- Un brouillon gardé reste **30 jours** (la liste affiche sa date limite), puis il disparaît : ne t'en sers pas comme d'une archive.
 
 ## Destinataires
 
@@ -149,3 +198,13 @@ Les plans et les documents d'un chantier se lisent dans le **Carnet** : Accueil 
 
 - Un bandeau **« Nouvelle version — Mettre à jour »** peut apparaître : touche **Mettre à jour** quand tu veux (ton brouillon est gardé).
 - Accueil → **À propos de l'appli** : version, place utilisée, fiches en attente, bouton **Vérifier les mises à jour**.
+
+## Demande d'absence
+
+- Tuile **Demande d'absence** : ton nom, la date (un jour, une période ou une semaine), la durée, sur quoi les heures sont prises, le motif (Congés, RTT, Récupération, École, Formation, ou un autre). Signe, puis **Envoyer la demande**.
+- 5 demandes par jour au plus.
+- La demande part à **la direction**, et à elle seule. Tu ne reçois pas de mail en retour.
+- **La réponse se lit dans l'appli** : en haut de la page, **« Mes demandes »** affiche **En attente**, puis **Acceptée** ou **Refusée**. Ça marche aussi sans réseau (le dernier état connu).
+- **« Sans réponse »** : pas de réponse depuis plus de 7 jours. Refais ta demande, ou vois avec le bureau.
+- **« ⏳ dans le téléphone »** : ta demande n'est pas encore partie (pas de réseau). Elle partira toute seule.
+- Une absence acceptée s'inscrit toute seule dans le planning.

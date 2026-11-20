@@ -198,7 +198,7 @@ function scenario() {
   await connecter('poseur2');
   await page.reload(); await page.waitForTimeout(4000);
   r.badge = await page.evaluate(() => ({ carte: (document.querySelector('.chantier-card .badge-notes') || {}).textContent || '',
-    tuileConducteur: document.getElementById('tuile-notes-accueil').hidden }));
+    tuileAccueilCachee: document.getElementById('tuile-notes-accueil').hidden, badgeAccueilCache: document.getElementById('badge-notes-accueil').hidden }));
   await page.evaluate(() => { const c = document.querySelector('.chantier-card'); if (c) c.click(); }); await page.waitForTimeout(800);
   r.badge.tuile = await page.evaluate(() => ({ visible: !document.getElementById('tuile-notes').hidden, badge: document.getElementById('badge-notes').textContent }));
 
@@ -283,8 +283,8 @@ setTimeout(() => {
       && r.avecTermines.bas.length >= 2, j([r.recherche.haut, r.avecTermines.bas]));
     verifier('… « Tout marquer comme lu » remet à zéro les éléments nouveaux du conducteur', r.nouvellesAvant > 0 && r.toutLu === 0, j([r.nouvellesAvant, r.toutLu]));
     verifier('vue « Tous chantiers » refusée à un poseur', r.tousPoseur.haut.length === 0 && /réservée aux conducteurs/.test(r.tousPoseur.info), j(r.tousPoseur.info));
-    verifier('accueil : chiffre rouge sur le chantier et sur la tuile « Notes » ; pas de tuile « tous chantiers » pour un poseur',
-      r.badge.carte === '2' && r.badge.tuile.visible === true && r.badge.tuile.badge === '2' && r.badge.tuileConducteur === true, j(r.badge));
+    verifier('accueil : chiffre rouge sur le chantier et sur sa tuile « Notes » ; la tuile « Notes » de l’accueil (lot 13 : mes notes) est là pour un poseur, sans chiffre rouge',
+      r.badge.carte === '2' && r.badge.tuile.visible === true && r.badge.tuile.badge === '2' && r.badge.tuileAccueilCachee === false && r.badge.badgeAccueilCache === true, j(r.badge));
     verifier('sans compte : rien n’est affiché, connexion demandée, pas d’ajout', r.sansCompte.haut.length === 0 && /Connectez-vous/.test(r.sansCompte.vide) && r.sansCompte.saisieCachee === true, j(r.sansCompte));
   } catch (e) { echecs++; console.log('  ✗ ' + e.message); }
   spawnSync('playwright-cli', ['-s=loue-l3', 'close'], { shell: true });

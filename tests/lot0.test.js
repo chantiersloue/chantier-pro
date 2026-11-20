@@ -1,5 +1,7 @@
 // Tests du lot 0 (sécurité) : node tests/lot0.test.js
 'use strict';
+// Le numéro de version du serveur est lu dans apps-script/Config.gs : un nouveau lot ne fait plus changer ce fichier de tests
+const VERSION_SERVEUR = (/VERSION_API = '([^']+)'/.exec(require('fs').readFileSync(require('path').join(__dirname, '..', 'apps-script', 'Config.gs'), 'utf8')) || [])[1];
 const assert = require('assert');
 const { creerGoogle, chargerScript } = require('./gas-harness');
 
@@ -335,7 +337,7 @@ console.log('Lot 0 — consultation et partages Drive');
 
 test('doGet : version, callback JSONP contrôlé', () => {
   const g = environnement();
-  assert.strictEqual(g.ctx.doGet({ parameter: {} }).contenu, 'Loué App API v11.2 OK');
+  assert.strictEqual(g.ctx.doGet({ parameter: {} }).contenu, 'Loué App API ' + VERSION_SERVEUR + ' OK');
   const r = g.ctx.doGet({ parameter: { action: 'getContacts', callback: 'alert(1);x' } });
   assert.ok(r.contenu.charAt(0) === '{', 'callback invalide ignoré : JSON simple');
 });
@@ -434,6 +436,8 @@ test('installerDeclencheurs + verifierConfig', () => {
   assert.ok(/installation terminée/.test(g.ctx.installerLot7Production()), 'lot 7 installé');
   assert.ok(g.ctx.verifierConfig().indexOf('❌ Onglet « Stockage »') > -1, 'lot 5 pas installé : signalé');
   assert.ok(/installation terminée/.test(g.ctx.installerLot5Production()), 'lot 5 installé');
+  assert.ok(g.ctx.verifierConfig().indexOf('❌ Onglet « Demandes »') > -1, 'lot 10 pas installé : signalé');
+  assert.ok(/installation terminée/.test(g.ctx.installerLot10Production()), 'lot 10 installé');
   const rapport = g.ctx.verifierConfig();
   assert.ok(rapport.indexOf('❌') < 0, rapport);
 });

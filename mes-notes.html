@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Loué App — Mes notes</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Loué App">
+<meta name="theme-color" content="#1A2B4A">
+<link rel="stylesheet" href="commun/style.css?v=01e603456d">
+<link rel="stylesheet" href="commun/fiche.css?v=01e603456d">
+<style>
+[hidden]{display:none!important;}
+.liste{background:var(--card);border:1px solid var(--border);border-radius:var(--rl);overflow:hidden;}
+.el{display:flex;align-items:flex-start;gap:4px;padding:2px 10px 2px 2px;border-bottom:1px solid var(--border);}
+.el:last-child{border-bottom:none;}
+.case{flex:0 0 56px;width:56px;min-height:56px;border:none;background:none;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;}
+.case span{display:block;width:30px;height:30px;border:2.5px solid var(--border2);border-radius:6px;background:#fff;color:#fff;font-size:23px;line-height:25px;font-weight:800;text-align:center;}
+.el.faite .case span{background:var(--green);border-color:var(--green);}
+.el-corps{flex:1;min-width:0;padding:13px 0 11px;}
+.el-texte{font-size:17px;line-height:1.45;overflow-wrap:anywhere;white-space:pre-wrap;}
+.el.faite .el-texte{text-decoration:line-through;color:var(--muted);}
+.el-marque{display:inline-block;margin-left:8px;font-size:13px;font-weight:700;vertical-align:middle;}
+.el-info{font-size:14px;color:var(--muted);margin-top:4px;line-height:1.4;}
+.el-info a{display:inline-block;min-height:44px;padding:12px 6px 12px 0;font-weight:700;color:var(--blue-d,#1A4A8A);}
+.el-info.erreur{color:#B32E2E;font-weight:600;}
+.vide{text-align:center;color:var(--muted);padding:28px 10px;font-size:17px;line-height:1.5;}
+.vide a{display:inline-block;margin-top:14px;font-size:17px;font-weight:700;}
+details.faites{margin-top:18px;}
+details.faites summary{min-height:48px;display:flex;align-items:center;font-size:16px;font-weight:700;color:var(--muted);cursor:pointer;}
+#info{margin-bottom:10px;}
+.btn-tous-notes{display:block;width:100%;min-height:48px;margin:0 0 12px;border:1px solid var(--border);border-radius:12px;background:var(--card);color:var(--muted);font:700 15px system-ui,sans-serif;}
+</style>
+</head>
+<body>
+
+<div class="topbar no-print">
+  <a class="btn btn-secondary btn-petit" href="index.html" aria-label="Retour à l'accueil">‹ Retour</a>
+  <span class="tb-name">Mes notes</span>
+  <span id="loue-envoi-place"></span>
+  <button class="btn btn-secondary btn-petit" type="button" id="btn-actualiser" onclick="charger()">↻ Actualiser</button>
+</div>
+
+<div class="main">
+  <div class="aide" id="entete">Les notes que vous avez écrites, tous chantiers confondus. Cochez celles qui sont faites.</div>
+  <button type="button" class="btn-tous-notes" id="btn-tous-notes" hidden onclick="location.href='notes.html'">Les notes de tous les chantiers ›</button>
+  <div class="listes-info" id="info" role="status"></div>
+  <div id="liste"></div>
+  <details class="faites" id="faites" hidden>
+    <summary id="faites-titre">Faites</summary>
+    <div id="liste-faites"></div>
+  </details>
+</div>
+
+<script src="commun/config.js?v=01e603456d"></script>
+<script src="commun/api.js?v=01e603456d"></script>
+<script src="commun/ui.js?v=01e603456d"></script>
+<script src="commun/notes.js?v=01e603456d"></script>
+<script src="commun/hors-ligne.js?v=01e603456d"></script>
+<script>
+'use strict';
+// ═══════════════════════════════════════════════════════════════
+// Lot 13 — « Mes notes » : tout ce que la personne connectée a écrit dans les listes des chantiers, la plus récente en haut,
+// avec le chantier et la date ; une case à cocher par note, sans ouvrir la liste du chantier.
+// Lecture par le serveur (action « notes », miennes : vrai), gardée dans le téléphone pour le hors réseau.
+// Cocher et décocher passent par la file d'envoi du téléphone (le geste qui existe déjà) : ils partent tout de suite, ou au
+// retour du réseau. Ni ajout ni modification ici : ils se font dans la liste du chantier.
+// Aucun texte n'est inséré comme du HTML : tout passe par textContent.
+// ═══════════════════════════════════════════════════════════════
+const $ = id => document.getElementById(id);
+let DONNEES = null;           // dernière réponse : { aFaire, termines, nbTermines, heure, plein }
+let DU_TELEPHONE = false, DATE_LISTE = 0, MESSAGE_LISTE = '';
+let ATTENTE = [];             // gestes de CE compte encore dans la file d'envoi (tous chantiers)
+let enCours = 0, REPONDU = 0;
+let FAITES_OUVERT = false;
+const COCHES = {};            // numéro → heure : une note qu'on vient de cocher reste en place 3 s (un nouvel appui annule)
+const DERNIER_GESTE = {};     // numéro → heure du dernier geste (un double appui ne fait pas deux gestes)
+const DELAI_COCHE = 3000;
+
+function el(balise, classe, texte) {
+  const e = document.createElement(balise);
+  if (classe) e.className = classe;
+  if (texte !== undefined && texte !== null) e.textContent = String(texte);
+  return e;
+}
+const quand = ms => new Date(ms).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+const jour = ms => { const d = new Date(ms), deux = n => String(n).padStart(2, '0'); return deux(d.getDate()) + '/' + deux(d.getMonth() + 1) + '/' + d.getFullYear(); };
+
+// Ce qui est affiché = la réponse du serveur + les gestes qui attendent encore dans le téléphone
+function elementsAffiches() {
+  const tout = ((DONNEES && DONNEES.aFaire) || []).concat((DONNEES && DONNEES.termines) || []).map(n => Object.assign({}, n));
+  const parId = {};
+  tout.forEach(n => { parId[n.id] = n; });
+  ATTENTE.forEach(a => {
+    const d = a.donnees || {};
+    // une note que la personne vient d'ajouter depuis un chantier, pas encore partie (pas de réseau) : elle est à elle, elle s'affiche
+    if (a.type === 'note-chantier') {
+      if (parId[a.id] || a.etat === 'erreur') return;
+      const nouvelle = { id: a.id, texte: d.texte || '', fait: false, chantier: d.chantier || '', cree: a.cree || Date.now(), enAttente: true, pasPartie: true };
+      tout.push(nouvelle); parId[a.id] = nouvelle;
+      return;
+    }
+    const n = parId[d.note];
+    if (a.type !== 'note-action' || !n) return;
+    if (a.etat === 'erreur') { n.refus = a.message; return; }
+    n.enAttente = true;
+    if (d.geste === 'fait') n.fait = true;
+    if (d.geste === 'defaire') n.fait = false;
+    if (d.geste === 'modifier') n.texte = d.texte || '';
+  });
+  const recent = n => n.fait && COCHES[n.id] && Date.now() - COCHES[n.id] < DELAI_COCHE;
+  // en haut : les notes à faire (la plus récente d'abord), et celles qu'on vient de cocher, encore à leur place
+  const haut = tout.filter(n => !n.fait || recent(n)).sort((a, b) => (b.cree || 0) - (a.cree || 0));
+  const bas = tout.filter(n => n.fait && !recent(n));
+  const nbServeur = (DONNEES && Number(DONNEES.nbTermines)) || 0, rendus = ((DONNEES && DONNEES.termines) || []).length;
+  return { haut: haut, bas: bas, nbFaites: Math.max(bas.length, nbServeur - rendus + bas.length) };
+}
+function ligne(n) {
+  const c = el('div', 'el' + (n.fait ? ' faite' : ''));
+  c.dataset.note = n.id;
+  const coche = el('button', 'case');
+  coche.type = 'button';
+  coche.setAttribute('role', 'checkbox');
+  coche.setAttribute('aria-checked', n.fait ? 'true' : 'false');
+  coche.setAttribute('aria-label', (n.fait ? 'Décocher : ' : 'Cocher : ') + (n.texte || ''));
+  coche.appendChild(el('span', '', n.fait ? '✓' : ''));
+  coche.addEventListener('click', () => cocher(n));
+  if (n.pasPartie) { coche.disabled = true; coche.setAttribute('aria-label', 'Note pas encore partie : ' + (n.texte || '')); }   // elle se cochera une fois arrivée au bureau
+  c.appendChild(coche);
+  const corps = el('div', 'el-corps');
+  const texte = el('div', 'el-texte', n.texte || '');
+  if (n.enAttente) { const m = el('span', 'el-marque', '⏳'); m.title = 'En attente d’envoi'; m.setAttribute('aria-label', 'en attente d’envoi'); texte.appendChild(m); }
+  corps.appendChild(texte);
+  const info = el('div', 'el-info');
+  const a = el('a', '', n.chantier || '—');
+  a.href = 'notes.html' + (n.chantier ? '?chantier=' + encodeURIComponent(n.chantier) : '');
+  a.setAttribute('aria-label', 'Ouvrir la liste du chantier ' + (n.chantier || ''));
+  info.appendChild(a);
+  if (n.cree) info.appendChild(document.createTextNode(' — ' + jour(n.cree)));
+  corps.appendChild(info);
+  if (n.refus) corps.appendChild(el('div', 'el-info erreur', '⚠ Pas enregistré : ' + n.refus + ' (détail : indicateur en haut de l’écran)'));
+  c.appendChild(corps);
+  return c;
+}
+function vide(texte, avecAccueil) {
+  $('liste').textContent = '';
+  const v = el('div', 'vide', texte);
+  if (avecAccueil) { v.appendChild(document.createElement('br')); const a = el('a', '', 'Aller à l’accueil'); a.href = 'index.html'; v.appendChild(a); }
+  $('liste').appendChild(v);
+}
+function afficher() {
+  const e = elementsAffiches(), compte = LOUE.compte();
+  $('btn-tous-notes').hidden = !(compte && compte.profil.conducteur);   // conducteurs et admin : la vue « tous chantiers » d'avant, inchangée
+  $('info').textContent = MESSAGE_LISTE || (DU_TELEPHONE
+    ? 'Liste du ' + quand(DATE_LISTE) + ' gardée dans le téléphone (pas de réseau, ou réponse pas encore arrivée). Ce que vous cochez est gardé et partira tout seul.'
+    : (DONNEES && DONNEES.plein ? 'Seules vos 300 notes les plus récentes sont affichées.' : ''));
+  if (!e.haut.length) vide(e.bas.length ? 'Tout est fait.' : 'Vous n’avez encore écrit aucune note. Une note s’ajoute depuis un chantier : ouvrez le chantier, puis « Notes ».', !e.bas.length);
+  else { $('liste').textContent = ''; const bloc = el('div', 'liste'); e.haut.forEach(n => bloc.appendChild(ligne(n))); $('liste').appendChild(bloc); }
+  const section = $('faites'), zone = $('liste-faites');
+  section.hidden = !e.bas.length;
+  $('faites-titre').textContent = 'Faites (' + e.nbFaites + ')';
+  section.open = FAITES_OUVERT;
+  zone.textContent = '';
+  if (e.bas.length) {
+    const bloc = el('div', 'liste'); e.bas.forEach(n => bloc.appendChild(ligne(n))); zone.appendChild(bloc);
+    if (e.nbFaites > e.bas.length) zone.appendChild(el('div', 'listes-info', 'Seules les ' + e.bas.length + ' dernières notes cochées sont affichées.'));
+  }
+}
+$('faites').addEventListener('toggle', () => { FAITES_OUVERT = $('faites').open; });
+
+function charger() {
+  const moi = ++enCours;
+  if (!LOUE.compte()) { DONNEES = null; $('info').textContent = ''; $('faites').hidden = true; $('btn-tous-notes').hidden = true; vide('Connectez-vous pour voir vos notes.', true); return; }
+  $('btn-actualiser').disabled = true;
+  // La liste gardée dans le téléphone s'affiche TOUT DE SUITE (avec une barre de réseau, le serveur peut mettre 20 secondes)
+  if (!DONNEES) {
+    $('info').textContent = 'Chargement…';
+    Promise.all([LOUE.notes.gardee(LOUE.notes.CLE_MIENNES), LOUE.notes.enAttente('', true)]).then(r => {
+      if (moi !== enCours || DONNEES || !r[0] || REPONDU === moi) return;
+      DONNEES = r[0].donnees; DU_TELEPHONE = true; DATE_LISTE = r[0].date; ATTENTE = r[1];
+      afficher();
+    });
+  } else $('info').textContent = 'Mise à jour…';
+  // Ce qui attend dans le téléphone est relu APRÈS la réponse du serveur (elle peut arriver 20 s plus tard), jamais avant
+  LOUE.notes.lire({ miennes: true }).then(liste => {
+    // (la réponse d'un serveur d'avant le lot 13 est refusée par LOUE.notes.lire, avant d'être gardée)
+    return LOUE.notes.enAttente('', true).then(a => [liste, a]);
+  }).then(r => {
+    if (moi !== enCours) return;
+    REPONDU = moi;
+    DONNEES = r[0].donnees || { aFaire: [], termines: [] }; DU_TELEPHONE = !!r[0].depuisLeTelephone; DATE_LISTE = r[0].date; ATTENTE = r[1]; MESSAGE_LISTE = '';
+    afficher();
+  }).catch(err => {
+    if (moi !== enCours) return;
+    REPONDU = moi;
+    if (err && err.connexion) { DONNEES = null; $('info').textContent = ''; $('faites').hidden = true; vide('Session terminée : reconnectez-vous depuis l’accueil.', true); return; }
+    MESSAGE_LISTE = 'Liste indisponible : ' + String(LOUE.messageClair(err)).replace(/,? nouvel essai automatique/, '').replace(/[.\s]+$/, '') + '.';
+    if (DONNEES) { DU_TELEPHONE = true; LOUE.notes.enAttente('', true).then(a => { if (moi === enCours) { ATTENTE = a; afficher(); } }); }
+    else { $('info').textContent = MESSAGE_LISTE; vide('Rien n’est gardé dans le téléphone. Réessayez avec du réseau.'); }
+  }).finally(() => { if (moi === enCours) $('btn-actualiser').disabled = false; });
+}
+
+// Ce qui attend dans le téléphone a changé (rangement, envoi, refus) : la liste est redessinée ; après un envoi, relue
+let relecture = null;
+function majAttente(relire) {
+  if (!LOUE.compte()) return;
+  LOUE.notes.enAttente('', true).then(a => { ATTENTE = a; if (DONNEES) afficher(); });
+  if (relire) {
+    // la relecture attend que la note qu'on vient de cocher soit descendue : les lignes ne bougent pas sous le doigt
+    const reste = Math.max(0, ...Object.keys(COCHES).map(id => COCHES[id] + DELAI_COCHE - Date.now()));
+    clearTimeout(relecture); relecture = setTimeout(charger, Math.max(700, reste + 300));
+  }
+}
+LOUE.surEvenement(ev => {
+  const estNote = ev.element && /^note-/.test(ev.element.type || '');
+  // un geste confirmé par le serveur est reporté tout de suite dans la liste affichée (sinon la ligne reviendrait un instant en arrière)
+  if (ev.type === 'envoyee' && estNote) { if (DONNEES) LOUE.notes.integrerMiennes(DONNEES, ev.element); majAttente(true); }
+  else if (ev.type === 'file' || estNote) majAttente(false);
+  if (ev.type === 'compte') { DONNEES = null; charger(); }
+});
+
+// ── Cocher, décocher : rangés dans la file d'envoi (ils partent dans l'ordre), affichés tout de suite ──
+let chaineGestes = Promise.resolve();
+function geste(n, nom, libelle) {
+  DERNIER_GESTE[n.id] = Date.now();
+  const d = { chantier: n.chantier || '', note: n.id, geste: nom };
+  const ranger = () => LOUE.mettreEnFile('note-action', d, [], libelle).then(() => {
+    LOUE.viderFile();
+    return LOUE.notes.enAttente('', true).then(a => { ATTENTE = a; afficher(); return true; });
+  }, () => {
+    // Le téléphone refuse de garder le geste (navigation privée, mémoire pleine) : envoi direct, page ouverte
+    LOUE.message('Envoi en cours… ne quittez pas la page', 6000);
+    return LOUE.envoyerDirect('note-action', d, []).then(() => { LOUE.message('✓ ' + libelle, 3000); charger(); return true; })
+      .catch(err => { LOUE.message('⚠ Pas enregistré : ' + LOUE.messageClair(err) + '. Réessayez quand il y aura du réseau.', 10000); return false; });
+  });
+  chaineGestes = chaineGestes.then(ranger, ranger);
+  return chaineGestes;
+}
+// Cocher : la note reste à sa place, barrée, 3 secondes (un nouvel appui annule), puis descend dans « Faites »
+function cocher(n) {
+  if (Date.now() - (DERNIER_GESTE[n.id] || 0) < 400) return;   // double appui (gants) : rien ne bouge
+  if (!n.chantier) { LOUE.message('Chantier de cette note inconnu : actualisez la liste.', 5000); return; }
+  if (n.fait) { delete COCHES[n.id]; geste(n, 'defaire', 'Note décochée'); return; }
+  COCHES[n.id] = Date.now();
+  geste(n, 'fait', 'Note cochée').then(ok => { if (!ok) { delete COCHES[n.id]; return; } setTimeout(afficher, DELAI_COCHE + 100); });
+}
+
+// ── Démarrage ──
+LOUE.notes.nettoyerTelephone().then(charger);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) charger(); });
+window.addEventListener('online', charger);
+</script>
+</body>
+</html>
