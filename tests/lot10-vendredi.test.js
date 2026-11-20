@@ -3,6 +3,7 @@
 // (option « fuseaux ») : les tests donnent le même résultat quel que soit le jour où on les lance et le réglage du PC.
 // Noms inventés (« Poseur A », « CHANTIER TEST 1 ») : le dépôt est public.
 'use strict';
+const VERSION_SERVEUR = (/VERSION_API = '([^']+)'/.exec(require('fs').readFileSync(require('path').join(__dirname, '..', 'apps-script', 'Config.gs'), 'utf8')) || [])[1];
 const assert = require('assert');
 const fs = require('fs');
 const vm = require('vm');
@@ -466,9 +467,9 @@ test('réglages : 14 h, 18 h et 7 jours sont dans Config.gs ; une marque illisib
   reveil(g, P(VENDREDI + ' 14:15'));
   assert.ok(points(g).length === 1 && /depuis le 13\/11 à 14 h 15/.test(points(g)[0].texte), 'date du dernier mail illisible : depuis 7 jours');
 });
-test('livraison : le serveur à coller contient le lot 10b, en version v11.4, PointVendredi.gs à sa place, sans les outils d’essai ; chargé seul, il envoie le point du vendredi', () => {
+test('livraison : le serveur à coller contient le lot 10b, dans la version de Config.gs, PointVendredi.gs à sa place, sans les outils d’essai ; chargé seul, il envoie le point du vendredi', () => {
   const code = fs.readFileSync(path.join(RACINE, 'A-COLLER-DANS-APPS-SCRIPT', 'Code.gs'), 'utf8');
-  ["const VERSION_API = 'v11.4'", "const VENDREDI_HEURE      = '14:00';", "const VENDREDI_FIN_ESSAIS = '18:00';", 'const VENDREDI_RAPPEL_JOURS = 7;', 'function venPasser_(', 'function venMail_(',
+  ["const VERSION_API = '" + VERSION_SERVEUR + "'", "const VENDREDI_HEURE      = '14:00';", "const VENDREDI_FIN_ESSAIS = '18:00';", 'const VENDREDI_RAPPEL_JOURS = 7;', 'function venPasser_(', 'function venMail_(',
     'function demarrerPointDuVendredi(', 'function arreterPointDuVendredi(', 'function essaiPointDuVendredi(', 'function verifierVendredi_(', 'try { venPasser_(); }', '████ PointVendredi.gs ████']
     .forEach(t => assert.ok(code.indexOf(t) > -1, t));
   assert.ok(code.indexOf('████ Demandes.gs ████') < code.indexOf('████ PointVendredi.gs ████') && code.indexOf('████ PointVendredi.gs ████') < code.indexOf('████ Admin.gs ████'));
@@ -478,7 +479,7 @@ test('livraison : le serveur à coller contient le lot 10b, en version v11.4, Po
   assert.ok(!/getScriptTimeZone|getSpreadsheetTimeZone/.test(morceau), 'jamais le fuseau du projet');
   assert.ok(!/\.(setValue|setValues|appendRow|deleteRow|clearContent|insertSheet)\(/.test(morceau), 'le point du vendredi n’écrit dans aucun onglet');
   const g = environnement({ codeUnique: path.join(RACINE, 'A-COLLER-DANS-APPS-SCRIPT', 'Code.gs') });
-  assert.strictEqual(g.ctx.doGet({ parameter: {} }).contenu, 'Loué App API v11.4 OK');
+  assert.strictEqual(g.ctx.doGet({ parameter: {} }).contenu, 'Loué App API ' + VERSION_SERVEUR + ' OK');
   signalement(g, { recu: P(MARDI + ' 10:00') });
   reveil(g, P(VENDREDI + ' 14:05'));
   assert.strictEqual(points(g)[0].sujet, 'Point du vendredi 20/11 — 1 signalement, rien d’autre à signaler');

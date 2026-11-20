@@ -3,14 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>Loué App — Notes de chantier</title>
+<title>Loué App — Notes</title>
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Loué App">
 <meta name="theme-color" content="#1A2B4A">
-<link rel="stylesheet" href="commun/style.css?v=8db70c0b89">
-<link rel="stylesheet" href="commun/fiche.css?v=8db70c0b89">
+<link rel="stylesheet" href="commun/style.css?v=ac4b0b0f87">
+<link rel="stylesheet" href="commun/fiche.css?v=ac4b0b0f87">
 <style>
 [hidden]{display:none!important;}   /* un élément caché le reste, même s'il a une mise en forme « flex » */
 body.avec-saisie{padding-bottom:150px;}
@@ -88,14 +88,14 @@ body.en-modification .saisie{display:none;}   /* pendant une modification, la ba
   <div class="saisie-info" id="saisie-info"></div>
 </div>
 
-<script src="commun/config.js?v=8db70c0b89"></script>
-<script src="commun/api.js?v=8db70c0b89"></script>
-<script src="commun/ui.js?v=8db70c0b89"></script>
-<script src="commun/notes.js?v=8db70c0b89"></script>
-<script src="commun/hors-ligne.js?v=8db70c0b89"></script>
+<script src="commun/config.js?v=ac4b0b0f87"></script>
+<script src="commun/api.js?v=ac4b0b0f87"></script>
+<script src="commun/ui.js?v=ac4b0b0f87"></script>
+<script src="commun/notes.js?v=ac4b0b0f87"></script>
+<script src="commun/hors-ligne.js?v=ac4b0b0f87"></script>
 <script>
 'use strict';
-// Notes de chantier (lot 3) : la liste des choses à faire d'un chantier, façon « Keep ». Une ligne de texte, une case à
+// Notes (lot 3) : la liste des choses à faire d'un chantier, façon « Keep ». Une ligne de texte, une case à
 // cocher. Pas de suppression : un élément coché passe dans « Éléments terminés », d'où on peut le décocher.
 // Tout ce qui vient du serveur a été écrit par quelqu'un d'autre : il n'est JAMAIS inséré comme du code de page
 // (la liste est construite élément par élément, le texte posé par textContent).

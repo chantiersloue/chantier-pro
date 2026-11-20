@@ -261,6 +261,7 @@ function traiterFiche_(brut, contexte) {
 function routerV5_(corps) {
   try {
     UTILISATEURS_ = null;   // l'onglet Utilisateurs est relu à chaque requête (un changement agit tout de suite)
+    REGLAGE_TOUS_LU_ = null; PLANIFIES_LUS_ = null;   // lot 12 : le réglage « tous les chantiers » et l'onglet Planifiés aussi
     if (corps.action === 'ping') {
       let fin = null;
       try { fin = finTransition_(); } catch (e) {}
@@ -274,8 +275,11 @@ function routerV5_(corps) {
     if (corps.action === 'outilTest' && typeof outilTest_ === 'function') return outilTest_(corps);
     if (corps.action === 'connexion')  return connexion_(corps);
     if (corps.action === 'motDePasse') return motDePasse_(corps);
+    // Lot 14 : la réponse de la direction à une demande d'absence. Sans compte : c'est le lien signé du mail qui fait foi.
+    if (corps.action === 'absenceVoir')    return absVoir_(corps);
+    if (corps.action === 'absenceDecider') return absDecider_(corps);
     if (['photo', 'fiche', 'moi', 'listes', 'dossiers', 'signalements', 'signalementStatut',
-      'notes', 'notesNouvelles', 'notesVues', 'carnet', 'carnetTuiles', 'planningFichier', 'demandes'].indexOf(corps.action) < 0) return { ok: false, code: 'ACTION_INCONNUE', message: 'Action inconnue' };
+      'notes', 'notesNouvelles', 'notesVues', 'carnet', 'carnetTuiles', 'planningFichier', 'demandes', 'recapNotes', 'absencesMiennes'].indexOf(corps.action) < 0) return { ok: false, code: 'ACTION_INCONNUE', message: 'Action inconnue' };
     let qui = identifier_(corps);
     const envoi = corps.action === 'photo' || corps.action === 'fiche';
     // Lot 3 : une note de chantier (ou un geste sur une note) demande TOUJOURS un compte en règle : ni « compte désactivé »,
@@ -313,6 +317,10 @@ function routerV5_(corps) {
     if (corps.action === 'notesVues')      return marquerNotesVues_(qui.compte, corps);
     // Lot 4 : carnet de chantier (droits vérifiés dans Carnet.gs)
     if (corps.action === 'carnet')       return carnetLister_(qui.compte, corps);
+    // Lot 8d : le récapitulatif des notes de réunion d'un chantier (droits vérifiés dans Recapitulatif.gs)
+    if (corps.action === 'recapNotes')   return recapLire_(qui.compte, corps);
+    // Lot 14 : l'état des demandes d'absence du compte (aucun motif)
+    if (corps.action === 'absencesMiennes') return absMiennes_(qui.compte);
     if (corps.action === 'carnetTuiles') return carnetTuiles_(qui.compte, corps);
     // Lot 10 : « Mes demandes » (seulement celles du compte ; Demandes.gs) ; lot 10a-2 : avec la liste « Articles »
     if (corps.action === 'demandes')     return listerDemandes_(qui.compte, corps);

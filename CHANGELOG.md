@@ -69,6 +69,89 @@ Chaque lot : **quoi**, **pourquoi**, **comment déployer**. Procédures détaill
 **Comment déployer** : `docs/lot10-procedure.md` (après le lot 8 ; le serveur d'abord, puis `installerLot10Production`, `verifierConfig`, nouveau déploiement, fusion).
 
 **Relecture indépendante (17/11/2026, un tour) : rien de bloquant.** Corrigé : deux demandes envoyées à la même seconde par deux téléphones ne peuvent plus s'écrire l'une sur l'autre ; une panne du Sheet juste après l'envoi du récapitulatif ne fait plus repartir le mail ; boutons du panneau de la file à 48 px.
+## Lot 14 — La demande d'absence reliée au planning — serveur **v11.4**, appli **10.5** — **construit, testé contre le faux serveur et dans Chrome ; livré ÉTEINT ; rien n'a tourné chez Google**
+
+**Quoi**
+- **Nouvelle ligne « Adresses de la direction » dans l'onglet *Réglages* du Sheet** (1 à 3 adresses, écrites par Franck ; posée par `installerLot14Production`, case vide). **Case vide : les demandes d'absence partent exactement comme avant**, jamais bloquées, et Franck reçoit une alerte (une par jour au plus).
+- **Allumé** : le mail part **à la direction seule**, avec le PDF et deux boutons « ✅ Accepter » / « ❌ Refuser » (faits en tableau, pour Outlook ; liens aussi écrits en clair). Le lien, **signé par le serveur**, à **usage unique**, valable **7 jours**, ouvre la nouvelle page `absence-reponse.html` : elle rappelle la demande (sans le motif) ; **« Confirmer » décide** (deux clics en tout, sans compte).
+- **Acceptée** : mail d'information au conducteur de travaux (qui, quand, durée, appellation du planning ; jamais le motif) ; **refusée** : rien. Le poseur lit l'état dans **« Mes demandes »**, en haut de la page d'absence (En attente, Acceptée, Refusée, Sans réponse), y compris hors réseau.
+- **Données personnelles** : le motif et les précisions ne sont plus écrits que dans le mail de la direction et son PDF (le mail envoyé est **mis à la corbeille de Gmail** juste après l'envoi : il ne reste pas lisible dans « Messages envoyés »). Onglet *Absences* : « (réservé à la direction) » ; nouvel onglet *Absences suivi* sans motif ; le PDF n'est plus rangé dans Drive ; rien dans « Mails en attente » (si le mail ne part pas, la demande reste dans le téléphone).
+- **Planning** (`planning/Publication.gs`, `planning/Regles.gs`) : chaque nuit, et avant chaque publication, les absences acceptées sont lues dans l'appli (lecture seule) et inscrites dans les cases du gars, retrouvé par son compte de l'appli : « Congés », « École », « Formation », sinon « Absent ». Journal dans l'onglet *ABSENCES* du planning.
+- `commun/config.js` : « ?env1=test » / « ?env1=prod » choisit le serveur pour une page seulement, sans rien retenir.
+- Fichiers : `apps-script/Absences.gs` (nouveau), `Documents.gs`, `Api.gs`, `Comptes.gs`, `Admin.gs`, `Config.gs` ; `absence.html`, `absence-reponse.html` (nouvelle) ; `planning/` ; tests : `tests/lot14-absences.test.js` (45), `tests/lot14-planning.test.js` (21), `tests/lot14-page.test.js` (13, vrai Chrome).
+- **Relecture indépendante du 20/11/2026** (un tour, lots 11.1 et 14 ensemble) : rien de bloquant ; cinq points importants corrigés (date d'une demande d'un seul jour écrite en texte ; mail à la direction jamais envoyé deux fois et demande cachée au poseur tant qu'il n'est pas parti ; absence toujours inscrite sur la ligne du bon gars ; « 901 R+1 » plus jamais coupé) et une douzaine de mineurs. Le point laissé à Franck (la boîte « Messages envoyés » garde le mail de la direction) est réglé le 20/11 : le mail part à la corbeille (D14-26).
+
+**Pourquoi** : demande de Franck du 19/11/2026 — la direction répond d'un clic, le planning se met à jour tout seul, et le motif ne circule plus.
+
+**Pas vérifié** : l'aspect du mail dans Outlook ; les indésirables ; une vraie messagerie qui ouvre les liens toute seule ; tout ce qui dépend de Google.
+
+**Comment déployer** : `docs/lot14-procedure.md`. Coller le serveur ne change rien tant que la case « Adresses de la direction » est vide. **Retour arrière** : effacer cette case (30 secondes).
+
+**Réponses de Franck du 20/11/2026, intégrées** : adresses de la direction dans le Sheet (pas dans le programme) ; case vide = comme avant + alerte ; mail de la direction à la corbeille de Gmail ; appellations RTT et Récupération ; sur la copie TEST, l'installation met l'adresse de Franck et les liens mènent à la copie d'essai, sans rien saisir dans l'éditeur.
+
+## Lot 11.1 — Le Sheet « Planning Loué » (deux programmes, hors de l'appli) — **construit, testé contre un faux Google seulement ; rien n'est installé chez Google**
+
+**Quoi**
+- **Nouveau dossier `planning/`** : les règles (`Regles.gs`, aucun appel à Google), l'écriture de l'affiche (`Affiche.gs`), le programme attaché au Sheet (`Planning.gs`) et le programme de publication (`Publication.gs`). `outils/construire-planning.js` fabrique les deux fichiers à coller de `A-COLLER-PLANNING/`.
+- **Le planning** : un onglet par semaine (« 2026-S48 »), **une case par jour** (jamais de cases collées) ; saisie complétée (`901` → « 901 LES TILLEULS », `901 + 903` → deux demi-journées) ; saisie libre toujours acceptée ; couleurs par véhicule, véhicule du jour ; mots de santé en rouge ; menu *Créer la semaine suivante*, *Ajouter / Retirer un gars*, *Vérifier la semaine*, *Préparer l'affiche A3* (une seule A3 en paysage, pose et atelier, texte le plus gros possible).
+- **La publication** (programme à part, compte de Loué) : case « Publier » → dans les 10 minutes, le PDF de la semaine dans le dossier *Planning* de l'appli ; avertissement si la semaine est modifiée ensuite ; chaque nuit : liste des chantiers recopiée de l'appli (lecture seule), PDF des semaines finies retirés, semaines de plus de deux mois rangées dans *HISTORIQUE* (effacé à 12 mois). Onglet *APPLI* tenu pour l'appli (favoris du lot 12).
+- **Rien ne change dans l'appli** : ni serveur, ni pages, ni numéro de version.
+- Tests : `tests/lot11-regles.test.js` (35), `tests/lot11-planning.test.js` (23), `tests/lot11-publication.test.js` (25, dont un essai de bout en bout avec le vrai serveur de l'appli), `tests/lot11-livraison.test.js` (4) ; `tests/faux-google-planning.js`.
+
+**Pourquoi** : remplacer l'onglet de planning du fichier Excel par un Google Sheets tenu à deux, d'où sortent l'affiche de l'atelier et le PDF des gars (demande de Franck ; plan `docs/lot11-1-plan.md`).
+
+**Pas vérifié** : tout ce qui dépend du vrai Google (export en PDF, tailles réelles sur une A3, temps des passages, téléphone, listes de choix). Les essais du chapitre 10 du plan restent à faire avant toute installation.
+
+**Comment déployer** : `docs/lot11-procedure.md` (rien à faire tant que les essais de l'étape 0 ne sont pas faits). Mode d'emploi : `docs/guide-planning.md`.
+
+## Lot 13 — La tuile « Notes » (mes notes) et « Garder pour plus tard » — serveur **v11.3**, appli **10.4** — **construit, testé contre le faux serveur et dans Chrome ; rien n'a tourné chez Google**
+
+**Quoi**
+- **« Notes de chantier » s'appelle « Notes »** partout.
+- **Tuile « Notes » de l'accueil, pour tout compte** : elle ouvre « Mes notes » (`mes-notes.html`), les notes que la personne a écrites elle-même dans les listes des chantiers, la plus récente en haut, avec le chantier et la date. Une grande case à cocher par note ; les notes cochées descendent dans « Faites ». Hors réseau : dernière liste gardée, cases cochées mises en file d'attente. Conducteurs : un bouton vers la vue « tous chantiers » d'avant, inchangée.
+- **Serveur** : la lecture des notes accepte « les miennes ». L'auteur est l'identifiant du compte noté par le serveur à la création ; seules les notes des chantiers que le compte peut encore lire, non « Terminé », sont rendues.
+- **Brouillon — « Garder pour plus tard »** : troisième bouton du bandeau de restauration ; en haut de chaque fiche, une ligne « 📝 Garder pour plus tard » (dès que la fiche contient quelque chose) ou « 📝 Brouillons gardés (n) », qui ouvre la liste (Reprendre, Effacer, Garder la fiche en cours). Un brouillon gardé exprès n'est plus reproposé à chaque ouverture ; il n'est jamais poussé dehors par les brouillons mis de côté tout seuls ; 5 au plus par sorte de fiche (au-delà : refus écrit en tête de la liste, rien n'est effacé), 30 jours à partir du jour où il est gardé. Relu par un agent indépendant : deux cas de perte de saisie corrigés (brouillon de plus de 30 jours gardé puis détruit ; frappe faite juste avant « Garder »). Reprendre ou garder commence toujours par ranger, et vérifier qu'il est rangé, ce qui est à l'écran.
+- Fichiers : `apps-script/Notes.gs` ; `mes-notes.html` (nouvelle), `commun/notes.js`, `index.html`, `notes.html`, `sw.js` ; `commun/brouillon.js`, `commun/style.css` ; tests : `tests/lot13-notes.test.js` (9), `tests/lot13-page.test.js` (26).
+
+**Pourquoi** : remarques de Franck du 19/11/2026 après ses essais sur téléphone.
+
+**Pas vérifié** : rien n'a tourné chez Google ; « Garder pour plus tard » essayé sur la note de réunion seulement (la brique est commune aux neuf fiches) ; aucun vrai téléphone.
+
+**Comment déployer** : `docs/lot13-procedure.md` (serveur puis pages ; le brouillon ne dépend pas du serveur).
+
+## Lot 12 — Tous les chantiers ouverts à tous les comptes (réglage), nouvel accueil, favoris du planning — serveur **v11.2**, appli **10.3** — **construit, testé contre le faux serveur et dans Chrome, relu par un agent indépendant et corrigé ; rien n'a tourné chez Google**
+
+**Quoi**
+- **Le réglage** : onglet *Réglages*, ligne « Tous les comptes ouvrent tous les chantiers », une case à cocher, **livrée décochée**. Cochée : tout compte actif voit et ouvre tous les chantiers (carnet, documents, notes, récapitulatif, fiches), les « Terminé » compris. Lue à chaque demande : elle agit tout de suite, dans les deux sens. Tout ce qui n'est pas « une seule ligne, case cochée » vaut éteint. Elle n'est lue que dans les deux fonctions d'accès (`chantiersVisibles_`, `peutLireChantier_`) ; un test vérifie qu'il n'existe aucun autre chemin. Les cases d'*Accès chantiers* sont gardées.
+- **L'accueil** : « Mes chantiers » = les chantiers étoilés par la personne, classés par numéro ; « Tous les chantiers (n) » en dessous, replié, avec la recherche, les terminés en bas, grisés. Étoile à gauche (56 px), « Annuler » pendant 6 secondes. Les étoiles sont dans le téléphone, par compte (`commun/favoris.js`) : elles marchent sans réseau. Le premier jour, les chantiers d'avant ont déjà leur étoile. Le classement « derniers ouverts » et le bouton « Voir tous les chantiers » sont retirés.
+- **Les chantiers du planning en favoris** (plan du lot 11.1, chapitre 13), côté appli : le serveur lit l'onglet « APPLI » du futur Sheet « Planning Loué » (jamais d'écriture), tient l'onglet *Planifiés* (séries, coupures), applique le plafond de 4 chantiers nouveaux par gars et par semaine avec un mail à Franck, et envoie « planifie » au téléphone. **Éteint tant que la propriété `PLANNING_SHEET_ID` n'existe pas.**
+- Fichiers : `apps-script/Reglages.gs`, `apps-script/Planifies.gs` (nouveaux), `Comptes.gs`, `Api.gs`, `Config.gs` ; `index.html`, `commun/favoris.js` (nouveau) ; porte de TEST (`installerLot12`, `reglerTousChantiers`) ; tests : `tests/lot12-acces.test.js` (35), `tests/lot12-favoris.test.js` (12), `tests/lot12-page.test.js` (18), `tests/reel-lot12.js` (essai réel, à lancer sur la copie TEST) ; le faux Google des tests sait ouvrir un second classeur.
+
+**Pourquoi** : décision de Franck du 19/11/2026 : ne plus limiter les accès par chantier, garder un retour arrière, et donner à chacun une courte liste de ses chantiers.
+
+**Après relecture indépendante (un tour, rien de bloquant)** : une panne de lecture du réglage donne « erreur du serveur » et non un refus (les téléphones n'effacent plus leurs plans gardés) ; un seul mail d'alerte du plafond par lecture du planning ; l'état de la lecture est relu sous le verrou et enregistré avant les écritures ; un numéro partagé avec un chantier terminé désigne le chantier en cours ; les semaines anciennes ne donnent plus de favori à la mise en service ; une étoile suit son chantier quand il reçoit un numéro ; la liste dépliée d'office ne se referme plus à la première étoile ; la carte touchée reste sous le doigt ; une réponse arrivée après un changement de compte est ignorée.
+
+**Pas vérifié** : rien n'a tourné chez Google ; les étoiles avec des gants sur un vrai téléphone ; la lecture d'un vrai planning (il n'existe pas encore) et son coût sur les 90 minutes par jour.
+
+**Comment déployer** : `docs/lot12-procedure.md` (serveur, `installerLot12Production`, pages ; la case se coche le jour voulu).
+
+## Lot 8d — Le récapitulatif des notes de réunion par chantier — serveur **v11.1**, appli **10.2**, programme du PC — **construit, testé contre le faux serveur et dans Chrome, relu par un agent indépendant et corrigé ; rien n'a tourné chez Google**
+
+**Quoi**
+- **Le texte de chaque note de réunion est gardé** dans l'onglet *Comptes rendus*, colonne K « Texte de la note » (posée par `installerLot8dTest` / `installerLot8dProduction`). Tant que la colonne n'existe pas, le serveur se comporte comme celui du lot 8.
+- **Un fichier « RÉCAPITULATIF DES NOTES - <chantier>.pdf »** par chantier, dans `05 - CHANTIER/COMPTE RENDU` : la date, l'objet, le rédacteur et le texte de chaque note, la plus récente en haut, sans les photos. Refait dans les 10 minutes par le passage qui existe déjà (jamais pendant l'envoi d'une note) ; l'ancien part à la corbeille de Drive ; un échec est retenté, et te prévient par mail au bout d'une heure.
+- **Dans l'appli** : une ligne « Récapitulatif des notes » sur l'écran du chantier, et une page légère `recap-notes.html` (lecture seule, gardée dans le téléphone pour le hors réseau, effacée à la déconnexion et quand l'accès au chantier est retiré). Réservée aux comptes qui ont accès au chantier.
+- **Programme du PC** : il remplace ce fichier-là dans le dossier du chantier, et lui seul, si la copie du PC est bien celle qu'il avait faite.
+- Fichiers : `apps-script/Recapitulatif.gs` (nouveau), `ComptesRendus.gs`, `Api.gs`, `Comptes.gs`, `Securite.gs`, `Config.gs` ; `recap-notes.html` (nouveau), `index.html`, `commun/notes.js`, `sw.js` ; `outils/appli_pc.py` ; porte de service de TEST (`installerLot8d`, `lireRecap`) ; tests : `tests/lot8d-recap.test.js` (31), `tests/lot8d-page.test.js` (11), 7 tests de plus pour le programme du PC (86), `tests/reel-lot8d.js` (essai réel, à lancer sur la copie TEST).
+- Les tests ne citent plus le numéro de version du serveur : ils le lisent dans `apps-script/Config.gs`.
+
+**Pourquoi** : demande de Franck du 19/11/2026, après le retrait des points : retrouver d'un coup d'œil tout ce qui s'est dit sur un chantier.
+
+**Après relecture indépendante (un tour)** : deux chantiers de même numéro ne partagent plus leurs notes (un compte qui n'a droit qu'à l'un ne lit plus l'autre) ; un chantier renommé entre la note et le passage garde son fichier ; un seul passage à la fois ; la liste de provenance du PC note ce qui est réellement copié ; une entrée sans date ne permet plus de remplacer ; porte de TEST : `viderColonnesPoints`.
+
+**Pas vérifié** : rien n'a tourné chez Google (fabrication et remplacement du PDF, texte gardé par le vrai Sheet) ; la présentation du PDF ; la page sur un vrai téléphone ; le remplacement sur le PC pendant une synchronisation de MEGA.
+
+**Comment déployer** : `docs/lot8d-procedure.md` (serveur, puis `installerLot8dProduction`, puis pages, puis programme du PC).
 
 ## Lot 4c — retouche du 17/11/2026 : dossiers du Drive à ignorer (programme du PC seulement)
 

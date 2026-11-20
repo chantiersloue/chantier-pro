@@ -128,11 +128,16 @@ function crEnregistrer_(idFiche, brut, qui) {
     ligne[COL_CR.compte - 1] = String(qui || 'sans compte');
     ligne[COL_CR.recu - 1] = new Date();
     ligne[COL_CR.remarque - 1] = remarque;
+    // Lot 8d : le texte de la note va en colonne K, SI cette colonne est installée (sinon rien ne change : lot 8)
+    const avecTexte = recapAvecTexte_(sh);
+    if (avecTexte) ligne.push(recapTexte_(brut));
     // La ligne entière en une écriture (colonnes de texte en « texte brut » avant d'écrire)
-    noteAjouterLigne_(sh, ligne, CR_COLONNES_TEXTE);
+    noteAjouterLigne_(sh, ligne, avecTexte ? CR_COLONNES_TEXTE.concat([COL_CR_TEXTE]) : CR_COLONNES_TEXTE);
     // Écriture poussée dans le Sheet AVANT de rendre le verrou : la note suivante du même chantier doit lire cette ligne
     // (sans cela, Google peut la garder en attente jusqu'à la fin de la fabrication du PDF)
     SpreadsheetApp.flush();
+    // Lot 8d : le récapitulatif du chantier sera refait au prochain passage de 10 minutes (jamais pendant l'envoi)
+    if (avecTexte) recapDemander_(chantier);
     return { horsListe: !chantier.nom, sansOnglet: false, dejaLa: false };
   } finally { verrou.releaseLock(); }
 }

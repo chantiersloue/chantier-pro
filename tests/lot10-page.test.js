@@ -7,6 +7,7 @@
 //  B. hors réseau puis retour ; « Mes demandes » hors réseau ; second compte sur le même téléphone ; sans compte.
 // Si l'un des deux ports est déjà pris (une autre série en cours), le test ATTEND qu'il se libère : il n'arrête rien.
 'use strict';
+const VERSION_SERVEUR = (/VERSION_API = '([^']+)'/.exec(require('fs').readFileSync(require('path').join(__dirname, '..', 'apps-script', 'Config.gs'), 'utf8')) || [])[1];
 const fs = require('fs');
 const os = require('os');
 const net = require('net');
@@ -325,8 +326,8 @@ const AUJOURDHUI = '✓ Elle part dans le récapitulatif d’aujourd’hui (vers
     verifier('brouillon : page fermée en cours de saisie, le choix et les deux champs sont restaurés ; envoyé, il n’est plus proposé', a.bandeauBrouillon && a.brouillon.sorte === 'panne'
       && a.brouillon.quoi === 'Scie circulaire' && a.brouillon.quantite === 'lame voilée' && a.brouillon.label === 'Précision (facultative)' && /✓/.test(a.brouillonEnvoye) && a.plusDeBrouillon, j([a.bandeauBrouillon, a.brouillon]));
     verifier('largeur PC (1280 px) : pas de défilement horizontal, mêmes zones de 48 px, la liste est là', a.pc.largeurEcran === 1280 && a.pc.largeur && a.pc.petits.length === 0 && a.pc.listes === 0 && a.pcLignes >= 6, j(a.pc));
-    verifier('au bureau : le nom du poseur est celui du COMPTE ; serveur v11.4 ; chaque demande « traité » dans Envois ; aucune erreur dans la page',
-      a.lignesServeur.length === 7 && a.lignesServeur.every(l => /^Thomas TEST \| /.test(l) && / \| poseur1$/.test(l)) && /v11\.4/.test(a.version)
+    verifier('au bureau : le nom du poseur est celui du COMPTE ; serveur ' + VERSION_SERVEUR + ' ; chaque demande « traité » dans Envois ; aucune erreur dans la page',
+      a.lignesServeur.length === 7 && a.lignesServeur.every(l => /^Thomas TEST \| /.test(l) && / \| poseur1$/.test(l)) && String(a.version).indexOf(VERSION_SERVEUR) > -1
       && a.envois.length === 7 && a.envois.every(s => s === 'traité') && a.erreursJs.length === 0, j([a.lignesServeur, a.version, a.envois, a.erreursJs]));
 
     console.log('Lot 10a-1 — hors réseau, second compte sur le même téléphone, sans compte');

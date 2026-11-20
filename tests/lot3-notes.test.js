@@ -1,5 +1,7 @@
 // Tests du lot 3, côté serveur (notes de chantier : la liste des choses à faire, façon Keep) : node tests/lot3-notes.test.js
 'use strict';
+// Le numéro de version du serveur est lu dans apps-script/Config.gs : un nouveau lot ne fait plus changer ce fichier de tests
+const VERSION_SERVEUR = (/VERSION_API = '([^']+)'/.exec(require('fs').readFileSync(require('path').join(__dirname, '..', 'apps-script', 'Config.gs'), 'utf8')) || [])[1];
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
@@ -433,10 +435,10 @@ test('ce qui a été retiré n’existe plus : actions photo, historique et PDF 
   const conf = g.ctx.dossiers_();
   assert.ok(!('notes-photos' in conf.documents) && !('notes-chantier' in conf.documents) && !('notes-chantier' in conf.intitules));
 });
-test('livraison : le serveur à coller contient le lot 3 simplifié, en version v11.4, sans les outils d’essai ni le code retiré', () => {
+test('livraison : le serveur à coller contient le lot 3 simplifié, dans la version de Config.gs, sans les outils d’essai ni le code retiré', () => {
   const code = fs.readFileSync(path.join(__dirname, '..', 'A-COLLER-DANS-APPS-SCRIPT', 'Code.gs'), 'utf8');
   ['function traiterNoteChantier(', 'function traiterNoteAction(', 'function installerLot3Test(', 'function installerLot3Production(',
-    "const VERSION_API = 'v11.4'", 'function traiterSignalement('].forEach(t => assert.ok(code.indexOf(t) > -1, t));
+    "const VERSION_API = '" + VERSION_SERVEUR + "'", 'function traiterSignalement('].forEach(t => assert.ok(code.indexOf(t) > -1, t));
   ['function modele_notes_chantier(', 'function photoNote_(', 'function exporterNotes_(', 'function historiqueNote_(', 'notes-photos', 'function outilTestRangerNotes_('].forEach(t =>
     assert.ok(code.indexOf(t) < 0, 'ne doit plus y être : ' + t));
   assert.ok(!/function\s+outilTest_\s*\(/.test(code));

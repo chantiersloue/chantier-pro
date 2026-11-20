@@ -4,14 +4,14 @@
 // ne pas les modifier à la main. En cas de gros problème : remplacer ce fichier par outils/sw-secours.js.
 // Les échanges avec Apps Script ne passent JAMAIS par ce cache (fiches, listes : gérés par commun/api.js).
 // ═══════════════════════════════════════════════════════════════
-const VERSION = 'loue-8db70c0b89';
+const VERSION = 'loue-ac4b0b0f87';
 const A_GARDER = [
   './', 'index.html', 'quitus.html', 'bordereau.html',
   'cotes.html', 'fiche-fabrication.html', 'note-reunion.html', 'bordereau-orga.html', 'bordereau-materiaux.html',
-  'attestation.html', 'reception-support.html', 'absence.html', 'signaler.html', 'signalements.html', 'notes.html', 'carnet.html', 'commander.html',
+  'attestation.html', 'reception-support.html', 'absence.html', 'signaler.html', 'signalements.html', 'notes.html', 'carnet.html', 'recap-notes.html', 'mes-notes.html', 'commander.html',
   'manifest.json', 'logo.png', 'apple-touch-icon.png', 'icone-192.png', 'icone-512.png', 'icone-512-maskable.png',
   // Fichiers communs et modèles, avec leur numéro de version (liste fabriquée par outils/construire.js)
-  /*COMMUNS*/ 'commun/adresses.js?v=8db70c0b89', 'commun/api.js?v=8db70c0b89', 'commun/brouillon.js?v=8db70c0b89', 'commun/carnet.js?v=8db70c0b89', 'commun/commander.js?v=8db70c0b89', 'commun/config.js?v=8db70c0b89', 'commun/destinataires.js?v=8db70c0b89', 'commun/hors-ligne.js?v=8db70c0b89', 'commun/notes.js?v=8db70c0b89', 'commun/photos.js?v=8db70c0b89', 'commun/signature.js?v=8db70c0b89', 'commun/ui.js?v=8db70c0b89', 'commun/fiche.css?v=8db70c0b89', 'commun/style.css?v=8db70c0b89', 'modeles/absence.js?v=8db70c0b89', 'modeles/attestation.js?v=8db70c0b89', 'modeles/bordereau.js?v=8db70c0b89', 'modeles/cotes.js?v=8db70c0b89', 'modeles/fabrication.js?v=8db70c0b89', 'modeles/mise-en-page.js?v=8db70c0b89', 'modeles/note.js?v=8db70c0b89', 'modeles/quitus.js?v=8db70c0b89', 'modeles/reception.js?v=8db70c0b89', 'modeles/signalement.js?v=8db70c0b89',
+  /*COMMUNS*/ 'commun/adresses.js?v=ac4b0b0f87', 'commun/api.js?v=ac4b0b0f87', 'commun/brouillon.js?v=ac4b0b0f87', 'commun/carnet.js?v=ac4b0b0f87', 'commun/commander.js?v=ac4b0b0f87', 'commun/config.js?v=ac4b0b0f87', 'commun/destinataires.js?v=ac4b0b0f87', 'commun/favoris.js?v=ac4b0b0f87', 'commun/hors-ligne.js?v=ac4b0b0f87', 'commun/notes.js?v=ac4b0b0f87', 'commun/photos.js?v=ac4b0b0f87', 'commun/signature.js?v=ac4b0b0f87', 'commun/ui.js?v=ac4b0b0f87', 'commun/fiche.css?v=ac4b0b0f87', 'commun/style.css?v=ac4b0b0f87', 'modeles/absence.js?v=ac4b0b0f87', 'modeles/attestation.js?v=ac4b0b0f87', 'modeles/bordereau.js?v=ac4b0b0f87', 'modeles/cotes.js?v=ac4b0b0f87', 'modeles/fabrication.js?v=ac4b0b0f87', 'modeles/mise-en-page.js?v=ac4b0b0f87', 'modeles/note.js?v=ac4b0b0f87', 'modeles/quitus.js?v=ac4b0b0f87', 'modeles/reception.js?v=ac4b0b0f87', 'modeles/signalement.js?v=ac4b0b0f87',
 ];
 
 // Nom du cache : version + portée. Deux sites installés sur le même téléphone ont chacun le leur,
@@ -67,6 +67,8 @@ self.addEventListener('fetch', ev => {
   const req = ev.request;
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
+  // Lot 14 : la page de réponse de la direction n'est jamais servie ni gardée par ce cache (son adresse porte le lien signé)
+  if (/\/absence-reponse\.html$/.test(url.pathname)) return;
   if (url.origin !== self.location.origin) return;                // Apps Script, Google… : jamais en cache ici
   if (url.pathname.indexOf('/tests/') > -1 || url.pathname.indexOf('/_prive/') > -1) return;
   if (req.mode === 'navigate' || /\.html$/.test(url.pathname) || url.pathname.endsWith('/')) {

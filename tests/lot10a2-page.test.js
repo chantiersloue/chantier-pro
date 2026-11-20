@@ -10,6 +10,7 @@
 // Si l'un des deux ports est déjà pris (une autre série en cours), le test ATTEND qu'il se libère : il n'arrête rien.
 // Noms d'articles inventés (le dépôt est public).
 'use strict';
+const VERSION_SERVEUR = (/VERSION_API = '([^']+)'/.exec(require('fs').readFileSync(require('path').join(__dirname, '..', 'apps-script', 'Config.gs'), 'utf8')) || [])[1];
 const fs = require('fs');
 const os = require('os');
 const net = require('net');
@@ -433,8 +434,8 @@ const propre = m => m.largeur && m.debordent === 0 && m.petits.length === 0 && m
       a.absent.boutons === 5 && a.absent.gardes === 0 && a.absent.sheet.length === 0 && pareil(a.absent.historique, ['Cartouches silicone blanc | 12']), j(a.absent));
     verifier('onglet « Articles » très long (600 lignes) : 500 gardés dans le téléphone, 3 propositions au plus, la page reste propre',
       a.long.gardes === 500 && pareil(a.long.propositions, ['Article long 050', 'Article long 051', 'Article long 052']) && a.long.auDela.length === 0 && a.long.boutons === 5 && propre(a.long.mesures), j(a.long));
-    verifier('au bureau : 24 demandes, toutes au nom du compte ; serveur v11.4 ; aucune erreur dans la page, le scénario est allé au bout',
-      a.lignesServeur.length === 24 && a.lignesServeur.every(l => /^Thomas TEST \| À commander \| /.test(l)) && /v11\.4/.test(a.version) && a.erreursJs.length === 0 && !a.plante, j([a.lignesServeur.length, a.version, a.erreursJs, a.plante]));
+    verifier('au bureau : 24 demandes, toutes au nom du compte ; serveur ' + VERSION_SERVEUR + ' ; aucune erreur dans la page, le scénario est allé au bout',
+      a.lignesServeur.length === 24 && a.lignesServeur.every(l => /^Thomas TEST \| À commander \| /.test(l)) && String(a.version).indexOf(VERSION_SERVEUR) > -1 && a.erreursJs.length === 0 && !a.plante, j([a.lignesServeur.length, a.version, a.erreursJs, a.plante]));
 
     console.log('Lot 10a-2 — second compte sur le même téléphone, sans compte');
     const b = lancer('b', scenarioB());

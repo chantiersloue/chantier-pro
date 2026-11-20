@@ -146,8 +146,8 @@ setTimeout(() => {
     const sansRestes = e => e.tuilePlans === false && e.fenetre === false && e.restes === 0 && e.fonctions === 'undefined,undefined,undefined,undefined,undefined';
     const unPlanning = e => e.charge === true && e.docs.length === 1 && e.docs[0].nom === 'Planning S46.pdf' && e.docs[0].balise === 'BUTTON' && !e.docs[0].lien && !!e.docs[0].numero && e.docs[0].marque === 'PDF';
     verifier('avec un compte : plus de tuile « Plans », plus de fenêtre des documents, plus aucune de leurs fonctions', r.connexion === 'CONNECTE' && sansRestes(r.compte), j([r.connexion, r.compte]));
-    verifier('… les tuiles Carnet, Signalements et Notes sont là, dans cet ordre, puis les fiches ; pas de défilement horizontal',
-      j(r.compte.titres) === j(['Carnet', 'Signalements', 'Notes']) && r.compte.carnet && r.compte.signalements && r.compte.notes && r.compte.fiches >= 8
+    verifier('… les tuiles Carnet, Signalements, Notes et Récapitulatif des notes (lot 8d) sont là, dans cet ordre, puis les fiches ; pas de défilement horizontal',
+      j(r.compte.titres) === j(['Carnet', 'Signalements', 'Notes', 'Récapitulatif des notes']) && r.compte.carnet && r.compte.signalements && r.compte.notes && r.compte.fiches >= 8
       && r.compte.pageActive === true && r.compte.largeur === true && r.compte.marge === '18px', j(r.compte));
     verifier('planning avec un compte : le document s’affiche, SANS lien Drive (un numéro seulement), avec sa marque « PDF », assez haut pour un doigt',
       unPlanning(r.planningCompte) && r.planningCompte.docs[0].hauteur >= 44 && r.planningCompte.largeur === true, j(r.planningCompte));
@@ -157,7 +157,7 @@ setTimeout(() => {
     verifier('lot 5c : déconnexion sans recharger la page : la liste du planning et le document reçu sont effacés', !!r.apresDeco && r.apresDeco.vide === true && r.apresDeco.prets === 0, j(r.apresDeco));
     verifier('ancienne page (avec compte) qui demande encore les plans : liste vide, sans erreur ; chantier d’un autre : refus comme avant',
       r.anciennePageCompte === '{"plans":[]}' && /^ERREUR .*ne fait pas partie de vos chantiers/.test(r.autreChantier), j([r.anciennePageCompte, r.autreChantier]));
-    verifier('hors réseau : la page du chantier s’ouvre pareil (rien ne manque, rien ne casse)', sansRestes(r.horsReseau) && j(r.horsReseau.titres) === j(['Carnet', 'Signalements', 'Notes']), j(r.horsReseau));
+    verifier('hors réseau : la page du chantier s’ouvre pareil (rien ne manque, rien ne casse)', sansRestes(r.horsReseau) && j(r.horsReseau.titres) === j(['Carnet', 'Signalements', 'Notes', 'Récapitulatif des notes']), j(r.horsReseau));
     verifier('planning hors réseau : message clair, pas de chargement sans fin', r.planningHorsReseau.charge === true && r.planningHorsReseau.docs.length === 0
       && /Impossible de charger/.test(r.planningHorsReseau.texte) && /Vérifiez le réseau, puis rouvrez le planning/.test(r.planningHorsReseau.texte), j(r.planningHorsReseau));
     verifier('… au retour du réseau, rouvrir le planning suffit (sans recharger la page)', unPlanning(r.planningRetour), j(r.planningRetour));
