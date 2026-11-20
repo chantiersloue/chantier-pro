@@ -305,7 +305,7 @@ function traiterAbsence(data, brut, contexte) {
   let reglage = { installe: false, adresses: [] };
   try { reglage = absReglage_(); } catch (err) { console.error('Réglage de la direction illisible :', err.message); }
   if (reglage.adresses.length) return absTraiter_(brut, contexte || {}, reglage.adresses);
-  if (reglage.installe) absAlerterReglage_(reglage);
+  if (reglage.installe) { try { absAlerterReglage_(reglage); } catch (err) { console.error('Alerte du réglage de la direction :', err.message); } }
   // 1. Sheet « Absences » — mêmes colonnes qu'avant ; protégé contre les erreurs (données brutes, formules neutralisées)
   try {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
